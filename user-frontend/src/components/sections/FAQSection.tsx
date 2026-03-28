@@ -1,6 +1,6 @@
 export function FAQSection() {
   return (
-    <section id="faq" style={{backgroundColor: 'black', padding: '96px 24px'}}>
+    <section id="support" style={{backgroundColor: 'black', padding: '96px 24px'}}>
       <div className="container">
         <p className="reveal" style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.24em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '14px'}}>Got questions?</p>
         <h2 className="reveal d1" style={{fontFamily: 'var(--cond)', fontWeight: 900, fontSize: 'clamp(48px, 7vw, 72px)', letterSpacing: '.01em', lineHeight: .92, color: 'white', marginBottom: '48px'}}>FAQ</h2>
