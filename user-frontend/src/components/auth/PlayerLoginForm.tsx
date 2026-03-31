@@ -118,19 +118,29 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
           disabled={loading}
           style={{
             width: "100%",
-            background: loading ? "#666" : "var(--yellow)",
-            color: "black",
-            border: "none",
+            background: "transparent",
+            color: loading ? "#666" : "var(--yellow)",
+            border: `1px solid ${loading ? "#666" : "var(--yellow)"}`,
             padding: "12px",
             borderRadius: "6px",
             fontSize: "16px",
             fontWeight: "600",
             cursor: loading ? "not-allowed" : "pointer",
             marginBottom: "16px",
-            transition: "background 0.3s ease",
+            transition: "background 0.3s ease, color 0.3s ease",
           }}
-          onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#ffd700")}
-          onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "var(--yellow)")}
+          onMouseEnter={(e) => {
+            if (!loading) {
+              e.currentTarget.style.background = "var(--yellow)";
+              e.currentTarget.style.color = "black";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!loading) {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--yellow)";
+            }
+          }}
         >
           {loading ? "Logging in..." : "Login"}
         </button>
