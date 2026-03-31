@@ -45,7 +45,7 @@ export default function LoginPage() {
           {step === "signup-form" && (
             <PlayerSignUpStep1
               onBack={() => setStep("login")}
-              onContinue={(data) => {
+              onContinue={(data: { firstName: string; phone: string; email: string; address: string }) => {
                 setUserData((prev) => ({ ...prev, ...data }));
                 setStep("signup-otp");
               }}
@@ -78,7 +78,7 @@ export default function LoginPage() {
           {step === "forgot-step1" && (
             <ForgotPasswordStep1
               onBack={() => setStep("login")}
-              onContinue={(phone) => {
+              onContinue={(phone: string) => {
                 setUserData((prev) => ({ ...prev, phone }));
                 setStep("forgot-otp");
               }}
