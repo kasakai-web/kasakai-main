@@ -24,19 +24,23 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch("/api/auth/request-otp", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ phone: "+91" + phone, type: "forgot-password" }),
-      // });
+      const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
+      const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
+
+      const response = await fetch("http://localhost:5000/api/v1/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone, role: apiRole }),
+      });
       
-      // Mock OTP request - TODO: Replace
-      console.log("Forgot password OTP requested for", phone);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send reset OTP.");
+      }
+
       onContinue(phone);
-    } catch (err) {
-      setError("Failed to send OTP. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
     }

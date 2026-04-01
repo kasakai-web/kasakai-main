@@ -22,6 +22,7 @@ function AuthFlow() {
     email: "",
     firstName: "",
     address: "",
+    otp: "",
   });
 
   useEffect(() => {
@@ -50,30 +51,33 @@ function AuthFlow() {
           onBack={() => setStep("login")}
           onContinue={(data: { firstName: string; phone: string; email: string; address: string }) => {
             setUserData((prev) => ({ ...prev, ...data }));
+            setStep("signup-confirm");
+          }}
+        />
+      )}
+
+      {/* SIGNUP - STEP 2: Confirm Details & Create Account */}
+      {step === "signup-confirm" && (
+        <PlayerSignUpStep2
+          userData={userData}
+          onBack={() => setStep("signup-form")}
+          onSuccess={(password) => {
+            setUserData((prev) => ({ ...prev, password }));
             setStep("signup-otp");
           }}
         />
       )}
 
-      {/* SIGNUP - STEP 2: OTP Verification */}
+      {/* SIGNUP - STEP 3: OTP Verification */}
       {step === "signup-otp" && (
         <OTPVerificationPhone
           phone={userData.phone}
           mode="signup"
-          onVerified={() => setStep("signup-confirm")}
-          onBack={() => setStep("signup-form")}
-        />
-      )}
-
-      {/* SIGNUP - STEP 3: Confirm Details & Create Account */}
-      {step === "signup-confirm" && (
-        <PlayerSignUpStep2
-          userData={userData}
-          onBack={() => setStep("signup-form")}
-          onSuccess={() => {
+          onVerified={() => {
             setStep("login");
-            alert("Account created successfully! Please login.");
+            alert("Account verified and created successfully! Please login.");
           }}
+          onBack={() => setStep("signup-confirm")}
         />
       )}
 
@@ -93,7 +97,10 @@ function AuthFlow() {
         <OTPVerificationPhone
           phone={userData.phone}
           mode="forgot-password"
-          onVerified={() => setStep("forgot-newpass")}
+          onVerified={(otpVal: string) => {
+            setUserData((prev) => ({ ...prev, otp: otpVal }));
+            setStep("forgot-newpass");
+          }}
           onBack={() => setStep("forgot-step1")}
         />
       )}
@@ -102,6 +109,7 @@ function AuthFlow() {
       {step === "forgot-newpass" && (
         <SetNewPasswordForm
           phone={userData.phone}
+          otp={userData.otp}
           onSuccess={() => {
             setStep("login");
             alert("Password changed successfully! Please login with new password.");

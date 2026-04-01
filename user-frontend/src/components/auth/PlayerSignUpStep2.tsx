@@ -11,7 +11,7 @@ interface PlayerSignUpStep2Props {
     address: string;
   };
   onBack: () => void;
-  onSuccess: () => void;
+  onSuccess: (password: string) => void;
 }
 
 export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpStep2Props) {
@@ -44,28 +44,32 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch("/api/auth/create-account", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     firstName: userData.firstName,
-      //     phone: "+91" + userData.phone,
-      //     email: userData.email,
-      //     address: userData.address,
-      //     password: password,
-      //   }),
-      // });
-      // if (response.ok) {
-      //   onSuccess();
-      // }
+      const urlRole = window.location.search.includes('organiser') || window.location.search.includes('organizer') ? 'organiser' : 'player';
+      const storedRole = localStorage.getItem("userRole");
+      const role = storedRole || urlRole;
+      const apiRole = role === "organizer" || role === "organiser" ? "organiser" : "player";
 
-      // Mock account creation - TODO: Replace
-      console.log("Creating account:", { ...userData, phone: "+91" + userData.phone, password });
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      onSuccess();
-    } catch (err) {
-      setErrors({ submit: "Failed to create account. Please try again." });
+      const response = await fetch("http://localhost:5000/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: userData.firstName,
+          phone: userData.phone,
+          email: userData.email,
+          address: userData.address,
+          password: password,
+          role: apiRole,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create account");
+      }
+
+      onSuccess(password);
+    } catch (err: any) {
+      setErrors({ submit: err.message || "Failed to create account. Please try again." });
     } finally {
       setLoading(false);
     }

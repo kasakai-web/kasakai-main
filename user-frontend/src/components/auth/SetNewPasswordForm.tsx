@@ -5,11 +5,12 @@ import { validatePassword } from "@/utils/auth";
 
 interface SetNewPasswordFormProps {
   phone: string;
+  otp: string;
   onSuccess: () => void;
   onBack: () => void;
 }
 
-export function SetNewPasswordForm({ phone, onSuccess, onBack }: SetNewPasswordFormProps) {
+export function SetNewPasswordForm({ phone, otp, onSuccess, onBack }: SetNewPasswordFormProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -34,25 +35,28 @@ export function SetNewPasswordForm({ phone, onSuccess, onBack }: SetNewPasswordF
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch("/api/auth/reset-password", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     phone: "+91" + phone,
-      //     newPassword: newPassword,
-      //   }),
-      // });
-      // if (response.ok) {
-      //   onSuccess();
-      // }
+      const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
+      const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
 
-      // Mock password reset - TODO: Replace
-      console.log("Password reset for", phone, "New password set");
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const response = await fetch("http://localhost:5000/api/v1/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phone,
+          otp: otp,
+          newPassword: newPassword,
+          role: apiRole
+        }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to reset password.");
+      }
+
       onSuccess();
-    } catch (err) {
-      setErrors({ submit: "Failed to reset password. Please try again." });
+    } catch (err: any) {
+      setErrors({ submit: err.message || "Failed to reset password. Please try again." });
     } finally {
       setLoading(false);
     }

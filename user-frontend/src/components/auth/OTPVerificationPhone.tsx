@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 interface OTPVerificationPhoneProps {
   phone: string;
   mode: "signup" | "forgot-password";
-  onVerified: () => void;
+  onVerified: (otpString: string) => void;
   onBack: () => void;
 }
 
@@ -54,21 +54,23 @@ export function OTPVerificationPhone({ phone, mode, onVerified, onBack }: OTPVer
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch("/api/auth/verify-otp", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ phone: "+91" + phone, otp: otpString }),
-      // });
+      const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
+      const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
 
-      // Mock verification - TODO: Replace
-      console.log(`OTP verified: ${otpString} for ${phone}`);
-      
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      onVerified();
-    } catch (err) {
-      setError("OTP verification failed. Please try again.");
+      const response = await fetch('http://localhost:5000/api/v1/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone, otp: otpString, role: apiRole, mode: mode }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Invalid OTP');
+      }
+
+      onVerified(otpString);
+    } catch (err: any) {
+      setError(err.message || "OTP verification failed. Please try again.");
     } finally {
       setLoading(false);
     }

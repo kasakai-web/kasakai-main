@@ -1,17 +1,20 @@
-const app = require("./app");
-const env = require("./config/env");
-const logger = require("./config/logger");
-const { connectDb } = require("./config/db");
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const mongoose = require('mongoose');
+const app = require('./app');
 
-async function bootstrap() {
-  await connectDb();
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
 
-  app.listen(env.port, () => {
-    logger.info(`Backend server running on port ${env.port}`);
+mongoose
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB Successfully');
+    app.listen(PORT, () => {
+      console.log('Server is running on port ' + PORT);
+    });
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
   });
-}
-
-bootstrap().catch((error) => {
-  logger.error("Failed to start server", { error: error.message });
-  process.exit(1);
-});

@@ -45,29 +45,30 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
 
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch("/api/auth/login", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ phone, password }),
-      // });
-      // if (response.ok) {
-      //   const { token } = await response.json();
-      //   localStorage.setItem("authToken", token);
-      //   window.location.href = "/dashboard";
-      // }
+      const response = await fetch("http://localhost:5000/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          phone, 
+          password, 
+          // Frontend URL role uses "organizer" but DB uses "organiser"
+          role: role === "organizer" || role === "organiser" ? "organiser" : "player" 
+        }),
+      });
 
-      // Mock login - TODO: Replace
-      const mockUserId = role === "player" ? "player_123" : "org_456";
-      console.log("Login attempt:", { phone, password, role, mockUserId });
-      localStorage.setItem("authToken", "mock-token-" + Date.now());
-      localStorage.setItem("userRole", role);
-      localStorage.setItem("userId", mockUserId);
-      window.location.href = role === "player" ? `/dashboard/player/${mockUserId}` : `/dashboard/organizer/${mockUserId}`;
-    } catch (err) {
-      setError("Login failed. Please try again.");
-    } finally {
-      setLoading(false);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to login");
+      }
+
+      const { token, user } = await response.json();
+      localStorage.setItem("authToken", token);
+      localStorage.setItem("userRole", user.role || role);
+      localStorage.setItem("userId", user.id);
+      
+      window.location.href = user.role === "organiser" ? `/dashboard/organizer/${user.id}` : `/dashboard/player/${user.id}`;
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please try again.");
     }
   };
 
