@@ -69,15 +69,8 @@ export default function DashboardLayout({
           )}
         </div>
 
-        <div className="nav-right">
-          <div className="wallet-pill">
-            <span className="wallet-dot"></span>
-            <span className="wallet-amount">₹1,250</span>
-          </div>
-          <div className="user-pill">
-            <div className="user-avatar">AK</div>
-            <span className="user-name">Arjun K.</span>
-          </div>
+        <div className="nav-right" style={{ borderLeft: "none" }}>
+          {/* Removed wallet and user-pill from here as per request to match homepage clean look */}
         </div>
       </nav>
 
@@ -126,18 +119,34 @@ export default function DashboardLayout({
           )}
 
           <div className="sidebar-bottom">
+            <div className="sidebar-user-block" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", marginBottom: "8px", background: "rgba(255,255,255,0.03)", borderRadius: "8px" }}>
+              <div className="user-avatar" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--lime)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "12px" }}>
+                AK
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span className="user-name" style={{ color: "var(--white)", fontWeight: 600, fontSize: "14px" }}>Arjun K.</span>
+                <span style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {displayRole}
+                </span>
+              </div>
+            </div>
+
+            <div className="sidebar-wallet-card" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--border)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
+              <div className="swc-label" style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>Wallet Balance</div>
+              <div className="swc-amount" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--white)", fontSize: "20px", fontWeight: 600, marginBottom: "12px" }}>
+                <span className="wallet-dot" style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--lime)", display: "inline-block" }}></span>
+                ₹1,250
+              </div>
+              <button className="swc-topup" style={{ width: "100%", padding: "8px", background: "var(--white)", color: "var(--black)", border: "none", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>+ Top Up</button>
+            </div>
+
             <button 
               className="sidebar-link" 
               onClick={handleLogout}
-              style={{ color: "#ff4444", marginBottom: "16px" }}
+              style={{ color: "#ff4444", marginTop: "auto", borderTop: "1px solid var(--border)", paddingTop: "16px", width: "100%", justifyContent: "flex-start" }}
             >
               <span className="sidebar-icon">🚪</span>Log Out
             </button>
-            <div className="sidebar-wallet-card">
-              <div className="swc-label">Wallet Balance</div>
-              <div className="swc-amount">₹1,250</div>
-              <button className="swc-topup">+ Top Up</button>
-            </div>
           </div>
         </aside>
 
