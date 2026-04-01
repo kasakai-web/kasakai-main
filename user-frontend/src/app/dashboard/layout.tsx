@@ -42,7 +42,7 @@ export default function DashboardLayout({
     localStorage.removeItem("authToken");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userId");
-    router.push("/login");
+    router.push("/"); // Redirect to Home Page instead of login
   };
 
   return (
