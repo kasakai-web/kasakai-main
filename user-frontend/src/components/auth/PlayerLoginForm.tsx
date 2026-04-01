@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { validatePhone, validatePassword } from "@/utils/auth";
 
 interface PlayerLoginFormProps {
@@ -9,10 +10,24 @@ interface PlayerLoginFormProps {
 }
 
 export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFormProps) {
+  const searchParams = useSearchParams();
+  const qRole = searchParams.get("role");
+
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Default to what's in the query param (player or organizer), else fallback to player
+  const [role, setRole] = useState(qRole === "organiser" || qRole === "organizer" ? "organizer" : "player");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (qRole === "organiser" || qRole === "organizer") {
+      setRole("organizer");
+    } else {
+      setRole("player");
+    }
+  }, [qRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,9 +58,12 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       // }
 
       // Mock login - TODO: Replace
-      console.log("Login attempt:", { phone, password });
+      const mockUserId = role === "player" ? "player_123" : "org_456";
+      console.log("Login attempt:", { phone, password, role, mockUserId });
       localStorage.setItem("authToken", "mock-token-" + Date.now());
-      window.location.href = "/dashboard";
+      localStorage.setItem("userRole", role);
+      localStorage.setItem("userId", mockUserId);
+      window.location.href = role === "player" ? `/dashboard/player/${mockUserId}` : `/dashboard/organizer/${mockUserId}`;
     } catch (err) {
       setError("Login failed. Please try again.");
     } finally {
@@ -55,7 +73,9 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
 
   return (
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
-      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px", textAlign: "center" }}>Login</h1>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px", textAlign: "center" }}>
+        {role === "organizer" ? "Organiser Login" : "Player Login"}
+      </h1>
       <p style={{ color: "#999", textAlign: "center", marginBottom: "30px", fontSize: "14px" }}>Enter your phone number and password</p>
 
       {error && (

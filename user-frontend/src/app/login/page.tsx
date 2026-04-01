@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
@@ -34,12 +34,14 @@ export default function LoginPage() {
       <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: "100px", background: "var(--black)" }}>
         <div className="container" style={{ maxWidth: "500px", margin: "0 auto", paddingBottom: "80px" }}>
           {/* LOGIN */}
-          {step === "login" && (
-            <PlayerLoginForm
-              onSignupClick={() => setStep("signup-form")}
-              onForgotClick={() => setStep("forgot-step1")}
-            />
-          )}
+          <Suspense fallback={<div>Loading...</div>}>
+            {step === "login" && (
+              <PlayerLoginForm
+                onSignupClick={() => setStep("signup-form")}
+                onForgotClick={() => setStep("forgot-step1")}
+              />
+            )}
+          </Suspense>
 
           {/* SIGNUP - STEP 1: Details */}
           {step === "signup-form" && (

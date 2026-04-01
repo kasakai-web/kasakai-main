@@ -106,20 +106,27 @@ export function Header() {
                 padding: "0 22px",
                 margin: "0 18px",
                 background: "var(--white)",
-                color: "#000",
+                color: "var(--black)",
                 fontFamily: "var(--body)",
                 fontSize: "13px",
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                border: "none",
+                border: "1px solid var(--white)",
                 cursor: "pointer",
                 position: "relative",
                 overflow: "hidden",
-                transition: "color 0.2s",
+                transition: "background 0.2s, color 0.2s",
                 flexShrink: 0,
             }}
-            className="hover:text-white before:absolute before:inset-0 before:bg-black before:-translate-x-[101%] before:transition-transform before:duration-[280ms] before:cubic-bezier-[0.4,0,0.2,1] before:z-0 hover:before:translate-x-0"
+            onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--white)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--white)';
+                e.currentTarget.style.color = 'var(--black)';
+            }}
             >
             <span style={{ position: "relative", zIndex: 10 }}>Login</span>
             <svg
