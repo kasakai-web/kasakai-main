@@ -85,10 +85,10 @@ const OrganiserSchema = new mongoose.Schema(
   // ===============================
   // 🏟️ TURF ACCESS
   // ===============================
-  associatedVenues: [
+  associatedTurfs: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Venue"
+      ref: "Turf"
     }
   ],
 
@@ -141,9 +141,9 @@ const OrganiserSchema = new mongoose.Schema(
   // ===============================
   // 🎯 DEFAULT GAME SETTINGS
   // ===============================
-  defaultVenueId: {
+  defaultTurfId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Venue"
+    ref: "Turf"
   },
 
   defaultFeeInPaise: {
