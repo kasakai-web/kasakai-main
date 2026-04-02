@@ -1,5 +1,5 @@
 const express = require("express");
-const { createGame, getOrganiserGames } = require("./game.controller");
+const { createGame, getOrganiserGames, deleteGame, updateGame } = require("./game.controller");
 const { protect, authorize } = require("../auth/auth.middleware");
 
 const router = express.Router();
@@ -12,5 +12,10 @@ router
 router
   .route("/organiser")
   .get(protect, authorize("organiser"), getOrganiserGames);
+
+router
+  .route("/:id")
+  .delete(protect, authorize("organiser"), deleteGame)
+  .patch(protect, authorize("organiser"), updateGame);
 
 module.exports = router;

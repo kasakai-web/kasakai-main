@@ -2,10 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
-import { OrganizerEventCard } from "@/components/dashboard/OrganizerEventCard";
+import { EditEventModal } from "@/components/dashboard/EditEventModal";
+import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
+import "../../organizer-dashboard.css";
 
 export default function OrganizerDashboard({ params }: { params: { id: string } }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPlayersModal, setShowPlayersModal] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,14 +19,22 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
     try {
       setLoading(true);
       const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      console.log("Token:", token);
+      console.log("Fetching from: http://localhost:5000/api/v1/games/organiser");
+      
       const res = await fetch("http://localhost:5000/api/v1/games/organiser", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
       });
       const data = await res.json();
+      console.log("API Response:", data);
+      
       if (data.success) {
+        console.log("Games loaded:", data.data);
         setGames(data.data);
+      } else {
+        console.error("API Error:", data.message);
       }
     } catch (error) {
       console.error("Failed to fetch games", error);
@@ -38,112 +51,342 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
     console.log("Event Created", data);
   };
 
-  const upcomingGames = games.filter(g => g.status !== 'completed' && g.status !== 'cancelled');
-  const pastGames = games.filter(g => g.status === 'completed');
+  const handleCancelGame = async (gameId: string) => {
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+
+      const response = await fetch(`http://localhost:5000/api/v1/games/${gameId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Event cancelled and removed successfully!');
+        // Refresh the games list
+        fetchGames();
+      } else {
+        alert(`Failed to cancel event: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error cancelling event:', error);
+      alert('Failed to cancel event. Please try again.');
+    }
+  };
+
+  // Separate games into upcoming and past based on both status and scheduled date
+  const now = new Date();
+  const upcomingGames = games.filter(g => {
+    const isNotCancelled = g.status !== 'cancelled' && g.status !== 'completed';
+    const scheduledDate = new Date(g.scheduledAt);
+    const isInFuture = scheduledDate > now;
+    return isNotCancelled && isInFuture;
+  });
+
+  const pastGames = games.filter(g => {
+    const scheduledDate = new Date(g.scheduledAt);
+    const isInPast = scheduledDate <= now;
+    const isCompleted = g.status === 'completed';
+    return isInPast || isCompleted;
+  });
 
   return (
-    <div className="organiser-view show">
-      <div className="page-header">
-        <div className="page-title-group">
-          <div className="page-eyebrow">Mumbai Community</div>
-          <div className="page-title">Organiser <span>Dashboard</span></div>
+    <div className="organizer-dashboard-container">
+      {/* Header */}
+      <div className="dashboard-header-section">
+        <div className="header-left">
+          <h1 className="dashboard-title">Organizer Dashboard</h1>
+          <p className="dashboard-subtitle">Manage your events, track players, and monitor revenue</p>
         </div>
-        <div className="page-actions">
-          <button className="create-game-btn" onClick={() => setShowCreateModal(true)}>
-            <span>+ Create Event</span>
+        <button className="btn-primary btn-lg" onClick={() => setShowCreateModal(true)}>
+          <span className="btn-icon">+ </span>Create New Event
+        </button>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="stats-overview">
+        <div className="stat-card stat-active">
+          <div className="stat-icon">⚽</div>
+          <div className="stat-details">
+            <div className="stat-value">{upcomingGames.length}</div>
+            <div className="stat-title">Active Games</div>
+            <div className="stat-desc">Currently scheduled</div>
+          </div>
+        </div>
+
+        <div className="stat-card stat-completed">
+          <div className="stat-icon">🏆</div>
+          <div className="stat-details">
+            <div className="stat-value">{pastGames.length}</div>
+            <div className="stat-title">Completed</div>
+            <div className="stat-desc">Finished games</div>
+          </div>
+        </div>
+
+        <div className="stat-card stat-revenue">
+          <div className="stat-icon">💰</div>
+          <div className="stat-details">
+            <div className="stat-value">₹{games.reduce((total, game) => {
+              const collected = (game.totalSlots - (game.spotsRemaining || (game.totalSlots - (game.registrations?.length || 0)))) * (game.feeInPaise ? game.feeInPaise / 100 : 0);
+              return total + collected;
+            }, 0)}</div>
+            <div className="stat-title">Total Revenue</div>
+            <div className="stat-desc">From all events</div>
+          </div>
+        </div>
+
+        <div className="stat-card stat-players">
+          <div className="stat-icon">👥</div>
+          <div className="stat-details">
+            <div className="stat-value">{games.reduce((total, game) => total + (game.registrations?.length || 0), 0)}</div>
+            <div className="stat-title">Total Players</div>
+            <div className="stat-desc">Registered across all games</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="tabs-section">
+        <div className="tab-navigation">
+          <button
+            className={`tab-btn ${activeTab === 'upcoming' ? 'active' : ''}`}
+            onClick={() => setActiveTab('upcoming')}
+          >
+            <span className="tab-icon">📅</span>
+            <span className="tab-text">Upcoming Events</span>
+            <span className="tab-badge">{upcomingGames.length}</span>
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`}
+            onClick={() => setActiveTab('past')}
+          >
+            <span className="tab-icon">📊</span>
+            <span className="tab-text">Past Events</span>
+            <span className="tab-badge">{pastGames.length}</span>
           </button>
         </div>
       </div>
 
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-label">Active Games</div>
-          <div className="stat-value">{upcomingGames.length}</div>
-          <div className="stat-sub">Manage your active games</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Completed</div>
-          <div className="stat-value">{pastGames.length}</div>
-          <div className="stat-sub">Games finished</div>
-        </div>
-      </div>
-
-      <div className="section-tabs">
-        <button className={`sec-tab ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')}>Upcoming</button>
-        <button className={`sec-tab ${activeTab === 'past' ? 'active' : ''}`} onClick={() => setActiveTab('past')}>Past Games</button>
-      </div>
-
-      {activeTab === 'upcoming' && (
-        <div id="orgUpcoming">
-          <div style={{ fontFamily: "var(--mono)", fontSize: "12px", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
-            My Events
+      {/* Table Section */}
+      <div className="table-section">
+        {loading ? (
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Loading events...</p>
           </div>
-          {loading ? (
-            <p>Loading games...</p>
-          ) : upcomingGames.length === 0 ? (
-            <p>No upcoming games found. Create one!</p>
-          ) : (
-            upcomingGames.map(game => {
-              const mappedGame = {
-                id: game._id,
-                title: game.title,
-                status: game.status,
-                venue: game.turf ? `${game.turf.name}, ${game.turf.location?.city || ''}` : "Unknown Turf",
-                date: new Date(game.scheduledAt).toISOString().split('T')[0],
-                time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                format: game.format,
-                fee: game.feeInPaise ? game.feeInPaise / 100 : 0,
-                spotsTotal: game.totalSlots,
-                spotsLeft: game.spotsRemaining || (game.totalSlots - (game.registrations?.length || 0)),
-                players: game.registrations?.map((r: any) => ({
-                  name: r.player?.name || "Player",
-                  initials: r.player?.name ? r.player.name.substring(0, 2).toUpperCase() : "P",
-                  pos: r.preferredPosition === "any" ? "ANY" : (r.preferredPosition || "").substring(0, 3).toUpperCase()
-                })) || []
-              };
-              return <OrganizerEventCard key={mappedGame.id} {...mappedGame} />;
-            })
-          )}
-        </div>
-      )}
-
-      {activeTab === 'past' && (
-        <div id="orgPast">
-          {loading ? (
-             <p>Loading games...</p>
-          ) : pastGames.length === 0 ? (
+        ) : activeTab === 'upcoming' ? (
+          upcomingGames.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">📊</div>
-              <div className="empty-title">Past games</div>
-              <div className="empty-sub">Completed games with attendance and ratings will appear here.</div>
+              <div className="empty-icon">📅</div>
+              <h3>No upcoming events</h3>
+              <p>Create your first event to get started</p>
+              <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+                <span>+ </span>Create Event
+              </button>
             </div>
           ) : (
-             pastGames.map(game => {
-               const mappedGame = {
-                 id: game._id,
-                 title: game.title,
-                 status: game.status,
-                 venue: game.turf ? `${game.turf.name}, ${game.turf.location?.city || ''}` : "Unknown Turf",
-                 date: new Date(game.scheduledAt).toISOString().split('T')[0],
-                 time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                 format: game.format,
-                 fee: game.feeInPaise ? game.feeInPaise / 100 : 0,
-                 spotsTotal: game.totalSlots,
-                 spotsLeft: 0,
-                 players: []
-               };
-               return <OrganizerEventCard key={mappedGame.id} {...mappedGame} />;
-             })
-          )}
-        </div>
-      )}
+            <div className="games-table">
+              <div className="table-header">
+                <div className="col col-title">Event</div>
+                <div className="col col-details">Venue & Date</div>
+                <div className="col col-format">Format</div>
+                <div className="col col-fee">Fee</div>
+                <div className="col col-players">Players</div>
+                <div className="col col-revenue">Collected</div>
+                <div className="col col-actions">Actions</div>
+              </div>
+              <div className="table-body">
+                {upcomingGames.map(game => (
+                  <div key={game._id} className="table-row">
+                    <div className="col col-title">
+                      <div className="game-title-col">
+                        <div className="title-main">{game.title}</div>
+                        <div className="status-inline">
+                          <span className={`status-label ${game.status}`}>{game.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col col-details">
+                      <div className="venue-info">
+                        <div className="venue-name">{game.turf?.name || 'Unknown'}</div>
+                        <div className="venue-location">{game.turf?.location?.city || ''}</div>
+                        <div className="date-time">
+                          {new Date(game.scheduledAt).toLocaleDateString()} · {new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col col-format">
+                      <span className="format-badge">{game.format}</span>
+                    </div>
+                    <div className="col col-fee">
+                      <div className="fee-value">₹{game.feeInPaise ? game.feeInPaise / 100 : 0}</div>
+                    </div>
+                    <div className="col col-players">
+                      <div className="players-info">
+                        <div className="players-count">{game.registrations?.length || 0}/{game.totalSlots}</div>
+                        <div className="players-bar">
+                          <div 
+                            className="players-bar-fill" 
+                            style={{ width: `${((game.registrations?.length || 0) / game.totalSlots) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col col-revenue">
+                      <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>
+                    </div>
+                    <div className="col col-actions">
+                      <div className="action-buttons">
+                        <button 
+                          className="btn-action btn-players"
+                          onClick={() => {
+                            setSelectedGame(game);
+                            setShowPlayersModal(true);
+                          }}
+                          title="View Players"
+                        >
+                          👥
+                        </button>
+                        <button 
+                          className="btn-action btn-edit"
+                          onClick={() => {
+                            setSelectedGame(game);
+                            setShowEditModal(true);
+                          }}
+                          title="Edit Event"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="btn-action btn-cancel"
+                          onClick={() => {
+                            const confirmCancel = window.confirm(
+                              `Are you sure you want to cancel "${game.title}"?\n\nThis action cannot be undone.`
+                            );
+                            if (confirmCancel) {
+                              handleCancelGame(game._id);
+                            }
+                          }}
+                          title="Cancel Event"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        ) : (
+          pastGames.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📊</div>
+              <h3>No past events yet</h3>
+              <p>Completed events will appear here</p>
+            </div>
+          ) : (
+            <div className="games-table">
+              <div className="table-header">
+                <div className="col col-title">Event</div>
+                <div className="col col-details">Venue & Date</div>
+                <div className="col col-format">Format</div>
+                <div className="col col-fee">Fee</div>
+                <div className="col col-players">Attended</div>
+                <div className="col col-revenue">Revenue</div>
+                <div className="col col-actions">Actions</div>
+              </div>
+              <div className="table-body">
+                {pastGames.map(game => (
+                  <div key={game._id} className="table-row">
+                    <div className="col col-title">
+                      <div className="game-title-col">
+                        <div className="title-main">{game.title}</div>
+                        <div className="status-inline">
+                          <span className={`status-label ${game.status}`}>{game.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col col-details">
+                      <div className="venue-info">
+                        <div className="venue-name">{game.turf?.name || 'Unknown'}</div>
+                        <div className="venue-location">{game.turf?.location?.city || ''}</div>
+                        <div className="date-time">
+                          {new Date(game.scheduledAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col col-format">
+                      <span className="format-badge">{game.format}</span>
+                    </div>
+                    <div className="col col-fee">
+                      <div className="fee-value">₹{game.feeInPaise ? game.feeInPaise / 100 : 0}</div>
+                    </div>
+                    <div className="col col-players">
+                      <div className="players-count">{game.registrations?.length || 0}</div>
+                    </div>
+                    <div className="col col-revenue">
+                      <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>
+                    </div>
+                    <div className="col col-actions">
+                      <button 
+                        className="btn-action btn-players"
+                        onClick={() => {
+                          setSelectedGame(game);
+                          setShowPlayersModal(true);
+                        }}
+                        title="View Players"
+                      >
+                        👥
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        )}
+      </div>
 
+      {/* Modals */}
       {showCreateModal && (
         <CreateEventModal 
           onClose={() => setShowCreateModal(false)}
-          onCreate={handleCreateEvent}
+          onCreate={() => {
+            fetchGames();
+          }}
           onSuccess={() => {
             fetchGames();
+          }}
+        />
+      )}
+
+      {showEditModal && selectedGame && (
+        <EditEventModal
+          gameId={selectedGame._id}
+          initialData={selectedGame}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedGame(null);
+          }}
+          onSuccess={() => {
+            fetchGames();
+          }}
+        />
+      )}
+
+      {showPlayersModal && selectedGame && (
+        <PlayerDetailsModal
+          gameName={selectedGame.title}
+          players={selectedGame.registrations || []}
+          totalSlots={selectedGame.totalSlots}
+          onClose={() => {
+            setShowPlayersModal(false);
+            setSelectedGame(null);
           }}
         />
       )}

@@ -4,10 +4,10 @@ import React, { useState } from "react";
 import { EventStatus } from "./EventCard";
 
 export interface OrganizerEventCardProps {
-  id: number;
+  id: number | string;
   title: string;
   venue: string;
-  status: EventStatus;
+  status: EventStatus | string;
   date: string;
   time: string;
   format: string;
@@ -18,6 +18,7 @@ export interface OrganizerEventCardProps {
 }
 
 export function OrganizerEventCard({
+  id,
   title,
   venue,
   status,
@@ -30,6 +31,43 @@ export function OrganizerEventCard({
   players
 }: OrganizerEventCardProps) {
   const [showPlayers, setShowPlayers] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleCancelEvent = async () => {
+    const confirmCancel = window.confirm(
+      `Are you sure you want to cancel "${title}"?\n\nThis action cannot be undone and will permanently remove the event from the database.`
+    );
+
+    if (!confirmCancel) return;
+
+    setIsDeleting(true);
+    try {
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+
+      const response = await fetch(`http://localhost:5000/api/v1/games/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Event cancelled and removed successfully!');
+        // Refresh the page to update the games list
+        window.location.reload();
+      } else {
+        alert(`Failed to cancel event: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error cancelling event:', error);
+      alert('Failed to cancel event. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const currentPlayers = spotsTotal - spotsLeft;
   const fillPercentage = (currentPlayers / spotsTotal) * 100;
@@ -76,8 +114,22 @@ export function OrganizerEventCard({
         <button className="org-ctrl" style={{ flex: 1, padding: "12px 10px", fontFamily: "var(--body)", fontSize: "11.5px", fontWeight: 600, border: "none", borderRight: "1px solid var(--border)", cursor: "pointer", background: "none", color: "var(--muted)" }}>
           📣 Nudge
         </button>
-        <button className="org-ctrl danger" style={{ flex: 1, padding: "12px 10px", fontFamily: "var(--body)", fontSize: "11.5px", fontWeight: 600, border: "none", cursor: "pointer", background: "none", color: "var(--coral)" }}>
-          ✕ Cancel
+        <button className="org-ctrl danger" 
+          onClick={handleCancelEvent}
+          disabled={isDeleting}
+          style={{ 
+            flex: 1, 
+            padding: "12px 10px", 
+            fontFamily: "var(--body)", 
+            fontSize: "11.5px", 
+            fontWeight: 600, 
+            border: "none", 
+            cursor: isDeleting ? "not-allowed" : "pointer", 
+            background: "none", 
+            color: "var(--coral)",
+            opacity: isDeleting ? 0.6 : 1
+          }}>
+          {isDeleting ? 'Cancelling...' : '✕ Cancel'}
         </button>
       </div>
 

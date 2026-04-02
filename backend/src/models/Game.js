@@ -5,12 +5,12 @@ const RegistrationSchema = new mongoose.Schema(
   {
     player: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Player',
       required: true,
     },
     plusOne: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Player',
       default: null,
     },
     plusOneName: { type: String, default: null },
@@ -27,7 +27,7 @@ const RegistrationSchema = new mongoose.Schema(
     },
     preferredTeamWith: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Player',
       default: null,
     },
 
@@ -72,7 +72,7 @@ const WaitlistEntrySchema = new mongoose.Schema(
   {
     player: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Player',
       required: true,
     },
     joinedAt:   { type: Date, default: Date.now },
@@ -93,11 +93,11 @@ const TeamSchema = new mongoose.Schema(
     name:   { type: String, required: true },
     colour: { type: String, required: true },
     players: [
-      { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+      { type: mongoose.Schema.Types.ObjectId, ref: 'Player' }
     ],
     captain: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Player',
       default: null,
     },
   },
@@ -126,7 +126,7 @@ const GameSchema = new mongoose.Schema(
 
     organiser: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Organiser',
       required: true,
       index: true,
     },

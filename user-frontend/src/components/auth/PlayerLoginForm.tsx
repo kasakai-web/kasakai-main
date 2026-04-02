@@ -65,7 +65,8 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       localStorage.setItem("authToken", token);
       localStorage.setItem("userRole", user.role || role);
       localStorage.setItem("userId", user.id);
-      
+      localStorage.setItem("userName", user.name || "User");
+
       window.location.href = user.role === "organiser" ? `/dashboard/organizer/${user.id}` : `/dashboard/player/${user.id}`;
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");

@@ -13,25 +13,31 @@ export default function DashboardLayout({
   const pathname = usePathname() || "";
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("User");
   const [activeSection, setActiveSection] = useState("browse");
 
   useEffect(() => {
     // Read the user role & id from localStorage (set during login)
     const storedRole = localStorage.getItem("userRole");
     const storedUserId = localStorage.getItem("userId") || "default_id";
-    
+    const storedUserName = localStorage.getItem("userName");
+
+    if (storedUserName) {
+      setUserName(storedUserName);
+    }
+
     if (storedRole) {
       setRole(storedRole);
-      
+
       // Enforce dashboard isolation
       if (storedRole === "player" && pathname.includes("organizer")) {
         router.push(`/dashboard/player/${storedUserId}`);
-      } else if (storedRole === "organizer" && pathname.includes("player")) {
+      } else if (storedRole === "organizer" && pathname.includes("player")) {   
         router.push(`/dashboard/organizer/${storedUserId}`);
       }
     } else {
-      // If no role is stored, maybe they aren't logged in
-      // router.push("/login"); // Uncomment when auth is fully wired
+      // If no role is stored, they aren't logged in
+      router.push("/login?role=organiser");
     }
   }, [pathname, router]);
 
@@ -42,7 +48,8 @@ export default function DashboardLayout({
     localStorage.removeItem("authToken");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userId");
-    router.push("/"); // Redirect to Home Page instead of login
+    localStorage.removeItem("userName");
+    router.push("/login");
   };
 
   return (
@@ -121,21 +128,21 @@ export default function DashboardLayout({
           <div className="sidebar-bottom">
             <div className="sidebar-user-block" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", marginBottom: "8px", background: "rgba(255,255,255,0.03)", borderRadius: "8px" }}>
               <div className="user-avatar" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--lime)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "12px" }}>
-                AK
+                {userName.substring(0, 2).toUpperCase()}
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <span className="user-name" style={{ color: "var(--white)", fontWeight: 600, fontSize: "14px" }}>Arjun K.</span>
+                <span className="user-name" style={{ color: "var(--white)", fontWeight: 600, fontSize: "14px" }}>{userName}</span>
                 <span style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {displayRole}
+                  {displayRole === "organizer" ? "Organiser" : "Player"}
                 </span>
               </div>
             </div>
 
-            <div className="sidebar-wallet-card" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--border)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
+            <div className="sidebar-wallet-card" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--border)", borderRadius: "8px", padding: "16px", marginBottom: "16px", display: displayRole === "organizer" ? "none" : "block" }}>
               <div className="swc-label" style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>Wallet Balance</div>
               <div className="swc-amount" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--white)", fontSize: "20px", fontWeight: 600, marginBottom: "12px" }}>
                 <span className="wallet-dot" style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--lime)", display: "inline-block" }}></span>
-                ₹1,250
+                ₹0
               </div>
               <button className="swc-topup" style={{ width: "100%", padding: "8px", background: "var(--white)", color: "var(--black)", border: "none", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>+ Top Up</button>
             </div>
@@ -143,7 +150,7 @@ export default function DashboardLayout({
             <button 
               className="sidebar-link" 
               onClick={handleLogout}
-              style={{ color: "#ff4444", marginTop: "auto", borderTop: "1px solid var(--border)", paddingTop: "16px", width: "100%", justifyContent: "flex-start" }}
+              style={{ color: "#ff4444", marginTop: "auto", borderTop: "1px solid var(--border)", paddingTop: "16px", width: "100%", justifyContent: "flex-start", opacity: 0.8 }}
             >
               <span className="sidebar-icon">🚪</span>Log Out
             </button>
