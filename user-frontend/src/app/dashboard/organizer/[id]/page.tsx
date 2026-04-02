@@ -1,62 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { OrganizerEventCard } from "@/components/dashboard/OrganizerEventCard";
-
-const mockOrgGames = [
-  {
-    id: 1,
-    title: "Friday Night 5v5",
-    status: "confirmed" as const,
-    venue: "Urban Turf, Mumbai",
-    date: "2026-03-27",
-    time: "20:00",
-    format: "5v5",
-    fee: 350,
-    spotsTotal: 10,
-    spotsLeft: 2,
-    players: [
-      { name: "Rahul N.", initials: "RN", pos: "MID" },
-      { name: "Aman D.", initials: "AD", pos: "DEF" },
-      { name: "Kunal G.", initials: "KG", pos: "GK" },
-      { name: "Rohit P.", initials: "RP", pos: "FWD" },
-      { name: "Vikram S.", initials: "VS", pos: "MID" },
-      { name: "Aditya M.", initials: "AM", pos: "FWD" },
-      { name: "Priya S.", initials: "PS", pos: "DEF" },
-      { name: "Nishant B.", initials: "NB", pos: "MID" },
-    ]
-  },
-  {
-    id: 2,
-    title: "Weekend League Practice",
-    status: "tentative" as const,
-    venue: "Playz Arena, Andheri",
-    date: "2026-03-29",
-    time: "19:30",
-    format: "6v6",
-    fee: 300,
-    spotsTotal: 12,
-    spotsLeft: 7,
-    players: [
-      { name: "Jay S.", initials: "JS", pos: "FWD" },
-      { name: "Kirti P.", initials: "KP", pos: "MID" },
-      { name: "Varun S.", initials: "VS", pos: "GK" },
-      { name: "Ravi K.", initials: "RK", pos: "DEF" },
-      { name: "Suresh L.", initials: "SL", pos: "MID" },
-    ]
-  }
-];
 
 export default function OrganizerDashboard({ params }: { params: { id: string } }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState("upcoming");
+  const [games, setGames] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchGames = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/v1/games/organiser", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGames(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch games", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGames();
+  }, []);
 
   const handleCreateEvent = (data: any) => {
-    console.log(`Event Created by Organizer ${params.id}:`, data);
-    setShowCreateModal(false);
-    // Here you would trigger the API call to your backend
+    console.log("Event Created", data);
   };
+
+  const upcomingGames = games.filter(g => g.status !== 'completed' && g.status !== 'cancelled');
+  const pastGames = games.filter(g => g.status === 'completed');
 
   return (
     <div className="organiser-view show">
@@ -75,13 +58,13 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
       <div className="stats-row">
         <div className="stat-card">
           <div className="stat-label">Active Games</div>
-          <div className="stat-value">2</div>
-          <div className="stat-sub">1 confirmed, 1 tentative</div>
+          <div className="stat-value">{upcomingGames.length}</div>
+          <div className="stat-sub">Manage your active games</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Players Managed</div>
-          <div className="stat-value">13</div>
-          <div className="stat-sub">Across 2 games</div>
+          <div className="stat-label">Total Completed</div>
+          <div className="stat-value">{pastGames.length}</div>
+          <div className="stat-sub">Games finished</div>
         </div>
       </div>
 
@@ -95,19 +78,63 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
           <div style={{ fontFamily: "var(--mono)", fontSize: "12px", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
             My Events
           </div>
-          {mockOrgGames.map(game => (
-            <OrganizerEventCard key={game.id} {...game} />
-          ))}
+          {loading ? (
+            <p>Loading games...</p>
+          ) : upcomingGames.length === 0 ? (
+            <p>No upcoming games found. Create one!</p>
+          ) : (
+            upcomingGames.map(game => {
+              const mappedGame = {
+                id: game._id,
+                title: game.title,
+                status: game.status,
+                venue: game.turf ? `${game.turf.name}, ${game.turf.location?.city || ''}` : "Unknown Turf",
+                date: new Date(game.scheduledAt).toISOString().split('T')[0],
+                time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                format: game.format,
+                fee: game.feeInPaise ? game.feeInPaise / 100 : 0,
+                spotsTotal: game.totalSlots,
+                spotsLeft: game.spotsRemaining || (game.totalSlots - (game.registrations?.length || 0)),
+                players: game.registrations?.map((r: any) => ({
+                  name: r.player?.name || "Player",
+                  initials: r.player?.name ? r.player.name.substring(0, 2).toUpperCase() : "P",
+                  pos: r.preferredPosition === "any" ? "ANY" : (r.preferredPosition || "").substring(0, 3).toUpperCase()
+                })) || []
+              };
+              return <OrganizerEventCard key={mappedGame.id} {...mappedGame} />;
+            })
+          )}
         </div>
       )}
 
       {activeTab === 'past' && (
         <div id="orgPast">
-          <div className="empty-state">
-            <div className="empty-icon">📊</div>
-            <div className="empty-title">Past games</div>
-            <div className="empty-sub">Completed games with attendance and ratings will appear here.</div>
-          </div>
+          {loading ? (
+             <p>Loading games...</p>
+          ) : pastGames.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📊</div>
+              <div className="empty-title">Past games</div>
+              <div className="empty-sub">Completed games with attendance and ratings will appear here.</div>
+            </div>
+          ) : (
+             pastGames.map(game => {
+               const mappedGame = {
+                 id: game._id,
+                 title: game.title,
+                 status: game.status,
+                 venue: game.turf ? `${game.turf.name}, ${game.turf.location?.city || ''}` : "Unknown Turf",
+                 date: new Date(game.scheduledAt).toISOString().split('T')[0],
+                 time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                 format: game.format,
+                 fee: game.feeInPaise ? game.feeInPaise / 100 : 0,
+                 spotsTotal: game.totalSlots,
+                 spotsLeft: 0,
+                 players: []
+               };
+               return <OrganizerEventCard key={mappedGame.id} {...mappedGame} />;
+             })
+          )}
         </div>
       )}
 
@@ -115,6 +142,9 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
         <CreateEventModal 
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateEvent}
+          onSuccess={() => {
+            fetchGames();
+          }}
         />
       )}
     </div>

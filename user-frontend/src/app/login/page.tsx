@@ -26,10 +26,17 @@ function AuthFlow() {
   });
 
   useEffect(() => {
-    if (!role) {
+    // Auto-login persistence
+    const token = localStorage.getItem("authToken");
+    const uRole = localStorage.getItem("userRole");
+    const uId = localStorage.getItem("userId");
+
+    if (token && uRole && uId && step === "login") {
+      router.replace(`/dashboard/${uRole === "organiser" ? "organizer" : "player"}/${uId}`);
+    } else if (!role) {
       router.replace("/login?role=player");
     }
-  }, [role, router]);
+  }, [role, router, step]);
 
   if (!role) {
     return <div style={{ color: "white", textAlign: "center", padding: "2rem" }}>Redirecting...</div>;
