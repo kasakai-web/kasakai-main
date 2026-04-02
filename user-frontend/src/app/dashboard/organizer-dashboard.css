@@ -243,14 +243,14 @@
   display: grid;
   grid-template-columns: 2fr 2.5fr 1fr 1fr 1.5fr 1.5fr 1.5fr;
   gap: 16px;
-  padding: 16px 20px;
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
+  padding: 14px 20px;
+  background: linear-gradient(90deg, rgba(255, 107, 71, 0.08) 0%, rgba(96, 165, 250, 0.05) 100%);
+  border-bottom: 2px solid var(--coral);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--coral);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .table-body {
@@ -264,14 +264,16 @@
   display: grid;
   grid-template-columns: 2fr 2.5fr 1fr 1fr 1.5fr 1.5fr 1.5fr;
   gap: 16px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 107, 71, 0.1);
   align-items: center;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .table-row:hover {
-  background: rgba(255, 107, 71, 0.05);
+  background: rgba(255, 107, 71, 0.12);
+  border-left: 3px solid var(--coral);
+  padding-left: 17px;
 }
 
 .col {
@@ -293,8 +295,9 @@
 
 .title-main {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--white);
+  letter-spacing: 0.01em;
 }
 
 .status-inline {
@@ -312,23 +315,27 @@
 }
 
 .status-label.draft {
-  background: rgba(156, 163, 175, 0.2);
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.3), rgba(156, 163, 175, 0.1));
   color: #d1d5db;
+  border: 1px solid rgba(156, 163, 175, 0.3);
 }
 
 .status-label.confirmed {
-  background: rgba(74, 222, 128, 0.2);
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.3), rgba(74, 222, 128, 0.1));
   color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
 }
 
 .status-label.completed {
-  background: rgba(251, 191, 36, 0.2);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(251, 191, 36, 0.1));
   color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
 .status-label.cancelled {
-  background: rgba(239, 68, 68, 0.2);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.1));
   color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 /* Details Column */
@@ -346,12 +353,14 @@
 .venue-name {
   font-size: 13px;
   color: var(--white);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .venue-location {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
+  font-weight: 400;
 }
 
 .date-time {
@@ -362,15 +371,17 @@
 
 /* Format Column */
 .format-badge {
-  background: rgba(96, 165, 250, 0.15);
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.25), rgba(96, 165, 250, 0.1));
   color: #60a5fa;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 6px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  letter-spacing: 0.02em;
 }
 
 /* Fee Column */
@@ -381,8 +392,11 @@
 
 .fee-value {
   font-size: 14px;
-  font-weight: 600;
-  color: var(--white);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--coral), #ff8b5c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Players Column */
@@ -400,8 +414,9 @@
 
 .players-count {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--white);
+  font-weight: 700;
+  color: #60a5fa;
+  letter-spacing: 0.01em;
 }
 
 .players-bar {
@@ -426,8 +441,11 @@
 
 .revenue-value {
   font-size: 14px;
-  font-weight: 600;
-  color: #60a5fa;
+  font-weight: 700;
+  background: linear-gradient(135deg, #60a5fa, #3ef0ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Actions Column */

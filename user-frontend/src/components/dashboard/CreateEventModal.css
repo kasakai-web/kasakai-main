@@ -209,17 +209,39 @@
   cursor: pointer;
 }
 
+.form-select option {
+  background: #161616;
+  color: #f8f6f1;
+  padding: 8px;
+  font-weight: 500;
+}
+
+.form-select option:hover {
+  background: #1e1e1e;
+  color: #ff5c3e;
+}
+
+.form-select option:checked {
+  background: linear-gradient(#ff5c3e, #ff5c3e);
+  background-color: #ff5c3e !important;
+  color: #080808 !important;
+}
+
 .form-select::-webkit-scrollbar {
   width: 8px;
 }
 
 .form-select::-webkit-scrollbar-track {
-  background: var(--grey);
+  background: #161616;
 }
 
 .form-select::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: #1e1e1e;
   border-radius: 4px;
+}
+
+.form-select::-webkit-scrollbar-thumb:hover {
+  background: #ff5c3e;
 }
 
 /* Input with Prefix/Unit */
