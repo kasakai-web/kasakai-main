@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 type BookingGame = {
-  id: number;
+  id?: string;
+  _id?: string;
   venue: string;
   date: string;
   time: string;
@@ -25,21 +26,40 @@ export function BookingModal({ game, onClose, onConfirm, walletBalance }: Bookin
   const [position, setPosition] = useState("DEF");
   const [preference, setPreference] = useState("No Preference");
   const [success, setSuccess] = useState(false);
+  const [notification, setNotification] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  if (!game) return null;
+  if (!game || !game.venue) return null;
 
   const totalFee = game.fee * (plusOne ? 2 : 1);
   const isWaitlist = game.waitlist;
   const canAfford = isWaitlist || walletBalance >= totalFee;
 
-  const handleConfirm = () => {
-    onConfirm(game, plusOne);
-    setSuccess(true);
+  // Extract venue and city from "venue,city" format
+  const [venueName, venueCity] = game.venue.split(",").map(s => s.trim());
+
+  const handleConfirm = async () => {
+    setIsLoading(true);
+    try {
+      onConfirm(game, plusOne);
+      // Wait a bit for the parent to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSuccess(true);
+      setNotification(true);
+      // Auto-hide notification after 4 seconds
+      setTimeout(() => setNotification(false), 4000);
+    } catch (error) {
+      console.error("Registration error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const closeAll = () => {
     setSuccess(false);
     setPlusOne(false);
+    setNotification(false);
+    setIsLoading(false);
     onClose();
   };
 
@@ -53,9 +73,9 @@ export function BookingModal({ game, onClose, onConfirm, walletBalance }: Bookin
               <div className="bm-title-group">
                 <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : "Game Sign-up"}</div>
                 <div className="bm-title">
-                  {game.venue.split(",")[0]}
+                  {venueName}
                   <br />
-                  {game.venue.split(",")[1] || ""}
+                  {venueCity || ""}
                 </div>
               </div>
               <button className="bm-close" onClick={closeAll}>
@@ -135,11 +155,11 @@ export function BookingModal({ game, onClose, onConfirm, walletBalance }: Bookin
               </div>
               <button
                 className="bm-confirm-btn"
-                disabled={!canAfford}
+                disabled={!canAfford || isLoading}
                 onClick={handleConfirm}
               >
                 <span>
-                  {isWaitlist ? "Join Waitlist — No Charge Yet" : `Confirm & Pay ₹${totalFee}`}
+                  {isLoading ? "Processing..." : isWaitlist ? "Join Waitlist — No Charge Yet" : `Confirm & Pay ₹${totalFee}`}
                 </span>
               </button>
             </div>
@@ -147,11 +167,11 @@ export function BookingModal({ game, onClose, onConfirm, walletBalance }: Bookin
         ) : (
           <div className="success-state show">
             <div className="success-icon">✓</div>
-            <div className="success-title">You&apos;ve In!</div>
+            <div className="success-title">You&apos;re In!</div>
             <div className="success-sub">
               {isWaitlist
-                ? `You've joined the waitlist for ${game.venue}. You'll be notified immediately if a spot opens.`
-                : `Successfully registered for ${game.venue}. Your spot is confirmed and ₹${totalFee} has been deducted from your wallet.`}
+                ? `You've joined the waitlist for ${venueName}. You'll be notified immediately if a spot opens.`
+                : `Successfully registered for ${venueName}. Your spot is confirmed and ₹${totalFee} has been deducted from your wallet.`}
             </div>
             <button
               className="bm-confirm-btn"
@@ -163,6 +183,16 @@ export function BookingModal({ game, onClose, onConfirm, walletBalance }: Bookin
           </div>
         )}
       </div>
+
+      {/* Success Toast Notification */}
+      {notification && (
+        <div className="notification-toast success">
+          <div className="notification-content">
+            <span className="notification-icon">✓</span>
+            <span className="notification-text">Successfully registered for {venueName}!</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

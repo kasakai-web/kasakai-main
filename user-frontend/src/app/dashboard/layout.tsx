@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import "./dashboard.css";
 
 export default function DashboardLayout({
@@ -11,13 +11,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() || "";
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [activeSection, setActiveSection] = useState("browse");
 
   useEffect(() => {
-    // Read the user role & id from localStorage (set during login)
+    // Read auth/session from localStorage (set during login)
+    const authToken = localStorage.getItem("authToken");
     const storedRole = localStorage.getItem("userRole");
     const storedUserId = localStorage.getItem("userId") || "default_id";
     const storedUserName = localStorage.getItem("userName");
@@ -25,45 +28,89 @@ export default function DashboardLayout({
     if (storedUserName) {
       setUserName(storedUserName);
     }
+    setUserId(storedUserId);
 
-    if (storedRole) {
+    if (authToken && storedRole && storedUserId) {
       setRole(storedRole);
 
       // Enforce dashboard isolation
       if (storedRole === "player" && pathname.includes("organizer")) {
-        router.push(`/dashboard/player/${storedUserId}`);
+        router.replace(`/dashboard/player/${storedUserId}`);
       } else if (storedRole === "organizer" && pathname.includes("player")) {   
-        router.push(`/dashboard/organizer/${storedUserId}`);
+        router.replace(`/dashboard/organizer/${storedUserId}`);
       }
     } else {
-      // If no role is stored, they aren't logged in
-      router.push("/login?role=organiser");
+      // If auth/session is missing, redirect to login
+      router.replace("/login?role=organiser");
     }
   }, [pathname, router]);
+
+  useEffect(() => {
+    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/profile")) {
+      setActiveSection("profile");
+      return;
+    }
+
+    if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/profile")) {
+      setActiveSection("profile");
+      return;
+    }
+
+    if (pathname.includes("/dashboard/player/")) {
+      const tab = searchParams.get("tab");
+      if (tab === "my-games") {
+        setActiveSection("mygames");
+        return;
+      }
+      setActiveSection("browse");
+      return;
+    }
+
+    setActiveSection("browse");
+  }, [pathname, searchParams]);
 
   // Fallback for visual rendering until state hydrates
   const displayRole = role || (pathname.includes("organizer") ? "organizer" : "player");
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("token");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userId");
     localStorage.removeItem("userName");
-    router.push("/login");
+    router.replace("/login");
   };
 
   return (
     <div className="dashboard-app-wrapper">
       {/* NAVBAR */}
       <nav className="dashboard-nav">
-        <Link className="logo-wrap" href="/">
-          <div className="logo-block">
-            <div className="logo-block-top"><span>KA</span></div>
-            <div className="logo-block-bot"><span>KAI</span></div>
+        <Link
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            height: "66px",
+            padding: "0 26px",
+            borderRight: "1px solid var(--border)",
+            textDecoration: "none",
+            flexShrink: 0,
+            gap: "12px",
+            transition: "background 0.18s",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", width: "32px", height: "32px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
+            <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.5px", letterSpacing: "0.1em", lineHeight: 1, color: "#000" }}>KASA</span>
+            </div>
+            <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #2a2a2a" }}>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.5px", letterSpacing: "0.1em", lineHeight: 1, color: "var(--white)" }}>KAI</span>
+            </div>
           </div>
-          <div className="logo-name">
-            <span className="logo-name-top">KASA</span>
-            <span className="logo-name-bot">KAI</span>
+
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1, gap: 0 }}>
+            <p style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "16px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1 }}>KASA</p>
+            <p style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "16px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1 }}>KAI</p>
           </div>
         </Link>
 
@@ -89,13 +136,23 @@ export default function DashboardLayout({
               <div className="sidebar-label">Player</div>
               <button 
                 className={`sidebar-link ${activeSection === 'browse' ? 'active' : ''}`}
-                onClick={() => setActiveSection("browse")}
+                onClick={() => {
+                  setActiveSection("browse");
+                  if (userId) {
+                    router.push(`/dashboard/player/${userId}?tab=all`);
+                  }
+                }}
               >
                 <span className="sidebar-icon">⚽</span>Browse Games
               </button>
               <button 
                 className={`sidebar-link ${activeSection === 'mygames' ? 'active' : ''}`}
-                onClick={() => setActiveSection("mygames")}
+                onClick={() => {
+                  setActiveSection("mygames");
+                  if (userId) {
+                    router.push(`/dashboard/player/${userId}?tab=my-games`);
+                  }
+                }}
               >
                 <span className="sidebar-icon">📋</span>My Bookings
               </button>
@@ -108,7 +165,12 @@ export default function DashboardLayout({
               </button>
               <button 
                 className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}
-                onClick={() => setActiveSection("profile")}
+                onClick={() => {
+                  setActiveSection("profile");
+                  if (userId) {
+                    router.push(`/dashboard/player/${userId}/profile`);
+                  }
+                }}
               >
                 <span className="sidebar-icon">👤</span>Profile
               </button>
@@ -121,6 +183,17 @@ export default function DashboardLayout({
               </button>
               <button className="sidebar-link">
                 <span className="sidebar-icon">📊</span>Dashboard
+              </button>
+              <button
+                className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveSection("profile");
+                  if (userId) {
+                    router.push(`/dashboard/organizer/${userId}/profile`);
+                  }
+                }}
+              >
+                <span className="sidebar-icon">👤</span>Profile
               </button>
             </div>
           )}

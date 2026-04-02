@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
 import "../../organizer-dashboard.css";
 
 export default function OrganizerDashboard({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPlayersModal, setShowPlayersModal] = useState(false);
@@ -18,20 +20,36 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
   const fetchGames = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
-      console.log("Token:", token);
-      console.log("Fetching from: http://localhost:5000/api/v1/games/organiser");
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setLoading(false);
+        router.replace("/login?role=organiser");
+        return;
+      }
       
-      const res = await fetch("http://localhost:5000/api/v1/games/organiser", {
+      const res = await fetch("http://localhost:5000/api/v1/games/organisers/my-games", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
       });
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("token");
+          localStorage.removeItem("userRole");
+          localStorage.removeItem("userId");
+          localStorage.removeItem("userName");
+          router.replace("/login?role=organiser");
+          return;
+        }
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
       const data = await res.json();
-      console.log("API Response:", data);
       
       if (data.success) {
-        console.log("Games loaded:", data.data);
         setGames(data.data);
       } else {
         console.error("API Error:", data.message);
@@ -44,8 +62,18 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    const userId = localStorage.getItem("userId");
+
+    if (!token || role !== "organiser" || !userId) {
+      setLoading(false);
+      router.replace("/login?role=organiser");
+      return;
+    }
+
     fetchGames();
-  }, []);
+  }, [router]);
 
   const handleCreateEvent = (data: any) => {
     console.log("Event Created", data);
@@ -53,9 +81,14 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
 
   const handleCancelGame = async (gameId: string) => {
     try {
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
 
-      const response = await fetch(`http://localhost:5000/api/v1/games/${gameId}`, {
+      if (!token) {
+        router.replace("/login?role=organiser");
+        return;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/v1/games/organisers/${gameId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -63,18 +96,33 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
         }
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type") || "";
+      const responseText = await response.text();
+      const data = contentType.includes("application/json")
+        ? JSON.parse(responseText)
+        : { success: false, message: responseText || `HTTP ${response.status}` };
 
-      if (data.success) {
-        alert('Event cancelled and removed successfully!');
-        // Refresh the games list
-        fetchGames();
-      } else {
-        alert(`Failed to cancel event: ${data.message}`);
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("token");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userName");
+        router.replace("/login?role=organiser");
+        return;
       }
+
+      if (!response.ok || !data.success) {
+        alert(`Failed to cancel event: ${data.message || `HTTP ${response.status}`}`);
+        return;
+      }
+
+      alert('Event cancelled successfully!');
+      // Refresh the games list
+      fetchGames();
     } catch (error) {
       console.error('Error cancelling event:', error);
-      alert('Failed to cancel event. Please try again.');
+      alert(`Failed to cancel event. Please try again. ${(error as Error).message || ''}`);
     }
   };
 
@@ -91,7 +139,8 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
     const scheduledDate = new Date(g.scheduledAt);
     const isInPast = scheduledDate <= now;
     const isCompleted = g.status === 'completed';
-    return isInPast || isCompleted;
+    const isCancelled = g.status === 'cancelled';
+    return isInPast || isCompleted || isCancelled;
   });
 
   return (
@@ -228,12 +277,14 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
                     <div className="col col-players">
                       <div className="players-info">
                         <div className="players-count">{game.registrations?.length || 0}/{game.totalSlots}</div>
-                        <div className="players-bar">
-                          <div 
-                            className="players-bar-fill" 
-                            style={{ width: `${((game.registrations?.length || 0) / game.totalSlots) * 100}%` }}
-                          ></div>
-                        </div>
+                        {(game.registrations?.length || 0) > 0 && (
+                          <div className="players-bar">
+                            <div 
+                              className="players-bar-fill" 
+                              style={{ width: `${((game.registrations?.length || 0) / game.totalSlots) * 100}%` }}
+                            ></div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="col col-revenue">

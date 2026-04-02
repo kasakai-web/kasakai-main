@@ -181,9 +181,14 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
         minPlayers: slots
       };
 
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
 
-      const res = await fetch("http://localhost:5000/api/v1/games", {
+      if (!token) {
+        setErrors({ submit: "Please login as organizer first" });
+        return;
+      }
+
+      const res = await fetch("http://localhost:5000/api/v1/games/organisers/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -192,8 +197,20 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = { success: false, message: "Invalid server response" };
+      }
+
+      if (!res.ok) {
+        setErrors({ submit: data?.message || `Failed to create event (HTTP ${res.status})` });
+        return;
+      }
+
       if (data.success) {
+        onCreate(data.data);
         if (onSuccess) onSuccess();
         onClose();
       } else {

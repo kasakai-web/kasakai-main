@@ -42,9 +42,9 @@ export function OrganizerEventCard({
 
     setIsDeleting(true);
     try {
-      const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
 
-      const response = await fetch(`http://localhost:5000/api/v1/games/${id}`, {
+      const response = await fetch(`http://localhost:5000/api/v1/games/organisers/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

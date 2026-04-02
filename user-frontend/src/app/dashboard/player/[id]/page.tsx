@@ -1,104 +1,194 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
+import "../../player-dashboard.css";
 
-const mockGames = [
-  {
-    id: 1,
-    status: "confirmed" as EventStatus,
-    venue: "Urban Turf, Mumbai",
-    date: "2026-03-27",
-    time: "20:00",
-    format: "5v5",
-    fee: 350,
-    spotsTotal: 10,
-    spotsLeft: 2,
-    players: [
-      { name: "Arjun K.", initials: "AK", pos: "MID" },
-      { name: "Rahul N.", initials: "RN", pos: "FWD" },
-      { name: "Priya S.", initials: "PS", pos: "DEF" },
-      { name: "Kartik M.", initials: "KM", pos: "GK" },
-      { name: "Shreya V.", initials: "SV", pos: "MID" },
-      { name: "Dev T.", initials: "DT", pos: "FWD" },
-      { name: "Neha R.", initials: "NR", pos: "DEF" },
-      { name: "Aditya M.", initials: "AM", pos: "MID" },
-    ]
-  },
-  {
-    id: 2,
-    status: "confirmed" as EventStatus,
-    venue: "Kick Turf, Bandra",
-    date: "2026-03-28",
-    time: "18:00",
-    format: "7v7",
-    fee: 400,
-    spotsTotal: 14,
-    spotsLeft: 0,
-    players: [
-      { name: "Mihir K.", initials: "MK", pos: "GK" },
-      { name: "Sanya B.", initials: "SB", pos: "DEF" },
-      { name: "Vivek R.", initials: "VR", pos: "MID" },
-      { name: "Tanya R.", initials: "TR", pos: "FWD" },
-    ]
-  },
-  {
-    id: 3,
-    status: "tentative" as EventStatus,
-    venue: "Playz Arena, Andheri",
-    date: "2026-03-29",
-    time: "19:30",
-    format: "6v6",
-    fee: 300,
-    spotsTotal: 12,
-    spotsLeft: 5,
-    players: [
-      { name: "Jay S.", initials: "JS", pos: "FWD" },
-      { name: "Kirti P.", initials: "KP", pos: "MID" },
-    ]
-  }
-];
-
-export default function PlayerDashboard({ params }: { params: { id: string } }) {
-  const [filter, setFilter] = useState("all");
+export default function PlayerDashboard() {
+  const router = useRouter();
+  const routeParams = useParams<{ id?: string | string[] }>();
+  const [activeTab, setActiveTab] = useState("all"); // 'all' or 'my-games'
+  const [games, setGames] = useState<any[]>([]);
+  const [myGames, setMyGames] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<any>(null);
-  const [walletBalance, setWalletBalance] = useState(1250);
+  const [walletBalance, setWalletBalance] = useState(1250); // Mock balance for now
+  const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
 
-  const filteredGames = mockGames.filter(g => {
-    if (search && !g.venue.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filter === "confirmed") return g.status === "confirmed";
-    if (filter === "tentative") return g.status === "tentative";
-    if (filter === "available") return g.spotsLeft > 0;
-    if (filter === "today") return false; // demo
-    return true;
-  });
+  const fetchAllGames = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setGames([]);
+        return;
+      }
 
-  const handleBook = (game: any) => {
-    setSelectedGame(game);
-  };
+      const res = await fetch("http://localhost:5000/api/v1/games", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (!res.ok) {
+        console.error("API error:", res.status, res.statusText);
+        setGames([]);
+        return;
+      }
 
-  const handleConfirmBooking = (game: any, plusOne: boolean) => {
-    const total = game.fee * (plusOne ? 2 : 1);
-    if (!game.waitlist) {
-      setWalletBalance(prev => prev - total);
+      const data = await res.json();
+      console.log("[DEBUG] All games:", data);
+      
+      if (data.success) {
+        setGames(data.data || []);
+      } else {
+        console.error("API failed:", data.message);
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Failed to fetch all games", error);
+      alert(`Connection error: ${error.message}`);
     }
   };
 
+  const fetchMyGames = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setMyGames([]);
+        return;
+      }
+
+      const res = await fetch("http://localhost:5000/api/v1/games/my-games", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (!res.ok) {
+        console.error("getMyGames API error:", res.status, res.statusText);
+        setMyGames([]);
+        return;
+      }
+
+      const data = await res.json();
+      console.log("[DEBUG] My games:", data);
+      
+      if (data.success) {
+        setMyGames(data.data || []);
+      } else {
+        console.error("getMyGames API failed:", data.message);
+      }
+    } catch (error) {
+      console.error("Failed to fetch my games", error);
+    }
+  };
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchAllGames(), fetchMyGames()]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("userRole");
+    const userId = localStorage.getItem("userId");
+
+    if (!token || role !== "player" || !userId) {
+      setLoading(false);
+      router.replace("/login?role=player");
+      return;
+    }
+
+    fetchDashboardData();
+  }, [router]);
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    setActiveTab(tab === "my-games" ? "my-games" : "all");
+  }, []);
+
+  const changeTab = (tab: "all" | "my-games") => {
+    setActiveTab(tab);
+    if (playerId) {
+      router.replace(`/dashboard/player/${playerId}?tab=${tab}`);
+    }
+  };
+
+  const handleBook = (game: any) => {
+    // Convert game object to BookingModal format
+    const formattedGame = {
+      id: game._id,
+      venue: `${game.turf?.name || 'TBC'},${game.turf?.location?.city || 'TBC'}`,
+      date: new Date(game.scheduledAt).toISOString().split('T')[0],
+      time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      format: game.format,
+      fee: game.feeInPaise / 100,
+      spots: game.totalSlots - (game.registrations?.length || 0),
+      waitlist: false,
+      _id: game._id // Keep original ID for API calls
+    };
+    setSelectedGame(formattedGame);
+  };
+
+  const handleConfirmBooking = async (game: any, plusOne: boolean) => {
+    // TODO: Handle plusOne logic on the backend
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        router.replace("/login?role=player");
+        return;
+      }
+
+      const res = await fetch(`http://localhost:5000/api/v1/games/${game._id}/register`, {
+        method: 'POST',
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Only close modal on SUCCESS - BookingModal handles the notification
+        setSelectedGame(null);
+        setActiveTab("my-games");
+        if (playerId) {
+          router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+        }
+        // Refresh both lists after a short delay to pick up latest registration state
+        setTimeout(() => {
+          fetchDashboardData();
+        }, 500);
+      } else {
+        // Show error and keep modal open
+        alert(`Registration failed: ${data.message}`);
+        setSelectedGame(null);
+      }
+    } catch (error) {
+      console.error("Failed to register for game", error);
+      alert("An error occurred during registration.");
+      setSelectedGame(null);
+    }
+  };
+
+  const gamesToDisplay = activeTab === 'all' ? games : myGames;
+  const filteredGames = gamesToDisplay.filter(g => 
+    g.turf?.name?.toLowerCase().includes(search.toLowerCase()) ||
+    g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div>
+    <div className="player-dashboard-container">
       <div className="page-header">
         <div className="page-title-group">
-          <div className="page-eyebrow">Mumbai Community</div>
-          <div className="page-title">Upcoming <span>Games</span></div>
+          <div className="page-eyebrow">Player Dashboard</div>
+          <div className="page-title">Your Football <span>World</span></div>
         </div>
         <div className="page-actions">
           <div className="search-box">
             <span className="search-icon">⌕</span>
             <input 
               type="text" 
-              placeholder="Search venue..." 
+              placeholder="Search by venue or city..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -106,27 +196,63 @@ export default function PlayerDashboard({ params }: { params: { id: string } }) 
         </div>
       </div>
 
-      <div className="filter-bar">
-        {["all", "confirmed", "tentative", "available", "today"].map(f => (
-          <button 
-            key={f}
-            className={`filter-chip ${filter === f ? "active" : ""}`}
-            onClick={() => setFilter(f)}
+      <div className="tabs-section">
+        <div className="tab-navigation player-tab-navigation">
+          <button
+            className={`tab-btn player-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+            onClick={() => changeTab('all')}
           >
-            {f.charAt(0).toUpperCase() + f.slice(1).replace("Available", "Spots Available")}
+            <span className="tab-icon">🏟️</span>
+            <span className="tab-text">All Games</span>
+            <span className="tab-badge">{games.length}</span>
           </button>
-        ))}
+          <button
+            className={`tab-btn player-tab-btn ${activeTab === 'my-games' ? 'active' : ''}`}
+            onClick={() => changeTab('my-games')}
+          >
+            <span className="tab-icon">🎟️</span>
+            <span className="tab-text">My Games</span>
+            <span className="tab-badge">{myGames.length}</span>
+          </button>
+        </div>
       </div>
-
-      <div className="events-grid">
-        {filteredGames.map(game => (
-          <EventCard
-            key={game.id}
-            {...game}
-            onBook={handleBook}
-          />
-        ))}
-      </div>
+      
+      {loading ? (
+        <div className="loading-container"><div className="spinner"></div><p>Loading games...</p></div>
+      ) : (
+        <div className="events-grid">
+          {filteredGames.length > 0 ? filteredGames.map(game => {
+            const spotsLeft = game.totalSlots - (game.registrations?.length || 0);
+            return (
+              <EventCard
+                key={game._id}
+                id={game._id}
+                status={game.status as EventStatus}
+                venue={game.turf?.name || 'TBC'}
+                city={game.turf?.location?.city || 'TBC'}
+                date={new Date(game.scheduledAt).toISOString().split('T')[0]}
+                time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                format={game.format}
+                fee={game.feeInPaise / 100}
+                spotsTotal={game.totalSlots}
+                spotsLeft={spotsLeft}
+                isRegistered={myGames.some(myGame => myGame._id === game._id)}
+                players={game.registrations?.map((reg: any) => ({
+                  name: reg.player?.name || 'Player',
+                  initials: (reg.player?.name || 'P').substring(0, 2).toUpperCase(),
+                  pos: 'ANY' // Placeholder
+                })) || []}
+                onBook={() => handleBook(game)}
+              />
+            )
+          }) : (
+            <div className="empty-state">
+              <h3>No games found</h3>
+              <p>There are no games matching your criteria.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {selectedGame && (
         <BookingModal 

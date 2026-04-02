@@ -19,21 +19,12 @@ export function LoginForm({ onSignupClick, onForgotClick }: LoginFormProps) {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
       if (!email || !password) {
         setError("Please fill in all fields");
         return;
       }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Store session (replace with actual auth)
-      localStorage.setItem("token", "mock-token-" + Date.now());
-      localStorage.setItem("userRole", "player");
-      
-      alert("Login successful!");
-      window.location.href = "/dashboard";
+      setError("Please use the phone-based login flow so the backend can issue a JWT.");
     } catch (err) {
       setError("Login failed. Please try again.");
     } finally {

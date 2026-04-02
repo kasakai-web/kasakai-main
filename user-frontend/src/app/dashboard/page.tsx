@@ -9,7 +9,7 @@ export default function DashboardIndex() {
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     const userId = localStorage.getItem("userId") || "default_id";
-    if (role === "organizer") {
+    if (role === "organizer" || role === "organiser") {
       router.push(`/dashboard/organizer/${userId}`);
     } else {
       router.push(`/dashboard/player/${userId}`);
