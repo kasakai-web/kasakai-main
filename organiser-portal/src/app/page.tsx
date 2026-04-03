@@ -1,63 +1,103 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import "./home.css";
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   return (
     <div className="organiser-home">
-      <nav className="nav-bar">
-        <div className="nav-brand">Kasa Kai Organizer</div>
-        <div className="nav-links">
-          <Link href="/" className="nav-link active">Home</Link>
-          <Link href="/dashboard" className="nav-link">Dashboard</Link>
-        </div>
-      </nav>
+      <header className="site-header">
+        <nav className="nav-bar">
+          <div className="brand-wrap">
+            <div className="brand-mark" aria-hidden="true">
+              <span>KASA</span>
+              <span>KAI</span>
+            </div>
+            <div className="brand-stack">
+              <p className="brand-label">KASAKAI</p>
+              <p className="brand-sub">Organiser Portal</p>
+            </div>
+          </div>
+
+          <div className="nav-links" aria-label="Primary navigation">
+            <a href="#features" onClick={closeMobileMenu}>Features</a>
+            <a href="#workflow" onClick={closeMobileMenu}>Workflow</a>
+            <a href="#contact" onClick={closeMobileMenu}>Contact</a>
+          </div>
+
+          <div className="nav-actions">
+            <Link href="/dashboard" className="btn-login">Login</Link>
+            <button
+              className="mobile-menu-btn"
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
+        </nav>
+
+        {mobileMenuOpen && (
+          <div className="mobile-menu-panel">
+            <a href="#features" onClick={closeMobileMenu}>Features</a>
+            <a href="#workflow" onClick={closeMobileMenu}>Workflow</a>
+            <a href="#contact" onClick={closeMobileMenu}>Contact</a>
+            <Link href="/dashboard" className="mobile-menu-login" onClick={closeMobileMenu}>
+              Login
+            </Link>
+          </div>
+        )}
+      </header>
 
       <main className="home-content">
         <div className="hero-section">
-          <h1 className="hero-title">Welcome to Organizer Portal</h1>
-          <p className="hero-subtitle">Manage your football events and track player registrations</p>
-        </div>
+          <p className="hero-kicker">Built for game organisers</p>
+          <h1 className="hero-title">Welcome to KASAKAI Organiser Hub</h1>
+          <p className="hero-subtitle">
+            Plan fixtures, track registrations, and manage payments from one clean dashboard.
+          </p>
 
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">⚽</div>
-            <h3 className="feature-title">Create Games</h3>
-            <p className="feature-description">
-              Set up your football matches with custom parameters like venue, time, format, and fees
-            </p>
+          <div className="hero-actions">
+            <Link href="/dashboard" className="btn-primary">Go to Dashboard</Link>
           </div>
 
-          <div className="feature-card">
-            <div className="feature-icon">👥</div>
-            <h3 className="feature-title">Track Players</h3>
-            <p className="feature-description">
-              See who registered for your games and manage player information in real-time
-            </p>
+          <div className="hero-stats" id="workflow">
+            <article>
+              <h3>Fast Setup</h3>
+              <p>Create and publish matches in minutes.</p>
+            </article>
+            <article>
+              <h3>Live Control</h3>
+              <p>Handle slots and confirmations in real time.</p>
+            </article>
+            <article>
+              <h3>Player Ready</h3>
+              <p>Share clear details with every registered player.</p>
+            </article>
           </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">💰</div>
-            <h3 className="feature-title">Payment Management</h3>
-            <p className="feature-description">
-              Monitor payment status and collect fees from registered players
-            </p>
-          </div>
-
-          <div className="feature-card">
-            <div className="feature-icon">📊</div>
-            <h3 className="feature-title">Analytics</h3>
-            <p className="feature-description">
-              View stats on games, players, and revenue to optimize your events
-            </p>
-          </div>
-        </div>
-
-        <div className="cta-section">
-          <Link href="/dashboard" className="btn-primary">
-            Go to Dashboard →
-          </Link>
         </div>
       </main>
+
+      <section className="feature-band" id="features">
+        <div className="feature-card">
+          <p>Match Management</p>
+        </div>
+        <div className="feature-card">
+          <p>Registration Overview</p>
+        </div>
+        <div className="feature-card" id="contact">
+          <p>Payment Visibility</p>
+        </div>
+      </section>
     </div>
   );
 }
