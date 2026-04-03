@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../organizer-dashboard.css";
+import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 type OrganiserProfile = {
   name: string;
@@ -31,6 +33,11 @@ export default function OrganiserProfilePage() {
   const router = useRouter();
   const routeParams = useParams<{ id?: string | string[] }>();
   const organiserId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
+  const { isAuthorized } = useAuthGuard({
+    requiredRole: "organiser",
+    routeUserId: organiserId,
+    redirectTo: "/login?role=organiser",
+  });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,11 +60,7 @@ export default function OrganiserProfilePage() {
   });
 
   const clearSessionAndExit = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userName");
+    clearSession();
     router.replace("/login?role=organiser");
   };
 
@@ -82,17 +85,15 @@ export default function OrganiserProfilePage() {
     setLoading(true);
     setError("");
 
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    const userId = localStorage.getItem("userId");
+    const { token } = getSession();
 
-    if (!token || role !== "organiser" || !userId) {
+    if (!token) {
       clearSessionAndExit();
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/v1/organisers/me", {
+      const res = await fetch(buildApiUrl("/api/v1/organisers/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -138,22 +139,27 @@ export default function OrganiserProfilePage() {
   };
 
   useEffect(() => {
+    if (!isAuthorized) {
+      setLoading(false);
+      return;
+    }
+
     fetchProfile();
-  }, []);
+  }, [isAuthorized]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError("");
 
-    const token = localStorage.getItem("authToken");
+    const { token } = getSession();
     if (!token) {
       clearSessionAndExit();
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/v1/organisers/me", {
+      const res = await fetch(buildApiUrl("/api/v1/organisers/me"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -195,7 +201,7 @@ export default function OrganiserProfilePage() {
   };
 
   const handleDeleteProfile = async () => {
-    const token = localStorage.getItem("authToken");
+    const { token } = getSession();
     if (!token) {
       clearSessionAndExit();
       return;
@@ -203,7 +209,7 @@ export default function OrganiserProfilePage() {
 
     setDeleting(true);
     try {
-      const res = await fetch("http://localhost:5000/api/v1/organisers/me", {
+      const res = await fetch(buildApiUrl("/api/v1/organisers/me"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

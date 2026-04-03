@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { validatePhone, validatePassword } from "@/utils/auth";
+import { buildApiUrl } from "@/utils/api";
 
 interface PlayerLoginFormProps {
   onSignupClick: () => void;
@@ -45,7 +46,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/v1/auth/login", {
+      const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -58,6 +59,9 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 401) {
+          throw new Error("Wrong credentials");
+        }
         throw new Error(errorData.message || "Failed to login");
       }
 
@@ -70,6 +74,8 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       window.location.href = user.role === "organiser" ? `/dashboard/organizer/${user.id}` : `/dashboard/player/${user.id}`;
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 

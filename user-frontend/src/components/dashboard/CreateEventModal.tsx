@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import "./CreateEventModal.css";
+import { buildApiUrl } from "@/utils/api";
 
 interface Turf {
   _id: string;
@@ -36,7 +37,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
 
   useEffect(() => {
     // Fetch available turfs
-    fetch("http://localhost:5000/api/v1/turfs")
+    fetch(buildApiUrl("/api/v1/turfs"))
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -188,7 +189,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
         return;
       }
 
-      const res = await fetch("http://localhost:5000/api/v1/games/organisers/create", {
+      const res = await fetch(buildApiUrl("/api/v1/games/organisers/create"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

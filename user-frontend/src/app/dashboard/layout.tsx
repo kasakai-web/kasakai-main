@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { clearSession, getSession } from "@/utils/api";
 import "./dashboard.css";
 
 export default function DashboardLayout({
@@ -17,32 +18,39 @@ export default function DashboardLayout({
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [activeSection, setActiveSection] = useState("browse");
+  const [authResolved, setAuthResolved] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Read auth/session from localStorage (set during login)
-    const authToken = localStorage.getItem("authToken");
-    const storedRole = localStorage.getItem("userRole");
-    const storedUserId = localStorage.getItem("userId") || "default_id";
-    const storedUserName = localStorage.getItem("userName");
+    const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
+    const storedUserName = typeof window !== "undefined" ? localStorage.getItem("userName") : null;
 
     if (storedUserName) {
       setUserName(storedUserName);
     }
-    setUserId(storedUserId);
+
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
 
     if (authToken && storedRole && storedUserId) {
+      setAuthenticated(true);
       setRole(storedRole);
 
       // Enforce dashboard isolation
       if (storedRole === "player" && pathname.includes("organizer")) {
         router.replace(`/dashboard/player/${storedUserId}`);
-      } else if (storedRole === "organizer" && pathname.includes("player")) {   
+      } else if ((storedRole === "organizer" || storedRole === "organiser") && pathname.includes("player")) {
         router.replace(`/dashboard/organizer/${storedUserId}`);
       }
     } else {
-      // If auth/session is missing, redirect to login
-      router.replace("/login?role=organiser");
+      setAuthenticated(false);
+      clearSession();
+      const loginRole = pathname.includes("/player/") ? "player" : "organiser";
+      router.replace(`/login?role=${loginRole}`);
     }
+
+    setAuthResolved(true);
   }, [pathname, router]);
 
   useEffect(() => {
@@ -73,13 +81,13 @@ export default function DashboardLayout({
   const displayRole = role || (pathname.includes("organizer") ? "organizer" : "player");
 
   const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userName");
+    clearSession();
     router.replace("/login");
   };
+
+  if (!authResolved || !authenticated) {
+    return null;
+  }
 
   return (
     <div className="dashboard-app-wrapper">

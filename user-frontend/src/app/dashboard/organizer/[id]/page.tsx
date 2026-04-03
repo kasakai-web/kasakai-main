@@ -1,14 +1,23 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
+import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import "../../organizer-dashboard.css";
 
-export default function OrganizerDashboard({ params }: { params: { id: string } }) {
+export default function OrganizerDashboard() {
   const router = useRouter();
+  const routeParams = useParams<{ id?: string | string[] }>();
+  const organiserId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
+  const { isAuthorized } = useAuthGuard({
+    requiredRole: "organiser",
+    routeUserId: organiserId,
+    redirectTo: "/login?role=organiser",
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPlayersModal, setShowPlayersModal] = useState(false);
@@ -20,14 +29,15 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
   const fetchGames = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("authToken");
+      const { token } = getSession();
       if (!token) {
         setLoading(false);
+        clearSession();
         router.replace("/login?role=organiser");
         return;
       }
       
-      const res = await fetch("http://localhost:5000/api/v1/games/organisers/my-games", {
+      const res = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -35,11 +45,7 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("token");
-          localStorage.removeItem("userRole");
-          localStorage.removeItem("userId");
-          localStorage.removeItem("userName");
+          clearSession();
           router.replace("/login?role=organiser");
           return;
         }
@@ -62,18 +68,13 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    const userId = localStorage.getItem("userId");
-
-    if (!token || role !== "organiser" || !userId) {
+    if (!isAuthorized) {
       setLoading(false);
-      router.replace("/login?role=organiser");
       return;
     }
 
     fetchGames();
-  }, [router]);
+  }, [isAuthorized]);
 
   const handleCreateEvent = (data: any) => {
     console.log("Event Created", data);
@@ -81,14 +82,15 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
 
   const handleCancelGame = async (gameId: string) => {
     try {
-      const token = localStorage.getItem("authToken");
+      const { token } = getSession();
 
       if (!token) {
+        clearSession();
         router.replace("/login?role=organiser");
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/v1/games/organisers/${gameId}`, {
+      const response = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -103,11 +105,7 @@ export default function OrganizerDashboard({ params }: { params: { id: string } 
         : { success: false, message: responseText || `HTTP ${response.status}` };
 
       if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("token");
-        localStorage.removeItem("userRole");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("userName");
+        clearSession();
         router.replace("/login?role=organiser");
         return;
       }

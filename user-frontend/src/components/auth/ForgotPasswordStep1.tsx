@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { validatePhone } from "@/utils/auth";
+import { buildApiUrl } from "@/utils/api";
 
 interface ForgotPasswordStep1Props {
   onBack: () => void;
@@ -27,7 +28,7 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
       const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
       const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
 
-      const response = await fetch("http://localhost:5000/api/v1/auth/forgot-password", {
+      const response = await fetch(buildApiUrl("/api/v1/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phone, role: apiRole }),

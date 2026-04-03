@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { buildApiUrl } from "@/utils/api";
 
 interface Turf {
   _id: string;
@@ -54,7 +55,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/turfs")
+    fetch(buildApiUrl("/api/v1/turfs"))
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -96,7 +97,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
         minPlayers: Number(formData.minPlayers),
       };
 
-      const response = await fetch(`http://localhost:5000/api/v1/games/organisers/${gameId}`, {
+      const response = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,

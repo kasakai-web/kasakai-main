@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
+import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import "../../player-dashboard.css";
 
 export default function PlayerDashboard() {
@@ -17,20 +19,30 @@ export default function PlayerDashboard() {
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [walletBalance, setWalletBalance] = useState(1250); // Mock balance for now
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
+  const { isAuthorized } = useAuthGuard({
+    requiredRole: "player",
+    routeUserId: playerId,
+    redirectTo: "/login?role=player",
+  });
 
   const fetchAllGames = async () => {
     try {
-      const token = localStorage.getItem("authToken");
+      const { token } = getSession();
       if (!token) {
         setGames([]);
         return;
       }
 
-      const res = await fetch("http://localhost:5000/api/v1/games", {
+      const res = await fetch(buildApiUrl("/api/v1/games"), {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          clearSession();
+          router.replace("/login?role=player");
+          return;
+        }
         console.error("API error:", res.status, res.statusText);
         setGames([]);
         return;
@@ -53,17 +65,22 @@ export default function PlayerDashboard() {
 
   const fetchMyGames = async () => {
     try {
-      const token = localStorage.getItem("authToken");
+      const { token } = getSession();
       if (!token) {
         setMyGames([]);
         return;
       }
 
-      const res = await fetch("http://localhost:5000/api/v1/games/my-games", {
+      const res = await fetch(buildApiUrl("/api/v1/games/my-games"), {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          clearSession();
+          router.replace("/login?role=player");
+          return;
+        }
         console.error("getMyGames API error:", res.status, res.statusText);
         setMyGames([]);
         return;
@@ -92,18 +109,13 @@ export default function PlayerDashboard() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    const userId = localStorage.getItem("userId");
-
-    if (!token || role !== "player" || !userId) {
+    if (!isAuthorized) {
       setLoading(false);
-      router.replace("/login?role=player");
       return;
     }
 
     fetchDashboardData();
-  }, [router]);
+  }, [isAuthorized]);
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
@@ -136,13 +148,14 @@ export default function PlayerDashboard() {
   const handleConfirmBooking = async (game: any, plusOne: boolean) => {
     // TODO: Handle plusOne logic on the backend
     try {
-      const token = localStorage.getItem("authToken");
+      const { token } = getSession();
       if (!token) {
+        clearSession();
         router.replace("/login?role=player");
         return;
       }
 
-      const res = await fetch(`http://localhost:5000/api/v1/games/${game._id}/register`, {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/register`), {
         method: 'POST',
         headers: { "Authorization": `Bearer ${token}` }
       });

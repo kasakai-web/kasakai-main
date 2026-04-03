@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { validatePassword } from "@/utils/auth";
+import { buildApiUrl } from "@/utils/api";
 
 interface PlayerSignUpStep2Props {
   userData: {
@@ -49,7 +50,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
       const role = storedRole || urlRole;
       const apiRole = role === "organizer" || role === "organiser" ? "organiser" : "player";
 
-      const response = await fetch("http://localhost:5000/api/v1/auth/register", {
+      const response = await fetch(buildApiUrl("/api/v1/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

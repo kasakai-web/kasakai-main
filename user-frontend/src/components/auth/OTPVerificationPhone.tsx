@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { buildApiUrl } from "@/utils/api";
 
 interface OTPVerificationPhoneProps {
   phone: string;
@@ -57,7 +58,7 @@ export function OTPVerificationPhone({ phone, mode, onVerified, onBack }: OTPVer
       const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
       const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
 
-      const response = await fetch('http://localhost:5000/api/v1/auth/verify-otp', {
+      const response = await fetch(buildApiUrl('/api/v1/auth/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: phone, otp: otpString, role: apiRole, mode: mode }),

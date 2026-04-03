@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
+import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 type PlayerProfile = {
   name: string;
@@ -20,8 +22,16 @@ type PlayerProfile = {
   };
 };
 
-export default function PlayerProfilePage({ params: _params }: { params: { id: string } }) {
+export default function PlayerProfilePage() {
   const router = useRouter();
+  const routeParams = useParams<{ id?: string | string[] }>();
+  const routeUserId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
+  const { isAuthorized } = useAuthGuard({
+    requiredRole: "player",
+    routeUserId,
+    redirectTo: "/login?role=player",
+  });
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -37,11 +47,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
   });
 
   const clearSessionAndExit = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userName");
+    clearSession();
     router.replace("/login?role=player");
   };
 
@@ -66,17 +72,14 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
     setLoading(true);
     setError("");
 
-    const token = localStorage.getItem("authToken");
-    const role = localStorage.getItem("userRole");
-    const userId = localStorage.getItem("userId");
-
-    if (!token || role !== "player" || !userId) {
+    const { token } = getSession();
+    if (!token) {
       clearSessionAndExit();
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/v1/players/me", {
+      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -115,8 +118,13 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
   };
 
   useEffect(() => {
+    if (!isAuthorized) {
+      setLoading(false);
+      return;
+    }
+
     fetchProfile();
-  }, []);
+  }, [isAuthorized]);
 
   const togglePosition = (position: string) => {
     const current = profile.preferences?.positions || [];
@@ -138,14 +146,14 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
     setSaving(true);
     setError("");
 
-    const token = localStorage.getItem("authToken");
+    const { token } = getSession();
     if (!token) {
       clearSessionAndExit();
       return;
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/v1/players/me", {
+      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -186,7 +194,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
   };
 
   const handleDeleteProfile = async () => {
-    const token = localStorage.getItem("authToken");
+    const { token } = getSession();
     if (!token) {
       clearSessionAndExit();
       return;
@@ -194,7 +202,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
 
     setDeleting(true);
     try {
-      const res = await fetch("http://localhost:5000/api/v1/players/me", {
+      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -212,7 +220,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
       }
 
       clearSessionAndExit();
-    } catch (e) {
+    } catch (_e) {
       alert("Failed to delete profile");
       setDeleting(false);
     }
@@ -290,69 +298,12 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
             </div>
 
             <div className="profile-grid">
-              <label className="profile-field">
-                <span>Full Name</span>
-                <input
-                  value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  placeholder="Full name"
-                  required
-                />
-              </label>
-
-              <label className="profile-field">
-                <span>Email</span>
-                <input
-                  value={profile.email || ""}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  placeholder="Email"
-                  type="email"
-                />
-              </label>
-
-              <label className="profile-field">
-                <span>Phone</span>
-                <input
-                  value={profile.phone}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  placeholder="Phone"
-                  required
-                />
-              </label>
-
-              <label className="profile-field">
-                <span>WhatsApp Number</span>
-                <input
-                  value={profile.whatsappNumber}
-                  onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })}
-                  placeholder="WhatsApp Number"
-                  required
-                />
-              </label>
-
-              <label className="profile-field">
-                <span>City</span>
-                <input
-                  value={profile.location?.city || ""}
-                  onChange={(e) => setProfile({
-                    ...profile,
-                    location: { ...(profile.location || {}), city: e.target.value },
-                  })}
-                  placeholder="City"
-                />
-              </label>
-
-              <label className="profile-field">
-                <span>State</span>
-                <input
-                  value={profile.location?.state || ""}
-                  onChange={(e) => setProfile({
-                    ...profile,
-                    location: { ...(profile.location || {}), state: e.target.value },
-                  })}
-                  placeholder="State"
-                />
-              </label>
+              <label className="profile-field"><span>Full Name</span><input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Full name" required /></label>
+              <label className="profile-field"><span>Email</span><input value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="Email" type="email" /></label>
+              <label className="profile-field"><span>Phone</span><input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="Phone" required /></label>
+              <label className="profile-field"><span>WhatsApp Number</span><input value={profile.whatsappNumber} onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })} placeholder="WhatsApp Number" required /></label>
+              <label className="profile-field"><span>City</span><input value={profile.location?.city || ""} onChange={(e) => setProfile({ ...profile, location: { ...(profile.location || {}), city: e.target.value } })} placeholder="City" /></label>
+              <label className="profile-field"><span>State</span><input value={profile.location?.state || ""} onChange={(e) => setProfile({ ...profile, location: { ...(profile.location || {}), state: e.target.value } })} placeholder="State" /></label>
             </div>
           </section>
 
@@ -365,16 +316,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
             <div className="profile-grid">
               <label className="profile-field">
                 <span>Skill Level</span>
-                <select
-                  value={profile.preferences?.skillLevel || "beginner"}
-                  onChange={(e) => setProfile({
-                    ...profile,
-                    preferences: {
-                      ...(profile.preferences || {}),
-                      skillLevel: e.target.value as "beginner" | "intermediate" | "advanced",
-                    },
-                  })}
-                >
+                <select value={profile.preferences?.skillLevel || "beginner"} onChange={(e) => setProfile({ ...profile, preferences: { ...(profile.preferences || {}), skillLevel: e.target.value as "beginner" | "intermediate" | "advanced" } })}>
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
@@ -383,16 +325,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
 
               <label className="profile-field">
                 <span>Preferred Format</span>
-                <select
-                  value={profile.preferences?.preferredFormat || "5v5"}
-                  onChange={(e) => setProfile({
-                    ...profile,
-                    preferences: {
-                      ...(profile.preferences || {}),
-                      preferredFormat: e.target.value as "5v5" | "6v6" | "7v7" | "8v8" | "9v9" | "10v10",
-                    },
-                  })}
-                >
+                <select value={profile.preferences?.preferredFormat || "5v5"} onChange={(e) => setProfile({ ...profile, preferences: { ...(profile.preferences || {}), preferredFormat: e.target.value as "5v5" | "6v6" | "7v7" | "8v8" | "9v9" | "10v10" } })}>
                   {(["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"] as const).map((f) => (
                     <option key={f} value={f}>{f}</option>
                   ))}
@@ -406,12 +339,7 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
                 {["GK", "DEF", "MID", "FWD"].map((pos) => {
                   const selected = (profile.preferences?.positions || []).includes(pos);
                   return (
-                    <button
-                      key={pos}
-                      type="button"
-                      onClick={() => togglePosition(pos)}
-                      className={`profile-chip ${selected ? "selected" : ""}`}
-                    >
+                    <button key={pos} type="button" onClick={() => togglePosition(pos)} className={`profile-chip ${selected ? "selected" : ""}`}>
                       {pos}
                     </button>
                   );
@@ -423,12 +351,8 @@ export default function PlayerProfilePage({ params: _params }: { params: { id: s
           {error && <p className="profile-error">{error}</p>}
 
           <div className="profile-actions">
-            <button className="btn-primary" type="submit" disabled={saving || deleting}>
-              <span>{saving ? "Saving..." : "Save Changes"}</span>
-            </button>
-            <button type="button" onClick={() => setDeleteStep(1)} disabled={saving || deleting} className="profile-delete-btn">
-              Delete Account
-            </button>
+            <button className="btn-primary" type="submit" disabled={saving || deleting}><span>{saving ? "Saving..." : "Save Changes"}</span></button>
+            <button type="button" onClick={() => setDeleteStep(1)} disabled={saving || deleting} className="profile-delete-btn">Delete Account</button>
           </div>
         </form>
       </div>

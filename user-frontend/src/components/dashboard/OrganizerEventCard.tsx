@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { EventStatus } from "./EventCard";
+import { buildApiUrl } from "@/utils/api";
 
 export interface OrganizerEventCardProps {
   id: number | string;
@@ -44,7 +45,7 @@ export function OrganizerEventCard({
     try {
       const token = localStorage.getItem("authToken");
 
-      const response = await fetch(`http://localhost:5000/api/v1/games/organisers/${id}`, {
+      const response = await fetch(buildApiUrl(`/api/v1/games/organisers/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
