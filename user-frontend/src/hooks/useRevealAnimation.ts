@@ -4,22 +4,43 @@ import { useEffect } from "react";
 
 export function useRevealAnimation() {
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("in");
-          }
-        });
-      },
-      { threshold: 0.12 }
-    );
+    const selectors = ".reveal, .reveal-left, .reveal-right";
 
-    document.querySelectorAll(".reveal, .reveal-left, .reveal-right").forEach((el) => {
-      observer.observe(el);
-    });
+    const attachObserver = () => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in");
+            }
+          });
+        },
+        { threshold: 0.12 }
+      );
+
+      document.querySelectorAll(selectors).forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add("in");
+        }
+
+        observer.observe(el);
+      });
+
+      return observer;
+    };
+
+    let observer = attachObserver();
+
+    const handlePageShow = () => {
+      observer.disconnect();
+      observer = attachObserver();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
 
     return () => {
+      window.removeEventListener("pageshow", handlePageShow);
       observer.disconnect();
     };
   }, []);

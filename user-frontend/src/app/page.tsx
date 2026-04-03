@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect } from "react";
 import { CTASection } from "@/components/sections/CTASection";
 import { FAQSection } from "@/components/sections/FAQSection";
 import { FeaturesSection } from "@/components/sections/FeaturesSection";
@@ -12,6 +13,7 @@ import { StatsStrip } from "@/components/sections/StatsStrip";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { useScript } from "@/hooks/useScript";
+import { useRevealAnimation } from "@/hooks/useRevealAnimation";
 
 // Lazy load below-the-fold sections for faster initial load
 const TestimonialsSection = dynamic(() =>
@@ -22,6 +24,8 @@ const TestimonialsSection = dynamic(() =>
 );
 
 export default function Home() {
+  useRevealAnimation();
+
   const pageScript = `
     if (!window.__kasaKaiInitialized) {
       window.__kasaKaiInitialized = true;
@@ -45,6 +49,10 @@ export default function Home() {
   `;
 
   useScript(pageScript);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <>

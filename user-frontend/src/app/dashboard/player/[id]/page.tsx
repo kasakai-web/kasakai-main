@@ -59,7 +59,8 @@ export default function PlayerDashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch all games", error);
-      alert(`Connection error: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown connection error";
+      alert(`Connection error: ${message}`);
     }
   };
 

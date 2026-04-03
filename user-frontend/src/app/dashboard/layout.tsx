@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { clearSession, getSession } from "@/utils/api";
 import "./dashboard.css";
 
@@ -12,7 +12,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() || "";
-  const searchParams = useSearchParams();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>("");
@@ -65,7 +64,7 @@ export default function DashboardLayout({
     }
 
     if (pathname.includes("/dashboard/player/")) {
-      const tab = searchParams.get("tab");
+      const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
       if (tab === "my-games") {
         setActiveSection("mygames");
         return;
@@ -75,7 +74,7 @@ export default function DashboardLayout({
     }
 
     setActiveSection("browse");
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   // Fallback for visual rendering until state hydrates
   const displayRole = role || (pathname.includes("organizer") ? "organizer" : "player");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { validatePhone, validatePassword } from "@/utils/auth";
 import { buildApiUrl } from "@/utils/api";
@@ -11,6 +12,7 @@ interface PlayerLoginFormProps {
 }
 
 export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFormProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const qRole = searchParams.get("role");
 
@@ -71,7 +73,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name || "User");
 
-      window.location.href = user.role === "organiser" ? `/dashboard/organizer/${user.id}` : `/dashboard/player/${user.id}`;
+      router.replace(user.role === "organiser" ? `/dashboard/organizer/${user.id}` : `/dashboard/player/${user.id}`);
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
