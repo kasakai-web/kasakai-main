@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
 import { PlayerSignUpStep1 } from "@/components/auth/PlayerSignUpStep1";        
@@ -8,6 +9,7 @@ import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";
 import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";  
 import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";    
 import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm"; 
+import "../home.css";
 
 function AuthFlow() {
   const router = useRouter();
@@ -120,13 +122,39 @@ function AuthFlow() {
 
 export default function LoginPage() {
   return (
-    <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--black)", padding: "32px 16px" }}>
-      <div style={{ width: "100%", maxWidth: "500px" }}>
-        <Suspense fallback={<div style={{ color: "white", textAlign: "center" }}>Loading...</div>}>
-          <AuthFlow />
-        </Suspense>
-      </div>
-    </main>
+    <div className="organiser-home" style={{ minHeight: "100vh" }}>
+      <header className="site-header">
+        <nav className="nav-bar">
+          <Link href="/" className="brand-wrap" aria-label="KASAKAI home">
+            <div className="brand-mark" aria-hidden="true">
+              <span>KASA</span>
+              <span>KAI</span>
+            </div>
+            <div className="brand-stack">
+              <p className="brand-label">KASAKAI</p>
+              <p className="brand-sub">Organiser Portal</p>
+            </div>
+          </Link>
+
+          <div className="nav-links" aria-label="Login navigation">
+            <Link href="/" onClick={() => window.scrollTo(0, 0)}>Home</Link>
+            <a href="#" onClick={(event) => event.preventDefault()}>Organiser Login</a>
+          </div>
+
+          <div className="nav-actions">
+            <Link href="/" className="btn-login">Back Home</Link>
+          </div>
+        </nav>
+      </header>
+
+      <main style={{ minHeight: "calc(100vh - 72px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px" }}>
+        <div style={{ width: "100%", maxWidth: "500px" }}>
+          <Suspense fallback={<div style={{ color: "white", textAlign: "center" }}>Loading...</div>}>
+            <AuthFlow />
+          </Suspense>
+        </div>
+      </main>
+    </div>
   );
 }
 
