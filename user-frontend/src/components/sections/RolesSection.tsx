@@ -340,7 +340,7 @@ export function RolesSection() {
         </div>
         <a
           className="role-btn"
-          href="/login?role=organiser"
+          href="/login?role=player"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -361,7 +361,7 @@ export function RolesSection() {
             borderColor: "var(--electric)",
           }}
         >
-          <span>Start Organising</span>
+          <span>Join as Player</span>
           <svg
             viewBox="0 0 16 16"
             fill="none"

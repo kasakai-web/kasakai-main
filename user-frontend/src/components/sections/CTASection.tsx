@@ -10,9 +10,6 @@ export function CTASection() {
         <a href="/signup?role=player" className="btn-primary" style={{backgroundColor: 'black', color: 'var(--amber)', padding: '14px 32px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: '12px', position: 'relative', overflow: 'hidden', textDecoration: 'none'}}>
           <span style={{position: 'relative', zIndex: 10}}>Join as Player</span>
         </a>
-        <a href="/signup?role=organiser" className="btn-secondary" style={{backgroundColor: 'transparent', color: 'black', border: '1px solid black', padding: '14px 28px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: '12px', position: 'relative', overflow: 'hidden', textDecoration: 'none'}}>
-          <span style={{position: 'relative', zIndex: 10}}>Become Organiser</span>
-        </a>
       </div>
     </section>
   );

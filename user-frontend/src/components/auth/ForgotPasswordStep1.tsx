@@ -25,8 +25,7 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
 
     setLoading(true);
     try {
-      const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
-      const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
+      const apiRole = "player";
 
       const response = await fetch(buildApiUrl("/api/v1/auth/forgot-password"), {
         method: "POST",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
@@ -13,8 +13,6 @@ import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
 
 function AuthFlow() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const role = searchParams.get("role");
 
   const [step, setStep] = useState<"login" | "signup-form" | "signup-otp" | "signup-confirm" | "forgot-step1" | "forgot-otp" | "forgot-newpass">("login");
   const [userData, setUserData] = useState({
@@ -31,16 +29,10 @@ function AuthFlow() {
     const uRole = localStorage.getItem("userRole");
     const uId = localStorage.getItem("userId");
 
-    if (token && uRole && uId && step === "login") {
-      router.replace(`/dashboard/${uRole === "organiser" ? "organizer" : "player"}/${uId}`);
-    } else if (!role) {
-      router.replace("/login?role=player");
+    if (token && uRole === "player" && uId && step === "login") {
+      router.replace(`/dashboard/player/${uId}`);
     }
-  }, [role, router, step]);
-
-  if (!role) {
-    return <div style={{ color: "white", textAlign: "center", padding: "2rem" }}>Redirecting...</div>;
-  }
+  }, [router, step]);
 
   return (
     <>

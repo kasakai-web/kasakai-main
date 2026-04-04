@@ -32,7 +32,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "Organiser dashboard + analytics",
     ],
     buttonText: "Start organising",
-    buttonHref: "/signup?role=organiser",
+    buttonHref: "/signup?role=player",
   },
   {
     id: "enterprise",

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
 import { validatePhone, validatePassword } from "@/utils/auth";
 import { buildApiUrl } from "@/utils/api";
 
@@ -13,24 +12,13 @@ interface PlayerLoginFormProps {
 
 export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const qRole = searchParams.get("role");
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   
-  // Default to what's in the query param (player or organizer), else fallback to player
-  const [role, setRole] = useState(qRole === "organiser" || qRole === "organizer" ? "organizer" : "player");
+  const [role] = useState("player");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (qRole === "organiser" || qRole === "organizer") {
-      setRole("organizer");
-    } else {
-      setRole("player");
-    }
-  }, [qRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +42,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
         body: JSON.stringify({ 
           phone, 
           password, 
-          // Frontend URL role uses "organizer" but DB uses "organiser"
-          role: role === "organizer" || role === "organiser" ? "organiser" : "player" 
+          role: "player"
         }),
       });
 
@@ -69,11 +56,11 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
 
       const { token, user } = await response.json();
       localStorage.setItem("authToken", token);
-      localStorage.setItem("userRole", user.role || role);
+      localStorage.setItem("userRole", "player");
       localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name || "User");
 
-      router.replace(user.role === "organiser" ? `/dashboard/organizer/${user.id}` : `/dashboard/player/${user.id}`);
+      router.replace(`/dashboard/player/${user.id}`);
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
@@ -84,7 +71,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
   return (
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px", textAlign: "center" }}>
-        {role === "organizer" ? "Organiser Login" : "Player Login"}
+        {role === "player" ? "Player Login" : "Player Login"}
       </h1>
       <p style={{ color: "#999", textAlign: "center", marginBottom: "30px", fontSize: "14px" }}>Enter your phone number and password</p>
 

@@ -30,7 +30,7 @@ export function PricingSection() {
               <div style={{fontSize: '14px', lineHeight: 'relaxed', color: 'rgba(200,255,62,.7)'}}><span style={{color: 'rgba(200,255,62,.35)'}}>— </span>Waitlist management</div>
               <div style={{fontSize: '14px', lineHeight: 'relaxed', color: 'rgba(200,255,62,.7)'}}><span style={{color: 'rgba(200,255,62,.35)'}}>— </span>Earnings dashboard</div>
             </div>
-            <a href="/login?role=organiser" style={{textAlign: 'center', padding: '12px 20px', border: '2px solid var(--coral)', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: '12px', position: 'relative', zIndex: 10, color: 'var(--coral)', textDecoration: 'none'}}>Start Organising</a>
+            <a href="/login?role=player" style={{textAlign: 'center', padding: '12px 20px', border: '2px solid var(--coral)', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: '12px', position: 'relative', zIndex: 10, color: 'var(--coral)', textDecoration: 'none'}}>Join as Player</a>
           </div>
           <div className="reveal d3" style={{padding: '36px', display: 'flex', flexDirection: 'column', gap: 0, position: 'relative', overflow: 'hidden', backgroundColor: 'var(--coral)', color: 'black'}}>
             <p style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: '16px', position: 'relative', zIndex: 10, color: 'rgba(0,0,0,.4)'}}>Custom</p>

@@ -36,8 +36,7 @@ export function SetNewPasswordForm({ phone, otp, onSuccess, onBack }: SetNewPass
 
     setLoading(true);
     try {
-      const role = localStorage.getItem('userRole') || (window.location.search.includes('organiser') ? 'organiser' : 'player');
-      const apiRole = role === 'organizer' || role === 'organiser' ? 'organiser' : 'player';
+      const apiRole = "player";
 
       const response = await fetch(buildApiUrl("/api/v1/auth/reset-password"), {
         method: "POST",

@@ -45,10 +45,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
 
     setLoading(true);
     try {
-      const urlRole = window.location.search.includes('organiser') || window.location.search.includes('organizer') ? 'organiser' : 'player';
-      const storedRole = localStorage.getItem("userRole");
-      const role = storedRole || urlRole;
-      const apiRole = role === "organizer" || role === "organiser" ? "organiser" : "player";
+      const apiRole = "player";
 
       const response = await fetch(buildApiUrl("/api/v1/auth/register"), {
         method: "POST",

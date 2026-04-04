@@ -14,10 +14,4 @@ export const LOGIN_OPTIONS: LoginOption[] = [
     desc: "Access your games & profile",
     icon: "👤",
   },
-  {
-    role: "organiser",
-    label: "Login as Organiser",
-    desc: "Manage your events & earnings",
-    icon: "⚙️",
-  },
 ];
