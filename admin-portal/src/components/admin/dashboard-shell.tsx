@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearAdminSession, getAdminSession } from "@/lib/admin-session";
-import { Sidebar } from "@/components/admin/dashboard/sidebar";
-import { Topbar } from "@/components/admin/dashboard/topbar";
-import { ContentSections } from "@/components/admin/dashboard/content-sections";
-import { DetailPanel } from "@/components/admin/dashboard/detail-panel";
-import type { DashboardSection } from "@/components/admin/dashboard/constants";
-import styles from "@/components/admin/dashboard/dashboard.module.css";
+import { Sidebar } from "./dashboard/sidebar";
+import { Topbar } from "./dashboard/topbar";
+import { ContentSections } from "./dashboard/content-sections";
+import { DetailPanel } from "./dashboard/detail-panel";
+import type { DashboardSection } from "./dashboard/constants";
+import styles from "./dashboard/dashboard.module.css";
 
 export function DashboardShell() {
   const router = useRouter();
