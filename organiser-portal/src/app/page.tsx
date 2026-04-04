@@ -31,7 +31,7 @@ export default function Home() {
           </div>
 
           <div className="nav-actions">
-            <Link href="/dashboard" className="btn-login">Login</Link>
+            <Link href="/login" className="btn-login">Login</Link>
             <button
               className="mobile-menu-btn"
               type="button"
@@ -51,7 +51,7 @@ export default function Home() {
             <a href="#features" onClick={closeMobileMenu}>Features</a>
             <a href="#workflow" onClick={closeMobileMenu}>Workflow</a>
             <a href="#contact" onClick={closeMobileMenu}>Contact</a>
-            <Link href="/dashboard" className="mobile-menu-login" onClick={closeMobileMenu}>
+            <Link href="/login" className="mobile-menu-login" onClick={closeMobileMenu}>
               Login
             </Link>
           </div>
@@ -67,7 +67,7 @@ export default function Home() {
           </p>
 
           <div className="hero-actions">
-            <Link href="/dashboard" className="btn-primary">Go to Dashboard</Link>
+            <Link href="/login" className="btn-primary">Go to Dashboard</Link>
           </div>
 
           <div className="hero-stats" id="workflow">

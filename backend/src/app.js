@@ -23,6 +23,15 @@ app.use(cookieParser());
 app.use(
   cors({
     origin(origin, callback) {
+      // In local development, allow localhost origins on any port.
+      if (
+        env.nodeEnv === 'development' &&
+        origin &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
       if (!origin || env.corsOrigin.includes(origin)) {
         return callback(null, true);
       }
