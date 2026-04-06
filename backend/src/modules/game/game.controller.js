@@ -1,5 +1,5 @@
 const Game = require("../../models/Game");
-const { sendGameCreatedEmail, sendGameRegistrationEmail } = require("../../utils/email");
+const { sendGameCreatedEmail, sendGameRegistrationEmail, formatGamePlace } = require("../../utils/email");
 
 // @desc    Create new game
 // @route   POST /api/v1/games
@@ -34,6 +34,7 @@ exports.createGame = async (req, res) => {
     }
 
     const game = await Game.create(req.body);
+    await game.populate({ path: "turf", select: "name address" });
 
     if (req.user?.email) {
       sendGameCreatedEmail({
@@ -42,6 +43,7 @@ exports.createGame = async (req, res) => {
         gameTitle: game.title,
         scheduledAt: game.scheduledAt,
         format: game.format,
+        place: formatGamePlace(game.turf),
       }).catch((emailError) => {
         console.error("[EMAIL] Failed to send game created email:", emailError?.message || emailError);
       });
@@ -438,6 +440,7 @@ exports.registerForGame = async (req, res) => {
 
     game.registrations.push(registration);
     await game.save();
+    await game.populate({ path: "turf", select: "name address" });
 
     if (req.user?.email) {
       sendGameRegistrationEmail({
@@ -446,6 +449,7 @@ exports.registerForGame = async (req, res) => {
         gameTitle: game.title,
         scheduledAt: game.scheduledAt,
         format: game.format,
+        place: formatGamePlace(game.turf),
       }).catch((emailError) => {
         console.error("[EMAIL] Failed to send registration confirmation email:", emailError?.message || emailError);
       });
