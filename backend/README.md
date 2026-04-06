@@ -13,6 +13,19 @@ This folder contains a scalable Node.js + Express backend starter structure.
 
 Edit `.env` for local values.
 
+### OTP Email Setup (GoDaddy)
+
+Set these SMTP variables in `.env`:
+
+- `SMTP_HOST=smtpout.secureserver.net`
+- `SMTP_PORT=465`
+- `SMTP_SECURE=true`
+- `SMTP_USER=your-business-email@yourdomain.com`
+- `SMTP_PASS=your-email-password`
+- `SMTP_FROM=Kasa Kai <your-business-email@yourdomain.com>`
+
+Registration OTP is now sent to email for both player and organiser flows.
+
 ## Folder Structure
 
 ```text

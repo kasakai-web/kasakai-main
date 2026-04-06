@@ -12,7 +12,6 @@ import { RolesSection } from "@/components/sections/RolesSection";
 import { StatsStrip } from "@/components/sections/StatsStrip";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
-import { useScript } from "@/hooks/useScript";
 import { useRevealAnimation } from "@/hooks/useRevealAnimation";
 
 // Lazy load below-the-fold sections for faster initial load
@@ -26,29 +25,33 @@ const TestimonialsSection = dynamic(() =>
 export default function Home() {
   useRevealAnimation();
 
-  const pageScript = `
-    if (!window.__kasaKaiInitialized) {
-      window.__kasaKaiInitialized = true;
+  useEffect(() => {
+    const faqButtons = document.querySelectorAll<HTMLElement>(".faq-q");
 
-      /* ── scroll reveal ── */
-      const obs=new IntersectionObserver(entries=>{
-        entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')});
-      },{threshold:.12});
-      document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el=>obs.observe(el));
+    const handlers: Array<() => void> = [];
 
-      /* ── FAQ accordion ── */
-      document.querySelectorAll('.faq-q').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const item=btn.closest('.faq-item');
-          const wasOpen=item.classList.contains('open');
-          document.querySelectorAll('.faq-item.open').forEach(i=>i.classList.remove('open'));
-          if(!wasOpen)item.classList.add('open');
-        });
-      });
-    }
-  `;
+    faqButtons.forEach((btn) => {
+      const handler = () => {
+        const item = btn.closest(".faq-item");
+        if (!item) {
+          return;
+        }
 
-  useScript(pageScript);
+        const wasOpen = item.classList.contains("open");
+        document.querySelectorAll(".faq-item.open").forEach((node) => node.classList.remove("open"));
+        if (!wasOpen) {
+          item.classList.add("open");
+        }
+      };
+
+      btn.addEventListener("click", handler);
+      handlers.push(() => btn.removeEventListener("click", handler));
+    });
+
+    return () => {
+      handlers.forEach((off) => off());
+    };
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);

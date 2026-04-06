@@ -5,13 +5,14 @@ import { validatePassword } from "@/utils/auth";
 import { buildApiUrl } from "@/utils/api";
 
 interface SetNewPasswordFormProps {
-  phone: string;
+  email?: string;
+  phone?: string;
   otp: string;
   onSuccess: () => void;
   onBack: () => void;
 }
 
-export function SetNewPasswordForm({ phone, otp, onSuccess, onBack }: SetNewPasswordFormProps) {
+export function SetNewPasswordForm({ email, phone, otp, onSuccess, onBack }: SetNewPasswordFormProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -36,16 +37,15 @@ export function SetNewPasswordForm({ phone, otp, onSuccess, onBack }: SetNewPass
 
     setLoading(true);
     try {
-      const apiRole = "player";
-
       const response = await fetch(buildApiUrl("/api/v1/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: phone,
+          email: email,
+          phone: email ? undefined : phone,
           otp: otp,
           newPassword: newPassword,
-          role: apiRole
+          role: "player"
         }),
       });
       
@@ -92,7 +92,7 @@ export function SetNewPasswordForm({ phone, otp, onSuccess, onBack }: SetNewPass
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Set New Password</h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Enter your new password for +91 {phone.slice(-4)}</p>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Enter your new password for {email || phone}</p>
 
       {errors.submit && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>

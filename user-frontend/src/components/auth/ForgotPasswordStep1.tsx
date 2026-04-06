@@ -6,11 +6,11 @@ import { buildApiUrl } from "@/utils/api";
 
 interface ForgotPasswordStep1Props {
   onBack: () => void;
-  onContinue: (phone: string) => void;
+  onContinue: (email: string) => void;
 }
 
 export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1Props) {
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,19 +18,17 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
     e.preventDefault();
     setError("");
 
-    if (!validatePhone(phone)) {
-      setError("Please enter a valid 10-digit phone number (starting with 6-9)");
+    if (!email.includes("@")) {
+      setError("Please enter a valid email address");
       return;
     }
 
     setLoading(true);
     try {
-      const apiRole = "player";
-
       const response = await fetch(buildApiUrl("/api/v1/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone, role: apiRole }),
+        body: JSON.stringify({ email: email, role: "player" }),
       });
       
       const data = await response.json();
@@ -38,7 +36,7 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
         throw new Error(data.message || "Failed to send reset OTP.");
       }
 
-      onContinue(phone);
+      onContinue(email);
     } catch (err: any) {
       setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
@@ -64,7 +62,7 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Reset Password</h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Enter the phone number associated with your account</p>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Enter the email address associated with your account</p>
 
       {error && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
@@ -74,49 +72,31 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
 
       <form onSubmit={handleContinue}>
         <div style={{ marginBottom: "24px" }}>
-          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Phone Number</label>
-          <div
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Email Address</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError("");
+            }}
+            placeholder="your@email.com"
             style={{
-              display: "flex",
-              alignItems: "center",
+              width: "100%",
               background: "#1a1a2e",
               border: error ? "1px solid #ff6b6b" : "1px solid #444",
               borderRadius: "6px",
-              padding: "0 12px",
+              padding: "12px",
+              color: "white",
+              fontSize: "16px",
+              outline: "none",
+              boxSizing: "border-box",
               transition: "border-color 0.2s",
             }}
-          >
-            <span style={{ color: "#999", fontSize: "14px", fontWeight: "600" }}>+91</span>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                setPhone(val);
-                setError("");
-              }}
-              placeholder="9876543210"
-              maxLength={10}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                padding: "12px 12px",
-                color: "white",
-                fontSize: "16px",
-                outline: "none",
-              }}
-              onFocus={(e) => {
-                const container = e.currentTarget.parentElement;
-                if (container) container.style.borderColor = "var(--yellow)";
-              }}
-              onBlur={(e) => {
-                const container = e.currentTarget.parentElement;
-                if (container) container.style.borderColor = error ? "#ff6b6b" : "#444";
-              }}
-            />
-          </div>
-          <small style={{ color: "#666", fontSize: "12px", marginTop: "4px", display: "block" }}>10-digit mobile number</small>
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = error ? "#ff6b6b" : "#444")}
+          />
+          <small style={{ color: "#666", fontSize: "12px", marginTop: "4px", display: "block" }}>We will send the reset OTP to this email</small>
         </div>
 
         <button

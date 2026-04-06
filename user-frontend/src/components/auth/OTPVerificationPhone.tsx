@@ -4,13 +4,15 @@ import { useState, useEffect } from "react";
 import { buildApiUrl } from "@/utils/api";
 
 interface OTPVerificationPhoneProps {
-  phone: string;
+  phone?: string;
+  email?: string;
+  role: "player" | "organiser";
   mode: "signup" | "forgot-password";
   onVerified: (otpString: string) => void;
   onBack: () => void;
 }
 
-export function OTPVerificationPhone({ phone, mode, onVerified, onBack }: OTPVerificationPhoneProps) {
+export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack }: OTPVerificationPhoneProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,12 +57,10 @@ export function OTPVerificationPhone({ phone, mode, onVerified, onBack }: OTPVer
 
     setLoading(true);
     try {
-      const apiRole = "player";
-
       const response = await fetch(buildApiUrl('/api/v1/auth/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone, otp: otpString, role: apiRole, mode: mode }),
+        body: JSON.stringify({ phone, email, otp: otpString, role, mode }),
       });
 
       if (!response.ok) {
@@ -77,14 +77,42 @@ export function OTPVerificationPhone({ phone, mode, onVerified, onBack }: OTPVer
   };
 
   const handleResend = async () => {
-    setResendTimer(60);
     setError("");
     setOtp(["", "", "", "", "", ""]);
-    // TODO: Call resend OTP API
-    console.log("Resend OTP to", phone);
+
+    try {
+      const endpoint = mode === "signup" ? "/api/v1/auth/resend-otp" : "/api/v1/auth/forgot-password";
+      const response = await fetch(buildApiUrl(endpoint), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, email, role }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to resend OTP");
+      }
+
+      setResendTimer(60);
+    } catch (err: any) {
+      setError(err.message || "Failed to resend OTP. Please try again.");
+    }
+  };
+
+  const maskEmail = (value: string) => {
+    const [namePart, domainPart] = value.split("@");
+    if (!domainPart) return value;
+    const visiblePrefix = namePart.slice(0, 2);
+    return `${visiblePrefix}${"*".repeat(Math.max(namePart.length - 2, 1))}@${domainPart}`;
   };
 
   const maskPhone = (phone: string) => `••••••${phone.slice(-4)}`;
+
+  const destinationText = email
+    ? maskEmail(email)
+    : phone
+      ? `+91 ${maskPhone(phone)}`
+      : "your contact";
 
   return (
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
@@ -103,9 +131,11 @@ export function OTPVerificationPhone({ phone, mode, onVerified, onBack }: OTPVer
         ← Back
       </button>
 
-      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Verify Phone Number</h1>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>
+        {email ? "Verify Email Address" : "Verify Phone Number"}
+      </h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>
-        OTP sent to +91 {maskPhone(phone)}
+        OTP sent to {destinationText}
         {!demoOtpShown && (
           <button
             type="button"

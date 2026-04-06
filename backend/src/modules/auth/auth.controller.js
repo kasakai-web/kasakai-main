@@ -3,8 +3,7 @@ const jwt = require("jsonwebtoken");
 const Player = require("../../models/Player");
 const Organiser = require("../../models/Organiser");
 const sendFast2SMS = require("../../utils/fast2sms"); 
-
-const crypto = require("node:crypto");
+const { sendOtpEmail } = require("../../utils/email");
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -18,50 +17,85 @@ const getModelByRole = (role) => {
 exports.register = async (req, res) => {
   try {
     const { name, phone, email, whatsappNumber, password, role } = req.body;
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
     
     // Choose model based on role given by frontend
     const Model = getModelByRole(role);
 
-    // Check existing
-    const existingUser = await Model.findOne({ phone });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: "User already exists with this phone number." });
+    if (!normalizedEmail) {
+      return res.status(400).json({ success: false, message: "Email is required for OTP verification." });
+    }
+
+    // Check existing by phone/email. If existing user is unverified, refresh OTP and details.
+    const existingUser = await Model.findOne({
+      $or: [{ phone }, { email: normalizedEmail }],
+    });
+
+    if (existingUser && existingUser.isVerified) {
+      return res.status(400).json({ success: false, message: "User already exists. Please login." });
     }
 
     // Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create inactive account with OTP
+    // Create/update inactive account with OTP
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const newUser = new Model({
-      name,
-      phone,
-      email,
-      whatsappNumber: whatsappNumber || phone,
-      password: hashedPassword,
-      otp,
-      otpExpires,
-      isVerified: false
-    });
+    let user = existingUser;
 
-    await newUser.save();
+    if (!user) {
+      user = new Model({
+        name,
+        phone,
+        email: normalizedEmail,
+        whatsappNumber: whatsappNumber || phone,
+        password: hashedPassword,
+        otp,
+        otpExpires,
+        isVerified: false,
+      });
+    } else {
+      user.name = name;
+      user.phone = phone;
+      user.email = normalizedEmail;
+      user.whatsappNumber = whatsappNumber || phone;
+      user.password = hashedPassword;
+      user.otp = otp;
+      user.otpExpires = otpExpires;
+      user.isVerified = false;
+    }
 
-    // Fast2SMS integration
+    await user.save();
+
+    // Development visibility
     console.log(`\n======================================`);
-    console.log(`🚀 DEVELOPMENT MODE: OTP for ${phone} is: [ ${otp} ]`);
+    console.log(`🚀 DEVELOPMENT MODE: OTP for ${normalizedEmail} is: [ ${otp} ]`);
     console.log(`======================================\n`);
 
     try {
-      await sendFast2SMS(phone, `Your Kasakai OTP is ${otp}. Valid for 10 mins.`);
-      console.log(`[${role}]: sent OTP ${otp} to ${phone} via Fast2SMS`);
-    } catch (smsError) {
-      console.error(`[${role}]: Failed to send OTP via Fast2SMS. OTP is ${otp}`);
-      // In development, we can still proceed even if SMS fails
+      await sendOtpEmail({
+        to: normalizedEmail,
+        otp,
+        role,
+        purpose: "signup",
+      });
+      console.log(`[${role}]: sent OTP ${otp} to ${normalizedEmail} via SMTP`);
+    } catch (emailError) {
+      const smtpDetails = {
+        code: emailError?.code || null,
+        response: emailError?.response || null,
+        message: emailError?.message || null,
+      };
+      console.error(`[${role}]: Failed to send OTP email to ${normalizedEmail}. OTP is ${otp}`, smtpDetails);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP email. Please try again.",
+        details: process.env.NODE_ENV === "development" ? smtpDetails : null,
+      });
     }
 
-    res.status(200).json({ success: true, message: "OTP sent successfully to phone." });
+    res.status(200).json({ success: true, message: "OTP sent successfully to email." });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Server Error" });
@@ -73,10 +107,12 @@ exports.register = async (req, res) => {
 // ===============================
 exports.verifyOTP = async (req, res) => {
   try {
-    const { phone, otp, role, mode } = req.body;
+    const { phone, email, otp, role, mode } = req.body;
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
     const Model = getModelByRole(role);
 
-    const user = await Model.findOne({ phone });
+    const query = normalizedEmail ? { email: normalizedEmail } : { phone };
+    const user = await Model.findOne(query);
     if (!user) {
       return res.status(400).json({ success: false, message: "User not found." });
     }
@@ -165,10 +201,12 @@ exports.login = async (req, res) => {
 // ===============================
 exports.forgotPassword = async (req, res) => {
   try {
-    const { phone, role } = req.body;
+    const { phone, email, role } = req.body;
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
     const Model = getModelByRole(role);
 
-    const user = await Model.findOne({ phone });
+    const query = normalizedEmail ? { email: normalizedEmail } : { phone };
+    const user = await Model.findOne(query);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -179,19 +217,30 @@ exports.forgotPassword = async (req, res) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    // Fast2SMS call
+    // Development visibility
     console.log(`\n======================================`);
-    console.log(`🚀 DEVELOPMENT MODE: FORGOT PASSWORD OTP for ${phone} is: [ ${otp} ]`);
+    console.log(`🚀 DEVELOPMENT MODE: FORGOT PASSWORD OTP for ${normalizedEmail || phone} is: [ ${otp} ]`);
     console.log(`======================================\n`);
 
     try {
-      await sendFast2SMS(phone, `Your password reset OTP is ${otp}. Valid for 10 mins.`);
-      console.log(`[${role}]: Password reset OTP ${otp} to ${phone}`);
-    } catch (smsError) {
-      console.error(`[${role}]: Failed to send reset OTP via Fast2SMS. OTP is ${otp}`);
+      if (normalizedEmail) {
+        await sendOtpEmail({
+          to: normalizedEmail,
+          otp,
+          role,
+          purpose: "forgot-password",
+        });
+        console.log(`[${role}]: Password reset OTP ${otp} sent to ${normalizedEmail}`);
+      } else {
+        await sendFast2SMS(phone, `Your password reset OTP is ${otp}. Valid for 10 mins.`);
+        console.log(`[${role}]: Password reset OTP ${otp} sent to ${phone}`);
+      }
+    } catch (deliveryError) {
+      console.error(`[${role}]: Failed to send reset OTP. OTP is ${otp}`, deliveryError.message);
+      return res.status(500).json({ success: false, message: "Failed to send reset OTP." });
     }
 
-    res.status(200).json({ success: true, message: "Password reset OTP sent." });
+    res.status(200).json({ success: true, message: `Password reset OTP sent to ${normalizedEmail ? "email" : "phone"}.` });
 
   } catch (error) {
     console.error(error);
@@ -200,14 +249,54 @@ exports.forgotPassword = async (req, res) => {
 };
 
 // ===============================
+// RESEND OTP
+// ===============================
+exports.resendOTP = async (req, res) => {
+  try {
+    const { phone, email, role } = req.body;
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const Model = getModelByRole(role);
+
+    const query = normalizedEmail ? { email: normalizedEmail } : { phone };
+    const user = await Model.findOne(query);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ success: false, message: "User is already verified." });
+    }
+
+    const otp = generateOTP();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    if (normalizedEmail) {
+      await sendOtpEmail({ to: normalizedEmail, otp, role, purpose: "signup" });
+    } else {
+      await sendFast2SMS(phone, `Your Kasakai OTP is ${otp}. Valid for 10 mins.`);
+    }
+
+    return res.status(200).json({ success: true, message: `OTP resent to ${normalizedEmail ? "email" : "phone"}.` });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+// ===============================
 // RESET PASSWORD
 // ===============================
 exports.resetPassword = async (req, res) => {
   try {
-    const { phone, otp, newPassword, role } = req.body;
+    const { phone, email, otp, newPassword, role } = req.body;
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
     const Model = getModelByRole(role);
 
-    const user = await Model.findOne({ phone });
+    const query = normalizedEmail ? { email: normalizedEmail } : { phone };
+    const user = await Model.findOne(query);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }

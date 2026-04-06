@@ -70,7 +70,9 @@ function AuthFlow() {
       {/* SIGNUP - STEP 3: OTP Verification */}
       {step === "signup-otp" && (
         <OTPVerificationPhone
+          email={userData.email}
           phone={userData.phone}
+          role="organiser"
           mode="signup"
           onVerified={() => {
             setStep("login");
@@ -80,12 +82,12 @@ function AuthFlow() {
         />
       )}
 
-      {/* FORGOT PASSWORD - STEP 1: Enter Phone */}
+      {/* FORGOT PASSWORD - STEP 1: Enter Email */}
       {step === "forgot-step1" && (
         <ForgotPasswordStep1
           onBack={() => setStep("login")}
-          onContinue={(phone: string) => {
-            setUserData((prev) => ({ ...prev, phone }));
+          onContinue={(email: string) => {
+            setUserData((prev) => ({ ...prev, email }));
             setStep("forgot-otp");
           }}
         />
@@ -94,7 +96,8 @@ function AuthFlow() {
       {/* FORGOT PASSWORD - STEP 2: OTP Verification */}
       {step === "forgot-otp" && (
         <OTPVerificationPhone
-          phone={userData.phone}
+          email={userData.email}
+          role="organiser"
           mode="forgot-password"
           onVerified={(otpVal: string) => {
             setUserData((prev) => ({ ...prev, otp: otpVal }));
@@ -107,7 +110,7 @@ function AuthFlow() {
       {/* FORGOT PASSWORD - STEP 3: Set New Password */}
       {step === "forgot-newpass" && (
         <SetNewPasswordForm
-          phone={userData.phone}
+          email={userData.email}
           otp={userData.otp}
           onSuccess={() => {
             setStep("login");
