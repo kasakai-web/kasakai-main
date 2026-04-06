@@ -17,7 +17,7 @@ export default function PlayerDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<any>(null);
-  const [walletBalance, setWalletBalance] = useState(1250); // Mock balance for now
+  const [walletBalance, setWalletBalance] = useState(1250);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -147,7 +147,6 @@ export default function PlayerDashboard() {
   };
 
   const handleConfirmBooking = async (game: any, plusOne: boolean) => {
-    // TODO: Handle plusOne logic on the backend
     try {
       const { token } = getSession();
       if (!token) {

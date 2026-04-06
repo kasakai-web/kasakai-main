@@ -66,11 +66,12 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
       }
 
       onSuccess(password);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const isNetworkError = err instanceof TypeError;
+      const errorMessage = err instanceof Error ? err.message : "Failed to create account. Please try again.";
       const submitMessage = isNetworkError
-        ? "Cannot reach backend server (http://localhost:5000). Start backend and check MongoDB/IP whitelist, then try again."
-        : err.message || "Failed to create account. Please try again.";
+        ? "Cannot reach backend server. Please try again in a few minutes."
+        : errorMessage;
 
       setErrors({ submit: submitMessage });
     } finally {

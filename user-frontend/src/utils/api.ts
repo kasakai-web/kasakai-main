@@ -1,4 +1,10 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+
+if (process.env.NODE_ENV === "production" && !rawApiBaseUrl) {
+  throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in production environment.");
+}
+
+const API_BASE_URL = rawApiBaseUrl || "/api/v1";
 
 const isBrowser = () => typeof window !== "undefined";
 

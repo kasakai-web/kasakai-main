@@ -17,7 +17,6 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const [demoOtpShown, setDemoOtpShown] = useState(false);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -136,26 +135,6 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
       </h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>
         OTP sent to {destinationText}
-        {!demoOtpShown && (
-          <button
-            type="button"
-            onClick={() => {
-              setOtp(["1", "2", "3", "4", "5", "6"]);
-              setDemoOtpShown(true);
-            }}
-            style={{
-              background: "transparent",
-              color: "var(--yellow)",
-              border: "none",
-              fontSize: "12px",
-              cursor: "pointer",
-              marginLeft: "8px",
-              textDecoration: "underline",
-            }}
-          >
-            (demo)
-          </button>
-        )}
       </p>
 
       {error && (

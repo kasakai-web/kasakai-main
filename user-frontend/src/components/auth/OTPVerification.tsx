@@ -41,10 +41,8 @@ export function OTPVerification({ email, phone, context, onVerified, onBackClick
         return;
       }
 
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Mock OTP verification (in real app, verify with backend)
       if (otpValue === "123456") {
         alert("Email verified successfully!");
         onVerified();
@@ -170,10 +168,6 @@ export function OTPVerification({ email, phone, context, onVerified, onBackClick
         ← Back
       </button>
 
-      {/* Info */}
-      <div style={{ marginTop: "24px", padding: "16px", background: "#1a1a1a", borderRadius: "8px", fontSize: "12px", color: "var(--muted)", textAlign: "center" }}>
-        <p>📌 <strong>Demo OTP:</strong> 123456</p>
-      </div>
     </div>
   );
 }
