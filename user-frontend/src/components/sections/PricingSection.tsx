@@ -5,7 +5,7 @@ export function PricingSection() {
       <div className="container" style={{position: 'relative', zIndex: 10}}>
         <p className="reveal" style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.24em', textTransform: 'uppercase', color: 'rgba(0,0,0,.4)', marginBottom: '14px'}}>Simple pricing</p>
         <h2 className="reveal d1" style={{fontFamily: 'var(--cond)', fontWeight: 900, fontSize: 'clamp(48px, 7vw, 72px)', letterSpacing: '.01em', lineHeight: .92, color: 'black', marginBottom: '48px'}}>Transparent.<br/>No surprises.</h2>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', backgroundColor: 'black', border: '1px solid black'}}>
+        <div className="pricing-grid" style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', backgroundColor: 'black', border: '1px solid black'}}>
           <div className="reveal d1" style={{padding: '36px', display: 'flex', flexDirection: 'column', gap: 0, position: 'relative', overflow: 'hidden', backgroundColor: 'var(--coral)', color: 'black'}}>
             <p style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.2em', textTransform: 'uppercase', marginBottom: '16px', position: 'relative', zIndex: 10, color: 'rgba(0,0,0,.4)'}}>Base</p>
             <div style={{fontFamily: 'var(--cond)', fontSize: '60px', fontWeight: 900, lineHeight: 'tight', marginBottom: '4px', position: 'relative', zIndex: 10, color: 'black'}}>Free</div>

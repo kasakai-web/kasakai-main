@@ -49,6 +49,7 @@ export function HeroSection() {
         ></span>
       </div>
       <div
+        className="hero-side-label"
         style={{
           position: "absolute",
           top: "90px",

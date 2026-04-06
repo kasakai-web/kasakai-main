@@ -29,7 +29,7 @@ export function Footer() {
             <div>
               <p style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.22em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '16px'}}>Support</p>
               <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                <a href="#faq" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>FAQ</a>
+                <a href="#support" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>FAQ</a>
                 <a href="#" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>Help Centre</a>
                 <a href="#" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>WhatsApp Us</a>
               </div>

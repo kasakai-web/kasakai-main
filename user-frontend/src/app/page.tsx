@@ -26,7 +26,7 @@ export default function Home() {
   useRevealAnimation();
 
   useEffect(() => {
-    const faqButtons = document.querySelectorAll<HTMLElement>(".faq-q");
+    const faqButtons = document.querySelectorAll<HTMLElement>(".faq-question");
 
     const handlers: Array<() => void> = [];
 
