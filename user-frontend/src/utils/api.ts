@@ -1,8 +1,6 @@
-const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-
-if (process.env.NODE_ENV === "production" && !rawApiBaseUrl) {
-  throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in production environment.");
-}
+const rawApiBaseUrl =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
+  process.env.NEXT_PUBLIC_API_URL?.trim();
 
 const API_BASE_URL = rawApiBaseUrl || "/api/v1";
 
