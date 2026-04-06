@@ -50,6 +50,62 @@ const buildOtpTemplate = ({ otp, role, purpose }) => {
   };
 };
 
+const formatGameDate = (value) => {
+  if (!value) return "soon";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "soon";
+
+  return date.toLocaleString("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
+const buildGameCreatedTemplate = ({ organiserName, gameTitle, scheduledAt, format }) => {
+  const safeTitle = gameTitle || "your event";
+  const dateText = formatGameDate(scheduledAt);
+  const gameFormat = format || "unknown format";
+
+  return {
+    subject: "Kasa Kai event created successfully",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
+        <h2 style="margin-bottom: 12px;">Event created successfully</h2>
+        <p style="margin: 0 0 12px 0;">Hi ${organiserName || "Organiser"},</p>
+        <p style="margin: 0 0 16px 0;">Your event <strong>${safeTitle}</strong> has been created successfully.</p>
+        <div style="background: #f5f7fb; border: 1px solid #e0e5ef; padding: 16px 20px; border-radius: 10px;">
+          <p style="margin: 0 0 8px 0;"><strong>Format:</strong> ${gameFormat}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Scheduled at:</strong> ${dateText}</p>
+        </div>
+        <p style="margin: 16px 0 0 0; color: #616161; font-size: 13px;">You can now manage this event from your organiser dashboard.</p>
+      </div>
+    `,
+  };
+};
+
+const buildGameRegistrationTemplate = ({ playerName, gameTitle, scheduledAt, format }) => {
+  const safeTitle = gameTitle || "the game";
+  const dateText = formatGameDate(scheduledAt);
+  const gameFormat = format || "unknown format";
+
+  return {
+    subject: "You registered successfully for a Kasa Kai game",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
+        <h2 style="margin-bottom: 12px;">Registration successful</h2>
+        <p style="margin: 0 0 12px 0;">Hi ${playerName || "Player"},</p>
+        <p style="margin: 0 0 16px 0;">You have successfully registered for <strong>${safeTitle}</strong>.</p>
+        <div style="background: #f5f7fb; border: 1px solid #e0e5ef; padding: 16px 20px; border-radius: 10px;">
+          <p style="margin: 0 0 8px 0;"><strong>Format:</strong> ${gameFormat}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Scheduled at:</strong> ${dateText}</p>
+        </div>
+        <p style="margin: 16px 0 0 0; color: #616161; font-size: 13px;">Check your dashboard for more game details and updates.</p>
+      </div>
+    `,
+  };
+};
+
 const sendOtpEmail = async ({ to, otp, role = "player", purpose = "signup" }) => {
   assertEmailConfig();
 
@@ -64,6 +120,36 @@ const sendOtpEmail = async ({ to, otp, role = "player", purpose = "signup" }) =>
   });
 };
 
+const sendGameCreatedEmail = async ({ to, organiserName, gameTitle, scheduledAt, format }) => {
+  assertEmailConfig();
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const template = buildGameCreatedTemplate({ organiserName, gameTitle, scheduledAt, format });
+
+  await transporter.sendMail({
+    from,
+    to,
+    subject: template.subject,
+    html: template.html,
+  });
+};
+
+const sendGameRegistrationEmail = async ({ to, playerName, gameTitle, scheduledAt, format }) => {
+  assertEmailConfig();
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const template = buildGameRegistrationTemplate({ playerName, gameTitle, scheduledAt, format });
+
+  await transporter.sendMail({
+    from,
+    to,
+    subject: template.subject,
+    html: template.html,
+  });
+};
+
 module.exports = {
   sendOtpEmail,
+  sendGameCreatedEmail,
+  sendGameRegistrationEmail,
 };

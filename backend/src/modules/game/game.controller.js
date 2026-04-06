@@ -1,4 +1,5 @@
 const Game = require("../../models/Game");
+const { sendGameCreatedEmail, sendGameRegistrationEmail } = require("../../utils/email");
 
 // @desc    Create new game
 // @route   POST /api/v1/games
@@ -33,6 +34,18 @@ exports.createGame = async (req, res) => {
     }
 
     const game = await Game.create(req.body);
+
+    if (req.user?.email) {
+      sendGameCreatedEmail({
+        to: req.user.email,
+        organiserName: req.user.name,
+        gameTitle: game.title,
+        scheduledAt: game.scheduledAt,
+        format: game.format,
+      }).catch((emailError) => {
+        console.error("[EMAIL] Failed to send game created email:", emailError?.message || emailError);
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -425,6 +438,18 @@ exports.registerForGame = async (req, res) => {
 
     game.registrations.push(registration);
     await game.save();
+
+    if (req.user?.email) {
+      sendGameRegistrationEmail({
+        to: req.user.email,
+        playerName: req.user.name,
+        gameTitle: game.title,
+        scheduledAt: game.scheduledAt,
+        format: game.format,
+      }).catch((emailError) => {
+        console.error("[EMAIL] Failed to send registration confirmation email:", emailError?.message || emailError);
+      });
+    }
 
     console.log('[DEBUG] Player registered successfully for game');
 
