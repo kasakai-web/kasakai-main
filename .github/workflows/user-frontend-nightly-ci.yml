@@ -12,6 +12,8 @@ concurrency:
 jobs:
   nightly-lint-and-build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_BASE_URL: https://api.example.com/api/v1
     defaults:
       run:
         working-directory: user-frontend
