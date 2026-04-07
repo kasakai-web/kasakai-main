@@ -274,6 +274,23 @@ body {
   #features2 .section-title {
     font-size: clamp(44px, 7vw, 72px) !important;
   }
+
+  /* ── Tablet section padding ── */
+  #features { padding: 72px 0 !important; }
+  #pricing { padding: 72px 0 !important; }
+
+  /* ── Tablet stats strip ── */
+  .strip-num { font-size: 40px !important; }
+  .strip-item { padding: 28px 20px !important; }
+
+  /* ── Tablet roles ── */
+  #roles .role-panel { min-height: 480px !important; }
+
+  /* ── Tablet footer ── */
+  footer .container > div:first-child > div:last-child { gap: 40px !important; }
+
+  /* ── Tablet CTA ── */
+  section[style*="var(--amber)"] { padding: 72px 28px !important; }
 }
 
 /* ═══════════════════════════ MOBILE (≤ 767px) ═══════════════════════════ */
@@ -382,9 +399,56 @@ body {
     color: var(--white);
   }
 
-  footer .container > div:first-child,
-  footer .container > div:last-child { gap: 24px !important; }
-  footer .container > div:first-child > div:last-child { gap: 32px !important; }
+  /* ── Sections: reduce padding on mobile ── */
+  #features { padding: 56px 0 !important; }
+  #pricing { padding: 56px 0 !important; }
+  #features2 { padding: 56px 0 !important; }
+
+  /* ── Features section ── */
+  #features .section-title { margin-bottom: 28px !important; }
+  #features .feat-card { padding: 24px 20px !important; }
+
+  /* ── Stats strip ── */
+  .strip-num { font-size: 36px !important; }
+  .strip-item { padding: 24px 20px !important; }
+
+  /* ── Pricing section ── */
+  #pricing h2 { margin-bottom: 28px !important; }
+
+  /* ── Roles section ── */
+  #roles .role-btn { width: 100% !important; justify-content: center !important; }
+
+  /* ── CTA section ── */
+  #cta,
+  section[style*="var(--amber)"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 56px 24px !important;
+    gap: 24px !important;
+  }
+  section[style*="var(--amber)"] h2 {
+    font-size: clamp(36px, 10vw, 52px) !important;
+  }
+
+  /* ── Footer ── */
+  footer { padding: 40px 0 !important; }
+  footer .container > div:first-child {
+    flex-direction: column !important;
+    gap: 32px !important;
+  }
+  footer .container > div:first-child > div:last-child {
+    flex-direction: column !important;
+    gap: 28px !important;
+  }
+  footer .container > div:last-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  footer .container > div:last-child > div {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
 
   .btn-primary,
   .btn-ghost {
