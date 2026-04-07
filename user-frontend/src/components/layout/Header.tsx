@@ -91,8 +91,8 @@ export function Header() {
           ))}
         </div>
 
-        {/* Spacer */}
-        <div style={{ flex: 1 }} className="hidden md:block" />
+        {/* Spacer — always visible to push right side to edge */}
+        <div style={{ flex: 1 }} />
 
         {/* Login Button */}
         <div className="hidden md:flex items-center">
@@ -148,20 +148,35 @@ export function Header() {
 
 
         {/* Mobile Menu Button */}
-        <button 
-          onClick={toggleMobile} 
-          style={{ 
-            height: "66px", 
-            padding: "0 20px", 
-            borderLeft: "1px solid var(--border)", 
-            color: "var(--white)", 
-            background: 'transparent', 
-            border: 'none', 
-            cursor: 'pointer'
+        <button
+          onClick={toggleMobile}
+          style={{
+            height: "66px",
+            width: "60px",
+            borderLeft: "1px solid var(--border)",
+            borderTop: "none",
+            borderRight: "none",
+            borderBottom: "none",
+            color: "var(--white)",
+            background: "transparent",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
           }}
           className="mobile-menu-btn"
+          aria-label="Open menu"
         >
-          <svg style={{ width: "20px", height: "20px" }} fill="none" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {mobileOpen ? (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
         </button>
       </nav>
 

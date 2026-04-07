@@ -59,7 +59,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
   };
 
   return (
-    <div style={{ background: "#0e0e0e", border: "1px solid var(--border)", padding: "40px 36px" }}>
+    <div style={{ background: "#0e0e0e", border: "1px solid var(--border)", padding: "clamp(24px, 6vw, 40px) clamp(20px, 6vw, 36px)" }}>
       {/* Header */}
       <div style={{ marginBottom: "32px" }}>
         <div style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
