@@ -2270,8 +2270,8 @@ body::after {
   }
 
   .dashboard-nav .logo-block {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 
   .dashboard-nav .logo-name {
@@ -2280,8 +2280,8 @@ body::after {
 
   .dashboard-nav .logo-name-top,
   .dashboard-nav .logo-name-bot {
-    font-size: 13px !important;
-    letter-spacing: 0.11em !important;
+    font-size: 11px !important;
+    letter-spacing: 0.1em !important;
   }
 
   .nav-center { display: none; }
@@ -2290,7 +2290,7 @@ body::after {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 54px;
+    width: 50px;
     height: 58px;
     border-left: 1px solid var(--border);
     background: transparent;
