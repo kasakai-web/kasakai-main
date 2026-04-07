@@ -81,7 +81,7 @@ export default function DashboardLayout({
             display: "flex",
             alignItems: "center",
             height: "66px",
-            padding: "0 26px",
+            padding: "0 28px",
             borderRight: "1px solid var(--border)",
             textDecoration: "none",
             flexShrink: 0,
@@ -89,18 +89,18 @@ export default function DashboardLayout({
             transition: "background 0.18s",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", width: "32px", height: "32px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
+          <div className="logo-block" style={{ display: "flex", flexDirection: "column", width: "36px", height: "36px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
             <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.5px", letterSpacing: "0.1em", lineHeight: 1, color: "#000" }}>KASA</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "9.5px", letterSpacing: "0.1em", lineHeight: 1, color: "#000" }}>KASA</span>
             </div>
             <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #2a2a2a" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.5px", letterSpacing: "0.1em", lineHeight: 1, color: "var(--white)" }}>KAI</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "9.5px", letterSpacing: "0.1em", lineHeight: 1, color: "var(--white)" }}>KAI</span>
             </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1, gap: 0 }}>
-            <p style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "16px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1 }}>KASA</p>
-            <p style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "16px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1 }}>KAI</p>
+            <p className="logo-name-top" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1 }}>KASA</p>
+            <p className="logo-name-bot" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1 }}>KAI</p>
           </div>
         </Link>
 
@@ -115,7 +115,6 @@ export default function DashboardLayout({
         {/* Mobile sidebar toggle */}
         <button
           className="mobile-sidebar-toggle"
-          style={{ display: "none" }}
           onClick={() => setSidebarOpen(!sidebarOpen)}
           aria-label="Toggle sidebar"
         >

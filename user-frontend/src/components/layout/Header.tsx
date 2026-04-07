@@ -33,11 +33,12 @@ export function Header() {
         <Link
           href="/"
           onClick={closeMobile}
+          className="site-brand"
           style={{
             display: "flex",
             alignItems: "center",
             height: "66px",
-            padding: "0 20px",
+            padding: "0 22px",
             borderRight: "1px solid var(--border)",
             textDecoration: "none",
             flexShrink: 0,
@@ -45,29 +46,29 @@ export function Header() {
             transition: "background 0.18s",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", width: "30px", height: "30px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
+          <div className="site-logo-mark" style={{ display: "flex", flexDirection: "column", width: "36px", height: "36px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
             <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "7.5px", letterSpacing: "0.1em", color: "#000" }}>KASA</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.8px", letterSpacing: "0.1em", color: "#000" }}>KASA</span>
             </div>
             <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #2a2a2a" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "7.5px", letterSpacing: "0.1em", color: "var(--white)" }}>KAI</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.8px", letterSpacing: "0.1em", color: "var(--white)" }}>KAI</span>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }} className="hidden sm:flex">
-            <p style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "15px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1, margin: 0 }}>KASA</p>
-            <p style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "15px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1, margin: 0 }}>KAI</p>
+          <div className="site-logo-text" style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
+            <p className="site-logo-line site-logo-line-top" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1, margin: 0 }}>KASA</p>
+            <p className="site-logo-line site-logo-line-bot" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1, margin: 0 }}>KAI</p>
           </div>
         </Link>
 
         {/* Desktop nav links */}
-        <div style={{ display: "flex", alignItems: "center", height: "100%", padding: "0 8px 0 16px", gap: "2px" }} className="hidden md:flex">
+        <div className="site-desktop-links" style={{ display: "flex", alignItems: "center", height: "100%", padding: "0 8px 0 16px", gap: "2px" }}>
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
               style={{
                 fontFamily: "var(--body)",
-                fontSize: "13.5px",
+                fontSize: "14.5px",
                 fontWeight: 700,
                 letterSpacing: "0.03em",
                 color: "var(--muted)",
@@ -90,7 +91,7 @@ export function Header() {
         <div style={{ flex: 1 }} />
 
         {/* Desktop login button */}
-        <div className="hidden md:flex" style={{ alignItems: "center" }}>
+        <div className="site-desktop-login" style={{ alignItems: "center" }}>
           <button
             onClick={toggleLogin}
             style={{
@@ -103,7 +104,7 @@ export function Header() {
               background: "var(--white)",
               color: "var(--black)",
               fontFamily: "var(--body)",
-              fontSize: "12.5px",
+              fontSize: "13.5px",
               fontWeight: 700,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
@@ -122,10 +123,10 @@ export function Header() {
           </button>
         </div>
 
-        {/* Mobile hamburger — CSS controls visibility via .mobile-menu-btn */}
+        {/* Mobile hamburger */}
         <button
           onClick={toggleMobile}
-          className="mobile-menu-btn"
+          className="site-mobile-toggle"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           style={{
             height: "66px",

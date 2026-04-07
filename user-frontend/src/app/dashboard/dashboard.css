@@ -2260,6 +2260,28 @@ body::after {
 @media (max-width: 767px) {
   .dashboard-nav {
     padding-right: 0;
+    height: 58px;
+  }
+
+  .dashboard-nav > a {
+    height: 58px !important;
+    padding: 0 14px !important;
+    gap: 8px !important;
+  }
+
+  .dashboard-nav .logo-block {
+    width: 28px;
+    height: 28px;
+  }
+
+  .dashboard-nav .logo-name {
+    display: flex !important;
+  }
+
+  .dashboard-nav .logo-name-top,
+  .dashboard-nav .logo-name-bot {
+    font-size: 13px !important;
+    letter-spacing: 0.11em !important;
   }
 
   .nav-center { display: none; }
@@ -2268,8 +2290,8 @@ body::after {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 62px;
+    width: 54px;
+    height: 58px;
     border-left: 1px solid var(--border);
     background: transparent;
     border-top: none;
@@ -2284,9 +2306,9 @@ body::after {
   .sidebar {
     position: fixed;
     left: -240px;
-    top: 62px;
+    top: 58px;
     width: 240px;
-    height: calc(100vh - 62px);
+    height: calc(100vh - 58px);
     z-index: 400;
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
@@ -2300,7 +2322,7 @@ body::after {
     display: none;
     position: fixed;
     inset: 0;
-    top: 62px;
+    top: 58px;
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(2px);
     z-index: 399;

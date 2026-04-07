@@ -181,8 +181,49 @@ body {
   color: var(--white);
 }
 
-/* ═══════════════════════════ MOBILE MENU ═══════════════════════════ */
-.mobile-menu-btn { display: none !important; }
+/* ═══════════════════════════ SITE NAV ═══════════════════════════ */
+.site-mobile-toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .site-brand {
+    padding: 0 14px !important;
+    gap: 8px !important;
+  }
+
+  .site-logo-mark {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .site-logo-text {
+    display: flex !important;
+    flex-direction: column !important;
+    line-height: 0.92 !important;
+  }
+
+  .site-logo-line {
+    font-size: 12px !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  .site-desktop-links,
+  .site-desktop-login {
+    display: none !important;
+  }
+
+  .site-mobile-toggle {
+    display: flex !important;
+    width: 54px !important;
+  }
+
+  .site-mobile-toggle svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
 
 /* ═══════════════════════════ TABLET (768px – 1023px) ═══════════════════════════ */
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -237,8 +278,6 @@ body {
 
 /* ═══════════════════════════ MOBILE (≤ 767px) ═══════════════════════════ */
 @media (max-width: 767px) {
-  .mobile-menu-btn { display: flex !important; }
-
   .container { padding: 0 20px; }
 
   .strip {
