@@ -127,8 +127,16 @@ export default function LoginPage() {
   return (
     <>
       <Header />
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: "100px", background: "var(--black)" }}>
-        <div className="container" style={{ maxWidth: "500px", margin: "0 auto", paddingBottom: "80px" }}>
+      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: "66px", background: "var(--black)", position: "relative", overflow: "hidden" }}>
+        {/* Decorative background lines */}
+        <span style={{ position: "absolute", top: "28%", left: 0, right: 0, height: "1px", background: "var(--border)", pointerEvents: "none" }} />
+        <span style={{ position: "absolute", top: "62%", left: 0, right: 0, height: "1px", background: "var(--border)", pointerEvents: "none" }} />
+        <span style={{ position: "absolute", left: "18%", top: 0, bottom: 0, width: "1px", background: "var(--border)", pointerEvents: "none" }} />
+        <span style={{ position: "absolute", right: "18%", top: 0, bottom: 0, width: "1px", background: "var(--border)", pointerEvents: "none" }} />
+        {/* Subtle glow */}
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "500px", height: "500px", background: "radial-gradient(circle, rgba(196,213,108,0.05) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+        <div style={{ width: "100%", maxWidth: "460px", margin: "0 auto", padding: "40px 20px 80px", position: "relative", zIndex: 1 }}>
           <Suspense fallback={<div style={{ color: "white", textAlign: "center" }}>Loading...</div>}>
             <AuthFlow />
           </Suspense>
