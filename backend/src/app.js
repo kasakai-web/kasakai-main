@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
 const env = require('./config/env');
 const notFoundHandler = require('./middlewares/notFound.middleware');
 const errorHandler = require('./middlewares/error.middleware');
@@ -74,8 +75,13 @@ app.use('/api/v1/games', gameRoutes);
 app.use('/api/v1/players', playerRoutes);
 app.use('/api/v1/organisers', organiserRoutes);
 
-app.get('/health', (req, res) => {
-  res.json({ message: 'System operational' });
+app.get('/health', async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({ message: 'System operational', db: 'connected' });
+  } catch {
+    res.status(503).json({ message: 'Database unavailable', db: 'disconnected' });
+  }
 });
 
 app.use(notFoundHandler);
