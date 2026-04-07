@@ -18,6 +18,7 @@ export default function DashboardLayout({
   const [activeSection, setActiveSection] = useState("browse");
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
@@ -110,17 +111,36 @@ export default function DashboardLayout({
         <div className="nav-right" style={{ borderLeft: "none" }}>
           {/* Removed wallet and user-pill from here as per request to match homepage clean look */}
         </div>
+
+        {/* Mobile sidebar toggle */}
+        <button
+          className="mobile-sidebar-toggle"
+          style={{ display: "none" }}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Toggle sidebar"
+        >
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+            <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </nav>
 
       <div className="dashboard-app">
+        {/* Sidebar overlay (mobile) */}
+        <div
+          className={`sidebar-overlay ${sidebarOpen ? "sidebar-open" : ""}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+
         {/* SIDEBAR */}
-        <aside className="sidebar" id="sidebar">
+        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} id="sidebar">
           <div className="sidebar-section">
             <div className="sidebar-label">Player</div>
-            <button 
+            <button
               className={`sidebar-link ${activeSection === 'browse' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("browse");
+                setSidebarOpen(false);
                 if (userId) {
                   router.push(`/dashboard/player/${userId}?tab=all`);
                 }
@@ -128,10 +148,11 @@ export default function DashboardLayout({
             >
               <span className="sidebar-icon">⚽</span>Browse Games
             </button>
-            <button 
+            <button
               className={`sidebar-link ${activeSection === 'mygames' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("mygames");
+                setSidebarOpen(false);
                 if (userId) {
                   router.push(`/dashboard/player/${userId}?tab=my-games`);
                 }
@@ -139,17 +160,18 @@ export default function DashboardLayout({
             >
               <span className="sidebar-icon">📋</span>My Bookings
             </button>
-            <button 
+            <button
               className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}
-              onClick={() => setActiveSection("notifications")}
+              onClick={() => { setActiveSection("notifications"); setSidebarOpen(false); }}
             >
               <span className="sidebar-icon">🔔</span>Notifications
               <span style={{ marginLeft: "auto", background: "var(--coral)", color: "#fff", fontFamily: "var(--mono)", fontSize: "9px", padding: "2px 6px", borderRadius: "10px" }}>3</span>
             </button>
-            <button 
+            <button
               className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("profile");
+                setSidebarOpen(false);
                 if (userId) {
                   router.push(`/dashboard/player/${userId}/profile`);
                 }
