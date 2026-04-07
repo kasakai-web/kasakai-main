@@ -116,11 +116,17 @@ export default function DashboardLayout({
         <button
           className="mobile-sidebar-toggle"
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label="Toggle sidebar"
+          aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
         >
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-            <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          {sidebarOpen ? (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
         </button>
       </nav>
 

@@ -46,17 +46,17 @@ export function Header() {
             transition: "background 0.18s",
           }}
         >
-          <div className="site-logo-mark" style={{ display: "flex", flexDirection: "column", width: "36px", height: "36px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
+          <div className="site-logo-mark" style={{ display: "flex", flexDirection: "column", width: "30px", height: "30px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
             <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.8px", letterSpacing: "0.1em", color: "#000" }}>KASA</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "7.5px", letterSpacing: "0.1em", color: "#000" }}>KASA</span>
             </div>
             <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #2a2a2a" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.8px", letterSpacing: "0.1em", color: "var(--white)" }}>KAI</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "7.5px", letterSpacing: "0.1em", color: "var(--white)" }}>KAI</span>
             </div>
           </div>
-          <div className="site-logo-text" style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
-            <p className="site-logo-line site-logo-line-top" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1, margin: 0 }}>KASA</p>
-            <p className="site-logo-line site-logo-line-bot" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1, margin: 0 }}>KAI</p>
+          <div className="site-logo-text" style={{ display: "flex", flexDirection: "column", lineHeight: 1, gap: "2px" }}>
+            <p className="site-logo-line site-logo-line-top" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "16px", letterSpacing: "0.16em", color: "var(--white)", lineHeight: 1, margin: 0 }}>KASA</p>
+            <p className="site-logo-line site-logo-line-bot" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "16px", letterSpacing: "0.16em", color: "var(--muted)", lineHeight: 1, margin: 0 }}>KAI</p>
           </div>
         </Link>
 
