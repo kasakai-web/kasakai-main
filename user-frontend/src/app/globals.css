@@ -189,27 +189,6 @@ body {
 }
 
 @media (max-width: 767px) {
-  .site-brand {
-    padding: 0 14px !important;
-    gap: 8px !important;
-  }
-
-  .site-logo-mark {
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  .site-logo-text {
-    display: flex !important;
-    flex-direction: column !important;
-    line-height: 0.92 !important;
-  }
-
-  .site-logo-line {
-    font-size: 10px !important;
-    letter-spacing: 0.1em !important;
-  }
-
   .site-desktop-links,
   .site-desktop-login {
     display: none !important;
