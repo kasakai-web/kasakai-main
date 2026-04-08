@@ -1,5 +1,12 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
 import styles from "./dashboard.module.css";
 import type { DashboardSection } from "./constants";
+import { getAdminToken } from "@/lib/admin-session";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1";
 
 type ContentSectionsProps = {
   activeSection: DashboardSection;
@@ -293,26 +300,377 @@ function Communities({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   );
 }
 
+// ─── Turf types ──────────────────────────────────────────────────────────────
+type TurfAddress = {
+  line1: string; line2?: string; area: string; city: string;
+  state: string; pincode: string; country?: string;
+};
+
+type Turf = {
+  _id: string;
+  name: string;
+  shortName?: string;
+  address: TurfAddress;
+  surfaceType: string;
+  numberOfPitches: number;
+  pitchSizes: string[];
+  hasFloodlights: boolean;
+  hasChangingRooms: boolean;
+  hasParking: boolean;
+  hasRefreshments: boolean;
+  contactPhone?: string;
+  contactName?: string;
+  googleMapsUrl?: string;
+  parkingNotes?: string;
+  isVerified: boolean;
+  isActive: boolean;
+  totalGamesHosted: number;
+  averageRating: number;
+  createdAt: string;
+};
+
+const EMPTY_TURF_FORM = {
+  name: "", shortName: "", surfaceType: "artificial_turf",
+  numberOfPitches: 1, pitchSizes: ["medium"],
+  hasFloodlights: true, hasChangingRooms: false,
+  hasParking: false, hasRefreshments: false,
+  contactPhone: "", contactName: "",
+  googleMapsUrl: "", parkingNotes: "",
+  "address.line1": "", "address.line2": "", "address.area": "",
+  "address.city": "", "address.state": "", "address.pincode": "",
+};
+
+type TurfForm = typeof EMPTY_TURF_FORM;
+
+function surfaceLabel(s: string) {
+  return { natural_grass: "Natural", artificial_turf: "Artificial", concrete: "Concrete", indoor: "Indoor" }[s] ?? s;
+}
+
+// ─── Add / Edit Modal ─────────────────────────────────────────────────────────
+function TurfModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial?: Turf | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<TurfForm>(
+    initial
+      ? {
+          name: initial.name,
+          shortName: initial.shortName ?? "",
+          surfaceType: initial.surfaceType,
+          numberOfPitches: initial.numberOfPitches,
+          pitchSizes: initial.pitchSizes,
+          hasFloodlights: initial.hasFloodlights,
+          hasChangingRooms: initial.hasChangingRooms,
+          hasParking: initial.hasParking,
+          hasRefreshments: initial.hasRefreshments,
+          contactPhone: initial.contactPhone ?? "",
+          contactName: initial.contactName ?? "",
+          googleMapsUrl: initial.googleMapsUrl ?? "",
+          parkingNotes: initial.parkingNotes ?? "",
+          "address.line1": initial.address.line1,
+          "address.line2": initial.address.line2 ?? "",
+          "address.area": initial.address.area,
+          "address.city": initial.address.city,
+          "address.state": initial.address.state,
+          "address.pincode": initial.address.pincode,
+        }
+      : { ...EMPTY_TURF_FORM }
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const set = (k: keyof TurfForm, v: string | number | boolean | string[]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+
+    const body = {
+      name: form.name,
+      shortName: form.shortName || undefined,
+      surfaceType: form.surfaceType,
+      numberOfPitches: Number(form.numberOfPitches),
+      pitchSizes: form.pitchSizes,
+      hasFloodlights: form.hasFloodlights,
+      hasChangingRooms: form.hasChangingRooms,
+      hasParking: form.hasParking,
+      hasRefreshments: form.hasRefreshments,
+      contactPhone: form.contactPhone || undefined,
+      contactName: form.contactName || undefined,
+      googleMapsUrl: form.googleMapsUrl || undefined,
+      parkingNotes: form.parkingNotes || undefined,
+      address: {
+        line1: form["address.line1"],
+        line2: form["address.line2"] || "",
+        area: form["address.area"],
+        city: form["address.city"],
+        state: form["address.state"],
+        pincode: form["address.pincode"],
+      },
+    };
+
+    try {
+      const url = initial ? `${API_BASE}/turfs/${initial._id}` : `${API_BASE}/turfs`;
+      const method = initial ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message || "Failed to save."); return; }
+      onSaved();
+    } catch {
+      setError("Cannot reach the server.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inp = `${styles.searchInput}`;
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHead}>
+          <div className={styles.sectionTitle}>{initial ? "Edit Venue" : "Add Venue"}</div>
+          <button className={styles.modalClose} onClick={onClose} type="button">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className={styles.modalForm}>
+          <div className={styles.formGrid}>
+            <label className={styles.formLabel}>
+              Name *
+              <input className={inp} value={form.name} onChange={(e) => set("name", e.target.value)} required />
+            </label>
+            <label className={styles.formLabel}>
+              Short Name
+              <input className={inp} value={form.shortName} onChange={(e) => set("shortName", e.target.value)} />
+            </label>
+            <label className={styles.formLabel}>
+              Address Line 1 *
+              <input className={inp} value={form["address.line1"]} onChange={(e) => set("address.line1", e.target.value)} required />
+            </label>
+            <label className={styles.formLabel}>
+              Address Line 2
+              <input className={inp} value={form["address.line2"]} onChange={(e) => set("address.line2", e.target.value)} />
+            </label>
+            <label className={styles.formLabel}>
+              Area *
+              <input className={inp} value={form["address.area"]} onChange={(e) => set("address.area", e.target.value)} required />
+            </label>
+            <label className={styles.formLabel}>
+              City *
+              <input className={inp} value={form["address.city"]} onChange={(e) => set("address.city", e.target.value)} required />
+            </label>
+            <label className={styles.formLabel}>
+              State *
+              <input className={inp} value={form["address.state"]} onChange={(e) => set("address.state", e.target.value)} required />
+            </label>
+            <label className={styles.formLabel}>
+              Pincode *
+              <input className={inp} value={form["address.pincode"]} onChange={(e) => set("address.pincode", e.target.value)} required />
+            </label>
+            <label className={styles.formLabel}>
+              Surface Type
+              <select className={styles.filterSelect} value={form.surfaceType} onChange={(e) => set("surfaceType", e.target.value)}>
+                <option value="artificial_turf">Artificial Turf</option>
+                <option value="natural_grass">Natural Grass</option>
+                <option value="concrete">Concrete</option>
+                <option value="indoor">Indoor</option>
+              </select>
+            </label>
+            <label className={styles.formLabel}>
+              Number of Pitches
+              <input className={inp} type="number" min={1} value={form.numberOfPitches} onChange={(e) => set("numberOfPitches", Number(e.target.value))} />
+            </label>
+            <label className={styles.formLabel}>
+              Contact Name
+              <input className={inp} value={form.contactName} onChange={(e) => set("contactName", e.target.value)} />
+            </label>
+            <label className={styles.formLabel}>
+              Contact Phone
+              <input className={inp} value={form.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} />
+            </label>
+            <label className={styles.formLabel}>
+              Google Maps URL
+              <input className={inp} value={form.googleMapsUrl} onChange={(e) => set("googleMapsUrl", e.target.value)} />
+            </label>
+            <label className={styles.formLabel}>
+              Parking Notes
+              <input className={inp} value={form.parkingNotes} onChange={(e) => set("parkingNotes", e.target.value)} />
+            </label>
+          </div>
+
+          <div className={styles.checkboxRow}>
+            {(["hasFloodlights", "hasChangingRooms", "hasParking", "hasRefreshments"] as const).map((k) => (
+              <label key={k} className={styles.checkLabel}>
+                <input type="checkbox" checked={form[k] as boolean} onChange={(e) => set(k, e.target.checked)} />
+                {k.replace("has", "")}
+              </label>
+            ))}
+          </div>
+
+          {error && <div className={styles.formError}>{error}</div>}
+
+          <div className={styles.modalActions}>
+            <button className={styles.actionBtn} type="button" onClick={onClose} disabled={saving}>Cancel</button>
+            <button className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`} type="submit" disabled={saving}>
+              {saving ? "Saving…" : initial ? "Save Changes" : "Add Venue"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Venues Section ───────────────────────────────────────────────────────────
 function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
+  const [turfs, setTurfs] = useState<Turf[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [modalTurf, setModalTurf] = useState<Turf | null | "new">(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchTurfs = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/turfs/admin/all`, {
+        headers: { Authorization: `Bearer ${getAdminToken()}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message || "Failed to load turfs."); return; }
+      setTurfs(data.data);
+    } catch {
+      setError("Cannot reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchTurfs(); }, [fetchTurfs]);
+
+  const adminAction = async (url: string, method = "PATCH") => {
+    setActionLoading(url);
+    try {
+      await fetch(`${API_BASE}${url}`, {
+        method,
+        headers: { Authorization: `Bearer ${getAdminToken()}` },
+      });
+      await fetchTurfs();
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <>
       <div className={styles.sectionHead}>
         <div>
           <div className={styles.sectionTitle}>Venues & Turfs</div>
-          <div className={styles.sectionSub}>All registered playing venues</div>
+          <div className={styles.sectionSub}>{loading ? "Loading…" : `${turfs.length} registered venues`}</div>
         </div>
-        <button className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`} type="button">+ Add Venue</button>
+        <button
+          className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`}
+          type="button"
+          onClick={() => setModalTurf("new")}
+        >
+          + Add Venue
+        </button>
       </div>
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead><tr><th>Venue</th><th>Area</th><th>City</th><th>Surface</th><th>Pitches</th><th>Floodlights</th><th>Verified</th><th>Games</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr><td>Champions Turf</td><td>Koramangala</td><td>Bengaluru</td><td><span className={`${styles.badge} ${styles.badgeGray}`}>Artificial</span></td><td>2</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Yes</span></td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Verified</span></td><td>48</td><td><button className={styles.actionBtn} onClick={() => onOpenDetail("Champions Turf Koramangala")}>View</button></td></tr>
-            <tr><td>Andheri Sports Complex</td><td>Andheri West</td><td>Mumbai</td><td><span className={`${styles.badge} ${styles.badgeGray}`}>Natural</span></td><td>3</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Yes</span></td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Verified</span></td><td>31</td><td><button className={styles.actionBtn} onClick={() => onOpenDetail("Andheri Sports Complex")}>View</button></td></tr>
-            <tr><td>Vasant Kunj Turf</td><td>Vasant Kunj</td><td>Delhi</td><td><span className={`${styles.badge} ${styles.badgeGray}`}>Artificial</span></td><td>1</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Yes</span></td><td><span className={`${styles.badge} ${styles.badgeAmber}`}>Pending</span></td><td>12</td><td><div className={styles.actions}><button className={styles.actionBtn}>Verify</button><button className={styles.actionBtn}>View</button></div></td></tr>
-          </tbody>
-        </table>
-      </div>
+
+      {error && <div className={styles.formError}>{error}</div>}
+
+      {loading ? (
+        <div className={styles.loadingState}>Loading venues…</div>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Venue</th><th>Area</th><th>City</th><th>Surface</th>
+                <th>Pitches</th><th>Floodlights</th><th>Verified</th>
+                <th>Status</th><th>Games</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {turfs.length === 0 && (
+                <tr><td colSpan={10} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No venues yet. Add your first venue.</td></tr>
+              )}
+              {turfs.map((t) => {
+                const busy = actionLoading !== null;
+                return (
+                  <tr key={t._id}>
+                    <td>{t.name}</td>
+                    <td>{t.address.area}</td>
+                    <td>{t.address.city}</td>
+                    <td><span className={`${styles.badge} ${styles.badgeGray}`}>{surfaceLabel(t.surfaceType)}</span></td>
+                    <td>{t.numberOfPitches}</td>
+                    <td>
+                      <span className={`${styles.badge} ${t.hasFloodlights ? styles.badgeGreen : styles.badgeGray}`}>
+                        {t.hasFloodlights ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`${styles.badge} ${t.isVerified ? styles.badgeGreen : styles.badgeAmber}`}>
+                        {t.isVerified ? "Verified" : "Pending"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`${styles.badge} ${t.isActive ? styles.badgeGreen : styles.badgeRed}`}>
+                        {t.isActive ? "Active" : "Discontinued"}
+                      </span>
+                    </td>
+                    <td>{t.totalGamesHosted}</td>
+                    <td>
+                      <div className={styles.actions}>
+                        <button className={styles.actionBtn} type="button" onClick={() => setModalTurf(t)}>Edit</button>
+                        {!t.isVerified && (
+                          <button className={styles.actionBtn} type="button" disabled={busy}
+                            onClick={() => adminAction(`/turfs/${t._id}/verify`)}>
+                            Verify
+                          </button>
+                        )}
+                        {t.isActive ? (
+                          <button className={styles.actionBtn} type="button" disabled={busy}
+                            onClick={() => adminAction(`/turfs/${t._id}/discontinue`)}>
+                            Discontinue
+                          </button>
+                        ) : (
+                          <button className={styles.actionBtn} type="button" disabled={busy}
+                            onClick={() => adminAction(`/turfs/${t._id}/reactivate`)}>
+                            Reactivate
+                          </button>
+                        )}
+                        <button className={styles.actionBtn} type="button" onClick={() => onOpenDetail(t.name)}>View</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modalTurf !== null && (
+        <TurfModal
+          initial={modalTurf === "new" ? null : modalTurf}
+          onClose={() => setModalTurf(null)}
+          onSaved={() => { setModalTurf(null); fetchTurfs(); }}
+        />
+      )}
     </>
   );
 }
