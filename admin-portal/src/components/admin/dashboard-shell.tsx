@@ -24,7 +24,7 @@ export function DashboardShell() {
       return;
     }
 
-    setUsername(session.username);
+    setUsername(session.name || session.email);
   }, [router]);
 
   if (!username) {
