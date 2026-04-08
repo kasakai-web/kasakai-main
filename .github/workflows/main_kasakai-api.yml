@@ -12,7 +12,6 @@ on:
       - main
     paths:
       - backend/**
-      - .github/workflows/main_kasakai.yml
       - .github/workflows/main_kasakai-api.yml
   workflow_dispatch:
 
