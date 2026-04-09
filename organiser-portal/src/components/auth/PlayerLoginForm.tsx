@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
 import { validatePhone, validatePassword } from "@/utils/auth";
 import { buildApiUrl } from "@/utils/api";
 
@@ -13,21 +12,10 @@ interface PlayerLoginFormProps {
 
 export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const qRole = searchParams.get("role");
-
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  
-  const [role, setRole] = useState("organizer");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (qRole === "organiser" || qRole === "organizer") {
-      setRole("organizer");
-    }
-  }, [qRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,28 +36,29 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          phone, 
-          password, 
-          role: "organiser"
-        }),
+        body: JSON.stringify({ phone, password, role: "organiser" }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 401) {
-          throw new Error("Wrong credentials");
-        }
-        throw new Error(errorData.message || "Failed to login");
+        throw new Error(response.status === 401 ? "Wrong credentials" : data.message || "Failed to login");
       }
 
-      const { token, user } = await response.json();
+      const { token, user } = data;
       localStorage.setItem("authToken", token);
       localStorage.setItem("userRole", user.role || "organiser");
       localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name || "User");
 
-      router.replace(`/dashboard/organizer/${user.id}`);
+      const isNew = localStorage.getItem("newSignup") === "true";
+      if (isNew) {
+        localStorage.removeItem("newSignup");
+        localStorage.setItem("showProfileBanner", "true");
+        router.replace(`/dashboard/organizer/${user.id}/profile`);
+      } else {
+        router.replace(`/dashboard/organizer/${user.id}`);
+      }
     } catch (err: any) {
       if (err instanceof TypeError && /fetch/i.test(err.message || "")) {
         setError("Unable to reach backend server. Please check backend is running and CORS is configured.");
@@ -84,7 +73,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
   return (
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px", textAlign: "center" }}>
-        {role === "organizer" ? "Organiser Login" : "Organiser Login"}
+        Organiser Login
       </h1>
       <p style={{ color: "#999", textAlign: "center", marginBottom: "30px", fontSize: "14px" }}>Enter your phone number and password</p>
 
