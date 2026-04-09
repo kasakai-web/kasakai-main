@@ -26,6 +26,7 @@ exports.updateMyProfile = async (req, res) => {
       "whatsappNumber",
       "location",
       "preferences",
+      "notificationSettings",
     ];
 
     const payload = {};

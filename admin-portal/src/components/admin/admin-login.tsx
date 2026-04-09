@@ -114,8 +114,8 @@ export function AdminLogin() {
               <label htmlFor="admin-email">Email</label>
               <input
                 id="admin-email"
-                type="email"
-                placeholder="adminkasakai@123"
+                type="text"
+                placeholder="admin@kasakai.in"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"

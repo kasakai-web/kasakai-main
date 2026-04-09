@@ -4,27 +4,36 @@ import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
-import { PlayerSignUpStep1 } from "@/components/auth/PlayerSignUpStep1";        
-import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";        
-import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";  
-import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";    
-import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm"; 
+import { PlayerSignUpStep1 } from "@/components/auth/PlayerSignUpStep1";
+import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";
+import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
+import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";
+import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
 import "../home.css";
 
 function AuthFlow() {
   const router = useRouter();
 
-  const [step, setStep] = useState<"login" | "signup-form" | "signup-otp" | "signup-confirm" | "forgot-step1" | "forgot-otp" | "forgot-newpass">("login");
+  const [step, setStep] = useState<
+    | "login"
+    | "signup-form"
+    | "signup-otp"
+    | "signup-confirm"
+    | "signup-success"
+    | "forgot-step1"
+    | "forgot-otp"
+    | "forgot-newpass"
+  >("login");
+
   const [userData, setUserData] = useState({
     phone: "",
     email: "",
     firstName: "",
-    address: "",
     otp: "",
   });
 
+
   useEffect(() => {
-    // Auto-login persistence
     const token = localStorage.getItem("authToken");
     const uRole = localStorage.getItem("userRole") || "organiser";
     const uId = localStorage.getItem("userId");
@@ -48,7 +57,7 @@ function AuthFlow() {
       {step === "signup-form" && (
         <PlayerSignUpStep1
           onBack={() => setStep("login")}
-          onContinue={(data: { firstName: string; phone: string; email: string; address: string }) => {
+          onContinue={(data: { firstName: string; phone: string; email: string }) => {
             setUserData((prev) => ({ ...prev, ...data }));
             setStep("signup-confirm");
           }}
@@ -74,12 +83,42 @@ function AuthFlow() {
           phone={userData.phone}
           role="organiser"
           mode="signup"
-          onVerified={() => {
-            setStep("login");
-            alert("Account verified and created successfully! Please login.");
-          }}
+          onVerified={() => setStep("signup-success")}
           onBack={() => setStep("signup-confirm")}
         />
+      )}
+
+      {/* SIGNUP SUCCESS */}
+      {step === "signup-success" && (
+        <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333", textAlign: "center" }}>
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
+          <h1 style={{ color: "var(--yellow)", fontSize: "26px", marginBottom: "12px" }}>Account Verified!</h1>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px", lineHeight: 1.6 }}>
+            Welcome to Kasakai, <strong style={{ color: "white" }}>{userData.firstName}</strong>!
+          </p>
+          <p style={{ color: "#999", fontSize: "13px", marginBottom: "28px", lineHeight: 1.6 }}>
+            Your organiser account is ready. After logging in, complete your profile to start hosting games — add your city, WhatsApp number, and default game settings.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.setItem("newSignup", "true");
+              setStep("login");
+            }}
+            style={{
+              width: "100%",
+              background: "var(--yellow)",
+              color: "black",
+              border: "none",
+              padding: "12px",
+              borderRadius: "6px",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            Login Now
+          </button>
+        </div>
       )}
 
       {/* FORGOT PASSWORD - STEP 1: Enter Email */}
@@ -160,4 +199,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

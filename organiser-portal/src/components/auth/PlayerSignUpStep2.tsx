@@ -9,7 +9,6 @@ interface PlayerSignUpStep2Props {
     phone: string;
     email: string;
     firstName: string;
-    address: string;
   };
   onBack: () => void;
   onSuccess: (password: string) => void;
@@ -45,8 +44,6 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
 
     setLoading(true);
     try {
-      const apiRole = "organiser";
-
       const response = await fetch(buildApiUrl("/api/v1/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,9 +51,8 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
           name: userData.firstName,
           phone: userData.phone,
           email: userData.email,
-          address: userData.address,
           password: password,
-          role: apiRole,
+          role: "organiser",
         }),
       });
 
@@ -103,7 +99,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Confirm Details</h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 3: Set your password</p>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 2 of 2: Set your password</p>
 
       {errors.submit && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
@@ -121,11 +117,8 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
           <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px" }}>
             <strong>Phone:</strong> +91 {userData.phone}
           </p>
-          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px" }}>
-            <strong>Email:</strong> {userData.email}
-          </p>
           <p style={{ color: "#ccc", fontSize: "14px" }}>
-            <strong>Address:</strong> {userData.address}
+            <strong>Email:</strong> {userData.email}
           </p>
         </div>
 

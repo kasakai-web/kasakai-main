@@ -75,6 +75,13 @@ const PlayerSchema = new mongoose.Schema(
       }
     ],
 
+    preferredLocations: [
+      {
+        type: String,
+        trim: true
+      }
+    ],
+
     preferredFormat: {
       type: String,
       enum: ["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"]

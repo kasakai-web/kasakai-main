@@ -8,6 +8,77 @@ import { getAdminToken } from "@/lib/admin-session";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1";
 
+type AdminListResponse<T> = {
+  success: boolean;
+  count?: number;
+  summary?: {
+    players?: number;
+    organisers?: number;
+  };
+  data: T[];
+  message?: string;
+};
+
+type AdminUserRow = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  role: "player" | "organiser";
+  gamesPlayed?: number;
+  gamesHosted?: number;
+  rating?: number;
+  joinedAt?: string | null;
+  status: string;
+  location?: string | null;
+};
+
+type AdminOrganiserRow = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  gamesHosted?: number;
+  rating?: number;
+  earningsPaise?: number;
+  joinedAt?: string | null;
+  status: string;
+  approvalStatus?: string;
+  isActive?: boolean;
+  location?: string | null;
+};
+
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatCurrency(paise?: number) {
+  if (typeof paise !== "number") return "—";
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
+function formatStatusLabel(status?: string) {
+  if (!status) return "—";
+  return status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function badgeClassForStatus(status?: string) {
+  const value = (status || "").toLowerCase();
+  if (["active", "approved", "verified"].includes(value)) return styles.badgeGreen;
+  if (["pending", "in review", "review", "draft"].includes(value)) return styles.badgeAmber;
+  if (["suspended", "rejected", "inactive", "banned"].includes(value)) return styles.badgeRed;
+  return styles.badgeGray;
+}
+
+function roleLabel(role: AdminUserRow["role"]) {
+  return role === "organiser" ? "Organiser" : "Player";
+}
+
 type ContentSectionsProps = {
   activeSection: DashboardSection;
   onOpenDetail: (title: string) => void;
@@ -64,36 +135,116 @@ function Dashboard({ onNavigate }: { onNavigate: (s: DashboardSection) => void }
 }
 
 function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
-  const data = [
-    ["Riya Patel", "+91 98765 00001", "player", "12", "4.2", "₹480", "Nov 2025", "active"],
-    ["Arjun Mehta", "+91 98765 00002", "organiser", "48", "4.7", "₹1,200", "Sep 2025", "active"],
-    ["Priya Nair", "+91 98765 00003", "player", "24", "4.5", "₹200", "Oct 2025", "active"],
-    ["Rohit Sinha", "+91 98765 00004", "player", "8", "3.8", "₹0", "Dec 2025", "active"],
-    ["Kavya M", "+91 98765 00005", "player", "16", "4.1", "₹900", "Oct 2025", "active"],
-    ["Vikram Rao", "+91 98765 00006", "organiser", "62", "4.8", "₹3,400", "Aug 2025", "active"],
-    ["Neha Kapoor", "+91 98765 00007", "organiser", "31", "4.5", "₹2,100", "Sep 2025", "active"],
-    ["Dev Sharma", "+91 98765 00008", "player", "3", "3.5", "₹150", "Dec 2025", "banned"],
-  ];
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | AdminUserRow["role"]>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const token = getAdminToken();
+      if (!token) {
+        setError("Admin session missing. Please log in again.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json()) as AdminListResponse<AdminUserRow>;
+
+      if (!res.ok) {
+        setError(data.message || "Failed to load users.");
+        return;
+      }
+
+      setUsers(data.data || []);
+    } catch {
+      setError("Cannot reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch = [user.name, user.phone, user.email || "", user.location || ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase());
+    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    const matchesStatus = statusFilter === "all" || user.status.toLowerCase() === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   return (
     <>
-      <Head title="All Users" sub="1,240 total registered users" />
+      <Head title="All Users" sub={loading ? "Loading users..." : `${users.length} total registered users`} />
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search by name, phone..." />
-        <select className={styles.filterSelect}><option>All roles</option><option>Players</option><option>Organisers</option></select>
-        <select className={styles.filterSelect}><option>All status</option><option>Active</option><option>Banned</option></select>
+        <input
+          className={styles.searchInput}
+          placeholder="Search by name, phone, location..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select
+          className={styles.filterSelect}
+          value={roleFilter}
+          onChange={(event) => setRoleFilter(event.target.value as "all" | AdminUserRow["role"])}
+        >
+          <option value="all">All roles</option>
+          <option value="player">Players</option>
+          <option value="organiser">Organisers</option>
+        </select>
+        <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">All status</option>
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="suspended">Suspended</option>
+          <option value="rejected">Rejected</option>
+        </select>
       </div>
+      {error && <div className={styles.formError}>{error}</div>}
+      {loading ? <div className={styles.loadingState}>Loading users...</div> : null}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>User</th><th>Phone</th><th>Role</th><th>Games</th><th>Rating</th><th>Wallet</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>User</th><th>Phone</th><th>Role</th><th>Location</th><th>Games</th><th>Rating</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
-            {data.map((u) => (
-              <tr key={u[0]}>
-                <td>{u[0]}</td><td>{u[1]}</td><td>{u[2]}</td><td>{u[3]}</td><td>{u[4]}</td><td>{u[5]}</td><td>{u[6]}</td>
-                <td><span className={`${styles.badge} ${u[7] === "active" ? styles.badgeGreen : styles.badgeRed}`}>{u[7]}</span></td>
-                <td><div className={styles.actions}><button className={styles.actionBtn} onClick={() => onOpenDetail(u[0])} type="button">View</button><button className={styles.actionBtn} type="button">{u[7] === "active" ? "Ban" : "Unban"}</button></div></td>
-              </tr>
-            ))}
+            {!loading && filteredUsers.length === 0 ? (
+              <tr><td colSpan={9} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>
+            ) : null}
+            {filteredUsers.map((user) => {
+              const games = user.role === "organiser" ? user.gamesHosted ?? 0 : user.gamesPlayed ?? 0;
+              const statusTone = badgeClassForStatus(user.status);
+
+              return (
+                <tr key={user.id}>
+                  <td>{user.name}</td>
+                  <td>{user.phone}</td>
+                  <td><span className={`${styles.badge} ${user.role === "organiser" ? styles.badgeBlue : styles.badgeGray}`}>{roleLabel(user.role)}</span></td>
+                  <td>{user.location || "—"}</td>
+                  <td>{games}</td>
+                  <td>{typeof user.rating === "number" ? user.rating.toFixed(1) : "—"}</td>
+                  <td>{formatDate(user.joinedAt)}</td>
+                  <td><span className={`${styles.badge} ${statusTone}`}>{formatStatusLabel(user.status)}</span></td>
+                  <td>
+                    <div className={styles.actions}>
+                      <button className={styles.actionBtn} onClick={() => onOpenDetail(user.name)} type="button">View</button>
+                      <button className={styles.actionBtn} type="button">{user.status === "active" ? "Ban" : "Unban"}</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -102,17 +253,73 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 }
 
 function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
+  const [organisers, setOrganisers] = useState<AdminOrganiserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchOrganisers = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const token = getAdminToken();
+      if (!token) {
+        setError("Admin session missing. Please log in again.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/admin/organisers`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json()) as AdminListResponse<AdminOrganiserRow>;
+
+      if (!res.ok) {
+        setError(data.message || "Failed to load organisers.");
+        return;
+      }
+
+      setOrganisers(data.data || []);
+    } catch {
+      setError("Cannot reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrganisers();
+  }, [fetchOrganisers]);
+
+  const pendingOrganisers = organisers.filter((organiser) => organiser.approvalStatus === "pending");
+  const approvedOrganisers = organisers.filter((organiser) => organiser.approvalStatus === "approved" && organiser.isActive !== false);
+  const otherOrganisers = organisers.filter(
+    (organiser) => organiser.approvalStatus !== "pending" && organiser.approvalStatus !== "approved"
+  );
+
   return (
     <>
-      <Head title="Organisers" sub="Manage and verify organiser accounts" />
+      <Head title="Organisers" sub={loading ? "Loading organisers..." : `${organisers.length} total organisers`} />
+      {error && <div className={styles.formError}>{error}</div>}
+      {loading ? <div className={styles.loadingState}>Loading organisers...</div> : null}
       <div className={styles.blockTitle}>Pending Verification</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>Organiser</th><th>Community</th><th>Applied</th><th>WhatsApp Group</th><th>Default Format</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Organiser</th><th>Location</th><th>Applied</th><th>Games Hosted</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
-            <tr><td>Arjun Mehta</td><td>FC Bengaluru Sundays</td><td>2 days ago</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Linked</span></td><td><span className={`${styles.badge} ${styles.badgeGray}`}>7v7</span></td><td><div className={styles.actions}><button className={styles.actionBtn}>Approve</button><button className={styles.actionBtn}>Reject</button><button className={styles.actionBtn} onClick={() => onOpenDetail("Arjun Mehta")}>View</button></div></td></tr>
-            <tr><td>Priya Sharma</td><td>Weekend Warriors Mumbai</td><td>5 days ago</td><td><span className={`${styles.badge} ${styles.badgeAmber}`}>Pending</span></td><td><span className={`${styles.badge} ${styles.badgeGray}`}>6v6</span></td><td><div className={styles.actions}><button className={styles.actionBtn}>Approve</button><button className={styles.actionBtn}>Reject</button><button className={styles.actionBtn} onClick={() => onOpenDetail("Priya Sharma")}>View</button></div></td></tr>
-            <tr><td>Rahul Singh</td><td>Delhi Football Club</td><td>1 week ago</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Linked</span></td><td><span className={`${styles.badge} ${styles.badgeGray}`}>5v5</span></td><td><div className={styles.actions}><button className={styles.actionBtn}>Approve</button><button className={styles.actionBtn}>Reject</button><button className={styles.actionBtn} onClick={() => onOpenDetail("Rahul Singh")}>View</button></div></td></tr>
+            {!loading && pendingOrganisers.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No organisers waiting for approval.</td></tr>
+            ) : null}
+            {pendingOrganisers.map((organiser) => (
+              <tr key={organiser.id}>
+                <td>{organiser.name}</td>
+                <td>{organiser.location || "—"}</td>
+                <td>{formatDate(organiser.joinedAt)}</td>
+                <td>{organiser.gamesHosted ?? 0}</td>
+                <td>{typeof organiser.rating === "number" ? organiser.rating.toFixed(1) : "—"}</td>
+                <td><span className={`${styles.badge} ${badgeClassForStatus(organiser.approvalStatus)}`}>{formatStatusLabel(organiser.approvalStatus)}</span></td>
+                <td><div className={styles.actions}><button className={styles.actionBtn}>Approve</button><button className={styles.actionBtn}>Reject</button><button className={styles.actionBtn} onClick={() => onOpenDetail(organiser.name)}>View</button></div></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -120,10 +327,44 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       <div className={styles.blockTitleSuccess}>Approved Organisers</div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>Organiser</th><th>Community</th><th>Games Hosted</th><th>Avg Rating</th><th>Earnings</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Organiser</th><th>Location</th><th>Games Hosted</th><th>Avg Rating</th><th>Earnings</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
-            <tr><td>Vikram Rao</td><td>FC Bengaluru Sundays</td><td>48</td><td>4.7</td><td>₹28,400</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Active</span></td><td><div className={styles.actions}><button className={styles.actionBtn} onClick={() => onOpenDetail("Vikram Rao")}>View</button><button className={styles.actionBtn}>Suspend</button></div></td></tr>
-            <tr><td>Neha Kapoor</td><td>Pune Sunday Kickabout</td><td>31</td><td>4.5</td><td>₹18,200</td><td><span className={`${styles.badge} ${styles.badgeGreen}`}>Active</span></td><td><div className={styles.actions}><button className={styles.actionBtn} onClick={() => onOpenDetail("Neha Kapoor")}>View</button><button className={styles.actionBtn}>Suspend</button></div></td></tr>
+            {!loading && approvedOrganisers.length === 0 ? (
+              <tr><td colSpan={7} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No approved organisers yet.</td></tr>
+            ) : null}
+            {approvedOrganisers.map((organiser) => (
+              <tr key={organiser.id}>
+                <td>{organiser.name}</td>
+                <td>{organiser.location || "—"}</td>
+                <td>{organiser.gamesHosted ?? 0}</td>
+                <td>{typeof organiser.rating === "number" ? organiser.rating.toFixed(1) : "—"}</td>
+                <td>{formatCurrency(organiser.earningsPaise)}</td>
+                <td><span className={`${styles.badge} ${badgeClassForStatus(organiser.approvalStatus || organiser.status)}`}>{formatStatusLabel(organiser.approvalStatus || organiser.status)}</span></td>
+                <td><div className={styles.actions}><button className={styles.actionBtn} onClick={() => onOpenDetail(organiser.name)}>View</button><button className={styles.actionBtn}>Suspend</button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className={styles.blockTitle}>Other Organisers</div>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead><tr><th>Organiser</th><th>Location</th><th>Games Hosted</th><th>Avg Rating</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            {!loading && otherOrganisers.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No suspended or rejected organisers.</td></tr>
+            ) : null}
+            {otherOrganisers.map((organiser) => (
+              <tr key={organiser.id}>
+                <td>{organiser.name}</td>
+                <td>{organiser.location || "—"}</td>
+                <td>{organiser.gamesHosted ?? 0}</td>
+                <td>{typeof organiser.rating === "number" ? organiser.rating.toFixed(1) : "—"}</td>
+                <td><span className={`${styles.badge} ${badgeClassForStatus(organiser.approvalStatus || organiser.status)}`}>{formatStatusLabel(organiser.approvalStatus || organiser.status)}</span></td>
+                <td><div className={styles.actions}><button className={styles.actionBtn} onClick={() => onOpenDetail(organiser.name)}>View</button></div></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

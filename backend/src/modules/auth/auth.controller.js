@@ -16,7 +16,7 @@ const getModelByRole = (role) => {
 // ===============================
 exports.register = async (req, res) => {
   try {
-    const { name, phone, email, whatsappNumber, password, role } = req.body;
+    const { name, phone, email, whatsappNumber, password, role, preferences } = req.body;
     const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
     
     // Choose model based on role given by frontend
@@ -54,6 +54,7 @@ exports.register = async (req, res) => {
         otp,
         otpExpires,
         isVerified: false,
+        ...(role !== "organiser" && preferences ? { preferences } : {}),
       });
     } else {
       user.name = name;
@@ -64,6 +65,9 @@ exports.register = async (req, res) => {
       user.otp = otp;
       user.otpExpires = otpExpires;
       user.isVerified = false;
+      if (role !== "organiser" && preferences) {
+        user.preferences = preferences;
+      }
     }
 
     await user.save();

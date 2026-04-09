@@ -44,6 +44,7 @@ export default function OrganiserProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState("");
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const [profile, setProfile] = useState<OrganiserProfile>({
     name: "",
     email: "",
@@ -142,6 +143,11 @@ export default function OrganiserProfilePage() {
     if (!isAuthorized) {
       setLoading(false);
       return;
+    }
+
+    if (localStorage.getItem("showProfileBanner") === "true") {
+      localStorage.removeItem("showProfileBanner");
+      setShowWelcomeBanner(true);
     }
 
     fetchProfile();
@@ -287,6 +293,36 @@ export default function OrganiserProfilePage() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {showWelcomeBanner && (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(255,193,7,0.12) 0%, rgba(255,193,7,0.04) 100%)",
+          border: "1px solid rgba(255,193,7,0.35)",
+          borderLeft: "4px solid var(--yellow, #ffc107)",
+          padding: "16px 20px",
+          marginBottom: "24px",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+        }}>
+          <div>
+            <p style={{ color: "var(--yellow, #ffc107)", fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>
+              Welcome to Kasakai! Complete your profile to start hosting games
+            </p>
+            <p style={{ color: "#999", fontSize: "13px", lineHeight: 1.5 }}>
+              Add your city, WhatsApp number, and default game settings to get started.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowWelcomeBanner(false)}
+            style={{ background: "transparent", border: "none", color: "#666", cursor: "pointer", fontSize: "18px", lineHeight: 1, flexShrink: 0, padding: "0 4px" }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
 

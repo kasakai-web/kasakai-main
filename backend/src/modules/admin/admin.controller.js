@@ -1,8 +1,49 @@
 const jwt   = require('jsonwebtoken');
 const Admin = require('../../models/Admin');
+const Player = require('../../models/Player');
+const Organiser = require('../../models/Organiser');
 
-// Only this email is permitted to access the admin portal
-const ALLOWED_ADMIN_EMAIL = 'adminkasakai@123';
+const formatJoinedAt = (value) => {
+  if (!value) return null;
+  return new Date(value).toISOString();
+};
+
+const formatLocation = (location = {}) => {
+  const parts = [location.city, location.state].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : null;
+};
+
+const formatPlayer = (player) => ({
+  id: player._id,
+  name: player.name,
+  phone: player.phone,
+  email: player.email || null,
+  role: 'player',
+  gamesPlayed: player.totalGamesPlayed || 0,
+  rating: player.rating || 0,
+  joinedAt: formatJoinedAt(player.createdAt),
+  status: player.isVerified ? 'active' : 'pending',
+  location: formatLocation(player.location),
+});
+
+const formatOrganiser = (organiser) => ({
+  id: organiser._id,
+  name: organiser.name,
+  phone: organiser.phone,
+  email: organiser.email || null,
+  role: 'organiser',
+  gamesHosted: organiser.totalGamesHosted || 0,
+  rating: organiser.averageRating || 0,
+  earningsPaise: organiser.totalEarningsPaise || 0,
+  joinedAt: formatJoinedAt(organiser.createdAt),
+  status: organiser.isActive ? organiser.approvalStatus : 'suspended',
+  location: formatLocation(organiser.location),
+  approvalStatus: organiser.approvalStatus,
+  isActive: organiser.isActive,
+});
+
+// Optional allow-list gate for admin login. If empty, any valid admin account may log in.
+const ALLOWED_ADMIN_EMAIL = process.env.ADMIN_LOGIN_EMAIL?.trim().toLowerCase() || null;
 
 // ─────────────────────────────────────────────
 // POST /api/v1/admin/login
@@ -16,13 +57,15 @@ exports.adminLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    // Block any email that isn't the authorised admin email
-    if (email.trim().toLowerCase() !== ALLOWED_ADMIN_EMAIL) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // If an allow-list email is configured, require an exact match.
+    if (ALLOWED_ADMIN_EMAIL && normalizedEmail !== ALLOWED_ADMIN_EMAIL) {
       return res.status(401).json({ success: false, message: 'Invalid credentials.' });
     }
 
     // Explicitly select password (field has select: false in schema)
-    const admin = await Admin.findOne({ email: email.toLowerCase().trim() }).select('+password');
+    const admin = await Admin.findOne({ email: normalizedEmail }).select('+password');
 
     if (!admin) {
       return res.status(401).json({ success: false, message: 'Invalid credentials.' });
@@ -87,6 +130,58 @@ exports.adminMe = async (req, res) => {
     });
   } catch (err) {
     console.error('[adminMe]', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/v1/admin/users   (protected)
+// Returns a combined user directory with players and organisers.
+// ─────────────────────────────────────────────
+exports.listUsers = async (req, res) => {
+  try {
+    const [players, organisers] = await Promise.all([
+      Player.find().sort({ createdAt: -1 }).lean(),
+      Organiser.find().sort({ createdAt: -1 }).lean(),
+    ]);
+
+    const users = [
+      ...players.map(formatPlayer),
+      ...organisers.map(formatOrganiser),
+    ].sort((left, right) => new Date(right.joinedAt).getTime() - new Date(left.joinedAt).getTime());
+
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      summary: {
+        players: players.length,
+        organisers: organisers.length,
+      },
+      data: users,
+    });
+  } catch (err) {
+    console.error('[listUsers]', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/v1/admin/organisers   (protected)
+// Returns organiser records only.
+// ─────────────────────────────────────────────
+exports.listOrganisers = async (req, res) => {
+  try {
+    const organisers = await Organiser.find().sort({ createdAt: -1 }).lean();
+
+    const data = organisers.map(formatOrganiser);
+
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (err) {
+    console.error('[listOrganisers]', err);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
