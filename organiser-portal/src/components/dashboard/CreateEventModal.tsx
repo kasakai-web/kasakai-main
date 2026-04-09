@@ -28,17 +28,28 @@ export interface CreateEventModalProps {
   onClose: () => void;
   onCreate: (eventData: any) => void;
   onSuccess?: () => void;
+  lastEvent?: any;
 }
 
-export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventModalProps) {
+function extractTime(scheduledAt?: string): string {
+  if (!scheduledAt) return "18:00";
+  const d = new Date(scheduledAt);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = d.getMinutes() >= 30 ? "30" : "00";
+  return `${h}:${m}`;
+}
+
+export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: CreateEventModalProps) {
+  const prefillTurfId = lastEvent?.turf?._id || (typeof lastEvent?.turf === "string" ? lastEvent.turf : "");
+
   const [formData, setFormData] = useState({
-    title: "",
-    turf: "",
-    date: "",
-    time: "18:00",
-    format: "5v5",
-    feeInRs: "",
-    durationMins: 60,
+    title: lastEvent?.title ?? "",
+    turf: prefillTurfId,
+    date: "",                                                          // always blank — pick a new date
+    time: lastEvent ? extractTime(lastEvent.scheduledAt) : "18:00",
+    format: lastEvent?.format ?? "5v5",
+    feeInRs: lastEvent?.feeInPaise ? String(lastEvent.feeInPaise / 100) : "",
+    durationMins: lastEvent?.durationMins ?? 60,
     cutoffTime: "16:00",
   });
 
@@ -55,7 +66,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
         if (data.success) {
           setTurfs(data.data);
           if (data.data.length > 0) {
-            setFormData(prev => ({ ...prev, turf: data.data[0]._id }));
+            // Only default to first turf if none is pre-filled from last event
+            setFormData(prev => ({ ...prev, turf: prev.turf || data.data[0]._id }));
           }
         }
       })
@@ -250,7 +262,11 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
           <div className="header-content">
             <div className="header-badge">⚽ Create Event</div>
             <h2 className="header-title">Organize a New Game</h2>
-            <p className="header-subtitle">Fill in the details to create and notify players</p>
+            <p className="header-subtitle">
+              {lastEvent
+                ? "Pre-filled from your last event — just update the date."
+                : "Fill in the details to create and notify players"}
+            </p>
           </div>
           <button 
             className="header-close" 

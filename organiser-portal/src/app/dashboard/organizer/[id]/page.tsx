@@ -413,7 +413,16 @@ export default function OrganizerDashboard() {
 
       {/* Modals */}
       {showCreateModal && (
-        <CreateEventModal 
+        <CreateEventModal
+          lastEvent={
+            games.length > 0
+              ? [...games].sort(
+                  (a, b) =>
+                    new Date(b.createdAt || b.scheduledAt).getTime() -
+                    new Date(a.createdAt || a.scheduledAt).getTime()
+                )[0]
+              : undefined
+          }
           onClose={() => setShowCreateModal(false)}
           onCreate={() => {
             fetchGames();
