@@ -50,7 +50,15 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       localStorage.setItem("userRole", "player");
       localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name || "User");
-      router.replace(`/dashboard/player/${user.id}`);
+
+      const isNew = localStorage.getItem("newSignup") === "true";
+      if (isNew) {
+        localStorage.removeItem("newSignup");
+        localStorage.setItem("showProfileBanner", "true");
+        router.replace(`/dashboard/player/${user.id}/profile`);
+      } else {
+        router.replace(`/dashboard/player/${user.id}`);
+      }
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {

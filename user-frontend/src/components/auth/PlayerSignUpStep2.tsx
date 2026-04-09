@@ -9,7 +9,7 @@ interface PlayerSignUpStep2Props {
     phone: string;
     email: string;
     firstName: string;
-    address: string;
+    preferences: { positions: string[]; preferredLocations: string[] };
   };
   onBack: () => void;
   onSuccess: (password: string) => void;
@@ -45,8 +45,6 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
 
     setLoading(true);
     try {
-      const apiRole = "player";
-
       const response = await fetch(buildApiUrl("/api/v1/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,9 +52,9 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
           name: userData.firstName,
           phone: userData.phone,
           email: userData.email,
-          address: userData.address,
           password: password,
-          role: apiRole,
+          role: "player",
+          preferences: userData.preferences,
         }),
       });
 
@@ -91,6 +89,8 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
     boxSizing: "border-box" as const,
   };
 
+  const positionLabels: Record<string, string> = { GK: "Goalkeeper", DEF: "Defender", MID: "Midfielder", FWD: "Forward" };
+
   return (
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
       <button
@@ -109,7 +109,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Confirm Details</h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 3: Set your password</p>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 3 of 3: Set your password</p>
 
       {errors.submit && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
@@ -120,19 +120,27 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
       <form onSubmit={handleCreateAccount}>
         {/* Display user details */}
         <div style={{ background: "#0f0f1e", padding: "16px", borderRadius: "6px", marginBottom: "24px", border: "1px solid #333" }}>
-          <p style={{ color: "#999", fontSize: "12px", marginBottom: "4px" }}>ACCOUNT DETAILS</p>
-          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px" }}>
+          <p style={{ color: "#999", fontSize: "12px", marginBottom: "8px" }}>ACCOUNT DETAILS</p>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
             <strong>Name:</strong> {userData.firstName}
           </p>
-          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px" }}>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
             <strong>Phone:</strong> +91 {userData.phone}
           </p>
-          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px" }}>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
             <strong>Email:</strong> {userData.email}
           </p>
-          <p style={{ color: "#ccc", fontSize: "14px" }}>
-            <strong>Address:</strong> {userData.address}
-          </p>
+          {userData.preferences.positions.length > 0 && (
+            <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+              <strong>Positions:</strong>{" "}
+              {userData.preferences.positions.map((p) => positionLabels[p] || p).join(", ")}
+            </p>
+          )}
+          {userData.preferences.preferredLocations.length > 0 && (
+            <p style={{ color: "#ccc", fontSize: "14px" }}>
+              <strong>Play Areas:</strong> {userData.preferences.preferredLocations.join(", ")}
+            </p>
+          )}
         </div>
 
         {/* Password */}

@@ -5,14 +5,13 @@ import { validatePhone, validateEmail } from "@/utils/auth";
 
 interface PlayerSignUpStep1Props {
   onBack: () => void;
-  onContinue: (data: { firstName: string; phone: string; email: string; address: string }) => void;
+  onContinue: (data: { firstName: string; phone: string; email: string }) => void;
 }
 
 export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props) {
   const [firstName, setFirstName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleContinue = (e: React.FormEvent) => {
@@ -22,14 +21,13 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     if (!firstName.trim()) newErrors.firstName = "Name is required";
     if (!validatePhone(phone)) newErrors.phone = "Enter valid 10-digit phone (starting 6-9)";
     if (!validateEmail(email)) newErrors.email = "Enter valid email";
-    if (!address.trim()) newErrors.address = "Address is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    onContinue({ firstName, phone, email, address });
+    onContinue({ firstName, phone, email });
   };
 
   const inputStyle = {
@@ -62,7 +60,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1: Enter your details</p>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 3: Enter your details</p>
 
       <form onSubmit={handleContinue}>
         {/* Name */}
@@ -121,7 +119,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
         </div>
 
         {/* Email */}
-        <div style={{ marginBottom: "20px" }}>
+        <div style={{ marginBottom: "24px" }}>
           <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Email Address *</label>
           <input
             type="email"
@@ -136,24 +134,6 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
             onBlur={(e) => (e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444")}
           />
           {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
-        </div>
-
-        {/* Address */}
-        <div style={{ marginBottom: "24px" }}>
-          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Address *</label>
-          <textarea
-            value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              setErrors({ ...errors, address: "" });
-            }}
-            placeholder="Your address"
-            rows={3}
-            style={{ ...inputStyle, resize: "vertical" }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--yellow)")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = errors.address ? "#ff6b6b" : "#444")}
-          />
-          {errors.address && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.address}</small>}
         </div>
 
         <button

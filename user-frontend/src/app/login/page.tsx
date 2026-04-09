@@ -5,26 +5,38 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
-import { PlayerSignUpStep1 } from "@/components/auth/PlayerSignUpStep1";        
-import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";        
-import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";  
-import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";    
-import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm"; 
+import { PlayerSignUpStep1 } from "@/components/auth/PlayerSignUpStep1";
+import { PlayerSignUpPreferences } from "@/components/auth/PlayerSignUpPreferences";
+import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";
+import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
+import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";
+import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
 
 function AuthFlow() {
   const router = useRouter();
 
-  const [step, setStep] = useState<"login" | "signup-form" | "signup-otp" | "signup-confirm" | "forgot-step1" | "forgot-otp" | "forgot-newpass">("login");
+  const [step, setStep] = useState<
+    | "login"
+    | "signup-form"
+    | "signup-preferences"
+    | "signup-confirm"
+    | "signup-otp"
+    | "signup-success"
+    | "forgot-step1"
+    | "forgot-otp"
+    | "forgot-newpass"
+  >("login");
+
   const [userData, setUserData] = useState({
     phone: "",
     email: "",
     firstName: "",
-    address: "",
+    preferences: { positions: [] as string[], preferredLocations: [] as string[] },
     otp: "",
   });
 
+
   useEffect(() => {
-    // Auto-login persistence
     const token = localStorage.getItem("authToken");
     const uRole = localStorage.getItem("userRole");
     const uId = localStorage.getItem("userId");
@@ -44,22 +56,33 @@ function AuthFlow() {
         />
       )}
 
-      {/* SIGNUP - STEP 1: Details */}
+      {/* SIGNUP - STEP 1: Personal details */}
       {step === "signup-form" && (
         <PlayerSignUpStep1
           onBack={() => setStep("login")}
-          onContinue={(data: { firstName: string; phone: string; email: string; address: string }) => {
+          onContinue={(data: { firstName: string; phone: string; email: string }) => {
             setUserData((prev) => ({ ...prev, ...data }));
+            setStep("signup-preferences");
+          }}
+        />
+      )}
+
+      {/* SIGNUP - STEP 2: Game preferences */}
+      {step === "signup-preferences" && (
+        <PlayerSignUpPreferences
+          onBack={() => setStep("signup-form")}
+          onContinue={(prefs) => {
+            setUserData((prev) => ({ ...prev, preferences: prefs }));
             setStep("signup-confirm");
           }}
         />
       )}
 
-      {/* SIGNUP - STEP 2: Confirm Details & Create Account */}
+      {/* SIGNUP - STEP 3: Confirm & Create Account */}
       {step === "signup-confirm" && (
         <PlayerSignUpStep2
           userData={userData}
-          onBack={() => setStep("signup-form")}
+          onBack={() => setStep("signup-preferences")}
           onSuccess={(password) => {
             setUserData((prev) => ({ ...prev, password }));
             setStep("signup-otp");
@@ -67,19 +90,49 @@ function AuthFlow() {
         />
       )}
 
-      {/* SIGNUP - STEP 3: OTP Verification */}
+      {/* SIGNUP - STEP 4: OTP Verification */}
       {step === "signup-otp" && (
         <OTPVerificationPhone
           email={userData.email}
           phone={userData.phone}
           role="player"
           mode="signup"
-          onVerified={() => {
-            setStep("login");
-            alert("Account verified and created successfully! Please login.");
-          }}
+          onVerified={() => setStep("signup-success")}
           onBack={() => setStep("signup-confirm")}
         />
+      )}
+
+      {/* SIGNUP SUCCESS */}
+      {step === "signup-success" && (
+        <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333", textAlign: "center" }}>
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
+          <h1 style={{ color: "var(--yellow)", fontSize: "26px", marginBottom: "12px" }}>Account Verified!</h1>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px", lineHeight: 1.6 }}>
+            Welcome to Kasakai, <strong style={{ color: "white" }}>{userData.firstName}</strong>!
+          </p>
+          <p style={{ color: "#999", fontSize: "13px", marginBottom: "28px", lineHeight: 1.6 }}>
+            Your account is ready. After logging in, we recommend completing your profile — add your city and WhatsApp number to get notified about games near you.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.setItem("newSignup", "true");
+              setStep("login");
+            }}
+            style={{
+              width: "100%",
+              background: "var(--yellow)",
+              color: "black",
+              border: "none",
+              padding: "12px",
+              borderRadius: "6px",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            Login Now
+          </button>
+        </div>
       )}
 
       {/* FORGOT PASSWORD - STEP 1: Enter Email */}
@@ -146,4 +199,3 @@ export default function LoginPage() {
     </>
   );
 }
-
