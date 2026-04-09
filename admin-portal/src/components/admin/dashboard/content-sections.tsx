@@ -48,6 +48,46 @@ type AdminOrganiserRow = {
   location?: string | null;
 };
 
+type AdminGameRow = {
+  id: string;
+  title: string;
+  venue?: string | null;
+  scheduledAt?: string | null;
+  format?: string | null;
+  players: {
+    registered: number;
+    totalSlots: number;
+  };
+  feeInPaise?: number;
+  organiserName?: string;
+  status: string;
+};
+
+type AdminPaymentRow = {
+  id: string;
+  playerName: string;
+  type: string;
+  amountPaise: number;
+  gameTitle: string;
+  method: string;
+  paidAt?: string | null;
+  status: string;
+};
+
+type AdminPaymentSummary = {
+  totalProcessedPaise?: number;
+  totalRefundedPaise?: number;
+  pendingCount?: number;
+};
+
+type AdminPaymentListResponse = {
+  success: boolean;
+  count?: number;
+  summary?: AdminPaymentSummary;
+  data: AdminPaymentRow[];
+  message?: string;
+};
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("en-IN", {
@@ -60,6 +100,16 @@ function formatDate(value?: string | null) {
 function formatCurrency(paise?: number) {
   if (typeof paise !== "number") return "—";
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function formatStatusLabel(status?: string) {
@@ -373,30 +423,88 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 }
 
 function Games({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
-  const rows = [
-    ["Saturday 7v7", "Champions Turf, Koramangala", "Sat 14 Dec, 7PM", "7v7", "12 / 14", "₹350", "Vikram Rao", "Confirmed"],
-    ["Sunday 6v6", "Andheri Sports Complex", "Sun 15 Dec, 6PM", "6v6", "8 / 12", "₹300", "Neha Kapoor", "Open"],
-    ["Friday 5v5", "Vasant Kunj Turf", "Fri 13 Dec, 8PM", "5v5", "10 / 10", "₹280", "Rahul Singh", "Tentative"],
-    ["Wednesday 8v8", "Hinjewadi Futsal", "Wed 11 Dec, 7:30PM", "8v8", "16 / 16", "₹400", "Arjun Mehta", "Completed"],
-    ["Monday 6v6", "HSR Layout Turf", "Mon 9 Dec, 6PM", "6v6", "4 / 12", "₹320", "Vikram Rao", "Cancelled"],
-  ];
+  const [games, setGames] = useState<AdminGameRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const fetchGames = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const token = getAdminToken();
+      if (!token) {
+        setError("Admin session missing. Please log in again.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/admin/games`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json()) as AdminListResponse<AdminGameRow>;
+
+      if (!res.ok) {
+        setError(data.message || "Failed to load games.");
+        return;
+      }
+
+      setGames(data.data || []);
+    } catch {
+      setError("Cannot reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames]);
+
+  const filteredGames = games.filter((game) => {
+    const matchesSearch = [game.title, game.venue || "", game.organiserName || ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase());
+    const matchesStatus = statusFilter === "all" || game.status.toLowerCase() === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <>
-      <Head title="Games & Events" sub="All games across all communities" />
+      <Head title="Games & Events" sub={loading ? "Loading games..." : `${games.length} games across all organisers`} />
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search games, venue, organiser..." />
-        <select className={styles.filterSelect}><option>All Status</option><option>Open</option><option>Confirmed</option><option>Completed</option><option>Cancelled</option></select>
-        <select className={styles.filterSelect}><option>All Communities</option><option>FC Bengaluru</option><option>Mumbai Kickabout</option></select>
+        <input className={styles.searchInput} placeholder="Search games, venue, organiser..." value={search} onChange={(event) => setSearch(event.target.value)} />
+        <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">All Status</option>
+          <option value="open">Open</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="tentative">Tentative</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button className={styles.actionBtn} type="button" onClick={fetchGames}>Refresh</button>
       </div>
+      {error && <div className={styles.formError}>{error}</div>}
+      {loading ? <div className={styles.loadingState}>Loading games...</div> : null}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr><th>Game</th><th>Venue</th><th>Date</th><th>Format</th><th>Players</th><th>Fee</th><th>Organiser</th><th>Status</th></tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r[0]} onClick={() => onOpenDetail(r[0])}>
-                <td>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td><span className={`${styles.badge} ${styles.badgeGray}`}>{r[3]}</span></td><td>{r[4]}</td><td>{r[5]}</td><td>{r[6]}</td>
-                <td><span className={`${styles.badge} ${r[7] === "Confirmed" ? styles.badgeGreen : r[7] === "Open" ? styles.badgeBlue : r[7] === "Cancelled" ? styles.badgeRed : styles.badgeGray}`}>{r[7]}</span></td>
+            {!loading && filteredGames.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No games found for current filters.</td></tr>
+            ) : null}
+            {filteredGames.map((game) => (
+              <tr key={game.id} onClick={() => onOpenDetail(game.title)}>
+                <td>{game.title}</td>
+                <td>{game.venue || "—"}</td>
+                <td>{formatDateTime(game.scheduledAt)}</td>
+                <td><span className={`${styles.badge} ${styles.badgeGray}`}>{game.format || "—"}</span></td>
+                <td>{`${game.players?.registered || 0} / ${game.players?.totalSlots || 0}`}</td>
+                <td>{formatCurrency(game.feeInPaise)}</td>
+                <td>{game.organiserName || "—"}</td>
+                <td><span className={`${styles.badge} ${badgeClassForStatus(game.status)}`}>{formatStatusLabel(game.status)}</span></td>
               </tr>
             ))}
           </tbody>
@@ -407,29 +515,72 @@ function Games({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 }
 
 function Payments() {
-  const rows = [
-    ["TXN-8821", "Riya Patel", "Top-up", "+₹500", "—", "Razorpay/UPI", "2 min ago", "Success"],
-    ["TXN-8820", "Arjun Mehta", "Refund", "+₹350", "Monday 6v6", "Wallet", "14 min ago", "Success"],
-    ["TXN-8819", "Priya Nair", "Lock", "-₹300", "Sunday 6v6", "Wallet", "1 hr ago", "Success"],
-    ["TXN-8818", "Rohit Sinha", "Backout fee", "-₹100", "Saturday 7v7", "Wallet", "3 hr ago", "Success"],
-    ["TXN-8817", "Kavya M", "Top-up", "+₹1000", "—", "Razorpay/Card", "5 hr ago", "Failed"],
-  ];
+  const [payments, setPayments] = useState<AdminPaymentRow[]>([]);
+  const [summary, setSummary] = useState<AdminPaymentSummary>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchPayments = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const token = getAdminToken();
+      if (!token) {
+        setError("Admin session missing. Please log in again.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/admin/payments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json()) as AdminPaymentListResponse;
+
+      if (!res.ok) {
+        setError(data.message || "Failed to load payment records.");
+        return;
+      }
+
+      setPayments(data.data || []);
+      setSummary(data.summary || {});
+    } catch {
+      setError("Cannot reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   return (
     <>
-      <Head title="Payments" sub="Wallet transactions, top-ups, refunds" />
+      <Head title="Payments" sub={loading ? "Loading payment records..." : `${payments.length} payment records`} />
       <div className={styles.paymentSummary}>
-        <div className={styles.payCard}><div className={styles.statLabel}>Total Processed (MTD)</div><div className={styles.payValue}>₹2,40,800</div><div className={styles.paySub}>142 games · Dec 2025</div></div>
-        <div className={styles.payCard}><div className={styles.statLabel}>Refunds Issued</div><div className={styles.payValue}>₹14,200</div><div className={styles.paySub}>23 transactions</div></div>
-        <div className={styles.payCard}><div className={styles.statLabel}>Backout Fees Collected</div><div className={styles.payValue}>₹3,600</div><div className={styles.paySub}>36 post-cutoff backouts</div></div>
+        <div className={styles.payCard}><div className={styles.statLabel}>Total Processed</div><div className={styles.payValue}>{formatCurrency(summary.totalProcessedPaise)}</div><div className={styles.paySub}>Successful registrations</div></div>
+        <div className={styles.payCard}><div className={styles.statLabel}>Refunds Issued</div><div className={styles.payValue}>{formatCurrency(summary.totalRefundedPaise)}</div><div className={styles.paySub}>Refunded registrations</div></div>
+        <div className={styles.payCard}><div className={styles.statLabel}>Pending Payments</div><div className={styles.payValue}>{summary.pendingCount ?? 0}</div><div className={styles.paySub}>Registrations awaiting payment</div></div>
       </div>
+      {error && <div className={styles.formError}>{error}</div>}
+      {loading ? <div className={styles.loadingState}>Loading payments...</div> : null}
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr><th>Transaction ID</th><th>User</th><th>Type</th><th>Amount</th><th>Game</th><th>Method</th><th>Date</th><th>Status</th></tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r[0]}>
-                <td>{r[0]}</td><td>{r[1]}</td><td><span className={`${styles.badge} ${r[2] === "Top-up" ? styles.badgeGreen : r[2] === "Refund" ? styles.badgeAmber : r[2] === "Lock" ? styles.badgeBlue : styles.badgeRed}`}>{r[2]}</span></td><td>{r[3]}</td><td>{r[4]}</td><td>{r[5]}</td><td>{r[6]}</td><td><span className={`${styles.badge} ${r[7] === "Success" ? styles.badgeGreen : styles.badgeRed}`}>{r[7]}</span></td>
+            {!loading && payments.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No payment records available yet.</td></tr>
+            ) : null}
+            {payments.map((payment) => (
+              <tr key={payment.id}>
+                <td>{String(payment.id).slice(-8).toUpperCase()}</td>
+                <td>{payment.playerName}</td>
+                <td><span className={`${styles.badge} ${styles.badgeBlue}`}>{payment.type}</span></td>
+                <td>{formatCurrency(payment.amountPaise)}</td>
+                <td>{payment.gameTitle}</td>
+                <td>{payment.method}</td>
+                <td>{formatDateTime(payment.paidAt)}</td>
+                <td><span className={`${styles.badge} ${badgeClassForStatus(payment.status)}`}>{formatStatusLabel(payment.status)}</span></td>
               </tr>
             ))}
           </tbody>

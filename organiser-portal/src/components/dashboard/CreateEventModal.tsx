@@ -4,6 +4,18 @@ import React, { useState, useEffect } from "react";
 import "./CreateEventModal.css";
 import { buildApiUrl } from "@/utils/api";
 
+const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, idx) => {
+  const hours = Math.floor(idx / 2);
+  const minutes = idx % 2 === 0 ? "00" : "30";
+  const value = `${String(hours).padStart(2, "0")}:${minutes}`;
+
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  const period = hours < 12 ? "AM" : "PM";
+  const label = `${displayHour}:${minutes} ${period}`;
+
+  return { value, label };
+});
+
 interface Turf {
   _id: string;
   name: string;
@@ -332,17 +344,22 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
 
               <div className="form-group">
                 <label className="form-label">
-                  <span className="label-text">Time</span>
+                  <span className="label-text">Time Slot</span>
                   <span className="label-required">*</span>
                 </label>
-                <input
-                  type="time"
+                <select
                   name="time"
                   value={formData.time}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  className={`form-input ${touched.time && errors.time ? 'error' : ''}`}
-                />
+                  className={`form-select ${touched.time && errors.time ? 'error' : ''}`}
+                >
+                  {TIME_SLOT_OPTIONS.map((slot) => (
+                    <option key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </select>
                 {touched.time && errors.time && (
                   <div className="field-error">{errors.time}</div>
                 )}

@@ -127,7 +127,7 @@ exports.getOrganiserGames = async (req, res) => {
       .populate('organiser', 'name phone')
       .populate({
         path: 'registrations.player',
-        select: 'name phone email role'
+        select: 'name phone email',
       })
       .sort('-scheduledAt')
       .lean();
@@ -382,9 +382,14 @@ exports.getMyGames = async (req, res) => {
       });
     }
 
-    const games = await Game.find({ 'registrations.player': req.user._id })
+    const games = await Game.find({
+      'registrations': {
+        $elemMatch: { player: req.user._id, plusOneName: null }
+      }
+    })
       .populate('turf', 'name location.city')
       .populate('organiser', 'name')
+      .populate({ path: 'registrations.player', select: 'name' })
       .sort('-scheduledAt')
       .lean()
       .exec();
@@ -406,17 +411,30 @@ exports.getMyGames = async (req, res) => {
   }
 };
 
-// @desc    Register for a game
+// ── helpers ──────────────────────────────────────────────
+const POSITION_MAP = {
+  GK:  'goalkeeper',
+  DEF: 'defender',
+  MID: 'midfielder',
+  FWD: 'forward',
+};
+
+const TEAM_MAP = {
+  'Red Team':      'red',
+  'Blue Team':     'blue',
+  'No Preference': 'none',
+};
+
+// @desc    Register for a game (player + optional guests)
 // @route   POST /api/v1/games/:id/register
 // @access  Private (Player)
 exports.registerForGame = async (req, res) => {
   try {
     console.log('[DEBUG] registerForGame called by player:', req.user._id, 'for game:', req.params.id);
-    
+
     const game = await Game.findById(req.params.id);
 
     if (!game) {
-      console.error('[ERROR] Game not found:', req.params.id);
       return res.status(404).json({ success: false, message: "Game not found" });
     }
 
@@ -424,42 +442,77 @@ exports.registerForGame = async (req, res) => {
       return res.status(400).json({ success: false, message: "Game is not open for registration" });
     }
 
-    if (game.registrations.some(reg => reg.player.toString() === req.user._id.toString())) {
+    // Block if the player themselves (not a guest) is already registered
+    const alreadyRegistered = game.registrations.some(
+      reg => reg.player.toString() === req.user._id.toString() && !reg.plusOneName
+    );
+    if (alreadyRegistered) {
       return res.status(400).json({ success: false, message: "Already registered for this game" });
     }
-    
-    if (game.spotsRemaining <= 0) {
-        return res.status(400).json({ success: false, message: "No spots remaining" });
+
+    // Parse guests from body (array of { position, teamPreference })
+    const guestInput = Array.isArray(req.body.guests) ? req.body.guests.slice(0, 4) : [];
+    const totalNeeded = 1 + guestInput.length;
+
+    if (game.spotsRemaining < totalNeeded) {
+      return res.status(400).json({
+        success: false,
+        message: `Only ${game.spotsRemaining} spot${game.spotsRemaining !== 1 ? 's' : ''} remaining — cannot register ${totalNeeded} player${totalNeeded !== 1 ? 's' : ''}`,
+      });
     }
 
-    const registration = {
-      player: req.user._id,
-      paymentStatus: 'pending',
-      signedUpAt: new Date(),
-    };
+    const playerPositions = Array.isArray(req.body.positions) ? req.body.positions : [];
+    const playerTeam = TEAM_MAP[req.body.teamPreference] || 'none';
+    const playerPosition = playerPositions.length > 0
+      ? (POSITION_MAP[playerPositions[0]] || 'any')
+      : 'any';
 
-    game.registrations.push(registration);
+    // ── Main player registration ──────────────────────────
+    game.registrations.push({
+      player:            req.user._id,
+      preferredPosition: playerPosition,
+      teamPreference:    playerTeam,
+      paymentStatus:     'pending',
+      signedUpAt:        new Date(),
+    });
+
+    // ── Guest registrations ───────────────────────────────
+    const playerName = req.user.name || 'Player';
+    guestInput.forEach((guest, idx) => {
+      const guestName = (guest.name || '').trim() || `${playerName}_${idx + 1}`;
+      game.registrations.push({
+        player:            req.user._id,
+        plusOneName:       guestName,
+        preferredPosition: POSITION_MAP[guest.position] || 'any',
+        teamPreference:    TEAM_MAP[guest.teamPreference] || 'none',
+        paymentStatus:     'pending',
+        signedUpAt:        new Date(),
+      });
+    });
+
     await game.save();
     await game.populate({ path: "turf", select: "name address" });
 
     if (req.user?.email) {
       sendGameRegistrationEmail({
         to: req.user.email,
-        playerName: req.user.name,
-        gameTitle: game.title,
+        playerName,
+        gameTitle:   game.title,
         scheduledAt: game.scheduledAt,
-        format: game.format,
-        place: formatGamePlace(game.turf),
-      }).catch((emailError) => {
-        console.error("[EMAIL] Failed to send registration confirmation email:", emailError?.message || emailError);
+        format:      game.format,
+        place:       formatGamePlace(game.turf),
+      }).catch((err) => {
+        console.error("[EMAIL] Registration email failed:", err?.message || err);
       });
     }
 
-    console.log('[DEBUG] Player registered successfully for game');
+    const guestCount = guestInput.length;
+    console.log(`[DEBUG] Registered player + ${guestCount} guest(s) for game`);
 
     res.status(200).json({
       success: true,
-      message: "Registered for game successfully",
+      message: `Registered successfully${guestCount > 0 ? ` with ${guestCount} guest${guestCount > 1 ? 's' : ''}` : ''}`,
+      totalRegistered: totalNeeded,
       data: game,
     });
   } catch (error) {

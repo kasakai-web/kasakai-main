@@ -2,6 +2,7 @@ const jwt   = require('jsonwebtoken');
 const Admin = require('../../models/Admin');
 const Player = require('../../models/Player');
 const Organiser = require('../../models/Organiser');
+const Game = require('../../models/Game');
 
 const formatJoinedAt = (value) => {
   if (!value) return null;
@@ -41,6 +42,50 @@ const formatOrganiser = (organiser) => ({
   approvalStatus: organiser.approvalStatus,
   isActive: organiser.isActive,
 });
+
+const formatGamePlace = (turf) => {
+  if (!turf) return null;
+
+  const name = turf.name || null;
+  const area = turf.address?.area || null;
+  const city = turf.address?.city || turf.location?.city || null;
+
+  return [name, area, city].filter(Boolean).join(', ') || null;
+};
+
+const formatGame = (game) => {
+  const registrationCount = Array.isArray(game.registrations) ? game.registrations.length : 0;
+
+  return {
+    id: game._id,
+    title: game.title || `${game.format || 'Match'} Game`,
+    venue: formatGamePlace(game.turf),
+    scheduledAt: game.scheduledAt ? new Date(game.scheduledAt).toISOString() : null,
+    format: game.format || null,
+    players: {
+      registered: registrationCount,
+      totalSlots: game.totalSlots || 0,
+    },
+    feeInPaise: game.feeInPaise || 0,
+    organiserName: game.organiser?.name || 'Unknown organiser',
+    status: game.status || 'draft',
+  };
+};
+
+const mapPaymentStatus = (paymentStatus) => {
+  if (paymentStatus === 'paid' || paymentStatus === 'wallet_locked') return 'success';
+  if (paymentStatus === 'refunded') return 'refunded';
+  if (paymentStatus === 'forfeited') return 'failed';
+  return 'pending';
+};
+
+const mapPaymentMethod = (paymentStatus) => {
+  if (paymentStatus === 'wallet_locked') return 'Wallet (Locked)';
+  if (paymentStatus === 'paid') return 'Wallet';
+  if (paymentStatus === 'refunded') return 'Wallet Refund';
+  if (paymentStatus === 'forfeited') return 'Forfeit';
+  return 'Pending';
+};
 
 // Optional allow-list gate for admin login. If empty, any valid admin account may log in.
 const ALLOWED_ADMIN_EMAIL = process.env.ADMIN_LOGIN_EMAIL?.trim().toLowerCase() || null;
@@ -182,6 +227,92 @@ exports.listOrganisers = async (req, res) => {
     });
   } catch (err) {
     console.error('[listOrganisers]', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/v1/admin/games   (protected)
+// Returns all games for admin dashboard insights.
+// ─────────────────────────────────────────────
+exports.listGames = async (req, res) => {
+  try {
+    const games = await Game.find()
+      .populate('organiser', 'name')
+      .populate('turf', 'name address location.city')
+      .sort({ scheduledAt: -1 })
+      .lean();
+
+    const data = games.map(formatGame);
+
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (err) {
+    console.error('[listGames]', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/v1/admin/payments   (protected)
+// Derives payment records from game registrations.
+// ─────────────────────────────────────────────
+exports.listPayments = async (req, res) => {
+  try {
+    const games = await Game.find()
+      .select('title feeInPaise scheduledAt registrations')
+      .populate('registrations.player', 'name')
+      .sort({ scheduledAt: -1 })
+      .lean();
+
+    const payments = [];
+    let totalProcessedPaise = 0;
+    let totalRefundedPaise = 0;
+    let pendingCount = 0;
+
+    games.forEach((game) => {
+      const registrations = Array.isArray(game.registrations) ? game.registrations : [];
+
+      registrations.forEach((registration) => {
+        const amountPaise =
+          typeof registration.amountPaidPaise === 'number' && registration.amountPaidPaise > 0
+            ? registration.amountPaidPaise
+            : game.feeInPaise || 0;
+
+        const paymentStatus = mapPaymentStatus(registration.paymentStatus);
+
+        if (paymentStatus === 'success') totalProcessedPaise += amountPaise;
+        if (paymentStatus === 'refunded') totalRefundedPaise += amountPaise;
+        if (paymentStatus === 'pending') pendingCount += 1;
+
+        payments.push({
+          id: registration._id,
+          playerName: registration.player?.name || 'Unknown player',
+          type: 'Registration',
+          amountPaise,
+          gameTitle: game.title || `${game.format || 'Match'} Game`,
+          method: mapPaymentMethod(registration.paymentStatus),
+          paidAt: registration.signedUpAt ? new Date(registration.signedUpAt).toISOString() : null,
+          status: paymentStatus,
+        });
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: payments.length,
+      summary: {
+        totalProcessedPaise,
+        totalRefundedPaise,
+        pendingCount,
+      },
+      data: payments,
+    });
+  } catch (err) {
+    console.error('[listPayments]', err);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };

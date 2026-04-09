@@ -22,7 +22,7 @@ const RegistrationSchema = new mongoose.Schema(
     },
     teamPreference: {
       type: String,
-      enum: ['same','opposite','none'],
+      enum: ['same','opposite','none','red','blue'],
       default: 'none',
     },
     preferredTeamWith: {

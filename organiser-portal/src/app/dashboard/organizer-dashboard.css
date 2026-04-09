@@ -817,9 +817,9 @@
 
 .players-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 20px 24px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  padding: 16px 24px;
   background: rgba(0,0,0,0.1);
   border-bottom: 1px solid var(--border);
 }
@@ -866,6 +866,13 @@
   gap: 16px;
   align-items: center;
   padding: 12px 16px;
+}
+
+.players-table .table-header-row.pdm-grid,
+.players-table .table-row.pdm-grid {
+  grid-template-columns: 2.2fr 1.4fr 0.9fr 1.2fr 1.1fr;
+  gap: 12px;
+  padding: 11px 16px;
 }
 
 .players-table .table-header-row {
@@ -1309,4 +1316,286 @@
   .profile-delete-btn {
     width: 100%;
   }
+}
+
+/* ═══════════════════════════════════════════════
+   PLAYER DETAILS MODAL — card layout
+═══════════════════════════════════════════════ */
+
+.pdm-modal {
+  max-width: 680px;
+  width: 95vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.pdm-modal .modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Stats strip */
+.pdm-stats-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 14px 24px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pdm-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdm-stat-val {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--coral);
+  line-height: 1;
+}
+
+.pdm-stat-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
+
+.pdm-stat-div {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+}
+
+/* Scrollable cards area */
+.pdm-cards-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 8px;
+}
+
+.pdm-cards-scroll::-webkit-scrollbar { width: 5px; }
+.pdm-cards-scroll::-webkit-scrollbar-track { background: transparent; }
+.pdm-cards-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.pdm-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Group = player + their guests */
+.pdm-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pdm-guest-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 20px;
+  padding-top: 4px;
+  border-left: 2px solid rgba(255,255,255,0.07);
+  margin-left: 24px;
+}
+
+/* Cards */
+.pdm-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pdm-card-player {
+  background: rgba(255,255,255,0.03);
+}
+.pdm-card-player:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,107,71,0.25);
+}
+
+.pdm-card-guest {
+  background: rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.05);
+}
+.pdm-card-guest:hover {
+  background: rgba(0,0,0,0.3);
+}
+
+/* Avatar */
+.pdm-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.pdm-avatar-p {
+  background: linear-gradient(135deg, var(--coral), #ff8b5c);
+  color: #000;
+}
+
+.pdm-avatar-g {
+  background: #222;
+  color: #777;
+  border: 1px solid #333;
+  font-size: 12px;
+}
+
+/* Card body */
+.pdm-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdm-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pdm-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pdm-type-chip {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.pdm-chip-player {
+  background: rgba(74,222,128,0.12);
+  color: #86efac;
+  border: 1px solid rgba(74,222,128,0.25);
+}
+
+.pdm-chip-guest {
+  background: rgba(251,191,36,0.12);
+  color: #fcd34d;
+  border: 1px solid rgba(251,191,36,0.25);
+}
+
+/* Contact row */
+.pdm-card-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pdm-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #999;
+}
+
+.pdm-email-item {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdm-contact-icon {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Tags row */
+.pdm-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.pdm-pos-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+  background: rgba(96,165,250,0.12);
+  color: #93c5fd;
+  border: 1px solid rgba(96,165,250,0.25);
+}
+
+.pdm-team-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.pdm-team-red  { color: #ff6b6b; background: rgba(231,76,60,.12);  border: 1px solid rgba(231,76,60,.3); }
+.pdm-team-blue { color: #74b9ff; background: rgba(52,152,219,.12); border: 1px solid rgba(52,152,219,.3); }
+
+.pdm-date-tag {
+  font-size: 10px;
+  color: #555;
+  margin-left: auto;
+}
+
+/* Players breakdown in event table */
+.players-breakdown {
+  font-size: 10px;
+  color: #fcd34d;
+  margin-top: 2px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Override the old specificity-conflict rule for the modal */
+.players-table .table-header-row.pdm-grid,
+.players-table .table-row.pdm-grid {
+  grid-template-columns: 2.2fr 1.4fr 0.9fr 1.2fr 1.1fr;
+  gap: 12px;
+  padding: 11px 16px;
+}
+
+@media (max-width: 640px) {
+  .pdm-stats-strip { gap: 4px; padding: 12px 16px; }
+  .pdm-stat-val { font-size: 18px; }
+  .pdm-card { padding: 12px; gap: 10px; }
+  .pdm-avatar { width: 34px; height: 34px; font-size: 11px; }
+  .pdm-card-name { font-size: 13px; }
+  .pdm-email-item { display: none; }
 }

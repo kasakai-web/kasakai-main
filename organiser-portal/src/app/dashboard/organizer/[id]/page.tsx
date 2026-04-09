@@ -273,17 +273,27 @@ export default function OrganizerDashboard() {
                       <div className="fee-value">₹{game.feeInPaise ? game.feeInPaise / 100 : 0}</div>
                     </div>
                     <div className="col col-players">
-                      <div className="players-info">
-                        <div className="players-count">{game.registrations?.length || 0}/{game.totalSlots}</div>
-                        {(game.registrations?.length || 0) > 0 && (
-                          <div className="players-bar">
-                            <div 
-                              className="players-bar-fill" 
-                              style={{ width: `${((game.registrations?.length || 0) / game.totalSlots) * 100}%` }}
-                            ></div>
+                      {(() => {
+                        const regs = game.registrations || [];
+                        const total = regs.length;
+                        const guests = regs.filter((r: any) => r.plusOneName).length;
+                        const realPlayers = total - guests;
+                        return (
+                          <div className="players-info">
+                            <div className="players-count">{total}/{game.totalSlots}</div>
+                            {guests > 0 && (
+                              <div className="players-breakdown">
+                                {realPlayers}P + {guests}G
+                              </div>
+                            )}
+                            {total > 0 && (
+                              <div className="players-bar">
+                                <div className="players-bar-fill" style={{ width: `${(total / game.totalSlots) * 100}%` }} />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
                     <div className="col col-revenue">
                       <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>

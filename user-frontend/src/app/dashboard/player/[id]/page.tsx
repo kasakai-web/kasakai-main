@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
+import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import "../../player-dashboard.css";
@@ -18,6 +19,7 @@ export default function PlayerDashboard() {
   const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [walletBalance, setWalletBalance] = useState(1250);
+  const [playerPositions, setPlayerPositions] = useState<string[]>([]);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -100,10 +102,27 @@ export default function PlayerDashboard() {
     }
   };
 
+  const fetchPlayerProfile = async () => {
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.data?.preferences?.positions) {
+        setPlayerPositions(data.data.preferences.positions);
+      }
+    } catch {
+      // non-critical — positions just won't be pre-filled
+    }
+  };
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchAllGames(), fetchMyGames()]);
+      await Promise.all([fetchAllGames(), fetchMyGames(), fetchPlayerProfile()]);
     } finally {
       setLoading(false);
     }
@@ -146,7 +165,7 @@ export default function PlayerDashboard() {
     setSelectedGame(formattedGame);
   };
 
-  const handleConfirmBooking = async (game: any, plusOne: boolean) => {
+  const handleConfirmBooking = async (game: any, guests: BookingGuest[], teamPreference: string) => {
     try {
       const { token } = getSession();
       if (!token) {
@@ -157,7 +176,12 @@ export default function PlayerDashboard() {
 
       const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/register`), {
         method: 'POST',
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamPreference,
+          positions: playerPositions,
+          guests: guests.map((g) => ({ name: g.name.trim(), position: g.position, teamPreference: g.teamPreference })),
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -235,7 +259,9 @@ export default function PlayerDashboard() {
       ) : (
         <div className="events-grid">
           {filteredGames.length > 0 ? filteredGames.map(game => {
-            const spotsLeft = game.totalSlots - (game.registrations?.length || 0);
+            // registrations includes guests (plusOneName entries), all occupy a slot
+            const totalRegistered = game.registrations?.length || 0;
+            const spotsLeft = game.totalSlots - totalRegistered;
             return (
               <EventCard
                 key={game._id}
@@ -248,12 +274,13 @@ export default function PlayerDashboard() {
                 format={game.format}
                 fee={game.feeInPaise / 100}
                 spotsTotal={game.totalSlots}
-                spotsLeft={spotsLeft}
+                spotsLeft={Math.max(0, spotsLeft)}
                 isRegistered={myGames.some(myGame => myGame._id === game._id)}
                 players={game.registrations?.map((reg: any) => ({
-                  name: reg.player?.name || 'Player',
-                  initials: (reg.player?.name || 'P').substring(0, 2).toUpperCase(),
-                  pos: 'ANY' // Placeholder
+                  // guests show as "PlayerName_1", real players show their actual name
+                  name: reg.plusOneName || reg.player?.name || 'Player',
+                  initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
+                  pos: reg.preferredPosition || 'any',
                 })) || []}
                 onBook={() => handleBook(game)}
               />
@@ -268,11 +295,13 @@ export default function PlayerDashboard() {
       )}
 
       {selectedGame && (
-        <BookingModal 
+        <BookingModal
           game={selectedGame}
           walletBalance={walletBalance}
           onClose={() => setSelectedGame(null)}
           onConfirm={handleConfirmBooking}
+          playerPositions={playerPositions}
+          playerId={playerId}
         />
       )}
     </div>
