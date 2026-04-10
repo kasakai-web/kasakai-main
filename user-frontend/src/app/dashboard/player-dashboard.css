@@ -518,6 +518,28 @@
 
 .pd-banner-close:hover { color: var(--muted); }
 
+.pd-inline-notice {
+  margin: 0 0 14px;
+  border: 1px solid;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pd-inline-notice.success {
+  border-color: rgba(196, 213, 108, 0.45);
+  background: rgba(196, 213, 108, 0.12);
+  color: var(--lime);
+}
+
+.pd-inline-notice.error {
+  border-color: rgba(255, 107, 107, 0.45);
+  background: rgba(255, 107, 107, 0.12);
+  color: #ff9b9b;
+}
+
 /* ── Modal ── */
 .modal-overlay {
   position: fixed;

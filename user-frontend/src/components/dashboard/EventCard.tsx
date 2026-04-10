@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled";
 
@@ -18,6 +18,7 @@ export interface EventCardProps {
   isRegistered: boolean;
   players: { name: string; initials: string; pos: string }[];
   onBook: (game: any) => void;
+  onViewDetails: () => void;
 }
 
 export function EventCard({
@@ -34,9 +35,8 @@ export function EventCard({
   isRegistered,
   players,
   onBook,
+  onViewDetails,
 }: EventCardProps) {
-  const [showPlayers, setShowPlayers] = useState(false);
-  
   const isFull = spotsLeft <= 0;
   const effectiveStatus = isFull ? "full" : status;
 
@@ -101,47 +101,10 @@ export function EventCard({
         </div>
       </div>
 
-      {/* Registered Players Preview */}
-      {players && players.length > 0 && (
-        <div className="players-preview">
-          <button 
-            className="view-players-btn"
-            onClick={() => setShowPlayers(!showPlayers)}
-          >
-            <div className="avatar-stack">
-              {players.slice(0, 3).map((p, i) => (
-                <div key={i} className="avatar-mini">{p.initials}</div>
-              ))}
-              {players.length > 3 && <div className="avatar-more">+{players.length - 3}</div>}
-            </div>
-            <span className="players-label">{players.length} player{players.length !== 1 ? 's' : ''} registered</span>
-          </button>
-
-          {showPlayers && (
-            <div className="players-detail-panel">
-              <div className="players-grid">
-                {players.map((p, i) => (
-                  <div key={i} className="player-item">
-                    <div className="player-avatar">{p.initials}</div>
-                    <div className="player-info">
-                      <div className="player-name">{p.name}</div>
-                      <div className="player-pos">{p.pos}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Action Buttons */}
       <div className="card-actions">
         {isRegistered ? (
-          <button
-            className="card-btn registered-btn"
-            disabled
-          >
+          <button className="card-btn registered-btn" disabled>
             <span>✓ You&apos;re Registered</span>
           </button>
         ) : (
@@ -161,9 +124,11 @@ export function EventCard({
                 <span>⚽ Sign Up</span>
               </button>
             )}
-            {/* <button className="card-btn share-btn">📤 Share</button> */}
           </>
         )}
+        <button className="card-btn details-btn" onClick={onViewDetails}>
+          <span>View More Details</span>
+        </button>
       </div>
     </div>
   );

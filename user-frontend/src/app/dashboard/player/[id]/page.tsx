@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
@@ -11,6 +11,7 @@ import "../../player-dashboard.css";
 
 export default function PlayerDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const routeParams = useParams<{ id?: string | string[] }>();
   const [activeTab, setActiveTab] = useState<"all" | "my-games" | "cancelled">("all");
   const [games, setGames] = useState<any[]>([]);
@@ -18,6 +19,9 @@ export default function PlayerDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<any>(null);
+  const [detailGame, setDetailGame] = useState<any>(null);
+  const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [walletBalance, setWalletBalance] = useState(1250);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
@@ -138,7 +142,7 @@ export default function PlayerDashboard() {
   }, [isAuthorized]);
 
   useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
+    const tab = searchParams.get("tab");
     if (tab === "my-games") {
       setActiveTab("my-games");
       return;
@@ -148,7 +152,7 @@ export default function PlayerDashboard() {
       return;
     }
     setActiveTab("all");
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     const handleTabChange = (event: Event) => {
@@ -168,6 +172,10 @@ export default function PlayerDashboard() {
 
   const changeTab = (tab: "all" | "my-games" | "cancelled") => {
     setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const sidebarSection = tab === "my-games" ? "mygames" : tab === "cancelled" ? "cancelled" : "browse";
+      window.dispatchEvent(new CustomEvent("player-tab-change", { detail: sidebarSection }));
+    }
     if (playerId) {
       router.replace(`/dashboard/player/${playerId}?tab=${tab}`);
     }
@@ -187,6 +195,50 @@ export default function PlayerDashboard() {
       _id: game._id // Keep original ID for API calls
     };
     setSelectedGame(formattedGame);
+  };
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleCancelRegistration = async (game: any) => {
+    const { token } = getSession();
+    if (!token) {
+      clearSession();
+      router.replace("/login?role=player");
+      return;
+    }
+
+    const confirmed = window.confirm("Do you want to cancel your registration for this event?");
+    if (!confirmed) return;
+
+    setCancellingGameId(game._id);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/backout`), {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        showNotification("error", data.message || "Unable to cancel registration right now.");
+        return;
+      }
+
+      showNotification("success", data.message || "Registration cancelled successfully.");
+      setDetailGame(null);
+      fetchDashboardData();
+      setActiveTab("my-games");
+      if (playerId) {
+        router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+      }
+    } catch (error) {
+      console.error("Failed to cancel registration", error);
+      showNotification("error", "Cancellation failed. Please try again.");
+    } finally {
+      setCancellingGameId(null);
+    }
   };
 
   const handleConfirmBooking = async (game: any, guests: BookingGuest[], teamPreference: string) => {
@@ -252,8 +304,35 @@ export default function PlayerDashboard() {
     g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const detailRows = detailGame ? [
+    { label: "Venue", value: detailGame.turf?.name || "TBC" },
+    { label: "City", value: detailGame.turf?.location?.city || "TBC" },
+    { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
+    { label: "Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+    { label: "Format", value: detailGame.format || "TBC" },
+    { label: "Fee", value: `₹${(detailGame.feeInPaise || 0) / 100}` },
+    { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
+    { label: "Registered", value: String(detailGame.registrations?.length || 0) },
+    { label: "Status", value: String(detailGame.status || "open") },
+  ] : [];
+  const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
+  const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
+  const detailPlayers = detailGame?.registrations?.map((reg: any, index: number) => ({
+    key: `${reg._id || "reg"}-${index}`,
+    name: reg.plusOneName || reg.player?.name || "Player",
+    position: reg.preferredPosition || "any",
+    team: reg.teamPreference || "none",
+    isGuest: Boolean(reg.plusOneName),
+  })) || [];
+
   return (
     <div className="player-dashboard-container">
+      {notification && (
+        <div className={`pd-inline-notice ${notification.type === "success" ? "success" : "error"}`}>
+          {notification.message}
+        </div>
+      )}
+
       <div className="page-header">
         <div className="page-title-group">
           <div className="page-eyebrow">Player Dashboard</div>
@@ -330,6 +409,7 @@ export default function PlayerDashboard() {
                   pos: reg.preferredPosition || 'any',
                 })) || []}
                 onBook={() => handleBook(game)}
+                onViewDetails={() => setDetailGame(game)}
               />
             )
           }) : (
@@ -350,6 +430,78 @@ export default function PlayerDashboard() {
           playerPositions={playerPositions}
           playerId={playerId}
         />
+      )}
+
+      {detailGame && (
+        <div className="modal-overlay" onClick={() => setDetailGame(null)}>
+          <div className="modal-content" style={{ width: "92%", maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ marginBottom: 16 }}>
+              <div className="modal-title-section">
+                <h2 style={{ margin: 0 }}>Event Details</h2>
+                <p className="modal-subtitle" style={{ marginTop: 8 }}>
+                  {detailGame.title || detailGame.turf?.name || "Game"}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+              {detailRows.map((row) => (
+                <div key={row.label} style={{ border: "1px solid #1f1f1f", padding: "10px 12px", background: "#111" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#777", marginBottom: 4 }}>
+                    {row.label}
+                  </div>
+                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>{row.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {detailGame.notes && (
+              <div style={{ border: "1px solid #1f1f1f", padding: "12px", background: "#111", marginBottom: 16 }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#777", marginBottom: 6 }}>
+                  Notes
+                </div>
+                <div style={{ color: "#ddd", fontSize: 13, lineHeight: 1.5 }}>{detailGame.notes}</div>
+              </div>
+            )}
+
+            <div style={{ border: "1px solid #1f1f1f", padding: "12px", background: "#111", marginBottom: 16 }}>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#777", marginBottom: 8 }}>
+                Player Details (Total: {detailPlayers.length})
+              </div>
+              {detailPlayers.length === 0 ? (
+                <div style={{ color: "#888", fontSize: 13 }}>No players registered yet.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {detailPlayers.map((player: any) => (
+                    <div key={player.key} style={{ display: "flex", justifyContent: "space-between", gap: 8, border: "1px solid #222", padding: "8px 10px", background: "#0d0d0d" }}>
+                      <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>
+                        {player.name} {player.isGuest ? "(Guest)" : ""}
+                      </div>
+                      <div style={{ color: "#a5a5a5", fontSize: 12, textTransform: "uppercase" }}>
+                        {player.position} • {player.team}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              {detailIsRegistered && !detailIsCancelled && (
+                <button
+                  className="card-btn cancel-btn"
+                  type="button"
+                  onClick={() => handleCancelRegistration(detailGame)}
+                  disabled={cancellingGameId === detailGame._id}
+                  style={{ flex: "0 0 auto", minWidth: 180 }}
+                >
+                  <span>{cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}</span>
+                </button>
+              )}
+              <button className="btn-close" type="button" onClick={() => setDetailGame(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

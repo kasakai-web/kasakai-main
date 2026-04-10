@@ -838,6 +838,34 @@ body::after {
   border-color: rgba(200, 255, 62, 0.2);
 }
 
+.cancel-btn {
+  background: linear-gradient(135deg, rgba(255, 80, 80, 0.15), rgba(255, 80, 80, 0.08));
+  border-color: rgba(255, 80, 80, 0.35);
+  color: #ff9b9b;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(255, 80, 80, 0.24), rgba(255, 80, 80, 0.16));
+  border-color: #ff7f7f;
+}
+
+.cancelled-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+}
+
+.details-btn {
+  background: transparent;
+  border-color: #3a3a3a;
+  color: var(--white);
+}
+
+.details-btn:hover:not(:disabled) {
+  border-color: #7d7d7d;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .share-btn {
   background: transparent;
   border-color: var(--border);

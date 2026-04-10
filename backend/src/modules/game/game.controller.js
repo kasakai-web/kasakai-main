@@ -300,6 +300,7 @@ exports.getAllGames = async (req, res) => {
     })
     .populate('turf', 'name location.city')
     .populate('organiser', 'name')
+    .populate({ path: 'registrations.player', select: 'name' })
     .sort('scheduledAt')
     .lean()
     .exec();
@@ -314,6 +315,7 @@ exports.getAllGames = async (req, res) => {
       })
       .populate('turf', 'name location.city')
       .populate('organiser', 'name')
+      .populate({ path: 'registrations.player', select: 'name' })
       .sort('scheduledAt')
       .lean()
       .exec();
@@ -536,20 +538,23 @@ exports.backoutFromGame = async (req, res) => {
       return res.status(404).json({ success: false, message: "Game not found" });
     }
 
-    const registrationIndex = game.registrations.findIndex(reg => reg.player.toString() === req.user._id.toString());
+    const playerId = req.user._id.toString();
+    const registrationsBefore = game.registrations.length;
+    game.registrations = game.registrations.filter((reg) => reg.player.toString() !== playerId);
+    const removedCount = registrationsBefore - game.registrations.length;
 
-    if (registrationIndex === -1) {
+    if (removedCount === 0) {
       return res.status(400).json({ success: false, message: "Not registered for this game" });
     }
 
-    // Handle backout logic, e.g., check cutoff time, apply fees
-    // For now, just remove the registration
-    game.registrations.splice(registrationIndex, 1);
     await game.save();
 
     res.status(200).json({
       success: true,
-      message: "Backed out from game successfully",
+      message: removedCount > 1
+        ? `Backed out successfully (you + ${removedCount - 1} guest${removedCount > 2 ? 's' : ''})`
+        : "Backed out from game successfully",
+      removedCount,
       data: game,
     });
   } catch (error) {
