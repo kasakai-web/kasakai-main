@@ -106,6 +106,20 @@ export default function DashboardLayout({
     setActiveSection("browse");
   }, [pathname]);
 
+  useEffect(() => {
+    const handleTabChange = (event: Event) => {
+      const customEvent = event as CustomEvent<"browse" | "mygames" | "cancelled">;
+      if (customEvent.detail === "browse" || customEvent.detail === "mygames" || customEvent.detail === "cancelled") {
+        setActiveSection(customEvent.detail);
+      }
+    };
+
+    window.addEventListener("player-tab-change", handleTabChange as EventListener);
+    return () => {
+      window.removeEventListener("player-tab-change", handleTabChange as EventListener);
+    };
+  }, []);
+
   const handleLogout = () => {
     clearSession();
     localStorage.removeItem("userProfileImage");
