@@ -12,7 +12,7 @@ import "../../player-dashboard.css";
 export default function PlayerDashboard() {
   const router = useRouter();
   const routeParams = useParams<{ id?: string | string[] }>();
-  const [activeTab, setActiveTab] = useState("all"); // 'all' or 'my-games'
+  const [activeTab, setActiveTab] = useState<"all" | "my-games" | "cancelled">("all");
   const [games, setGames] = useState<any[]>([]);
   const [myGames, setMyGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,10 +139,34 @@ export default function PlayerDashboard() {
 
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
-    setActiveTab(tab === "my-games" ? "my-games" : "all");
+    if (tab === "my-games") {
+      setActiveTab("my-games");
+      return;
+    }
+    if (tab === "cancelled" || tab === "canceled") {
+      setActiveTab("cancelled");
+      return;
+    }
+    setActiveTab("all");
   }, []);
 
-  const changeTab = (tab: "all" | "my-games") => {
+  useEffect(() => {
+    const handleTabChange = (event: Event) => {
+      const customEvent = event as CustomEvent<"all" | "my-games" | "cancelled">;
+      if (customEvent.detail === "my-games" || customEvent.detail === "all" || customEvent.detail === "cancelled") {
+        setActiveTab(customEvent.detail);
+        return;
+      }
+      setActiveTab("all");
+    };
+
+    window.addEventListener("player-tab-change", handleTabChange as EventListener);
+    return () => {
+      window.removeEventListener("player-tab-change", handleTabChange as EventListener);
+    };
+  }, []);
+
+  const changeTab = (tab: "all" | "my-games" | "cancelled") => {
     setActiveTab(tab);
     if (playerId) {
       router.replace(`/dashboard/player/${playerId}?tab=${tab}`);
@@ -214,7 +238,15 @@ export default function PlayerDashboard() {
     }
   };
 
-  const gamesToDisplay = activeTab === 'all' ? games : myGames;
+  const cancelledGames = myGames.filter((game) => {
+    const normalizedStatus = String(game.status || "").trim().toLowerCase();
+    return normalizedStatus.startsWith("cancel");
+  });
+  const gamesToDisplay = activeTab === 'all'
+    ? games
+    : activeTab === 'my-games'
+      ? myGames
+      : cancelledGames;
   const filteredGames = gamesToDisplay.filter(g => 
     g.turf?.name?.toLowerCase().includes(search.toLowerCase()) ||
     g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
@@ -257,6 +289,14 @@ export default function PlayerDashboard() {
             <span className="tab-icon">🎟️</span>
             <span className="tab-text">My Games</span>
             <span className="tab-badge">{myGames.length}</span>
+          </button>
+          <button
+            className={`tab-btn player-tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
+            onClick={() => changeTab('cancelled')}
+          >
+            <span className="tab-icon">⛔</span>
+            <span className="tab-text">Cancelled</span>
+            <span className="tab-badge">{cancelledGames.length}</span>
           </button>
         </div>
       </div>

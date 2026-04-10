@@ -18,7 +18,7 @@ export default function DashboardLayout({
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
-  const [activeSection, setActiveSection] = useState("browse");
+  const [activeSection, setActiveSection] = useState<"browse" | "mygames" | "cancelled" | "notifications" | "profile">("browse");
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -78,13 +78,23 @@ export default function DashboardLayout({
   }, [authenticated]);
 
   useEffect(() => {
+    const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+
+    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/notifications")) {
+      setActiveSection("notifications");
+      return;
+    }
+
     if (pathname.includes("/dashboard/player/") && pathname.endsWith("/profile")) {
       setActiveSection("profile");
       return;
     }
 
     if (pathname.includes("/dashboard/player/")) {
-      const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+      if (tab === "cancelled" || tab === "canceled") {
+        setActiveSection("cancelled");
+        return;
+      }
       if (tab === "my-games") {
         setActiveSection("mygames");
         return;
@@ -100,6 +110,43 @@ export default function DashboardLayout({
     clearSession();
     localStorage.removeItem("userProfileImage");
     router.replace("/login?role=player");
+  };
+
+  const resolvePlayerId = () => {
+    if (userId) return userId;
+
+    const pathMatch = pathname.match(/\/dashboard\/player\/([^/?#]+)/);
+    if (pathMatch?.[1]) return pathMatch[1];
+
+    const { userId: sessionUserId } = getSession();
+    return sessionUserId || "";
+  };
+
+  const navigateToPlayer = (destination: "browse" | "my-games" | "cancelled" | "profile" | "notifications") => {
+    const resolvedUserId = resolvePlayerId();
+    if (!resolvedUserId) return;
+
+    if (destination === "browse") {
+      router.push(`/dashboard/player/${resolvedUserId}?tab=all`);
+      return;
+    }
+
+    if (destination === "my-games") {
+      router.push(`/dashboard/player/${resolvedUserId}?tab=my-games`);
+      return;
+    }
+
+    if (destination === "cancelled") {
+      router.push(`/dashboard/player/${resolvedUserId}?tab=cancelled`);
+      return;
+    }
+
+    if (destination === "notifications") {
+      router.push(`/dashboard/player/${resolvedUserId}/notifications`);
+      return;
+    }
+
+    router.push(`/dashboard/player/${resolvedUserId}/profile`);
   };
 
   if (!authResolved || !authenticated) {
@@ -181,9 +228,10 @@ export default function DashboardLayout({
               onClick={() => {
                 setActiveSection("browse");
                 setSidebarOpen(false);
-                if (userId) {
-                  router.push(`/dashboard/player/${userId}?tab=all`);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("player-tab-change", { detail: "all" }));
                 }
+                navigateToPlayer("browse");
               }}
             >
               <span className="sidebar-icon">⚽</span>Browse Games
@@ -193,16 +241,34 @@ export default function DashboardLayout({
               onClick={() => {
                 setActiveSection("mygames");
                 setSidebarOpen(false);
-                if (userId) {
-                  router.push(`/dashboard/player/${userId}?tab=my-games`);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("player-tab-change", { detail: "my-games" }));
                 }
+                navigateToPlayer("my-games");
               }}
             >
               <span className="sidebar-icon">📋</span>My Bookings
             </button>
             <button
+              className={`sidebar-link ${activeSection === 'cancelled' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveSection("cancelled");
+                setSidebarOpen(false);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("player-tab-change", { detail: "cancelled" }));
+                }
+                navigateToPlayer("cancelled");
+              }}
+            >
+              <span className="sidebar-icon">⛔</span>Cancelled Events
+            </button>
+            <button
               className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}
-              onClick={() => { setActiveSection("notifications"); setSidebarOpen(false); }}
+              onClick={() => {
+                setActiveSection("notifications");
+                setSidebarOpen(false);
+                navigateToPlayer("notifications");
+              }}
             >
               <span className="sidebar-icon">🔔</span>Notifications
               <span style={{ marginLeft: "auto", background: "var(--coral)", color: "#fff", fontFamily: "var(--mono)", fontSize: "9px", padding: "2px 6px", borderRadius: "10px" }}>3</span>
@@ -212,9 +278,7 @@ export default function DashboardLayout({
               onClick={() => {
                 setActiveSection("profile");
                 setSidebarOpen(false);
-                if (userId) {
-                  router.push(`/dashboard/player/${userId}/profile`);
-                }
+                navigateToPlayer("profile");
               }}
             >
               <span className="sidebar-icon">👤</span>Profile

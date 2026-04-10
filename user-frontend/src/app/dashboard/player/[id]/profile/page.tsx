@@ -496,36 +496,6 @@ export default function PlayerProfilePage() {
             </div>
           </div>
 
-          {/* Notifications */}
-          <div className="pp-card">
-            <div className="pp-card-header">
-              <div className="pp-card-icon">🔔</div>
-              <div>
-                <h3 className="pp-card-title">Notifications</h3>
-                <p className="pp-card-desc">Choose where you receive game updates</p>
-              </div>
-            </div>
-            {([
-              { key: "whatsapp", label: "WhatsApp", desc: "Game alerts and booking confirmations on WhatsApp" },
-              { key: "sms", label: "SMS", desc: "Important reminders via text message" },
-              { key: "push", label: "Push Notifications", desc: "In-app alerts for game activity" },
-            ] as { key: keyof NonNullable<PlayerProfile["notificationSettings"]>; label: string; desc: string }[]).map(({ key, label, desc }) => {
-              const enabled = profile.notificationSettings?.[key] ?? true;
-              return (
-                <div key={key} className="pp-notif-row">
-                  <div>
-                    <div className="pp-notif-label">{label}</div>
-                    <div className="pp-notif-desc">{desc}</div>
-                  </div>
-                  <button type="button" className={`pp-toggle ${enabled ? "on" : "off"}`}
-                    onClick={() => setProfile({ ...profile, notificationSettings: { ...profile.notificationSettings, [key]: !enabled } })}>
-                    <span className="pp-toggle-knob" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
           {/* Account Info */}
           <div className="pp-card">
             <div className="pp-card-header">
