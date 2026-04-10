@@ -23,13 +23,17 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
+
+      - name: Create deployment package
+        working-directory: backend
+        run: zip -r ../backend.zip . -x "node_modules/*" ".git/*" ".github/*" ".env" ".env.*" "coverage/*" "dist/*"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: node-app
-          path: backend
+          name: backend-zip
+          path: backend.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -39,12 +43,12 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: node-app
-          path: backend
+          name: backend-zip
+          path: .
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'kasakai-backend'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: backend
+          package: backend.zip
