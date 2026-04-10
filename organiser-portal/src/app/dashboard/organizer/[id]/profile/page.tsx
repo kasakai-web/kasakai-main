@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../organizer-dashboard.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 
 type OrganiserProfile = {
   name: string;
   email?: string;
   phone: string;
   whatsappNumber: string;
+  profileImage?: string;
   location?: {
     city?: string;
     state?: string;
@@ -45,11 +48,15 @@ export default function OrganiserProfilePage() {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState("");
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<OrganiserProfile>({
     name: "",
     email: "",
     phone: "",
     whatsappNumber: "",
+    profileImage: undefined,
     location: { city: "", state: "", country: "India" },
     defaultFeeInPaise: 0,
     defaultFormat: "6v6",
@@ -110,11 +117,13 @@ export default function OrganiserProfilePage() {
       }
 
       const o = data.data || {};
+      setImagePreview(o.profileImage ? `${API_BASE_URL}${o.profileImage}` : null);
       setProfile({
         name: o.name || "",
         email: o.email || "",
         phone: o.phone || "",
         whatsappNumber: o.whatsappNumber || "",
+        profileImage: o.profileImage || undefined,
         location: {
           city: o.location?.city || "",
           state: o.location?.state || "",
@@ -152,6 +161,51 @@ export default function OrganiserProfilePage() {
 
     fetchProfile();
   }, [isAuthorized]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const { token } = getSession();
+    if (!token) { clearSessionAndExit(); return; }
+
+    setImageUploading(true);
+    setError("");
+
+    const preview = URL.createObjectURL(file);
+    setImagePreview(preview);
+
+    try {
+      const formData = new FormData();
+      formData.append("profileImage", file);
+      const res = await fetch(buildApiUrl("/api/v1/organisers/me/profile-image"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
+
+      const data = await parseApiResponse(res);
+      if (!res.ok || !data.success) {
+        setError(data.message || "Failed to upload image");
+        setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
+        return;
+      }
+
+      const newImagePath = data.data?.profileImage;
+      const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
+      setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
+      setImagePreview(newImageUrl);
+      if (newImageUrl) localStorage.setItem("userProfileImage", newImageUrl);
+    } catch {
+      setError("Failed to upload image");
+      setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
+    } finally {
+      setImageUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,44 +304,34 @@ export default function OrganiserProfilePage() {
     );
   }
 
+  const statusColor: Record<string, string> = {
+    approved: "#4ade80",
+    pending: "#fbbf24",
+    rejected: "#ff5c3e",
+    suspended: "#ff5c3e",
+  };
+
   return (
     <div className="organizer-dashboard-container">
+
+      {/* ── Delete Modal ── */}
       {deleteStep > 0 && (
         <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
-          <div
-            className="modal-content"
-            style={{ maxWidth: 520, width: "92%", textAlign: "left" }}
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div className="modal-content" style={{ maxWidth: 480, width: "92%" }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header" style={{ marginBottom: 16 }}>
               <div className="modal-title-section">
                 <h2 style={{ margin: 0 }}>Delete Account</h2>
                 <p className="modal-subtitle" style={{ marginTop: 8 }}>
-                  {deleteStep === 1
-                    ? "Are you sure you want to delete your account?"
-                    : "This will permanently remove your organiser profile and related access."}
+                  {deleteStep === 1 ? "Are you sure you want to delete your account?" : "This will permanently remove your organiser profile and all related access."}
                 </p>
               </div>
             </div>
-
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button className="btn-close" type="button" onClick={() => setDeleteStep(0)} disabled={deleting}>
-                Cancel
-              </button>
+              <button className="btn-close" type="button" onClick={() => setDeleteStep(0)} disabled={deleting}>Cancel</button>
               {deleteStep === 1 ? (
-                <button className="btn-primary" type="button" onClick={() => setDeleteStep(2)} disabled={deleting}>
-                  <span>Continue</span>
-                </button>
+                <button className="btn-primary" type="button" onClick={() => setDeleteStep(2)} disabled={deleting}><span>Continue</span></button>
               ) : (
-                <button
-                  className="profile-delete-btn"
-                  type="button"
-                  onClick={async () => {
-                    setDeleteStep(0);
-                    await handleDeleteProfile();
-                  }}
-                  disabled={deleting}
-                >
+                <button className="op-delete-btn" type="button" onClick={async () => { setDeleteStep(0); await handleDeleteProfile(); }} disabled={deleting}>
                   {deleting ? "Deleting..." : "Delete Now"}
                 </button>
               )}
@@ -296,179 +340,210 @@ export default function OrganiserProfilePage() {
         </div>
       )}
 
+      {/* ── Welcome Banner ── */}
       {showWelcomeBanner && (
-        <div style={{
-          background: "linear-gradient(135deg, rgba(255,193,7,0.12) 0%, rgba(255,193,7,0.04) 100%)",
-          border: "1px solid rgba(255,193,7,0.35)",
-          borderLeft: "4px solid var(--yellow, #ffc107)",
-          padding: "16px 20px",
-          marginBottom: "24px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "16px",
-        }}>
+        <div className="op-welcome-banner">
           <div>
-            <p style={{ color: "var(--yellow, #ffc107)", fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>
-              Welcome to Kasakai! Complete your profile to start hosting games
-            </p>
-            <p style={{ color: "#999", fontSize: "13px", lineHeight: 1.5 }}>
-              Add your city, WhatsApp number, and default game settings to get started.
-            </p>
+            <p className="op-banner-title">Welcome! Complete your profile to start hosting games</p>
+            <p className="op-banner-body">Add your city, WhatsApp number, and default game settings to get started.</p>
           </div>
-          <button
-            onClick={() => setShowWelcomeBanner(false)}
-            style={{ background: "transparent", border: "none", color: "#666", cursor: "pointer", fontSize: "18px", lineHeight: 1, flexShrink: 0, padding: "0 4px" }}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
+          <button className="op-banner-close" onClick={() => setShowWelcomeBanner(false)} aria-label="Dismiss">×</button>
         </div>
       )}
 
-      <div className="organizer-profile-shell">
-        <div className="organizer-profile-hero">
-          <div className="profile-kicker">Organiser Dashboard</div>
-          <h1 className="profile-title">Your Profile</h1>
-          <p className="profile-subtitle">Manage your organiser contact details and default event settings.</p>
+      <div className="op-shell">
+
+        {/* ── HERO ── */}
+        <div className="op-hero">
+          {/* Avatar */}
+          <div className="op-avatar-wrap">
+            <div className="op-avatar" onClick={() => !imageUploading && imageInputRef.current?.click()}>
+              {imagePreview
+                ? <img src={imagePreview} alt="Profile" />
+                : <span className="op-avatar-placeholder">
+                    {profile.name ? profile.name.substring(0, 2).toUpperCase() : "?"}
+                  </span>
+              }
+              <div className="op-avatar-overlay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+              {imageUploading && (
+                <div className="op-avatar-spinner">
+                  <div className="op-avatar-spinner-dot" />
+                </div>
+              )}
+            </div>
+            <button type="button" className="op-photo-btn" onClick={() => imageInputRef.current?.click()} disabled={imageUploading}>
+              {imageUploading ? "Uploading…" : imagePreview ? "Change photo" : "Upload photo"}
+            </button>
+            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
+          </div>
+
+          {/* Info */}
+          <div className="op-hero-info">
+            <h1 className="op-hero-name">{profile.name || "Your Name"}</h1>
+            <div className="op-hero-badges">
+              <span className="op-role-badge">Organiser</span>
+              <span className="op-status-badge" style={{
+                background: `${statusColor[profile.approvalStatus || "pending"]}18`,
+                color: statusColor[profile.approvalStatus || "pending"],
+                border: `1px solid ${statusColor[profile.approvalStatus || "pending"]}40`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block", marginRight: 5 }} />
+                {profile.approvalStatus || "pending"}
+              </span>
+            </div>
+            {(profile.location?.city || profile.location?.state) && (
+              <p className="op-hero-location">
+                📍 {[profile.location.city, profile.location.state].filter(Boolean).join(", ")}
+              </p>
+            )}
+          </div>
+
+          {/* Hero save */}
+          <button type="submit" form="op-profile-form" className="op-hero-save" disabled={saving || deleting}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
         </div>
 
-        <form onSubmit={handleSave} className="organizer-profile-form">
-          <section className="organizer-profile-card">
-            <div className="profile-card-head">
-              <h3>Basic Info</h3>
-              <span>Account details</span>
+        {/* ── FORM ── */}
+        <form id="op-profile-form" onSubmit={handleSave} className="op-form">
+
+          {/* Basic Info */}
+          <div className="op-card">
+            <div className="op-card-header">
+              <div className="op-card-icon">👤</div>
+              <div>
+                <h3 className="op-card-title">Basic Info</h3>
+                <p className="op-card-desc">Your contact and location details</p>
+              </div>
             </div>
-
-            <div className="profile-grid">
-              <label className="profile-field">
-                <span>Full Name</span>
-                <input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Full name" required />
-              </label>
-
-              <label className="profile-field">
-                <span>Email</span>
-                <input value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="Email" type="email" />
-              </label>
-
-              <label className="profile-field">
-                <span>Phone</span>
-                <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="Phone" required />
-              </label>
-
-              <label className="profile-field">
-                <span>WhatsApp Number</span>
-                <input value={profile.whatsappNumber} onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })} placeholder="WhatsApp Number" required />
-              </label>
-
-              <label className="profile-field">
-                <span>City</span>
-                <input value={profile.location?.city || ""} onChange={(e) => setProfile({ ...profile, location: { ...(profile.location || {}), city: e.target.value } })} placeholder="City" />
-              </label>
-
-              <label className="profile-field">
-                <span>State</span>
-                <input value={profile.location?.state || ""} onChange={(e) => setProfile({ ...profile, location: { ...(profile.location || {}), state: e.target.value } })} placeholder="State" />
-              </label>
+            <div className="op-grid">
+              <div className="op-field">
+                <label className="op-label">Full Name *</label>
+                <input className="op-input" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Your full name" required />
+              </div>
+              <div className="op-field">
+                <label className="op-label">Email</label>
+                <input className="op-input" type="email" value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="your@email.com" />
+              </div>
+              <div className="op-field">
+                <label className="op-label">Phone *</label>
+                <input className="op-input" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="10-digit number" required />
+              </div>
+              <div className="op-field">
+                <label className="op-label">WhatsApp Number *</label>
+                <input className="op-input" value={profile.whatsappNumber} onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })} placeholder="WhatsApp number" required />
+              </div>
+              <div className="op-field">
+                <label className="op-label">City</label>
+                <input className="op-input" value={profile.location?.city || ""} onChange={(e) => setProfile({ ...profile, location: { ...(profile.location || {}), city: e.target.value } })} placeholder="e.g. Mumbai" />
+              </div>
+              <div className="op-field">
+                <label className="op-label">State</label>
+                <input className="op-input" value={profile.location?.state || ""} onChange={(e) => setProfile({ ...profile, location: { ...(profile.location || {}), state: e.target.value } })} placeholder="e.g. Maharashtra" />
+              </div>
             </div>
-          </section>
+          </div>
 
-          <section className="organizer-profile-card">
-            <div className="profile-card-head">
-              <h3>Event Defaults</h3>
-              <span>Game setup preferences</span>
+          {/* Event Defaults */}
+          <div className="op-card">
+            <div className="op-card-header">
+              <div className="op-card-icon">⚽</div>
+              <div>
+                <h3 className="op-card-title">Event Defaults</h3>
+                <p className="op-card-desc">Pre-filled settings when you create a game</p>
+              </div>
             </div>
-
-            <div className="profile-grid">
-              <label className="profile-field">
-                <span>Default Format</span>
-                <select value={profile.defaultFormat || "6v6"} onChange={(e) => setProfile({ ...profile, defaultFormat: e.target.value as OrganiserProfile["defaultFormat"] })}>
-                  {["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"].map((format) => (
-                    <option key={format} value={format}>{format}</option>
-                  ))}
+            <div className="op-grid">
+              <div className="op-field">
+                <label className="op-label">Default Format</label>
+                <select className="op-input" value={profile.defaultFormat || "6v6"} onChange={(e) => setProfile({ ...profile, defaultFormat: e.target.value as OrganiserProfile["defaultFormat"] })}>
+                  {["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"].map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
-              </label>
-
-              <label className="profile-field">
-                <span>Default Fee (paise)</span>
-                <input type="number" min="0" value={profile.defaultFeeInPaise ?? 0} onChange={(e) => setProfile({ ...profile, defaultFeeInPaise: Number(e.target.value) })} placeholder="0" />
-              </label>
-
-              <label className="profile-field">
-                <span>Default Cutoff Hours</span>
-                <input type="number" min="1" value={profile.defaultCutoffHours ?? 24} onChange={(e) => setProfile({ ...profile, defaultCutoffHours: Number(e.target.value) })} placeholder="24" />
-              </label>
-
-              <label className="profile-field">
-                <span>Default Turf Id</span>
-                <input value={profile.defaultTurfId || ""} onChange={(e) => setProfile({ ...profile, defaultTurfId: e.target.value })} placeholder="Turf ID" />
-              </label>
+              </div>
+              <div className="op-field">
+                <label className="op-label">Default Fee (₹ in paise)</label>
+                <input className="op-input" type="number" min="0" value={profile.defaultFeeInPaise ?? 0} onChange={(e) => setProfile({ ...profile, defaultFeeInPaise: Number(e.target.value) })} placeholder="e.g. 20000" />
+              </div>
+              <div className="op-field">
+                <label className="op-label">Cutoff Hours Before Game</label>
+                <input className="op-input" type="number" min="1" value={profile.defaultCutoffHours ?? 24} onChange={(e) => setProfile({ ...profile, defaultCutoffHours: Number(e.target.value) })} placeholder="24" />
+              </div>
+              <div className="op-field">
+                <label className="op-label">Default Turf ID</label>
+                <input className="op-input" value={profile.defaultTurfId || ""} onChange={(e) => setProfile({ ...profile, defaultTurfId: e.target.value })} placeholder="Turf ID (optional)" />
+              </div>
             </div>
-          </section>
+          </div>
 
-          <section className="organizer-profile-card">
-            <div className="profile-card-head">
-              <h3>Notifications</h3>
-              <span>Where to send updates</span>
+          {/* Notifications */}
+          <div className="op-card">
+            <div className="op-card-header">
+              <div className="op-card-icon">🔔</div>
+              <div>
+                <h3 className="op-card-title">Notifications</h3>
+                <p className="op-card-desc">Choose where you receive updates</p>
+              </div>
             </div>
-
-            <div className="profile-toggle-grid">
-              {[
-                ["whatsapp", "WhatsApp"],
-                ["sms", "SMS"],
-                ["push", "Push"],
-              ].map(([key, label]) => {
-                const settingKey = key as keyof NonNullable<OrganiserProfile["notificationSettings"]>;
-                const value = profile.notificationSettings?.[settingKey] ?? true;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`profile-toggle-row ${value ? "on" : "off"}`}
-                    onClick={() => setProfile({
-                      ...profile,
-                      notificationSettings: {
-                        ...(profile.notificationSettings || {}),
-                        [settingKey]: !value,
-                      },
-                    })}
-                  >
-                    <div>
-                      <div className="toggle-label">{label}</div>
-                      <div className="toggle-sub">{value ? "Enabled" : "Disabled"}</div>
-                    </div>
-                    <span className="profile-toggle-pill">{value ? "On" : "Off"}</span>
+            {([
+              { key: "whatsapp", label: "WhatsApp", desc: "Game alerts and bookings on WhatsApp" },
+              { key: "sms", label: "SMS", desc: "Important reminders via text message" },
+              { key: "push", label: "Push Notifications", desc: "In-app alerts for game activity" },
+            ] as { key: keyof NonNullable<OrganiserProfile["notificationSettings"]>; label: string; desc: string }[]).map(({ key, label, desc }) => {
+              const enabled = profile.notificationSettings?.[key] ?? true;
+              return (
+                <div key={key} className="op-notif-row">
+                  <div>
+                    <div className="op-notif-label">{label}</div>
+                    <div className="op-notif-desc">{desc}</div>
+                  </div>
+                  <button type="button" className={`op-toggle ${enabled ? "on" : "off"}`}
+                    onClick={() => setProfile({ ...profile, notificationSettings: { ...(profile.notificationSettings || {}), [key]: !enabled } })}>
+                    <span className="op-toggle-knob" />
                   </button>
-                );
-              })}
-            </div>
-          </section>
+                </div>
+              );
+            })}
+          </div>
 
-          <section className="organizer-profile-card">
-            <div className="profile-card-head">
-              <h3>Account Status</h3>
-              <span>Read only</span>
-            </div>
-
-            <div className="profile-status-grid">
-              <div className="profile-status-item">
-                <span>Status</span>
-                <strong>{profile.approvalStatus || "pending"}</strong>
-              </div>
-              <div className="profile-status-item">
-                <span>Active</span>
-                <strong>{profile.isActive ? "Yes" : "No"}</strong>
+          {/* Account Status */}
+          <div className="op-card">
+            <div className="op-card-header">
+              <div className="op-card-icon">🔒</div>
+              <div>
+                <h3 className="op-card-title">Account Status</h3>
+                <p className="op-card-desc">Read-only — managed by admin</p>
               </div>
             </div>
-          </section>
+            <div className="op-status-grid">
+              <div className="op-status-item">
+                <div className="op-status-item-label">Approval Status</div>
+                <div className="op-status-item-value">
+                  <span className="op-status-dot" style={{ background: statusColor[profile.approvalStatus || "pending"] }} />
+                  {profile.approvalStatus || "pending"}
+                </div>
+              </div>
+              <div className="op-status-item">
+                <div className="op-status-item-label">Account Active</div>
+                <div className="op-status-item-value">
+                  <span className="op-status-dot" style={{ background: profile.isActive ? "#4ade80" : "#666" }} />
+                  {profile.isActive ? "Active" : "Inactive"}
+                </div>
+              </div>
+            </div>
+          </div>
 
-          {error && <p className="profile-error">{error}</p>}
+          {error && <div className="op-error">{error}</div>}
 
-          <div className="profile-actions">
-            <button className="btn-primary" type="submit" disabled={saving || deleting}>
-              <span>{saving ? "Saving..." : "Save Changes"}</span>
+          <div className="op-actions">
+            <button type="submit" className="op-save-btn" disabled={saving || deleting}>
+              {saving ? "Saving…" : "Save Changes"}
             </button>
-            <button type="button" onClick={() => setDeleteStep(1)} disabled={saving || deleting} className="profile-delete-btn">
+            <button type="button" className="op-delete-btn" onClick={() => setDeleteStep(1)} disabled={saving || deleting}>
               Delete Account
             </button>
           </div>

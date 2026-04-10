@@ -1,18 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { validatePhone, validateEmail } from "@/utils/auth";
 
 interface PlayerSignUpStep1Props {
   onBack: () => void;
-  onContinue: (data: { firstName: string; phone: string; email: string }) => void;
+  onContinue: (data: { firstName: string; phone: string; email: string; profileImageDataUrl?: string }) => void;
 }
 
 export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props) {
   const [firstName, setFirstName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setErrors((prev) => ({ ...prev, image: "Only JPEG, PNG, or WebP images allowed" }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, image: "Image must be under 5MB" }));
+      return;
+    }
+    setErrors((prev) => ({ ...prev, image: "" }));
+    const reader = new FileReader();
+    reader.onload = () => setProfileImageDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +46,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
       return;
     }
 
-    onContinue({ firstName, phone, email });
+    onContinue({ firstName, phone, email, profileImageDataUrl });
   };
 
   const inputStyle = {
@@ -61,6 +80,58 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 3: Enter your details</p>
+
+      {/* Profile Image Picker */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "28px" }}>
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            width: "90px",
+            height: "90px",
+            borderRadius: "50%",
+            background: profileImageDataUrl ? "transparent" : "#1a1a2e",
+            border: `2px dashed ${profileImageDataUrl ? "var(--yellow)" : "#555"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            overflow: "hidden",
+            marginBottom: "10px",
+            transition: "border-color 0.2s",
+          }}
+        >
+          {profileImageDataUrl ? (
+            <img src={profileImageDataUrl} alt="Profile preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "24px" }}>📷</div>
+              <div style={{ color: "#666", fontSize: "10px", marginTop: "2px" }}>Add Photo</div>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--yellow)",
+            fontSize: "13px",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          {profileImageDataUrl ? "Change photo" : "Upload profile photo"} (optional)
+        </button>
+        {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: "none" }}
+          onChange={handleImageChange}
+        />
+      </div>
 
       <form onSubmit={handleContinue}>
         {/* Name */}

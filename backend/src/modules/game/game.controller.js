@@ -417,6 +417,7 @@ const POSITION_MAP = {
   DEF: 'defender',
   MID: 'midfielder',
   FWD: 'forward',
+  Any: 'any',
 };
 
 const TEAM_MAP = {
@@ -479,12 +480,13 @@ exports.registerForGame = async (req, res) => {
     // ── Guest registrations ───────────────────────────────
     const playerName = req.user.name || 'Player';
     guestInput.forEach((guest, idx) => {
-      const guestName = (guest.name || '').trim() || `${playerName}_${idx + 1}`;
+      const fallbackGuestName = `Guest ${idx + 1}`;
+      const guestName = (guest?.name || '').trim() || fallbackGuestName;
       game.registrations.push({
         player:            req.user._id,
         plusOneName:       guestName,
-        preferredPosition: POSITION_MAP[guest.position] || 'any',
-        teamPreference:    TEAM_MAP[guest.teamPreference] || 'none',
+        preferredPosition: POSITION_MAP[guest?.position] || 'any',
+        teamPreference:    TEAM_MAP[guest?.teamPreference] || 'none',
         paymentStatus:     'pending',
         signedUpAt:        new Date(),
       });
@@ -494,13 +496,15 @@ exports.registerForGame = async (req, res) => {
     await game.populate({ path: "turf", select: "name address" });
 
     if (req.user?.email) {
+      const placeText = formatGamePlace(game.turf);
+
       sendGameRegistrationEmail({
         to: req.user.email,
         playerName,
         gameTitle:   game.title,
         scheduledAt: game.scheduledAt,
         format:      game.format,
-        place:       formatGamePlace(game.turf),
+        place:       placeText,
       }).catch((err) => {
         console.error("[EMAIL] Registration email failed:", err?.message || err);
       });

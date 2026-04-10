@@ -33,6 +33,7 @@ function AuthFlow() {
     firstName: "",
     preferences: { positions: [] as string[], preferredLocations: [] as string[] },
     otp: "",
+    profileImageDataUrl: "",
   });
 
 
@@ -60,8 +61,8 @@ function AuthFlow() {
       {step === "signup-form" && (
         <PlayerSignUpStep1
           onBack={() => setStep("login")}
-          onContinue={(data: { firstName: string; phone: string; email: string }) => {
-            setUserData((prev) => ({ ...prev, ...data }));
+          onContinue={(data: { firstName: string; phone: string; email: string; profileImageDataUrl?: string }) => {
+            setUserData((prev) => ({ ...prev, ...data, profileImageDataUrl: data.profileImageDataUrl || "" }));
             setStep("signup-preferences");
           }}
         />
@@ -116,6 +117,9 @@ function AuthFlow() {
           <button
             onClick={() => {
               localStorage.setItem("newSignup", "true");
+              if (userData.profileImageDataUrl) {
+                localStorage.setItem("pendingProfileImage", userData.profileImageDataUrl);
+              }
               setStep("login");
             }}
             style={{

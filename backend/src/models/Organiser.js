@@ -41,6 +41,11 @@ const OrganiserSchema = new mongoose.Schema(
     default: false
   },
 
+  profileImage: {
+    type: String,
+    default: null
+  },
+
   // ===============================
   // ✅ APPROVAL SYSTEM (ADMIN CONTROL)
   // ===============================

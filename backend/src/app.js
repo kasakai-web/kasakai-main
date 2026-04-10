@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,7 +19,10 @@ const adminRoutes = require('./modules/admin/admin.routes');
 const app = express();
 
 app.disable('x-powered-by');
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
 app.use(compression());
 app.use(cookieParser());
 
@@ -48,6 +52,7 @@ app.use(
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

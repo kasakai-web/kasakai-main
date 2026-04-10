@@ -190,7 +190,8 @@ exports.login = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        role: role || "player"
+        role: role || "player",
+        profileImage: user.profileImage || null
       }
     });
 

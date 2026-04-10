@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 
 type PlayerProfile = {
   name: string;
   email?: string;
   phone: string;
   whatsappNumber: string;
+  profileImage?: string;
   isVerified?: boolean;
   referralCode?: string;
   createdAt?: string;
@@ -52,11 +55,15 @@ export default function PlayerProfilePage() {
   const [error, setError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<PlayerProfile>({
     name: "",
     email: "",
     phone: "",
     whatsappNumber: "",
+    profileImage: undefined,
     isVerified: false,
     rating: 0,
     totalGamesPlayed: 0,
@@ -95,11 +102,13 @@ export default function PlayerProfilePage() {
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) { setError(data.message || `HTTP ${res.status}`); return; }
       const p = data.data || {};
+      setImagePreview(p.profileImage ? `${API_BASE_URL}${p.profileImage}` : null);
       setProfile({
         name: p.name || "",
         email: p.email || "",
         phone: p.phone || "",
         whatsappNumber: p.whatsappNumber || "",
+        profileImage: p.profileImage || undefined,
         isVerified: p.isVerified ?? false,
         referralCode: p.referralCode || "",
         createdAt: p.createdAt || "",
@@ -135,6 +144,51 @@ export default function PlayerProfilePage() {
     }
     fetchProfile();
   }, [isAuthorized]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const { token } = getSession();
+    if (!token) { clearSessionAndExit(); return; }
+
+    setImageUploading(true);
+    setError("");
+
+    const preview = URL.createObjectURL(file);
+    setImagePreview(preview);
+
+    try {
+      const formData = new FormData();
+      formData.append("profileImage", file);
+      const res = await fetch(buildApiUrl("/api/v1/players/me/profile-image"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
+
+      const data = await parseApiResponse(res);
+      if (!res.ok || !data.success) {
+        setError(data.message || "Failed to upload image");
+        setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
+        return;
+      }
+
+      const newImagePath = data.data?.profileImage;
+      const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
+      setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
+      setImagePreview(newImageUrl);
+      if (newImageUrl) localStorage.setItem("userProfileImage", newImageUrl);
+    } catch {
+      setError("Failed to upload image");
+      setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
+    } finally {
+      setImageUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
 
   const togglePosition = (pos: string) => {
     const current = profile.preferences?.positions || [];
@@ -229,15 +283,16 @@ export default function PlayerProfilePage() {
 
   return (
     <div className="player-dashboard-container">
-      {/* Delete Modal */}
+
+      {/* ── Delete Modal ── */}
       {deleteStep > 0 && (
-        <div className="modal-overlay" onClick={() => !deleting && setDeleteStep(0)}>
-          <div className="modal-content" style={{ maxWidth: 520, width: "92%" }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
+          <div className="modal-content" style={{ maxWidth: 480, width: "92%" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ marginBottom: 16 }}>
               <div className="modal-title-section">
-                <h2>Delete Account</h2>
-                <p className="modal-subtitle">
-                  {deleteStep === 1 ? "Are you sure you want to delete your account?" : "This will permanently remove your profile and bookings."}
+                <h2 style={{ margin: 0 }}>Delete Account</h2>
+                <p className="modal-subtitle" style={{ marginTop: 8 }}>
+                  {deleteStep === 1 ? "Are you sure you want to delete your account?" : "This will permanently remove your profile and all your bookings."}
                 </p>
               </div>
             </div>
@@ -246,7 +301,7 @@ export default function PlayerProfilePage() {
               {deleteStep === 1 ? (
                 <button className="btn-primary" type="button" onClick={() => setDeleteStep(2)} disabled={deleting}><span>Continue</span></button>
               ) : (
-                <button className="profile-delete-btn" type="button" onClick={async () => { setDeleteStep(0); await handleDeleteProfile(); }} disabled={deleting}>
+                <button className="pp-delete-btn" type="button" onClick={async () => { setDeleteStep(0); await handleDeleteProfile(); }} disabled={deleting}>
                   {deleting ? "Deleting..." : "Delete Now"}
                 </button>
               )}
@@ -255,247 +310,265 @@ export default function PlayerProfilePage() {
         </div>
       )}
 
-      <div className="profile-page-shell">
-        {/* Welcome Banner */}
-        {showWelcomeBanner && (
-          <div className="pd-welcome-banner">
-            <div>
-              <p className="pd-banner-title">Welcome to Kasakai! Complete your profile</p>
-              <p className="pd-banner-body">Add your city, WhatsApp number, and skill level so we can find the best games near you.</p>
-            </div>
-            <button className="pd-banner-close" onClick={() => setShowWelcomeBanner(false)}>×</button>
+      {/* ── Welcome Banner ── */}
+      {showWelcomeBanner && (
+        <div className="pp-welcome-banner">
+          <div>
+            <p className="pp-banner-title">Welcome to Kasakai! Complete your profile</p>
+            <p className="pp-banner-body">Add your city, WhatsApp number, and skill level so we can find the best games near you.</p>
           </div>
-        )}
+          <button className="pp-banner-close" onClick={() => setShowWelcomeBanner(false)} aria-label="Dismiss">×</button>
+        </div>
+      )}
 
-        {/* Hero */}
-        <div className="profile-hero">
-          <div className="profile-kicker">Player Dashboard</div>
-          <h1 className="profile-title">Your Profile</h1>
-          <p className="profile-subtitle">Keep your details and match preferences updated so you get better games.</p>
+      <div className="pp-shell">
+
+        {/* ── HERO ── */}
+        <div className="pp-hero">
+          {/* Avatar */}
+          <div className="pp-avatar-wrap">
+            <div className="pp-avatar" onClick={() => !imageUploading && imageInputRef.current?.click()}>
+              {imagePreview
+                ? <img src={imagePreview} alt="Profile" />
+                : <span className="pp-avatar-placeholder">{profile.name ? profile.name.substring(0, 2).toUpperCase() : "?"}</span>
+              }
+              <div className="pp-avatar-overlay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+              {imageUploading && (
+                <div className="pp-avatar-spinner">
+                  <div className="pp-avatar-spinner-dot" />
+                </div>
+              )}
+            </div>
+            <button type="button" className="pp-photo-btn" onClick={() => imageInputRef.current?.click()} disabled={imageUploading}>
+              {imageUploading ? "Uploading…" : imagePreview ? "Change photo" : "Upload photo"}
+            </button>
+            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
+          </div>
+
+          {/* Info */}
+          <div className="pp-hero-info">
+            <h1 className="pp-hero-name">{profile.name || "Your Name"}</h1>
+            <div className="pp-hero-badges">
+              <span className="pp-role-badge">Player</span>
+              <span className="pp-verified-badge" style={{
+                background: profile.isVerified ? "rgba(74,222,128,0.12)" : "rgba(255,107,71,0.1)",
+                color: profile.isVerified ? "#4ade80" : "#ff8070",
+                border: `1px solid ${profile.isVerified ? "rgba(74,222,128,0.3)" : "rgba(255,107,71,0.25)"}`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block", marginRight: 5 }} />
+                {profile.isVerified ? "Verified" : "Not Verified"}
+              </span>
+            </div>
+            {(profile.location?.city || profile.location?.state) && (
+              <p className="pp-hero-location">📍 {[profile.location.city, profile.location.state].filter(Boolean).join(", ")}</p>
+            )}
+          </div>
+
+          {/* Hero save */}
+          <button type="submit" form="pp-profile-form" className="pp-hero-save" disabled={saving || deleting}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
         </div>
 
-        {/* Stats Row (read-only) */}
-        <div className="pd-stats-grid">
-          <div className="pd-stat-cell">
-            <div className="pd-stat-value">{profile.rating?.toFixed(1) || "0.0"}</div>
-            <div className="pd-stat-label">Rating</div>
-            <div className="pd-stat-sub">/ 5.0</div>
+        {/* ── Stats strip ── */}
+        <div className="pp-stats-strip">
+          <div className="pp-stat">
+            <div className="pp-stat-val">{profile.rating?.toFixed(1) || "0.0"}</div>
+            <div className="pp-stat-key">Rating</div>
+            <div className="pp-stat-sub">/ 5.0</div>
           </div>
-          <div className="pd-stat-cell">
-            <div className="pd-stat-value">{profile.totalGamesPlayed ?? 0}</div>
-            <div className="pd-stat-label">Games Played</div>
-            <div className="pd-stat-sub">total</div>
+          <div className="pp-stat-div" />
+          <div className="pp-stat">
+            <div className="pp-stat-val">{profile.totalGamesPlayed ?? 0}</div>
+            <div className="pp-stat-key">Games</div>
+            <div className="pp-stat-sub">played</div>
           </div>
-          <div className="pd-stat-cell">
-            <div className={`pd-stat-value ${(profile.noShowCount ?? 0) > 0 ? "warn-stat" : "muted-stat"}`}>
-              {profile.noShowCount ?? 0}
-            </div>
-            <div className="pd-stat-label">No-Shows</div>
-            <div className="pd-stat-sub">missed</div>
+          <div className="pp-stat-div" />
+          <div className="pp-stat">
+            <div className={`pp-stat-val ${(profile.noShowCount ?? 0) > 0 ? "pp-warn" : "pp-ok"}`}>{profile.noShowCount ?? 0}</div>
+            <div className="pp-stat-key">No-Shows</div>
+            <div className="pp-stat-sub">missed</div>
           </div>
-          <div className="pd-stat-cell">
-            <div className={`pd-stat-value ${(profile.backoutCount ?? 0) > 0 ? "warn-stat" : "muted-stat"}`}>
-              {profile.backoutCount ?? 0}
-            </div>
-            <div className="pd-stat-label">Backouts</div>
-            <div className="pd-stat-sub">cancelled</div>
+          <div className="pp-stat-div" />
+          <div className="pp-stat">
+            <div className={`pp-stat-val ${(profile.backoutCount ?? 0) > 0 ? "pp-warn" : "pp-ok"}`}>{profile.backoutCount ?? 0}</div>
+            <div className="pp-stat-key">Backouts</div>
+            <div className="pp-stat-sub">cancelled</div>
           </div>
         </div>
 
-        <form onSubmit={handleSave}>
+        {/* ── FORM ── */}
+        <form id="pp-profile-form" onSubmit={handleSave} className="pp-form">
+
           {/* Basic Info */}
-          <div className="pd-section">
-            <div className="pd-section-head">
-              <span className="pd-section-label">Basic Info</span>
-            </div>
-            <div className="pd-grid-2">
-              <div className="pd-field">
-                <span className="pd-field-label">Full Name *</span>
-                <input className="pd-input" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Full name" required />
-              </div>
-              <div className="pd-field">
-                <span className="pd-field-label">Email</span>
-                <input className="pd-input" type="email" value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="your@email.com" />
-              </div>
-              <div className="pd-field">
-                <span className="pd-field-label">Phone *</span>
-                <input className="pd-input" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="10-digit number" required />
-              </div>
-              <div className="pd-field">
-                <span className="pd-field-label">WhatsApp Number *</span>
-                <input className="pd-input" value={profile.whatsappNumber} onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })} placeholder="WhatsApp number" required />
+          <div className="pp-card">
+            <div className="pp-card-header">
+              <div className="pp-card-icon">👤</div>
+              <div>
+                <h3 className="pp-card-title">Basic Info</h3>
+                <p className="pp-card-desc">Your contact and location details</p>
               </div>
             </div>
-          </div>
-
-          {/* Location */}
-          <div className="pd-section">
-            <div className="pd-section-head">
-              <span className="pd-section-label">Location</span>
-            </div>
-            <div className="pd-grid-2">
-              <div className="pd-field">
-                <span className="pd-field-label">City</span>
-                <input className="pd-input" value={profile.location?.city || ""} onChange={(e) => setProfile({ ...profile, location: { ...profile.location, city: e.target.value } })} placeholder="e.g. Mumbai" />
+            <div className="pp-grid">
+              <div className="pp-field">
+                <label className="pp-label">Full Name *</label>
+                <input className="pp-input" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Full name" required />
               </div>
-              <div className="pd-field">
-                <span className="pd-field-label">State</span>
-                <input className="pd-input" value={profile.location?.state || ""} onChange={(e) => setProfile({ ...profile, location: { ...profile.location, state: e.target.value } })} placeholder="e.g. Maharashtra" />
+              <div className="pp-field">
+                <label className="pp-label">Email</label>
+                <input className="pp-input" type="email" value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="your@email.com" />
+              </div>
+              <div className="pp-field">
+                <label className="pp-label">Phone *</label>
+                <input className="pp-input" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="10-digit number" required />
+              </div>
+              <div className="pp-field">
+                <label className="pp-label">WhatsApp Number *</label>
+                <input className="pp-input" value={profile.whatsappNumber} onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })} placeholder="WhatsApp number" required />
+              </div>
+              <div className="pp-field">
+                <label className="pp-label">City</label>
+                <input className="pp-input" value={profile.location?.city || ""} onChange={(e) => setProfile({ ...profile, location: { ...profile.location, city: e.target.value } })} placeholder="e.g. Mumbai" />
+              </div>
+              <div className="pp-field">
+                <label className="pp-label">State</label>
+                <input className="pp-input" value={profile.location?.state || ""} onChange={(e) => setProfile({ ...profile, location: { ...profile.location, state: e.target.value } })} placeholder="e.g. Maharashtra" />
               </div>
             </div>
           </div>
 
           {/* Game Preferences */}
-          <div className="pd-section">
-            <div className="pd-section-head">
-              <span className="pd-section-label">Game Preferences</span>
+          <div className="pp-card">
+            <div className="pp-card-header">
+              <div className="pp-card-icon">⚽</div>
+              <div>
+                <h3 className="pp-card-title">Game Preferences</h3>
+                <p className="pp-card-desc">Skill level, format, and positions</p>
+              </div>
             </div>
-            <div className="pd-grid-2" style={{ marginBottom: "24px" }}>
-              <div className="pd-field">
-                <span className="pd-field-label">Skill Level</span>
-                <select className="pd-input"
-                  value={profile.preferences?.skillLevel || "beginner"}
-                  onChange={(e) => setProfile({ ...profile, preferences: { ...profile.preferences, skillLevel: e.target.value as "beginner" | "intermediate" | "advanced" } })}>
+            <div className="pp-grid" style={{ marginBottom: 20 }}>
+              <div className="pp-field">
+                <label className="pp-label">Skill Level</label>
+                <select className="pp-input" value={profile.preferences?.skillLevel || "beginner"} onChange={(e) => setProfile({ ...profile, preferences: { ...profile.preferences, skillLevel: e.target.value as "beginner" | "intermediate" | "advanced" } })}>
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                 </select>
               </div>
-              <div className="pd-field">
-                <span className="pd-field-label">Preferred Format</span>
-                <select className="pd-input"
-                  value={profile.preferences?.preferredFormat || "5v5"}
-                  onChange={(e) => setProfile({ ...profile, preferences: { ...profile.preferences, preferredFormat: e.target.value as "5v5" | "6v6" | "7v7" | "8v8" | "9v9" | "10v10" } })}>
-                  {(["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"] as const).map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
+              <div className="pp-field">
+                <label className="pp-label">Preferred Format</label>
+                <select className="pp-input" value={profile.preferences?.preferredFormat || "5v5"} onChange={(e) => setProfile({ ...profile, preferences: { ...profile.preferences, preferredFormat: e.target.value as "5v5" | "6v6" | "7v7" | "8v8" | "9v9" | "10v10" } })}>
+                  {(["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"] as const).map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
             </div>
 
-            {/* Positions */}
-            <div className="pd-field" style={{ marginBottom: "24px" }}>
-              <span className="pd-field-label">Preferred Positions (Football)</span>
-              <div className="pd-chips">
-                {[
-                  { id: "GK", label: "Goalkeeper" },
-                  { id: "DEF", label: "Defender" },
-                  { id: "MID", label: "Midfielder" },
-                  { id: "FWD", label: "Forward" },
-                ].map(({ id, label }) => {
+            <div className="pp-field" style={{ marginBottom: 20 }}>
+              <label className="pp-label">Preferred Positions</label>
+              <div className="pp-chips">
+                {[{ id: "GK", label: "Goalkeeper" }, { id: "DEF", label: "Defender" }, { id: "MID", label: "Midfielder" }, { id: "FWD", label: "Forward" }].map(({ id, label }) => {
                   const selected = (profile.preferences?.positions || []).includes(id);
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => togglePosition(id)}
-                      className={`pd-chip${selected ? " pd-chip-selected" : ""}`}
-                    >
-                      <span className="pd-chip-code">{id}</span>
-                      <span className="pd-chip-name">{label}</span>
+                    <button key={id} type="button" onClick={() => togglePosition(id)} className={`pp-chip${selected ? " pp-chip-on" : ""}`}>
+                      <span className="pp-chip-code">{id}</span>
+                      <span className="pp-chip-name">{label}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Preferred Play Areas */}
-            <div className="pd-field">
-              <span className="pd-field-label">Preferred Play Areas (up to 2)</span>
-              <div className="pd-grid-2">
+            <div className="pp-field">
+              <label className="pp-label">Preferred Play Areas (up to 2)</label>
+              <div className="pp-grid">
                 {[0, 1].map((idx) => (
-                  <input key={idx} className="pd-input"
+                  <input key={idx} className="pp-input"
                     value={(profile.preferences?.preferredLocations || [])[idx] || ""}
                     onChange={(e) => updatePreferredLocation(idx, e.target.value)}
-                    placeholder={idx === 0 ? "e.g. Andheri, Mumbai" : "e.g. Bandra, Mumbai (optional)"} />
+                    placeholder={idx === 0 ? "e.g. Andheri, Mumbai" : "e.g. Bandra (optional)"} />
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Notification Settings */}
-          <div className="pd-section">
-            <div className="pd-section-head">
-              <span className="pd-section-label">Notification Settings</span>
+          {/* Notifications */}
+          <div className="pp-card">
+            <div className="pp-card-header">
+              <div className="pp-card-icon">🔔</div>
+              <div>
+                <h3 className="pp-card-title">Notifications</h3>
+                <p className="pp-card-desc">Choose where you receive game updates</p>
+              </div>
             </div>
             {([
-              { key: "whatsapp", label: "WhatsApp Notifications", desc: "Game alerts and updates on WhatsApp" },
-              { key: "sms", label: "SMS Notifications", desc: "Important game reminders via SMS" },
-              { key: "push", label: "Push Notifications", desc: "In-app notifications for games" },
+              { key: "whatsapp", label: "WhatsApp", desc: "Game alerts and booking confirmations on WhatsApp" },
+              { key: "sms", label: "SMS", desc: "Important reminders via text message" },
+              { key: "push", label: "Push Notifications", desc: "In-app alerts for game activity" },
             ] as { key: keyof NonNullable<PlayerProfile["notificationSettings"]>; label: string; desc: string }[]).map(({ key, label, desc }) => {
               const enabled = profile.notificationSettings?.[key] ?? true;
               return (
-                <div key={key} className="pd-toggle-row">
+                <div key={key} className="pp-notif-row">
                   <div>
-                    <div className="pd-toggle-info-label">{label}</div>
-                    <div className="pd-toggle-info-desc">{desc}</div>
+                    <div className="pp-notif-label">{label}</div>
+                    <div className="pp-notif-desc">{desc}</div>
                   </div>
-                  <button
-                    type="button"
-                    className={`pd-toggle ${enabled ? "on" : "off"}`}
-                    onClick={() => setProfile({ ...profile, notificationSettings: { ...profile.notificationSettings, [key]: !enabled } })}
-                  >
-                    <span className="pd-toggle-knob" />
+                  <button type="button" className={`pp-toggle ${enabled ? "on" : "off"}`}
+                    onClick={() => setProfile({ ...profile, notificationSettings: { ...profile.notificationSettings, [key]: !enabled } })}>
+                    <span className="pp-toggle-knob" />
                   </button>
                 </div>
               );
             })}
           </div>
 
-          {/* Account Info (read-only) */}
-          <div className="pd-section">
-            <div className="pd-section-head">
-              <span className="pd-section-label">Account Info</span>
-            </div>
-            <div className="pd-account-grid">
+          {/* Account Info */}
+          <div className="pp-card">
+            <div className="pp-card-header">
+              <div className="pp-card-icon">🔒</div>
               <div>
-                <div className="pd-account-item-label">Account Status</div>
-                <div className="pd-account-item-value">
-                  <span
-                    className="pd-status-dot"
-                    style={{ background: profile.isVerified ? "var(--lime)" : "#ff6b6b" }}
-                  />
+                <h3 className="pp-card-title">Account Info</h3>
+                <p className="pp-card-desc">Read-only account details</p>
+              </div>
+            </div>
+            <div className="pp-status-grid">
+              <div className="pp-status-item">
+                <div className="pp-status-item-label">Verification</div>
+                <div className="pp-status-item-value">
+                  <span className="pp-status-dot" style={{ background: profile.isVerified ? "#4ade80" : "#ff6b6b" }} />
                   {profile.isVerified ? "Verified" : "Not Verified"}
                 </div>
               </div>
               {memberSince && (
-                <div>
-                  <div className="pd-account-item-label">Member Since</div>
-                  <div className="pd-account-item-value">{memberSince}</div>
+                <div className="pp-status-item">
+                  <div className="pp-status-item-label">Member Since</div>
+                  <div className="pp-status-item-value">{memberSince}</div>
                 </div>
               )}
               {profile.referralCode && (
-                <div className="pd-referral-wrap">
-                  <div style={{ width: "100%", marginBottom: "8px" }}>
-                    <div className="pd-account-item-label">Referral Code</div>
+                <div className="pp-status-item" style={{ gridColumn: "1 / -1" }}>
+                  <div className="pp-status-item-label" style={{ marginBottom: 8 }}>Referral Code</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <code className="pp-referral-code">{profile.referralCode}</code>
+                    <button type="button" className="pp-copy-btn" onClick={() => navigator.clipboard.writeText(profile.referralCode || "")}>Copy</button>
                   </div>
-                  <code className="pd-referral-code">{profile.referralCode}</code>
-                  <button
-                    type="button"
-                    className="pd-copy-btn"
-                    onClick={() => navigator.clipboard.writeText(profile.referralCode || "")}
-                  >
-                    Copy
-                  </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Error / Success */}
-          {error && <p className="profile-error">{error}</p>}
-          {saveSuccess && (
-            <div className="pd-success-bar">
-              Profile saved successfully.
-            </div>
-          )}
+          {error && <div className="pp-error">{error}</div>}
+          {saveSuccess && <div className="pp-success">Profile saved successfully.</div>}
 
-          {/* Actions */}
-          <div className="pd-actions">
-            <button className="btn-primary" type="submit" disabled={saving || deleting}>
-              <span>{saving ? "Saving..." : "Save Changes"}</span>
+          <div className="pp-actions">
+            <button type="submit" className="pp-save-btn" disabled={saving || deleting}>
+              {saving ? "Saving…" : "Save Changes"}
             </button>
-            <button type="button" onClick={() => setDeleteStep(1)} disabled={saving || deleting} className="profile-delete-btn">
+            <button type="button" className="pp-delete-btn" onClick={() => setDeleteStep(1)} disabled={saving || deleting}>
               Delete Account
             </button>
           </div>

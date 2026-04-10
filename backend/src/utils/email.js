@@ -136,6 +136,36 @@ const buildGameRegistrationTemplate = ({ playerName, gameTitle, scheduledAt, for
   };
 };
 
+const buildGameActionOtpTemplate = ({ name, role, action, otp, gameTitle, scheduledAt, format, place }) => {
+  const safeTitle = gameTitle || "the game";
+  const dateText = formatGameDate(scheduledAt);
+  const gameFormat = format || "unknown format";
+  const placeText = place || "the selected turf";
+  const roleLabel = role === "organiser" ? "Organiser" : "Player";
+  const actionLabel = action === "create" ? "event creation" : "event registration";
+
+  return {
+    subject: `Kasa Kai ${actionLabel} OTP`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
+        <h2 style="margin-bottom: 12px; text-transform: capitalize;">${actionLabel} confirmation OTP</h2>
+        <p style="margin: 0 0 12px 0;">Hi ${name || roleLabel},</p>
+        <p style="margin: 0 0 16px 0;">Use this OTP as confirmation for your ${actionLabel}.</p>
+        <div style="font-size: 32px; letter-spacing: 6px; font-weight: 700; background: #f5f7fb; border: 1px solid #e0e5ef; padding: 16px 20px; border-radius: 10px; width: fit-content;">
+          ${otp}
+        </div>
+        <div style="background: #f5f7fb; border: 1px solid #e0e5ef; padding: 16px 20px; border-radius: 10px; margin-top: 16px;">
+          <p style="margin: 0 0 8px 0;"><strong>Event name:</strong> ${safeTitle}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Place:</strong> ${placeText}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Format:</strong> ${gameFormat}</p>
+          <p style="margin: 0;"><strong>Date &amp; time:</strong> ${dateText}</p>
+        </div>
+        <p style="margin: 16px 0 0 0; color: #616161; font-size: 13px;">This OTP is valid for 10 minutes and can be used as confirmation proof.</p>
+      </div>
+    `,
+  };
+};
+
 const sendOtpEmail = async ({ to, otp, role = "player", purpose = "signup" }) => {
   assertEmailConfig();
 
@@ -178,9 +208,24 @@ const sendGameRegistrationEmail = async ({ to, playerName, gameTitle, scheduledA
   });
 };
 
+const sendGameActionOtpEmail = async ({ to, name, role = "player", action = "register", otp, gameTitle, scheduledAt, format, place }) => {
+  assertEmailConfig();
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const template = buildGameActionOtpTemplate({ name, role, action, otp, gameTitle, scheduledAt, format, place });
+
+  await transporter.sendMail({
+    from,
+    to,
+    subject: template.subject,
+    html: template.html,
+  });
+};
+
 module.exports = {
   sendOtpEmail,
   sendGameCreatedEmail,
   sendGameRegistrationEmail,
+  sendGameActionOtpEmail,
   formatGamePlace,
 };

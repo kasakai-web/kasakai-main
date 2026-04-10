@@ -1,3 +1,5 @@
+const path = require("path");
+const fs = require("fs");
 const Player = require("../../models/Player");
 
 const safePlayerSelect = "-password -otp -otpExpires";
@@ -27,6 +29,7 @@ exports.updateMyProfile = async (req, res) => {
       "location",
       "preferences",
       "notificationSettings",
+      "profileImage",
     ];
 
     const payload = {};
@@ -58,6 +61,38 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: "Phone or email already in use" });
     }
 
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image file provided" });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    const player = await Player.findById(req.user._id).select(safePlayerSelect);
+    if (!player) {
+      return res.status(404).json({ success: false, message: "Player not found" });
+    }
+
+    // Delete old profile image file if it exists
+    if (player.profileImage) {
+      const oldPath = path.join(__dirname, "../../../uploads", path.basename(player.profileImage));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const updated = await Player.findByIdAndUpdate(
+      req.user._id,
+      { $set: { profileImage: imageUrl } },
+      { new: true }
+    ).select(safePlayerSelect);
+
+    return res.status(200).json({ success: true, data: updated, message: "Profile image updated" });
+  } catch (error) {
+    console.error("uploadProfileImage player error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

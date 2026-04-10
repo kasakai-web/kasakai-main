@@ -41,6 +41,11 @@ const PlayerSchema = new mongoose.Schema(
     default: false
   },
 
+  profileImage: {
+    type: String,
+    default: null
+  },
+
   // ===============================
   // 🎮 PLAYER STATS
   // ===============================

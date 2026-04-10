@@ -180,7 +180,14 @@ export default function PlayerDashboard() {
         body: JSON.stringify({
           teamPreference,
           positions: playerPositions,
-          guests: guests.map((g) => ({ name: g.name.trim(), position: g.position, teamPreference: g.teamPreference })),
+          guests: guests.map((g, index) => {
+            const fallbackName = `Guest ${index + 1}`;
+            return {
+              name: (g.name || fallbackName).trim() || fallbackName,
+              position: g.position || "Any",
+              teamPreference: g.teamPreference || "No Preference",
+            };
+          }),
         }),
       });
       const data = await res.json();

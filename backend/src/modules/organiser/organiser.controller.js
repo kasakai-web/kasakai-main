@@ -1,3 +1,5 @@
+const path = require("path");
+const fs = require("fs");
 const Organiser = require("../../models/Organiser");
 
 const safeOrganiserSelect = "-password -otp -otpExpires";
@@ -31,6 +33,7 @@ exports.updateMyProfile = async (req, res) => {
       "defaultFormat",
       "defaultCutoffHours",
       "notificationSettings",
+      "profileImage",
     ];
 
     const payload = {};
@@ -62,6 +65,38 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(400).json({ success: false, message: "Phone or email already in use" });
     }
 
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image file provided" });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    const organiser = await Organiser.findById(req.user._id).select(safeOrganiserSelect);
+    if (!organiser) {
+      return res.status(404).json({ success: false, message: "Organiser not found" });
+    }
+
+    // Delete old profile image file if it exists
+    if (organiser.profileImage) {
+      const oldPath = path.join(__dirname, "../../../uploads", path.basename(organiser.profileImage));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const updated = await Organiser.findByIdAndUpdate(
+      req.user._id,
+      { $set: { profileImage: imageUrl } },
+      { new: true }
+    ).select(safeOrganiserSelect);
+
+    return res.status(200).json({ success: true, data: updated, message: "Profile image updated" });
+  } catch (error) {
+    console.error("uploadProfileImage organiser error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

@@ -50,6 +50,39 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       localStorage.setItem("userRole", user.role || "organiser");
       localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name || "User");
+      if (user.profileImage) {
+        const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
+        localStorage.setItem("userProfileImage", `${apiBase}${user.profileImage}`);
+      } else {
+        localStorage.removeItem("userProfileImage");
+      }
+
+      // Upload pending profile image from signup if present
+      const pendingImage = localStorage.getItem("pendingProfileImage");
+      if (pendingImage) {
+        try {
+          const blob = await (await fetch(pendingImage)).blob();
+          const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+          const formData = new FormData();
+          formData.append("profileImage", blob, `profile.${ext}`);
+          const imgRes = await fetch(buildApiUrl("/api/v1/organisers/me/profile-image"), {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+          if (imgRes.ok) {
+            const imgData = await imgRes.json();
+            if (imgData.data?.profileImage) {
+              const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
+              localStorage.setItem("userProfileImage", `${apiBase}${imgData.data.profileImage}`);
+            }
+          }
+        } catch {
+          // Non-critical — don't block login
+        } finally {
+          localStorage.removeItem("pendingProfileImage");
+        }
+      }
 
       const isNew = localStorage.getItem("newSignup") === "true";
       if (isNew) {

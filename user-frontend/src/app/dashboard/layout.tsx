@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearSession, getSession } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+
+const SERVER_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 import "./dashboard.css";
 
 export default function DashboardLayout({
@@ -15,6 +17,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
+  const [userProfileImage, setUserProfileImage] = useState<string>("");
   const [activeSection, setActiveSection] = useState("browse");
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
@@ -23,9 +26,13 @@ export default function DashboardLayout({
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
     const storedUserName = typeof window !== "undefined" ? localStorage.getItem("userName") : null;
+    const storedProfileImage = typeof window !== "undefined" ? localStorage.getItem("userProfileImage") : null;
 
     if (storedUserName) {
       setUserName(storedUserName);
+    }
+    if (storedProfileImage) {
+      setUserProfileImage(storedProfileImage);
     }
 
     if (storedUserId) {
@@ -42,6 +49,33 @@ export default function DashboardLayout({
 
     setAuthResolved(true);
   }, [pathname, router]);
+
+  // Re-read profile image from localStorage whenever path changes (e.g. after profile page update)
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("userProfileImage") : null;
+    if (stored) setUserProfileImage(stored);
+  }, [pathname]);
+
+  // Fetch profile image from API if not in localStorage
+  useEffect(() => {
+    if (!authenticated) return;
+    if (localStorage.getItem("userProfileImage")) return;
+    const { token } = getSession();
+    if (!token) return;
+    fetch(buildApiUrl("/api/v1/players/me"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const img = data?.data?.profileImage;
+        if (img) {
+          const url = `${SERVER_BASE}${img}`;
+          localStorage.setItem("userProfileImage", url);
+          setUserProfileImage(url);
+        }
+      })
+      .catch(() => {});
+  }, [authenticated]);
 
   useEffect(() => {
     if (pathname.includes("/dashboard/player/") && pathname.endsWith("/profile")) {
@@ -64,6 +98,7 @@ export default function DashboardLayout({
 
   const handleLogout = () => {
     clearSession();
+    localStorage.removeItem("userProfileImage");
     router.replace("/login?role=player");
   };
 
@@ -188,8 +223,12 @@ export default function DashboardLayout({
 
           <div className="sidebar-bottom">
             <div className="sidebar-user-block" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", marginBottom: "8px", background: "rgba(255,255,255,0.03)", borderRadius: "8px" }}>
-              <div className="user-avatar" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--lime)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "12px" }}>
-                {userName.substring(0, 2).toUpperCase()}
+              <div className="user-avatar" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--lime)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "12px", overflow: "hidden", flexShrink: 0 }}>
+                {userProfileImage ? (
+                  <img src={userProfileImage} alt={userName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  userName.substring(0, 2).toUpperCase()
+                )}
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <span className="user-name" style={{ color: "var(--white)", fontWeight: 600, fontSize: "14px" }}>{userName}</span>

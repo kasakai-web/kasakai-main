@@ -43,4 +43,5 @@ export const clearSession = () => {
   localStorage.removeItem("userRole");
   localStorage.removeItem("userId");
   localStorage.removeItem("userName");
+  localStorage.removeItem("userProfileImage");
 };
