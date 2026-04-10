@@ -13,7 +13,7 @@ export default function PlayerDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const routeParams = useParams<{ id?: string | string[] }>();
-  const [activeTab, setActiveTab] = useState<"all" | "my-games" | "cancelled">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "my-games" | "cancelled" | "completed">("all");
   const [games, setGames] = useState<any[]>([]);
   const [myGames, setMyGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,31 +151,17 @@ export default function PlayerDashboard() {
       setActiveTab("cancelled");
       return;
     }
+    if (tab === "completed") {
+      setActiveTab("completed");
+      return;
+    }
     setActiveTab("all");
   }, [searchParams]);
 
-  useEffect(() => {
-    const handleTabChange = (event: Event) => {
-      const customEvent = event as CustomEvent<"all" | "my-games" | "cancelled">;
-      if (customEvent.detail === "my-games" || customEvent.detail === "all" || customEvent.detail === "cancelled") {
-        setActiveTab(customEvent.detail);
-        return;
-      }
-      setActiveTab("all");
-    };
 
-    window.addEventListener("player-tab-change", handleTabChange as EventListener);
-    return () => {
-      window.removeEventListener("player-tab-change", handleTabChange as EventListener);
-    };
-  }, []);
 
-  const changeTab = (tab: "all" | "my-games" | "cancelled") => {
+  const changeTab = (tab: "all" | "my-games" | "cancelled" | "completed") => {
     setActiveTab(tab);
-    if (typeof window !== "undefined") {
-      const sidebarSection = tab === "my-games" ? "mygames" : tab === "cancelled" ? "cancelled" : "browse";
-      window.dispatchEvent(new CustomEvent("player-tab-change", { detail: sidebarSection }));
-    }
     if (playerId) {
       router.replace(`/dashboard/player/${playerId}?tab=${tab}`);
     }
@@ -294,11 +280,21 @@ export default function PlayerDashboard() {
     const normalizedStatus = String(game.status || "").trim().toLowerCase();
     return normalizedStatus.startsWith("cancel");
   });
+  const completedGames = myGames.filter((game) => {
+    const normalizedStatus = String(game.status || "").trim().toLowerCase();
+    if (normalizedStatus.startsWith("cancel")) return false;
+    if (normalizedStatus.startsWith("complete")) return true;
+
+    const scheduledAt = new Date(game.scheduledAt).getTime();
+    return Number.isFinite(scheduledAt) && scheduledAt < Date.now();
+  });
   const gamesToDisplay = activeTab === 'all'
     ? games
     : activeTab === 'my-games'
       ? myGames
-      : cancelledGames;
+      : activeTab === 'cancelled'
+        ? cancelledGames
+        : completedGames;
   const filteredGames = gamesToDisplay.filter(g => 
     g.turf?.name?.toLowerCase().includes(search.toLowerCase()) ||
     g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
@@ -376,6 +372,14 @@ export default function PlayerDashboard() {
             <span className="tab-icon">⛔</span>
             <span className="tab-text">Cancelled</span>
             <span className="tab-badge">{cancelledGames.length}</span>
+          </button>
+          <button
+            className={`tab-btn player-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
+            onClick={() => changeTab('completed')}
+          >
+            <span className="tab-icon">✅</span>
+            <span className="tab-text">Completed</span>
+            <span className="tab-badge">{completedGames.length}</span>
           </button>
         </div>
       </div>
