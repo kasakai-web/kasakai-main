@@ -43,11 +43,12 @@ const POSITION_LABELS: Record<string, string> = {
 
 const TEAM_OPTIONS = [
   { label: "No Preference", cls: "" },
-  { label: "Red Team",      cls: "pref-red" },
-  { label: "Blue Team",     cls: "pref-blue" },
+  { label: "Red Team", cls: "pref-red" },
+  { label: "Blue Team", cls: "pref-blue" },
 ] as const;
 
 const MAX_GUESTS = 4;
+const DEFAULT_GUEST: Guest = { name: "Guest", position: "Any", teamPreference: "No Preference" };
 
 function GuestCard({
   index,
@@ -62,61 +63,111 @@ function GuestCard({
   onUpdate: (g: Partial<Guest>) => void;
   onRemove: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <div className="bm-guest-card">
+    <div className={`bm-guest-card ${expanded ? "expanded" : "collapsed"}`}>
       <div className="bm-guest-header">
-        <span className="bm-guest-label">Guest {index + 1}</span>
-        <div className="bm-guest-meta">
-          <span className="bm-guest-fee">+₹{gameFee}</span>
-          <button className="bm-guest-remove" onClick={onRemove} title="Remove guest">✕</button>
-        </div>
+        <button
+          type="button"
+          className="bm-guest-expand-btn"
+          onClick={() => setExpanded((value) => !value)}
+          aria-label={expanded ? "Collapse guest" : "Expand guest"}
+        >
+          <span className="bm-guest-label">
+            {guest.name || "Guest"} {index + 1}
+          </span>
+          {!expanded && (
+            <span className="bm-guest-summary-pills">
+              {guest.position !== "Any" && (
+                <span className="bm-pill bm-pill-pos">{guest.position}</span>
+              )}
+              {guest.teamPreference !== "No Preference" && (
+                <span className={`bm-pill ${guest.teamPreference === "Red Team" ? "bm-pill-red" : "bm-pill-blue"}`}>
+                  {guest.teamPreference}
+                </span>
+              )}
+            </span>
+          )}
+          <svg
+            className={`bm-chevron ${expanded ? "up" : "down"}`}
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        <button className="bm-guest-remove" type="button" onClick={onRemove} title="Remove guest">
+          ✕
+        </button>
       </div>
 
-      {/* Name */}
-      <div className="bm-guest-row">
-        <div className="bm-guest-row-label">Name</div>
-        <input
-          className="bm-guest-name-input"
-          type="text"
-          placeholder="Guest first name"
-          value={guest.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-          maxLength={40}
-        />
-      </div>
+      {expanded && (
+        <div className="bm-guest-fields">
+          <div className="bm-guest-meta">
+            <span className="bm-guest-fee">+₹{gameFee}</span>
+          </div>
 
-      {/* Position */}
-      <div className="bm-guest-row">
-        <div className="bm-guest-row-label">Position</div>
-        <div className="bm-guest-positions">
-          {POSITIONS.map((pos) => (
-            <button
-              key={pos}
-              className={`bm-guest-pos ${guest.position === pos ? "selected" : ""}`}
-              onClick={() => onUpdate({ position: pos })}
-              title={POSITION_LABELS[pos]}
-            >
-              {pos}
-            </button>
-          ))}
-        </div>
-      </div>
+          <div className="bm-guest-row">
+            <div className="bm-guest-row-label">Name</div>
+            <input
+              className="bm-guest-name-input"
+              type="text"
+              placeholder="Guest name"
+              value={guest.name}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+              maxLength={40}
+            />
+          </div>
 
-      {/* Team preference */}
-      <div className="bm-guest-row">
-        <div className="bm-guest-row-label">Team</div>
-        <div className="bm-guest-teams">
-          {TEAM_OPTIONS.map(({ label, cls }) => (
-            <button
-              key={label}
-              className={`bm-guest-team ${cls} ${guest.teamPreference === label ? "selected" : ""}`}
-              onClick={() => onUpdate({ teamPreference: label })}
-            >
-              {label}
-            </button>
-          ))}
+          <div className="bm-guest-row">
+            <div className="bm-guest-row-label">Position</div>
+            <div className="bm-guest-positions">
+              <button
+                type="button"
+                className={`bm-guest-pos ${guest.position === "Any" ? "selected" : ""}`}
+                onClick={() => onUpdate({ position: "Any" })}
+              >
+                Any
+              </button>
+              {POSITIONS.map((pos) => (
+                <button
+                  key={pos}
+                  type="button"
+                  className={`bm-guest-pos ${guest.position === pos ? "selected" : ""}`}
+                  onClick={() => onUpdate({ position: pos })}
+                  title={POSITION_LABELS[pos]}
+                >
+                  {pos}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bm-guest-row">
+            <div className="bm-guest-row-label">Team</div>
+            <div className="bm-guest-teams">
+              {TEAM_OPTIONS.map(({ label, cls }) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`bm-guest-team ${cls} ${guest.teamPreference === label ? "selected" : ""}`}
+                  onClick={() => onUpdate({ teamPreference: label })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -142,22 +193,20 @@ export function BookingModal({
   const canAfford = isWaitlist || walletBalance >= totalFee;
   const canAddGuest = guests.length < MAX_GUESTS;
 
-  const [venueName, venueCity] = game.venue.split(",").map((s) => s.trim());
+  const [venueName, venueCity] = game.venue.split(",").map((value) => value.trim());
   const hasPositions = playerPositions.length > 0;
-
-  const allGuestsNamed = guests.every((g) => g.name.trim().length > 0);
 
   const addGuest = () => {
     if (!canAddGuest) return;
-    setGuests((prev) => [...prev, { name: "", position: "DEF", teamPreference: "No Preference" }]);
+    setGuests((previous) => [...previous, { ...DEFAULT_GUEST }]);
   };
 
-  const removeGuest = (idx: number) => {
-    setGuests((prev) => prev.filter((_, i) => i !== idx));
+  const removeGuest = (index: number) => {
+    setGuests((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
   };
 
-  const updateGuest = (idx: number, patch: Partial<Guest>) => {
-    setGuests((prev) => prev.map((g, i) => (i === idx ? { ...g, ...patch } : g)));
+  const updateGuest = (index: number, patch: Partial<Guest>) => {
+    setGuests((previous) => previous.map((guest, currentIndex) => (currentIndex === index ? { ...guest, ...patch } : guest)));
   };
 
   const handleConfirm = async () => {
@@ -190,19 +239,24 @@ export function BookingModal({
       <div className="booking-modal show">
         {!success ? (
           <div id="bookingForm">
-            {/* Header */}
             <div className="bm-header">
               <div className="bm-title-group">
                 <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : "Game Sign-up"}</div>
                 <div className="bm-title">
                   {venueName}
-                  {venueCity ? <><br />{venueCity}</> : null}
+                  {venueCity ? (
+                    <>
+                      <br />
+                      {venueCity}
+                    </>
+                  ) : null}
                 </div>
               </div>
-              <button className="bm-close" onClick={closeAll}>✕</button>
+              <button className="bm-close" onClick={closeAll} type="button">
+                ✕
+              </button>
             </div>
 
-            {/* Event details */}
             <div className="bm-game-info">
               <div className="bm-info-item">
                 <div className="bm-info-label">Date</div>
@@ -223,23 +277,17 @@ export function BookingModal({
             </div>
 
             <div className="bm-body">
-              {/* Your position (read-only) */}
               <div>
                 <div className="bm-section-title">Your Position</div>
                 {hasPositions ? (
                   <>
                     <div className="position-grid">
-                      {playerPositions.map((pos) => (
-                        <button
-                          key={pos}
-                          className="pos-opt selected"
-                          disabled
-                          style={{ cursor: "default", opacity: 1 }}
-                        >
-                          {pos}
-                          {POSITION_LABELS[pos] && (
+                      {playerPositions.map((position) => (
+                        <button key={position} className="pos-opt selected" disabled style={{ cursor: "default", opacity: 1 }}>
+                          {position}
+                          {POSITION_LABELS[position] && (
                             <span style={{ display: "block", fontSize: "10px", opacity: 0.7, marginTop: "2px" }}>
-                              {POSITION_LABELS[pos]}
+                              {POSITION_LABELS[position]}
                             </span>
                           )}
                         </button>
@@ -248,17 +296,21 @@ export function BookingModal({
                     <p style={{ margin: "8px 0 0", fontSize: "11px", color: "var(--muted,#666)", display: "flex", alignItems: "center", gap: "4px" }}>
                       <span style={{ color: "var(--lime,#c4d56c)" }}>ⓘ</span>
                       {playerId ? (
-                        <>To change,{" "}
+                        <>
+                          To change, {" "}
                           <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
                             update your profile
-                          </Link>.
+                          </Link>
+                          .
                         </>
-                      ) : "Update your profile to change position."}
+                      ) : (
+                        "Update your profile to change position."
+                      )}
                     </p>
                   </>
                 ) : (
                   <p style={{ fontSize: "12px", color: "var(--muted,#666)", margin: "4px 0 0" }}>
-                    No position set.{" "}
+                    No position set. {" "}
                     {playerId && (
                       <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
                         Add one in your profile
@@ -268,23 +320,17 @@ export function BookingModal({
                 )}
               </div>
 
-              {/* Your team preference */}
               <div>
                 <div className="bm-section-title">Your Team Preference</div>
                 <div className="pref-row">
                   {TEAM_OPTIONS.map(({ label, cls }) => (
-                    <button
-                      key={label}
-                      className={`pref-opt ${cls} ${teamPreference === label ? "selected" : ""}`}
-                      onClick={() => setTeamPreference(label)}
-                    >
+                    <button key={label} type="button" className={`pref-opt ${cls} ${teamPreference === label ? "selected" : ""}`} onClick={() => setTeamPreference(label)}>
                       {label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Bring friends section */}
               <div className="bm-guests-section">
                 <div className="bm-guests-header">
                   <div>
@@ -299,6 +345,7 @@ export function BookingModal({
                     className={`bm-add-guest-btn ${!canAddGuest ? "disabled" : ""}`}
                     onClick={addGuest}
                     disabled={!canAddGuest}
+                    type="button"
                   >
                     + Add Guest
                   </button>
@@ -306,21 +353,20 @@ export function BookingModal({
 
                 {guests.length > 0 && (
                   <div className="bm-guests-list">
-                    {guests.map((guest, idx) => (
+                    {guests.map((guest, index) => (
                       <GuestCard
-                        key={idx}
-                        index={idx}
+                        key={index}
+                        index={index}
                         guest={guest}
                         gameFee={game.fee}
-                        onUpdate={(patch) => updateGuest(idx, patch)}
-                        onRemove={() => removeGuest(idx)}
+                        onUpdate={(patch) => updateGuest(index, patch)}
+                        onRemove={() => removeGuest(index)}
                       />
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Wallet summary */}
               <div className="wallet-summary">
                 <div className="ws-left">
                   <div className="ws-label">
@@ -348,24 +394,8 @@ export function BookingModal({
                 </p>
               )}
 
-              {guests.length > 0 && !allGuestsNamed && (
-                <p style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
-                  Please enter a name for each guest.
-                </p>
-              )}
-
-              <button
-                className="bm-confirm-btn"
-                disabled={!canAfford || isLoading || !allGuestsNamed}
-                onClick={handleConfirm}
-              >
-                <span>
-                  {isLoading
-                    ? "Processing..."
-                    : isWaitlist
-                    ? "Join Waitlist — No Charge Yet"
-                    : `Confirm & Pay ₹${totalFee}`}
-                </span>
+              <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
+                <span>{isLoading ? "Processing..." : isWaitlist ? "Join Waitlist — No Charge Yet" : `Confirm & Pay ₹${totalFee}`}</span>
               </button>
             </div>
           </div>
@@ -378,11 +408,7 @@ export function BookingModal({
                 ? `You've joined the waitlist for ${venueName}.`
                 : `Registered for ${venueName}. ₹${totalFee} deducted from your wallet.${guests.length > 0 ? ` ${guests.length} guest${guests.length > 1 ? "s" : ""} added.` : ""}`}
             </div>
-            <button
-              className="bm-confirm-btn"
-              style={{ maxWidth: "240px", marginTop: "8px" }}
-              onClick={closeAll}
-            >
+            <button className="bm-confirm-btn" style={{ maxWidth: "240px", marginTop: "8px" }} onClick={closeAll} type="button">
               <span>View My Games</span>
             </button>
           </div>

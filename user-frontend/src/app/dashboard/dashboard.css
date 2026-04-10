@@ -1111,7 +1111,6 @@ body::after {
   flex-direction: column;
   gap: 10px;
 }
-
 /* Guest card */
 .bm-guest-card {
   border: 1px solid #222;
@@ -1119,24 +1118,88 @@ body::after {
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 .bm-guest-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
+.bm-guest-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Expand/collapse button (takes up left side of header) */
+.bm-guest-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.bm-guest-expand-btn:hover .bm-guest-label { color: var(--white); }
+
 .bm-guest-label {
   font-family: var(--mono, monospace);
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+  transition: color 0.15s;
+  white-space: nowrap;
 }
-.bm-guest-meta {
+
+/* Summary pills shown when collapsed */
+.bm-guest-summary-pills {
   display: flex;
   align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.bm-pill {
+  font-family: var(--mono, monospace);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  color: var(--muted);
+  border: 1px solid #2a2a2a;
+  white-space: nowrap;
+}
+.bm-pill.bm-pill-pos { color: var(--lime, #c4d56c); border-color: rgba(196,213,108,0.2); background: rgba(196,213,108,0.06); }
+.bm-pill.bm-pill-red { color: #ff6b6b; border-color: rgba(231,76,60,0.25); background: rgba(231,76,60,0.08); }
+.bm-pill.bm-pill-blue { color: #74b9ff; border-color: rgba(52,152,219,0.25); background: rgba(52,152,219,0.08); }
+
+/* Chevron arrow */
+.bm-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.2s, color 0.15s;
+  margin-left: auto;
+}
+.bm-guest-expand-btn:hover .bm-chevron { color: var(--white); }
+.bm-chevron.up { transform: rotate(180deg); }
+
+/* Expanded fields wrapper */
+.bm-guest-fields {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #1a1a1a;
 }
 .bm-guest-fee {
   font-family: var(--mono, monospace);
