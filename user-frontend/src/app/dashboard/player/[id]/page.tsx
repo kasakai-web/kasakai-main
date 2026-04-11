@@ -162,6 +162,12 @@ export default function PlayerDashboard() {
 
   const changeTab = (tab: "all" | "my-games" | "cancelled" | "completed") => {
     setActiveTab(tab);
+
+    if (typeof window !== "undefined") {
+      const sidebarSection = tab === "my-games" ? "mygames" : tab === "cancelled" ? "cancelled" : tab === "completed" ? "completed" : "browse";
+      window.dispatchEvent(new CustomEvent("player-tab-change", { detail: sidebarSection }));
+    }
+
     if (playerId) {
       router.replace(`/dashboard/player/${playerId}?tab=${tab}`);
     }
