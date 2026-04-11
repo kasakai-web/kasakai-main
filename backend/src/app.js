@@ -18,6 +18,13 @@ const adminRoutes = require('./modules/admin/admin.routes');
 
 const app = express();
 
+const normalizeOrigin = (value) => {
+  if (!value) return value;
+  return String(value).trim().replace(/\/+$/, '');
+};
+
+const allowedOrigins = new Set(env.corsOrigin.map(normalizeOrigin));
+
 app.disable('x-powered-by');
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -38,7 +45,9 @@ app.use(
         return callback(null, true);
       }
 
-      if (!origin || env.corsOrigin.includes(origin)) {
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (!origin || allowedOrigins.has(normalizedOrigin)) {
         return callback(null, true);
       }
 
