@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 interface Registration {
   _id?: string;
@@ -12,11 +12,25 @@ interface Registration {
   paymentStatus?: string;
 }
 
+interface WaitlistEntry {
+  _id?: string;
+  player?: { _id?: string; name?: string; phone?: string; email?: string };
+  joinedAt?: string;
+  status?: string;
+  preferredPosition?: string;
+  teamPreference?: string;
+}
+
 interface PlayerDetailsModalProps {
   gameName: string;
   players: Registration[];
+  waitlist?: WaitlistEntry[];
   totalSlots: number;
   onClose: () => void;
+  organiserIsPlaying?: boolean;
+  onToggleOrganiserPlaying?: () => void;
+  onRemoveRegistration?: (regId: string) => Promise<void>;
+  onApproveWaitlist?: (waitlistId: string) => Promise<void>;
 }
 
 const POS_LABEL: Record<string, string> = {
@@ -58,28 +72,41 @@ function initials(name?: string) {
 export function PlayerDetailsModal({
   gameName,
   players,
+  waitlist = [],
   totalSlots,
   onClose,
+  organiserIsPlaying = false,
+  onToggleOrganiserPlaying,
+  onRemoveRegistration,
+  onApproveWaitlist,
 }: PlayerDetailsModalProps) {
-  const mainRegs = players.filter((r) => !r.plusOneName);
+  const [copied, setCopied]           = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  // totalSlots is the hard cap (includes organiser slot when organiserIsPlaying)
+  const organiserCount = organiserIsPlaying ? 1 : 0;
+
+  const handleCopyList = () => {
+    const lines: string[] = [`${gameName} — Player List`, `${"─".repeat(40)}`];
+    let num = 1;
+    players.forEach((r) => {
+      const name = r.plusOneName
+        ? `${r.plusOneName} (Guest)`
+        : (r.player?.name || "Unknown");
+      const pos = posLabel(r.preferredPosition);
+      lines.push(`${num}. ${name}${pos ? ` [${pos}]` : ""}`);
+      num++;
+    });
+    lines.push(`${"─".repeat(40)}`);
+    lines.push(`Total: ${players.length} / ${totalSlots}`);
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const mainRegs  = players.filter((r) => !r.plusOneName);
   const guestRegs = players.filter((r) => !!r.plusOneName);
-  const spotsLeft = Math.max(0, totalSlots - players.length);
-
-  type Group = { main: Registration; guests: Registration[] };
-  const groups: Group[] = mainRegs.map((main) => ({
-    main,
-    guests: guestRegs.filter(
-      (g) =>
-        (g.player?._id || g.player) === (main.player?._id || main.player)
-    ),
-  }));
-
-  const orphanGuests = guestRegs.filter(
-    (g) =>
-      !mainRegs.some(
-        (m) => (m.player?._id || m.player) === (g.player?._id || g.player)
-      )
-  );
+  const spotsLeft = Math.max(0, totalSlots - players.length - organiserCount);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -93,9 +120,26 @@ export function PlayerDetailsModal({
             <h2>Registered Players</h2>
             <p className="modal-subtitle">{gameName}</p>
           </div>
-          <button className="close-btn" onClick={onClose}>
-            ✕
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={handleCopyList}
+              style={{
+                background: copied ? "rgba(200,255,62,0.15)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${copied ? "rgba(200,255,62,0.4)" : "#333"}`,
+                color: copied ? "#c8ff3e" : "#ccc",
+                padding: "6px 12px",
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: "pointer",
+                fontWeight: 600,
+                transition: "all 0.2s",
+              }}
+              title="Copy player list to clipboard"
+            >
+              {copied ? "✓ Copied!" : "📋 Copy List"}
+            </button>
+            <button className="close-btn" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         {/* Stats Strip */}
@@ -129,39 +173,219 @@ export function PlayerDetailsModal({
             </span>
             <span className="pdm-stat-lbl">Available</span>
           </div>
+          {waitlist.filter((w) => w.status === "approved").length > 0 && (
+            <>
+              <div className="pdm-stat-div" />
+              <div className="pdm-stat">
+                <span className="pdm-stat-val" style={{ color: "#4ade80" }}>{waitlist.filter((w) => w.status === "approved").length}</span>
+                <span className="pdm-stat-lbl">Approved</span>
+              </div>
+            </>
+          )}
+          {waitlist.filter((w) => w.status !== "approved").length > 0 && (
+            <>
+              <div className="pdm-stat-div" />
+              <div className="pdm-stat">
+                <span className="pdm-stat-val" style={{ color: "#f59e0b" }}>{waitlist.filter((w) => w.status !== "approved").length}</span>
+                <span className="pdm-stat-lbl">Waiting</span>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Cards */}
+        {/* ── Registered Players ── */}
         <div className="pdm-cards-scroll">
-          {players.length === 0 ? (
+          {players.length === 0 && !organiserIsPlaying ? (
             <div className="empty-state">
               <div className="empty-icon">👥</div>
               <p>No players registered yet</p>
             </div>
           ) : (
             <div className="pdm-cards-list">
-              {groups.map((group, gi) => (
-                <div key={gi} className="pdm-group">
-                  {/* Main player card */}
-                  <PlayerCard reg={group.main} type="player" />
 
-                  {/* Guest cards */}
-                  {group.guests.length > 0 && (
-                    <div className="pdm-guest-group">
-                      {group.guests.map((guest, gi2) => (
-                        <PlayerCard key={gi2} reg={guest} type="guest" />
-                      ))}
+              {/* Organiser card (if playing) */}
+              {organiserIsPlaying && (
+                <div className="pdm-card pdm-card-organiser">
+                  <div className="pdm-slot-num">#1</div>
+                  <div className="pdm-avatar pdm-avatar-o">YOU</div>
+                  <div className="pdm-card-body">
+                    <div className="pdm-card-top">
+                      <div className="pdm-card-name">You (Organiser)</div>
+                      <span className="pdm-type-chip pdm-chip-organiser">Organiser</span>
                     </div>
+                    <div className="pdm-card-tags">
+                      <span className="pdm-pos-tag" style={{ background: "rgba(200,255,62,0.12)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.3)" }}>
+                        ⚽ Playing
+                      </span>
+                    </div>
+                  </div>
+                  {onToggleOrganiserPlaying && (
+                    <button className="pdm-organiser-edit-btn" onClick={onToggleOrganiserPlaying} title="Withdraw from game">
+                      ✎ Edit
+                    </button>
                   )}
                 </div>
-              ))}
+              )}
 
-              {orphanGuests.map((guest, idx) => (
-                <PlayerCard key={`orphan-${idx}`} reg={guest} type="guest" />
-              ))}
+              {/* All registrations — flat numbered list */}
+              {players.map((reg, idx) => {
+                const slotNum = organiserCount + idx + 1;
+                const regId   = reg._id || "";
+                return (
+                  <PlayerCard
+                    key={regId || idx}
+                    reg={reg}
+                    slotNum={slotNum}
+                    type={reg.plusOneName ? "guest" : "player"}
+                    isProcessing={processingId === regId}
+                    onRemove={
+                      onRemoveRegistration && regId
+                        ? async () => {
+                            if (!window.confirm(`Remove ${reg.plusOneName || reg.player?.name || "this player"} from the game?`)) return;
+                            setProcessingId(regId);
+                            await onRemoveRegistration(regId);
+                            setProcessingId(null);
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })}
+
             </div>
           )}
         </div>
+
+        {/* Waitlist Section */}
+        {waitlist.length > 0 && (
+          <div style={{ margin: "0 0 16px 0" }}>
+            {/* Approved sub-section */}
+            {waitlist.some((w) => w.status === "approved") && (
+              <>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 0 8px 0", borderTop: "1px solid #222", marginTop: 8,
+                }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#4ade80" }}>
+                    ✓ Approved Waitlist ({waitlist.filter((w) => w.status === "approved").length})
+                  </span>
+                </div>
+                <div className="pdm-cards-list">
+                  {waitlist.filter((w) => w.status === "approved").map((entry, idx) => {
+                    const wId = entry._id || "";
+                    return (
+                      <div key={wId || idx} className="pdm-card pdm-card-player" style={{ borderLeft: "3px solid #4ade80" }}>
+                        <div className="pdm-slot-num" style={{ color: "#4ade80" }}>#{idx + 1}</div>
+                        <div className="pdm-avatar pdm-avatar-p" style={{ background: "rgba(74,222,128,0.12)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.3)" }}>
+                          {initials(entry.player?.name)}
+                        </div>
+                        <div className="pdm-card-body">
+                          <div className="pdm-card-top">
+                            <div className="pdm-card-name">{entry.player?.name || "Unknown"}</div>
+                            <span className="pdm-type-chip" style={{ background: "rgba(74,222,128,0.12)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.25)" }}>
+                              ✓ Approved
+                            </span>
+                          </div>
+                          {(entry.player?.phone || entry.player?.email) && (
+                            <div className="pdm-card-contact">
+                              {entry.player?.phone && (
+                                <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
+                              )}
+                              {entry.player?.email && (
+                                <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="pdm-card-tags">
+                            {entry.preferredPosition && entry.preferredPosition !== "any" && (
+                              <span className="pdm-pos-tag">{posLabel(entry.preferredPosition)}</span>
+                            )}
+                            {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* Pending waitlist sub-section */}
+            {waitlist.some((w) => w.status !== "approved") && (
+              <>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 0 8px 0", borderTop: "1px solid #222", marginTop: 8,
+                }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
+                    📋 Waiting ({waitlist.filter((w) => w.status !== "approved").length})
+                  </span>
+                </div>
+                <div className="pdm-cards-list">
+                  {waitlist.filter((w) => w.status !== "approved").map((entry, idx) => {
+                    const wId = entry._id || "";
+                    const isApproving = processingId === `approve-${wId}`;
+                    return (
+                      <div key={wId || idx} className="pdm-card pdm-card-player" style={{ borderLeft: "3px solid #f59e0b", opacity: 0.9 }}>
+                        <div className="pdm-slot-num" style={{ color: "#f59e0b" }}>#{idx + 1}</div>
+                        <div className="pdm-avatar pdm-avatar-p" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)" }}>
+                          {initials(entry.player?.name)}
+                        </div>
+                        <div className="pdm-card-body">
+                          <div className="pdm-card-top">
+                            <div className="pdm-card-name">{entry.player?.name || "Unknown"}</div>
+                            <span className="pdm-type-chip" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}>
+                              Waitlist
+                            </span>
+                          </div>
+                          {(entry.player?.phone || entry.player?.email) && (
+                            <div className="pdm-card-contact">
+                              {entry.player?.phone && (
+                                <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
+                              )}
+                              {entry.player?.email && (
+                                <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="pdm-card-tags">
+                            {entry.preferredPosition && entry.preferredPosition !== "any" && (
+                              <span className="pdm-pos-tag">{posLabel(entry.preferredPosition)}</span>
+                            )}
+                            {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
+                          </div>
+                        </div>
+
+                        {onApproveWaitlist && wId && (
+                          <button
+                            disabled={isApproving}
+                            onClick={async () => {
+                              if (!window.confirm(`Approve ${entry.player?.name || "this player"} from waitlist?`)) return;
+                              setProcessingId(`approve-${wId}`);
+                              await onApproveWaitlist(wId);
+                              setProcessingId(null);
+                            }}
+                            style={{
+                              flexShrink: 0, alignSelf: "center", padding: "6px 14px",
+                              borderRadius: 6,
+                              background: isApproving ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.15)",
+                              border: "1px solid rgba(245,158,11,0.4)",
+                              color: "#f59e0b", fontSize: 12, fontWeight: 700,
+                              cursor: isApproving ? "not-allowed" : "pointer",
+                              whiteSpace: "nowrap" as const,
+                            }}
+                          >
+                            {isApproving ? "…" : "✓ Approve"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="modal-footer">
           <button className="btn-close" onClick={onClose}>
@@ -175,27 +399,31 @@ export function PlayerDetailsModal({
 
 function PlayerCard({
   reg,
+  slotNum,
   type,
+  isProcessing,
+  onRemove,
 }: {
   reg: Registration;
+  slotNum?: number;
   type: "player" | "guest";
+  isProcessing?: boolean;
+  onRemove?: () => void;
 }) {
   const isGuest = type === "guest";
-  const name = isGuest
-    ? reg.plusOneName ?? "Guest"
-    : reg.player?.name ?? "Unknown";
-  const pos = posLabel(reg.preferredPosition);
-  const team = teamInfo(reg.teamPreference);
-  const date = fmtDate(reg.signedUpAt);
+  const name    = isGuest ? (reg.plusOneName ?? "Guest") : (reg.player?.name ?? "Unknown");
+  const pos     = posLabel(reg.preferredPosition);
+  const team    = teamInfo(reg.teamPreference);
+  const date    = fmtDate(reg.signedUpAt);
 
   return (
     <div className={`pdm-card ${isGuest ? "pdm-card-guest" : "pdm-card-player"}`}>
-      {/* Avatar */}
+      {slotNum !== undefined && <div className="pdm-slot-num">#{slotNum}</div>}
+
       <div className={`pdm-avatar ${isGuest ? "pdm-avatar-g" : "pdm-avatar-p"}`}>
         {initials(name)}
       </div>
 
-      {/* Main info */}
       <div className="pdm-card-body">
         <div className="pdm-card-top">
           <div className="pdm-card-name">{name}</div>
@@ -222,13 +450,38 @@ function PlayerCard({
         )}
 
         <div className="pdm-card-tags">
-          {pos && <span className="pdm-pos-tag">{pos}</span>}
-          {team && (
-            <span className={`pdm-team-tag ${team.cls}`}>{team.label}</span>
-          )}
+          {pos  && <span className="pdm-pos-tag">{pos}</span>}
+          {team && <span className={`pdm-team-tag ${team.cls}`}>{team.label}</span>}
           {date && <span className="pdm-date-tag">{date}</span>}
         </div>
       </div>
+
+      {/* Remove button — visible for every slot */}
+      {onRemove && (
+        <button
+          disabled={isProcessing}
+          onClick={onRemove}
+          title={`Remove ${name}`}
+          style={{
+            flexShrink: 0,
+            alignSelf: "center",
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            background: isProcessing ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.1)",
+            border: "1px solid rgba(220,38,38,0.3)",
+            color: "#f87171",
+            fontSize: 14,
+            lineHeight: 1,
+            cursor: isProcessing ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {isProcessing ? "…" : "✕"}
+        </button>
+      )}
     </div>
   );
 }

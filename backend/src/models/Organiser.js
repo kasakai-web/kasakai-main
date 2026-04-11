@@ -190,7 +190,35 @@ const OrganiserSchema = new mongoose.Schema(
     default: true
   },
 
-  lastGameCreatedAt: Date
+  lastGameCreatedAt: Date,
+
+  // ===============================
+  // 📋 GAME TEMPLATES
+  // ===============================
+  gameTemplates: [
+    {
+      name:                    { type: String, required: true, trim: true },
+      turf:                    { type: mongoose.Schema.Types.ObjectId, ref: 'Turf', default: null },
+      format:                  { type: String, enum: ['5v5','6v6','7v7','8v8','9v9','10v10'], default: '6v6' },
+      durationMins:            { type: Number, default: 60 },
+      feeInPaise:              { type: Number, default: 0 },
+      minPlayers:              { type: Number, default: 0 },
+      totalSlots:              { type: Number, default: 0 },
+      reportingMinsBeforeGame: { type: Number, default: 30 },
+      allowSizeChange:         { type: Boolean, default: false },
+      organiserIsPlaying:      { type: Boolean, default: false },
+      alternateFormats: [
+        {
+          format:     { type: String, enum: ['5v5','6v6','7v7','8v8','9v9','10v10'] },
+          turf:       { type: mongoose.Schema.Types.ObjectId, ref: 'Turf', default: null },
+          minPlayers: { type: Number },
+          maxPlayers: { type: Number },
+          feeInPaise: { type: Number },
+        },
+      ],
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
 
 },
 {

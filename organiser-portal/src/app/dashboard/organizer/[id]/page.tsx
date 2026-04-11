@@ -21,6 +21,10 @@ export default function OrganizerDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPlayersModal, setShowPlayersModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelTargetGame, setCancelTargetGame] = useState<any>(null);
+  const [cancelMessage, setCancelMessage] = useState("");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [games, setGames] = useState<any[]>([]);
@@ -80,7 +84,84 @@ export default function OrganizerDashboard() {
     console.log("Event Created", data);
   };
 
-  const handleCancelGame = async (gameId: string) => {
+  const handleConfirmGame = async (gameId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    try {
+      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/confirm`), {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { alert(data.message || 'Failed to confirm game'); return; }
+      fetchGames();
+    } catch (err) {
+      alert('Failed to confirm game. Please try again.');
+    }
+  };
+
+  const handleOrganiserWithdraw = async (gameId: string) => {
+    if (!window.confirm('Are you sure you want to withdraw yourself from this game?')) return;
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    try {
+      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/withdraw`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { alert(data.message || 'Failed to withdraw'); return; }
+      fetchGames();
+    } catch (err) {
+      alert('Failed to withdraw. Please try again.');
+    }
+  };
+
+  const handleRemoveRegistration = async (gameId: string, regId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/registrations/${regId}`), {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
+    // Refresh games and keep the modal open with updated data
+    const { token: t2 } = getSession();
+    const refreshed = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
+      headers: { Authorization: `Bearer ${t2}` },
+    });
+    const refreshedData = await refreshed.json();
+    if (refreshedData.success) {
+      const updatedGames: any[] = refreshedData.data;
+      setGames(updatedGames);
+      setSelectedGame((prev: any) => updatedGames.find((g) => g._id === prev?._id) ?? prev);
+    }
+  };
+
+  const handleApproveWaitlist = async (gameId: string, waitlistId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/waitlist/${waitlistId}/approve`), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
+    const { token: t2 } = getSession();
+    const refreshed = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
+      headers: { Authorization: `Bearer ${t2}` },
+    });
+    const refreshedData = await refreshed.json();
+    if (refreshedData.success) {
+      const updatedGames: any[] = refreshedData.data;
+      setGames(updatedGames);
+      setSelectedGame((prev: any) => updatedGames.find((g) => g._id === prev?._id) ?? prev);
+    }
+  };
+
+  const handleCancelGame = async (gameId: string, message: string) => {
+    setCancellingId(gameId);
     try {
       const { token } = getSession();
 
@@ -95,7 +176,8 @@ export default function OrganizerDashboard() {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ cancelMessage: message }),
       });
 
       const contentType = response.headers.get("content-type") || "";
@@ -115,13 +197,23 @@ export default function OrganizerDashboard() {
         return;
       }
 
-      alert('Event cancelled successfully!');
+      setShowCancelModal(false);
+      setCancelTargetGame(null);
+      setCancelMessage("");
       // Refresh the games list
       fetchGames();
     } catch (error) {
       console.error('Error cancelling event:', error);
       alert(`Failed to cancel event. Please try again. ${(error as Error).message || ''}`);
+    } finally {
+      setCancellingId(null);
     }
+  };
+
+  const openCancelModal = (game: any) => {
+    setCancelTargetGame(game);
+    setCancelMessage("");
+    setShowCancelModal(true);
   };
 
   // Separate games into upcoming and past based on both status and scheduled date
@@ -140,6 +232,9 @@ export default function OrganizerDashboard() {
     const isCancelled = g.status === 'cancelled';
     return isInPast || isCompleted || isCancelled;
   });
+
+  const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
+  const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
 
   return (
     <div className="organizer-dashboard-container">
@@ -189,9 +284,9 @@ export default function OrganizerDashboard() {
         <div className="stat-card stat-players">
           <div className="stat-icon">👥</div>
           <div className="stat-details">
-            <div className="stat-value">{games.reduce((total, game) => total + (game.registrations?.length || 0), 0)}</div>
+            <div className="stat-value">{games.reduce((total, game) => total + getTotalPlayers(game), 0)}</div>
             <div className="stat-title">Total Players</div>
-            <div className="stat-desc">Registered across all games</div>
+            <div className="stat-desc">Including organisers who are playing</div>
           </div>
         </div>
       </div>
@@ -264,10 +359,25 @@ export default function OrganizerDashboard() {
                         <div className="date-time">
                           {new Date(game.scheduledAt).toLocaleDateString()} · {new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
+                        {game.reportingMinsBeforeGame > 0 && (
+                          <div className="date-time" style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
+                            Report: {(() => {
+                              const d = new Date(new Date(game.scheduledAt).getTime() - game.reportingMinsBeforeGame * 60000);
+                              return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            })()}
+                            {game.endsAt && ` · Ends: ${new Date(game.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                          </div>
+                        )}
+                        {game.organiserIsPlaying && (
+                          <div style={{ fontSize: 10, color: '#c8ff3e', marginTop: 2 }}>⚽ You are playing</div>
+                        )}
                       </div>
                     </div>
                     <div className="col col-format">
                       <span className="format-badge">{game.format}</span>
+                      {game.allowSizeChange && (
+                        <div style={{ fontSize: 10, color: '#888', marginTop: 3 }} title="Format change allowed">⇄ flexible</div>
+                      )}
                     </div>
                     <div className="col col-fee">
                       <div className="fee-value">₹{game.feeInPaise ? game.feeInPaise / 100 : 0}</div>
@@ -275,7 +385,8 @@ export default function OrganizerDashboard() {
                     <div className="col col-players">
                       {(() => {
                         const regs = game.registrations || [];
-                        const total = regs.length;
+                        const organiserCount = getOrganiserCount(game);
+                        const total = regs.length + organiserCount;
                         const guests = regs.filter((r: any) => r.plusOneName).length;
                         const realPlayers = total - guests;
                         return (
@@ -288,7 +399,7 @@ export default function OrganizerDashboard() {
                             )}
                             {total > 0 && (
                               <div className="players-bar">
-                                <div className="players-bar-fill" style={{ width: `${(total / game.totalSlots) * 100}%` }} />
+                                <div className="players-bar-fill" style={{ width: `${Math.min(100, (total / game.totalSlots) * 100)}%` }} />
                               </div>
                             )}
                           </div>
@@ -300,40 +411,37 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-actions">
                       <div className="action-buttons">
-                        <button 
+                        <button
                           className="btn-action btn-players"
-                          onClick={() => {
-                            setSelectedGame(game);
-                            setShowPlayersModal(true);
-                          }}
+                          onClick={() => { setSelectedGame(game); setShowPlayersModal(true); }}
                           title="View Players"
-                        >
-                          👥
-                        </button>
-                        <button 
+                        >👥</button>
+                        <button
                           className="btn-action btn-edit"
-                          onClick={() => {
-                            setSelectedGame(game);
-                            setShowEditModal(true);
-                          }}
+                          onClick={() => { setSelectedGame(game); setShowEditModal(true); }}
                           title="Edit Event"
-                        >
-                          ✏️
-                        </button>
-                        <button 
+                        >✏️</button>
+                        {['open','tentative'].includes(game.status) && game.registrations?.length >= game.minPlayers && (
+                          <button
+                            className="btn-action btn-confirm"
+                            onClick={() => handleConfirmGame(game._id)}
+                            title="Confirm Game"
+                            style={{ background: 'rgba(200,255,62,0.15)', color: '#c8ff3e', border: '1px solid rgba(200,255,62,0.3)' }}
+                          >✓</button>
+                        )}
+                        {game.organiserIsPlaying && (
+                          <button
+                            className="btn-action"
+                            onClick={() => handleOrganiserWithdraw(game._id)}
+                            title="Withdraw from game"
+                            style={{ background: 'rgba(255,179,71,0.15)', color: '#ffb347', border: '1px solid rgba(255,179,71,0.3)', fontSize: 12 }}
+                          >↩</button>
+                        )}
+                        <button
                           className="btn-action btn-cancel"
-                          onClick={() => {
-                            const confirmCancel = window.confirm(
-                              `Are you sure you want to cancel "${game.title}"?\n\nThis action cannot be undone.`
-                            );
-                            if (confirmCancel) {
-                              handleCancelGame(game._id);
-                            }
-                          }}
+                          onClick={() => openCancelModal(game)}
                           title="Cancel Event"
-                        >
-                          ✕
-                        </button>
+                        >✕</button>
                       </div>
                     </div>
                   </div>
@@ -381,12 +489,15 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-format">
                       <span className="format-badge">{game.format}</span>
+                      {game.allowSizeChange && (
+                        <div style={{ fontSize: 10, color: '#888', marginTop: 3 }} title="Format change allowed">⇄ flexible</div>
+                      )}
                     </div>
                     <div className="col col-fee">
                       <div className="fee-value">₹{game.feeInPaise ? game.feeInPaise / 100 : 0}</div>
                     </div>
                     <div className="col col-players">
-                      <div className="players-count">{game.registrations?.length || 0}</div>
+                      <div className="players-count">{getTotalPlayers(game)}</div>
                     </div>
                     <div className="col col-revenue">
                       <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>
@@ -451,12 +562,92 @@ export default function OrganizerDashboard() {
         <PlayerDetailsModal
           gameName={selectedGame.title}
           players={selectedGame.registrations || []}
+          waitlist={selectedGame.waitlist || []}
           totalSlots={selectedGame.totalSlots}
+          organiserIsPlaying={Boolean(selectedGame.organiserIsPlaying)}
+          onToggleOrganiserPlaying={() => handleOrganiserWithdraw(selectedGame._id)}
+          onRemoveRegistration={async (regId) => {
+            await handleRemoveRegistration(selectedGame._id, regId);
+          }}
+          onApproveWaitlist={async (waitlistId) => {
+            await handleApproveWaitlist(selectedGame._id, waitlistId);
+          }}
           onClose={() => {
             setShowPlayersModal(false);
             setSelectedGame(null);
           }}
         />
+      )}
+
+      {showCancelModal && cancelTargetGame && (
+        <div className="modal-overlay" onClick={() => { setShowCancelModal(false); setCancelTargetGame(null); setCancelMessage(""); }}>
+          <div className="modal-content" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ margin: 0 }}>Cancel Event</h2>
+              <p style={{ marginTop: 8, color: "#888", fontSize: 14 }}>
+                You are about to cancel <strong>{cancelTargetGame.title}</strong>. All registered players will receive an email notification.
+              </p>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#ccc" }}>
+                Message to players (optional)
+              </label>
+              <textarea
+                rows={4}
+                value={cancelMessage}
+                onChange={(e) => setCancelMessage(e.target.value)}
+                placeholder="e.g. Due to bad weather, we are unable to host this event. Apologies for the inconvenience."
+                style={{
+                  width: "100%",
+                  background: "#111",
+                  border: "1px solid #333",
+                  color: "#fff",
+                  borderRadius: 6,
+                  padding: "10px 12px",
+                  fontSize: 13,
+                  resize: "vertical",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <button
+                type="button"
+                onClick={() => { setShowCancelModal(false); setCancelTargetGame(null); setCancelMessage(""); }}
+                disabled={cancellingId === cancelTargetGame._id}
+                style={{
+                  padding: "8px 20px",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  background: "#222",
+                  border: "1px solid #444",
+                  color: "#ccc",
+                  fontWeight: 600,
+                }}
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                className="btn-cancel-confirm"
+                disabled={cancellingId === cancelTargetGame._id}
+                onClick={() => handleCancelGame(cancelTargetGame._id, cancelMessage)}
+                style={{
+                  padding: "8px 20px",
+                  borderRadius: 6,
+                  background: "#c0392b",
+                  color: "#fff",
+                  border: "none",
+                  fontWeight: 600,
+                  cursor: cancellingId === cancelTargetGame._id ? "not-allowed" : "pointer",
+                  opacity: cancellingId === cancelTargetGame._id ? 0.7 : 1,
+                }}
+              >
+                {cancellingId === cancelTargetGame._id ? "Cancelling..." : "Confirm Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

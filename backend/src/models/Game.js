@@ -56,6 +56,8 @@ const RegistrationSchema = new mongoose.Schema(
     },
     assignedColour: { type: String, default: null },
 
+    willingIfFormatChange: { type: Boolean, default: true },
+
     signedUpAt: { type: Date, default: Date.now },
     backedOutAt: { type: Date, default: null },
     backoutType: {
@@ -80,9 +82,20 @@ const WaitlistEntrySchema = new mongoose.Schema(
     respondedAt:{ type: Date, default: null },
     status: {
       type: String,
-      enum: ['waiting','notified','accepted','declined','expired'],
+      enum: ['waiting','notified','approved','accepted','declined','expired'],
       default: 'waiting',
     },
+    preferredPosition: {
+      type: String,
+      enum: ['goalkeeper','defender','midfielder','forward','any'],
+      default: 'any',
+    },
+    teamPreference: {
+      type: String,
+      enum: ['same','opposite','none','red','blue'],
+      default: 'none',
+    },
+    willingIfFormatChange: { type: Boolean, default: true },
   },
   { _id: true }
 );
@@ -143,7 +156,9 @@ const GameSchema = new mongoose.Schema(
     },
 
     scheduledAt:   { type: Date, required: true, index: true },
+    reportingMinsBeforeGame: { type: Number, default: 30 }, // players arrive X mins before start
     durationMins:  { type: Number, default: 60 },
+    endsAt:        { type: Date, default: null },           // auto-set = scheduledAt + durationMins
     cutoffAt: {
       type: Date,
       required: true,
@@ -194,6 +209,20 @@ const GameSchema = new mongoose.Schema(
 
     sizeChangeNotified: { type: Boolean, default: false },
     allowSizeChange:    { type: Boolean, default: false },
+
+    // Alternate formats (shown when allowSizeChange is true)
+    alternateFormats: [
+      {
+        format:     { type: String, enum: ['5v5','6v6','7v7','8v8','9v9','10v10'] },
+        turf:       { type: mongoose.Schema.Types.ObjectId, ref: 'Turf', default: null },
+        minPlayers: { type: Number },
+        maxPlayers: { type: Number },
+        feeInPaise: { type: Number },
+      },
+    ],
+
+    // Whether the organiser is also playing in this game
+    organiserIsPlaying: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -203,10 +232,12 @@ const GameSchema = new mongoose.Schema(
 );
 
 GameSchema.virtual('spotsRemaining').get(function () {
+  // organiserIsPlaying occupies one slot that is NOT in the registrations array
+  const organiserSlot = this.organiserIsPlaying ? 1 : 0;
   const active = this.registrations.filter(
     (r) => !['refunded','forfeited'].includes(r.paymentStatus)
   ).length;
-  return Math.max(0, this.totalSlots - active);
+  return Math.max(0, this.totalSlots - active - organiserSlot);
 });
 
 GameSchema.virtual('isFull').get(function () {

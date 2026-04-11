@@ -1,6 +1,15 @@
 const express = require("express");
 const { protect, authorize } = require("../auth/auth.middleware");
-const { getMyProfile, updateMyProfile, deleteMyProfile, uploadProfileImage } = require("./organiser.controller");
+const {
+  getMyProfile,
+  updateMyProfile,
+  deleteMyProfile,
+  uploadProfileImage,
+  getTemplates,
+  saveTemplate,
+  updateTemplate,
+  deleteTemplate,
+} = require("./organiser.controller");
 const upload = require("../../middlewares/upload.middleware");
 
 const router = express.Router();
@@ -18,5 +27,16 @@ router.post(
   upload.single("profileImage"),
   uploadProfileImage
 );
+
+// Game templates
+router
+  .route("/me/templates")
+  .get(protect, authorize("organiser"), getTemplates)
+  .post(protect, authorize("organiser"), saveTemplate);
+
+router
+  .route("/me/templates/:templateId")
+  .patch(protect, authorize("organiser"), updateTemplate)
+  .delete(protect, authorize("organiser"), deleteTemplate);
 
 module.exports = router;

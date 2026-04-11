@@ -1,29 +1,35 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { buildApiUrl } from "@/utils/api";
+import { buildApiUrl, getSession } from "@/utils/api";
 
 interface Turf {
   _id: string;
   name: string;
-  location: {
-    city: string;
-  };
+  location: { city: string };
 }
+
+const FORMATS = ["5v5", "6v6", "7v7", "8v8", "9v9", "10v10"] as const;
+type Format = typeof FORMATS[number];
+
+const slotsFromFormat = (fmt: string) => {
+  const parts = fmt.split("v");
+  if (parts.length === 2) return parseInt(parts[0]) + parseInt(parts[1]);
+  return 10;
+};
+
+const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, idx) => {
+  const hours   = Math.floor(idx / 2);
+  const minutes = idx % 2 === 0 ? "00" : "30";
+  const value   = `${String(hours).padStart(2, "0")}:${minutes}`;
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  const period  = hours < 12 ? "AM" : "PM";
+  return { value, label: `${displayHour}:${minutes} ${period}` };
+});
 
 interface EditEventModalProps {
   gameId: string;
-  initialData: {
-    title: string;
-    format: string;
-    totalSlots: number;
-    feeInPaise: number;
-    durationMins: number;
-    minPlayers: number;
-    turf?: Turf;
-    scheduledAt?: string;
-    status?: string;
-  };
+  initialData: any; // full game object from API
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -31,247 +37,272 @@ interface EditEventModalProps {
 export function EditEventModal({ gameId, initialData, onClose, onSuccess }: EditEventModalProps) {
   const initialDateTime = useMemo(() => {
     const scheduled = initialData.scheduledAt ? new Date(initialData.scheduledAt) : null;
+    if (!scheduled) return { date: "", time: "18:00" };
+    const hh = String(scheduled.getHours()).padStart(2, "0");
+    const mm = scheduled.getMinutes() >= 30 ? "30" : "00";
     return {
-      date: scheduled ? scheduled.toISOString().split("T")[0] : "",
-      time: scheduled ? scheduled.toTimeString().slice(0, 5) : "18:00",
+      date: scheduled.toISOString().split("T")[0],
+      time: `${hh}:${mm}`,
     };
   }, [initialData.scheduledAt]);
 
-  const [turfs, setTurfs] = useState<Turf[]>([]);
+  const [turfs, setTurfs]   = useState<Turf[]>([]);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: initialData.title,
-    turf: initialData.turf?._id || "",
-    date: initialDateTime.date,
-    time: initialDateTime.time,
-    status: initialData.status || "open",
-    format: initialData.format,
-    totalSlots: initialData.totalSlots,
-    feeInRs: initialData.feeInPaise / 100,
-    durationMins: initialData.durationMins,
-    minPlayers: initialData.minPlayers,
-  });
+  const [errors, setErrors]  = useState<Record<string, string>>({});
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [title,             setTitle]           = useState(initialData.title ?? "");
+  const [turf,              setTurf]            = useState(initialData.turf?._id || "");
+  const [date,              setDate]            = useState(initialDateTime.date);
+  const [time,              setTime]            = useState(initialDateTime.time);
+  const [status,            setStatus]          = useState(initialData.status ?? "open");
+  const [format,            setFormat]          = useState<Format>((initialData.format as Format) ?? "5v5");
+  const [totalSlots,        setTotalSlots]      = useState(initialData.totalSlots ?? slotsFromFormat(initialData.format ?? "5v5"));
+  const [feeInRs,           setFeeInRs]         = useState(initialData.feeInPaise ? initialData.feeInPaise / 100 : 0);
+  const [durationMins,      setDurationMins]    = useState(initialData.durationMins ?? 60);
+  const [minPlayers,        setMinPlayers]      = useState(initialData.minPlayers ?? 7);
+  const [reportingMins,     setReportingMins]   = useState(initialData.reportingMinsBeforeGame ?? 30);
+  const [organiserIsPlaying, setOrganiserIsPlaying] = useState(Boolean(initialData.organiserIsPlaying));
 
   useEffect(() => {
     fetch(buildApiUrl("/api/v1/turfs"))
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setTurfs(data.data || []);
-        }
-      })
-      .catch((error) => console.error("Error fetching turfs:", error));
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setTurfs(d.data || []); })
+      .catch(console.error);
   }, []);
+
+  const handleFormatChange = (f: Format) => {
+    setFormat(f);
+    const slots = slotsFromFormat(f);
+    setTotalSlots(slots);
+    setMinPlayers(Math.floor(slots * 0.7));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: Record<string, string> = {};
+    if (!title.trim()) newErrors.title = "Title is required";
+    if (!turf)         newErrors.turf  = "Venue is required";
+    if (!date)         newErrors.date  = "Date is required";
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+
     setLoading(true);
-
     try {
-      const token = localStorage.getItem("authToken");
+      const { token } = getSession();
+      if (!token) { setErrors({ submit: "Please login as organiser first" }); return; }
 
-      if (!token) {
-        alert("Please login as organizer first");
-        return;
-      }
+      const scheduledAt = new Date(`${date}T${time}`);
+      const cutoffAt    = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
 
-      const scheduledAt = formData.date && formData.time
-        ? new Date(`${formData.date}T${formData.time}`)
-        : null;
-      const cutoffAt = scheduledAt
-        ? new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000)
-        : null;
-
-      const payload: any = {
-        title: formData.title,
-        turf: formData.turf,
-        scheduledAt: scheduledAt ? scheduledAt.toISOString() : undefined,
-        cutoffAt: cutoffAt ? cutoffAt.toISOString() : undefined,
-        status: formData.status,
-        format: formData.format,
-        totalSlots: Number(formData.totalSlots),
-        feeInRs: Number(formData.feeInRs),
-        durationMins: Number(formData.durationMins),
-        minPlayers: Number(formData.minPlayers),
+      const payload = {
+        title:                   title.trim(),
+        turf,
+        scheduledAt:             scheduledAt.toISOString(),
+        cutoffAt:                cutoffAt.toISOString(),
+        status,
+        format,
+        totalSlots:              Number(totalSlots),
+        feeInRs:                 Number(feeInRs),
+        durationMins:            Number(durationMins),
+        minPlayers:              Number(minPlayers),
+        reportingMinsBeforeGame: Number(reportingMins),
+        organiserIsPlaying,
       };
 
-      const response = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
+        method:  "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body:    JSON.stringify(payload),
       });
+      const text = await res.text();
+      const data = res.headers.get("content-type")?.includes("application/json")
+        ? JSON.parse(text)
+        : { success: false, message: text || `HTTP ${res.status}` };
 
-      const contentType = response.headers.get("content-type") || "";
-      const responseText = await response.text();
-      const data = contentType.includes("application/json")
-        ? JSON.parse(responseText)
-        : { success: false, message: responseText || `HTTP ${response.status}` };
+      if (!res.ok || !data.success) { setErrors({ submit: data.message || `HTTP ${res.status}` }); return; }
 
-      if (!response.ok || !data.success) {
-        setErrors({ submit: data.message || `HTTP ${response.status}` });
-        return;
-      }
-
-      alert("Event updated successfully!");
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error("Error updating event:", error);
-      setErrors({ submit: (error as Error).message || "Failed to update event" });
+    } catch (err: any) {
+      setErrors({ submit: err.message || "Failed to update event" });
     } finally {
       setLoading(false);
     }
   };
 
+  const hardCap       = Number(totalSlots);
+  const organiserSlot = organiserIsPlaying ? 1 : 0;
+  const currentRegs   = (initialData.registrations?.length || 0);
+  const openSlots     = Math.max(0, hardCap - currentRegs - organiserSlot);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content edit-event-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content edit-event-modal" style={{ maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+
         <div className="modal-header">
-          <h2>Edit Event</h2>
+          <div className="modal-title-section">
+            <h2 style={{ margin: 0 }}>Edit Event</h2>
+            <p className="modal-subtitle" style={{ marginTop: 4 }}>{initialData.title}</p>
+          </div>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="edit-form">
-          {errors.submit && <div className="form-error-banner">{errors.submit}</div>}
+        <form onSubmit={handleSubmit} style={{ padding: "0 4px" }}>
+          {errors.submit && (
+            <div className="form-error-banner" style={{ marginBottom: 16 }}>⚠️ {errors.submit}</div>
+          )}
 
-          <div className="form-group">
-            <label>Event Title</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-            />
-          </div>
+          {/* ── Event Details ── */}
+          <Section title="Event Details">
+            <Field label="Event Title" error={errors.title}>
+              <input className={`form-input ${errors.title ? "error" : ""}`} value={title} onChange={(e) => setTitle(e.target.value)} required />
+            </Field>
 
-          <div className="form-group">
-            <label>Venue</label>
-            <select
-              value={formData.turf}
-              onChange={(e) => setFormData({ ...formData, turf: e.target.value })}
-              required
-            >
-              <option value="">Select a venue</option>
-              {turfs.map((turf) => (
-                <option key={turf._id} value={turf._id}>
-                  {turf.name} - {turf.location?.city}
-                </option>
-              ))}
-            </select>
-          </div>
+            <Field label="Venue / Turf" error={errors.turf}>
+              <select className={`form-select ${errors.turf ? "error" : ""}`} value={turf} onChange={(e) => setTurf(e.target.value)} required>
+                <option value="">Choose a turf…</option>
+                {turfs.map((t) => (
+                  <option key={t._id} value={t._id}>{t.name} · {t.location?.city}</option>
+                ))}
+              </select>
+            </Field>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Date</label>
-              <input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Time</label>
-              <input
-                type="time"
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                required
-              />
-            </div>
-          </div>
+            <Field label="Status">
+              <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="draft">Draft</option>
+                <option value="open">Open</option>
+                <option value="tentative">Tentative</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+              </select>
+            </Field>
+          </Section>
 
-          <div className="form-group">
-            <label>Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              required
-            >
-              <option value="draft">Draft</option>
-              <option value="open">Open</option>
-              <option value="tentative">Tentative</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Format</label>
-            <input
-              type="text"
-              value={formData.format}
-              onChange={(e) => setFormData({ ...formData, format: e.target.value })}
-              placeholder="5v5"
-              required
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Total Slots</label>
-              <input
-                type="number"
-                value={formData.totalSlots}
-                onChange={(e) => setFormData({ ...formData, totalSlots: parseInt(e.target.value, 10) || 0 })}
-                min="1"
-                required
-              />
+          {/* ── Schedule ── */}
+          <Section title="Schedule">
+            <div className="form-row">
+              <Field label="Date" error={errors.date}>
+                <input type="date" className={`form-input ${errors.date ? "error" : ""}`} value={date} onChange={(e) => setDate(e.target.value)} required />
+              </Field>
+              <Field label="Game Start Time">
+                <select className="form-select" value={time} onChange={(e) => setTime(e.target.value)}>
+                  {TIME_SLOT_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </Field>
             </div>
 
-            <div className="form-group">
-              <label>Minimum Players</label>
-              <input
-                type="number"
-                value={formData.minPlayers}
-                onChange={(e) => setFormData({ ...formData, minPlayers: parseInt(e.target.value, 10) || 0 })}
-                min="1"
-                required
-              />
+            <div className="form-row">
+              <Field label="Duration (mins)">
+                <input type="number" className="form-input" min="15" step="15" value={durationMins} onChange={(e) => setDurationMins(Number(e.target.value))} />
+              </Field>
+              <Field label="Players Report (mins before)">
+                <select className="form-select" value={String(reportingMins)} onChange={(e) => setReportingMins(Number(e.target.value))}>
+                  {[15, 30, 45, 60].map((m) => (
+                    <option key={m} value={m}>{m} mins before kickoff</option>
+                  ))}
+                </select>
+              </Field>
             </div>
-          </div>
+          </Section>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Fee (₹)</label>
-              <input
-                type="number"
-                value={formData.feeInRs}
-                onChange={(e) => setFormData({ ...formData, feeInRs: parseFloat(e.target.value) || 0 })}
-                min="0"
-                step="10"
-                required
-              />
+          {/* ── Game Config ── */}
+          <Section title="Game Configuration">
+            <div className="form-row">
+              <Field label="Format">
+                <select
+                  className="form-select"
+                  value={format}
+                  onChange={(e) => handleFormatChange(e.target.value as Format)}
+                >
+                  {FORMATS.map((f) => (
+                    <option key={f} value={f}>{f} ({slotsFromFormat(f)} players)</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Fee per Player (₹)">
+                <input type="number" className="form-input" min="0" step="10" value={feeInRs} onChange={(e) => setFeeInRs(Number(e.target.value))} required />
+              </Field>
             </div>
 
-            <div className="form-group">
-              <label>Duration (minutes)</label>
-              <input
-                type="number"
-                value={formData.durationMins}
-                onChange={(e) => setFormData({ ...formData, durationMins: parseInt(e.target.value, 10) || 0 })}
-                min="15"
-                step="15"
-                required
-              />
+            <div className="form-row">
+              <Field label="Total Slots (cap)">
+                <input type="number" className="form-input" min="2" value={totalSlots} onChange={(e) => setTotalSlots(Number(e.target.value))} />
+              </Field>
+              <Field label="Min Players to Confirm">
+                <input type="number" className="form-input" min="2" value={minPlayers} onChange={(e) => setMinPlayers(Number(e.target.value))} />
+              </Field>
             </div>
-          </div>
+          </Section>
 
-          <div className="form-actions">
-            <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
-              Cancel
-            </button>
+          {/* ── Your Participation ── */}
+          <Section title="Your Participation">
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={organiserIsPlaying}
+                onChange={(e) => setOrganiserIsPlaying(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: "#c8ff3e" }}
+              />
+              <span style={{ fontSize: 14, color: "#ddd" }}>I want to play in this game (uses 1 slot)</span>
+            </label>
+
+            {/* Capacity summary */}
+            <div style={{
+              marginTop: 12,
+              background: openSlots === 0 ? "rgba(220,38,38,0.08)" : "rgba(200,255,62,0.06)",
+              border: `1px solid ${openSlots === 0 ? "rgba(220,38,38,0.3)" : "rgba(200,255,62,0.2)"}`,
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 12,
+              color: openSlots === 0 ? "#f87171" : "#c8ff3e",
+              fontWeight: 600,
+            }}>
+              {openSlots === 0
+                ? "⚠️ All slots are currently filled"
+                : `✓ ${openSlots} open slot${openSlots !== 1 ? "s" : ""} remaining`}
+              <span style={{ color: "#777", fontWeight: 400, marginLeft: 8 }}>
+                (cap: {hardCap} · registered: {currentRegs}{organiserSlot ? " · you: 1" : ""})
+              </span>
+            </div>
+
+            <p style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
+              To add or remove guests, use the <strong>👥 Player List</strong> button on the event row.
+            </p>
+          </Section>
+
+          <div className="form-actions" style={{ marginTop: 24 }}>
+            <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>Cancel</button>
             <button type="submit" className="btn-save" disabled={loading}>
-              {loading ? "Updating..." : "Update Event"}
+              {loading ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+/* ── tiny layout helpers ── */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", marginBottom: 12, paddingBottom: 6, borderBottom: "1px solid #222" }}>
+        {title}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="form-group" style={{ flex: 1 }}>
+      <label className="form-label" style={{ marginBottom: 6, display: "block", fontSize: 12, color: "#aaa", fontWeight: 600 }}>{label}</label>
+      {children}
+      {error && <div className="field-error" style={{ marginTop: 4, fontSize: 11, color: "#f87171" }}>{error}</div>}
     </div>
   );
 }

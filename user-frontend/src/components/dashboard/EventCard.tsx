@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled";
+export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
 export interface EventCardProps {
   id: string;
@@ -16,6 +16,9 @@ export interface EventCardProps {
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
+  isWaitlisted?: boolean;
+  isWaitlistApproved?: boolean;
+  cancelReason?: string;
   players: { name: string; initials: string; pos: string }[];
   onBook: (game: any) => void;
   onViewDetails: () => void;
@@ -33,12 +36,16 @@ export function EventCard({
   spotsTotal,
   spotsLeft,
   isRegistered,
+  isWaitlisted = false,
+  isWaitlistApproved = false,
+  cancelReason,
   players,
   onBook,
   onViewDetails,
 }: EventCardProps) {
-  const isFull = spotsLeft <= 0;
-  const effectiveStatus = isFull ? "full" : status;
+  const isCancelled = status === "cancelled";
+  const isFull = !isCancelled && spotsLeft <= 0;
+  const effectiveStatus = isCancelled ? "cancelled" : isFull ? "full" : status;
 
   const fillPercentage = spotsTotal > 0 ? ((spotsTotal - spotsLeft) / spotsTotal) * 100 : 0;
   let fillClass = "mid";
@@ -51,9 +58,20 @@ export function EventCard({
       <div className="card-header">
         <div className="header-top">
           <span className={`status-badge ${effectiveStatus}`}>
-            {effectiveStatus === 'full' ? '🔴 Full' : effectiveStatus === 'confirmed' ? '✓ Confirmed' : 'Tentative'}
+            {effectiveStatus === 'cancelled'
+              ? '✕ Cancelled'
+              : effectiveStatus === 'full'
+              ? '🔴 Full'
+              : effectiveStatus === 'confirmed'
+              ? '✓ Confirmed'
+              : effectiveStatus === 'completed'
+              ? '✅ Completed'
+              : 'Tentative'}
           </span>
-          {isRegistered && <span className="registered-badge">✓ Registered</span>}
+          {isWaitlisted && isWaitlistApproved && !isCancelled && <span className="registered-badge waitlist-approved-badge">✓ Waitlist Approved</span>}
+          {isWaitlisted && !isWaitlistApproved && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
+          {isRegistered && !isCancelled && <span className="registered-badge">✓ Registered</span>}
+          {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
         </div>
         <div className="card-price">
           <div className="price-rupee">₹</div>
@@ -101,9 +119,29 @@ export function EventCard({
         </div>
       </div>
 
+      {/* Cancel Reason */}
+      {isCancelled && cancelReason && (
+        <div className="cancel-reason-section">
+          <div className="cancel-reason-label">Reason</div>
+          <div className="cancel-reason-text">{cancelReason}</div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="card-actions">
-        {isRegistered ? (
+        {isCancelled ? (
+          <button className="card-btn cancelled-btn" disabled>
+            <span>✕ Event Cancelled</span>
+          </button>
+        ) : isWaitlisted && isWaitlistApproved ? (
+          <button className="card-btn approved-waitlist-btn" disabled>
+            <span>✓ Spot Approved!</span>
+          </button>
+        ) : isWaitlisted ? (
+          <button className="card-btn waitlist-btn" disabled>
+            <span>📋 On Waitlist</span>
+          </button>
+        ) : isRegistered ? (
           <button className="card-btn registered-btn" disabled>
             <span>✓ You&apos;re Registered</span>
           </button>

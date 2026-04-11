@@ -14,6 +14,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -116,7 +117,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <div style={{ marginBottom: "20px" }}>
           <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Phone Number</label>
           <div style={{ display: "flex", alignItems: "center", background: "#1a1a2e", border: "1px solid #444", borderRadius: "6px", padding: "0 12px" }}>
@@ -143,25 +144,44 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
 
         <div style={{ marginBottom: "24px" }}>
           <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            style={{
-              width: "100%",
-              background: "#1a1a2e",
-              border: "1px solid #444",
-              borderRadius: "6px",
-              padding: "12px",
-              color: "white",
-              fontSize: "16px",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
-            onBlur={(e) => (e.target.style.borderColor = "#444")}
-          />
+          <div style={{ display: "flex", alignItems: "center", background: "#1a1a2e", border: "1px solid #444", borderRadius: "6px" }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              name="organiserPassword"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              spellCheck={false}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                borderRadius: "6px",
+                padding: "12px",
+                color: "white",
+                fontSize: "16px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#999",
+                padding: "0 12px",
+                cursor: "pointer",
+                fontSize: "12px",
+                letterSpacing: "0.06em",
+                fontWeight: 600,
+              }}
+            >
+              {showPassword ? "HIDE" : "SHOW"}
+            </button>
+          </div>
           <small style={{ color: "#666", fontSize: "12px", marginTop: "4px", display: "block" }}>Minimum 8 characters</small>
         </div>
 

@@ -1413,6 +1413,15 @@
 }
 
 /* Cards */
+.pdm-slot-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  min-width: 24px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
 .pdm-card {
   display: flex;
   align-items: flex-start;

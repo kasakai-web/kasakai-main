@@ -27,7 +27,12 @@ export type BookingGuest = Guest;
 interface BookingModalProps {
   game: BookingGame | null;
   onClose: () => void;
-  onConfirm: (game: BookingGame, guests: Guest[], teamPreference: string) => void;
+  onConfirm: (
+    game: BookingGame,
+    guests: Guest[],
+    teamPreference: string,
+    willingIfFormatChange: boolean,
+  ) => void;
   walletBalance: number;
   playerPositions?: string[];
   playerId?: string;
@@ -182,6 +187,7 @@ export function BookingModal({
 }: BookingModalProps) {
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
   const [success, setSuccess] = useState(false);
   const [notification, setNotification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -212,7 +218,7 @@ export function BookingModal({
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      onConfirm(game, guests, teamPreference);
+      onConfirm(game, guests, teamPreference, willingIfFormatChange);
       await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setNotification(true);
@@ -227,6 +233,7 @@ export function BookingModal({
   const closeAll = () => {
     setSuccess(false);
     setGuests([]);
+    setWillingIfFormatChange(true);
     setNotification(false);
     setIsLoading(false);
     onClose();
@@ -331,6 +338,24 @@ export function BookingModal({
                 </div>
               </div>
 
+              <div>
+                <div className="bm-section-title">Format Changes</div>
+                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", color: "var(--white)" }}>
+                  <input
+                    type="checkbox"
+                    checked={willingIfFormatChange}
+                    onChange={(e) => setWillingIfFormatChange(e.target.checked)}
+                    style={{ marginTop: 4 }}
+                  />
+                  <span style={{ fontSize: 13, lineHeight: 1.5 }}>
+                    If the organiser changes the format, I&apos;m still willing to play.
+                  </span>
+                </label>
+                <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted,#666)" }}>
+                  This helps the organiser decide whether to switch format if numbers change.
+                </p>
+              </div>
+
               <div className="bm-guests-section">
                 <div className="bm-guests-header">
                   <div>
@@ -367,31 +392,43 @@ export function BookingModal({
                 )}
               </div>
 
-              <div className="wallet-summary">
-                <div className="ws-left">
-                  <div className="ws-label">
-                    Total fee
-                    {guests.length > 0 && (
-                      <span style={{ color: "var(--muted,#666)", fontWeight: 400, marginLeft: "6px" }}>
-                        (you + {guests.length} guest{guests.length > 1 ? "s" : ""})
-                      </span>
-                    )}
-                  </div>
-                  <div className="ws-fee">₹{totalFee}</div>
-                  <div className="ws-balance">Wallet: ₹{walletBalance}</div>
-                </div>
-                <div className="ws-right">
-                  <div className="ws-after">After payment</div>
-                  <div className="ws-after-val" style={{ color: walletBalance - totalFee < 0 ? "#ff6b6b" : undefined }}>
-                    ₹{walletBalance - totalFee}
+              {isWaitlist ? (
+                <div className="wallet-summary" style={{ background: "rgba(200,255,62,0.06)", border: "1px solid rgba(200,255,62,0.2)" }}>
+                  <div className="ws-left">
+                    <div className="ws-label">Waitlist</div>
+                    <div className="ws-fee" style={{ color: "#c8ff3e" }}>No charge</div>
+                    <div className="ws-balance" style={{ color: "#888" }}>Payment only required when you claim a spot</div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="wallet-summary">
+                    <div className="ws-left">
+                      <div className="ws-label">
+                        Total fee
+                        {guests.length > 0 && (
+                          <span style={{ color: "var(--muted,#666)", fontWeight: 400, marginLeft: "6px" }}>
+                            (you + {guests.length} guest{guests.length > 1 ? "s" : ""})
+                          </span>
+                        )}
+                      </div>
+                      <div className="ws-fee">₹{totalFee}</div>
+                      <div className="ws-balance">Wallet: ₹{walletBalance}</div>
+                    </div>
+                    <div className="ws-right">
+                      <div className="ws-after">After payment</div>
+                      <div className="ws-after-val" style={{ color: walletBalance - totalFee < 0 ? "#ff6b6b" : undefined }}>
+                        ₹{walletBalance - totalFee}
+                      </div>
+                    </div>
+                  </div>
 
-              {!canAfford && (
-                <p style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
-                  Insufficient wallet balance for {1 + guests.length} player{guests.length > 0 ? "s" : ""}.
-                </p>
+                  {!canAfford && (
+                    <p style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
+                      Insufficient wallet balance for {1 + guests.length} player{guests.length > 0 ? "s" : ""}.
+                    </p>
+                  )}
+                </>
               )}
 
               <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
@@ -401,8 +438,8 @@ export function BookingModal({
           </div>
         ) : (
           <div className="success-state show">
-            <div className="success-icon">✓</div>
-            <div className="success-title">You&apos;re In!</div>
+            <div className="success-icon">{isWaitlist ? "📋" : "✓"}</div>
+            <div className="success-title">{isWaitlist ? "You're on the Waitlist!" : "You're In!"}</div>
             <div className="success-sub">
               {isWaitlist
                 ? `You've joined the waitlist for ${venueName}.`

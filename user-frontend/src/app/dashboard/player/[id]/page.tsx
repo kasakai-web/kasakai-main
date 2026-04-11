@@ -24,6 +24,7 @@ export default function PlayerDashboard() {
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [walletBalance, setWalletBalance] = useState(1250);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
+  const [myWaitlist, setMyWaitlist] = useState<any[]>([]);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -106,6 +107,21 @@ export default function PlayerDashboard() {
     }
   };
 
+  const fetchMyWaitlist = async () => {
+    try {
+      const { token } = getSession();
+      if (!token) { setMyWaitlist([]); return; }
+      const res = await fetch(buildApiUrl("/api/v1/games/my-waitlist"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setMyWaitlist([]); return; }
+      const data = await res.json();
+      if (data.success) setMyWaitlist(data.data || []);
+    } catch {
+      setMyWaitlist([]);
+    }
+  };
+
   const fetchPlayerProfile = async () => {
     try {
       const { token } = getSession();
@@ -126,7 +142,7 @@ export default function PlayerDashboard() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchAllGames(), fetchMyGames(), fetchPlayerProfile()]);
+      await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile()]);
     } finally {
       setLoading(false);
     }
@@ -174,17 +190,21 @@ export default function PlayerDashboard() {
   };
 
   const handleBook = (game: any) => {
-    // Convert game object to BookingModal format
+    const organiserCount = getOrganiserCount(game);
+    const totalRegistered = game.registrations?.length || 0;
+    // organiserCount is NOT in the registrations array — subtract it separately
+    const spotsLeft = game.totalSlots - totalRegistered - organiserCount;
+    const isFull = spotsLeft <= 0;
     const formattedGame = {
       id: game._id,
+      _id: game._id,
       venue: `${game.turf?.name || 'TBC'},${game.turf?.location?.city || 'TBC'}`,
       date: new Date(game.scheduledAt).toISOString().split('T')[0],
       time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       format: game.format,
       fee: game.feeInPaise / 100,
-      spots: game.totalSlots - (game.registrations?.length || 0),
-      waitlist: false,
-      _id: game._id // Keep original ID for API calls
+      spots: Math.max(0, spotsLeft),
+      waitlist: isFull,
     };
     setSelectedGame(formattedGame);
   };
@@ -233,7 +253,12 @@ export default function PlayerDashboard() {
     }
   };
 
-  const handleConfirmBooking = async (game: any, guests: BookingGuest[], teamPreference: string) => {
+  const handleConfirmBooking = async (
+    game: any,
+    guests: BookingGuest[],
+    teamPreference: string,
+    willingIfFormatChange: boolean,
+  ) => {
     try {
       const { token } = getSession();
       if (!token) {
@@ -242,43 +267,76 @@ export default function PlayerDashboard() {
         return;
       }
 
-      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/register`), {
+      const isWaitlist = Boolean(game.waitlist);
+      const endpoint = isWaitlist
+        ? `/api/v1/games/${game._id}/waitlist`
+        : `/api/v1/games/${game._id}/register`;
+
+      const body: any = {
+        teamPreference,
+        positions: playerPositions,
+        guests: guests.map((g, index) => {
+          const fallbackName = `Guest ${index + 1}`;
+          return {
+            name: (g.name || fallbackName).trim() || fallbackName,
+            position: g.position || "Any",
+            teamPreference: g.teamPreference || "No Preference",
+          };
+        }),
+      };
+      if (!isWaitlist) body.willingIfFormatChange = willingIfFormatChange;
+
+      const res = await fetch(buildApiUrl(endpoint), {
         method: 'POST',
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teamPreference,
-          positions: playerPositions,
-          guests: guests.map((g, index) => {
-            const fallbackName = `Guest ${index + 1}`;
-            return {
-              name: (g.name || fallbackName).trim() || fallbackName,
-              position: g.position || "Any",
-              teamPreference: g.teamPreference || "No Preference",
-            };
-          }),
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
+
       if (data.success) {
-        // Only close modal on SUCCESS - BookingModal handles the notification
         setSelectedGame(null);
-        setActiveTab("my-games");
-        if (playerId) {
-          router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+        if (isWaitlist) {
+          showNotification("success", "You've joined the waitlist! We'll notify you when a spot opens.");
+          setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
+        } else {
+          setActiveTab("my-games");
+          if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+          setTimeout(() => { fetchDashboardData(); }, 500);
         }
-        // Refresh both lists after a short delay to pick up latest registration state
-        setTimeout(() => {
-          fetchDashboardData();
-        }, 500);
       } else {
-        // Show error and keep modal open
-        alert(`Registration failed: ${data.message}`);
+        alert(isWaitlist ? `Waitlist failed: ${data.message}` : `Registration failed: ${data.message}`);
         setSelectedGame(null);
       }
     } catch (error) {
-      console.error("Failed to register for game", error);
-      alert("An error occurred during registration.");
+      console.error("Failed to book", error);
+      alert("An error occurred. Please try again.");
       setSelectedGame(null);
+    }
+  };
+
+  const handleLeaveWaitlist = async (game: any) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+
+    const confirmed = window.confirm("Remove yourself from the waitlist for this event?");
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/leave-waitlist`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showNotification("error", data.message || "Failed to leave waitlist.");
+        return;
+      }
+      showNotification("success", "Removed from waitlist.");
+      setDetailGame(null);
+      fetchMyWaitlist();
+      fetchAllGames();
+    } catch {
+      showNotification("error", "Failed to leave waitlist. Please try again.");
     }
   };
 
@@ -294,30 +352,78 @@ export default function PlayerDashboard() {
     const scheduledAt = new Date(game.scheduledAt).getTime();
     return Number.isFinite(scheduledAt) && scheduledAt < Date.now();
   });
+  const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
+  const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
+  // In "My Games" tab, merge registered + waitlisted games; tag waitlisted with _isWaitlisted + _waitlistStatus
+  const myGamesWithWaitlist = [
+    ...myGames,
+    ...myWaitlist
+      .filter((wg) => !myGames.some((mg) => mg._id === wg._id))
+      .map((wg) => ({ ...wg, _isWaitlisted: true, _waitlistStatus: wg._myWaitlistStatus || 'waiting' })),
+  ];
+
   const gamesToDisplay = activeTab === 'all'
     ? games
     : activeTab === 'my-games'
-      ? myGames
+      ? myGamesWithWaitlist
       : activeTab === 'cancelled'
         ? cancelledGames
         : completedGames;
+  const isCancelledGame = (game: any) => String(game.status || "").trim().toLowerCase().startsWith("cancel");
   const filteredGames = gamesToDisplay.filter(g => 
     g.turf?.name?.toLowerCase().includes(search.toLowerCase()) ||
     g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
   );
+  const orderedGames = [...filteredGames].sort((a, b) => {
+    const aCancelled = isCancelledGame(a);
+    const bCancelled = isCancelledGame(b);
+
+    if (aCancelled !== bCancelled) {
+      return aCancelled ? 1 : -1;
+    }
+
+    const aTime = new Date(a.scheduledAt).getTime();
+    const bTime = new Date(b.scheduledAt).getTime();
+    return aTime - bTime;
+  });
 
   const detailRows = detailGame ? [
     { label: "Venue", value: detailGame.turf?.name || "TBC" },
     { label: "City", value: detailGame.turf?.location?.city || "TBC" },
     { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
-    { label: "Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+    { label: "Game Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+    {
+      label: "Players Report",
+      value: detailGame.reportingMinsBeforeGame
+        ? `${detailGame.reportingMinsBeforeGame} mins before game`
+        : "30 mins before game",
+    },
+    {
+      label: "Report Time",
+      value: (() => {
+        const scheduled = new Date(detailGame.scheduledAt);
+        const reportMins = Number(detailGame.reportingMinsBeforeGame ?? 30);
+        if (Number.isNaN(scheduled.getTime())) return "TBC";
+        return new Date(scheduled.getTime() - reportMins * 60000).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      })(),
+    },
+    {
+      label: "Duration",
+      value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins",
+    },
     { label: "Format", value: detailGame.format || "TBC" },
     { label: "Fee", value: `₹${(detailGame.feeInPaise || 0) / 100}` },
     { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
-    { label: "Registered", value: String(detailGame.registrations?.length || 0) },
+    { label: "Players", value: String(getTotalPlayers(detailGame)) },
     { label: "Status", value: String(detailGame.status || "open") },
   ] : [];
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
+  const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
+  const detailWaitlistEntry = detailGame ? myWaitlist.find((wg) => wg._id === detailGame._id) : null;
+  const detailIsWaitlistApproved = detailIsWaitlisted && detailWaitlistEntry?._myWaitlistStatus === 'approved';
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
   const detailPlayers = detailGame?.registrations?.map((reg: any, index: number) => ({
     key: `${reg._id || "reg"}-${index}`,
@@ -369,7 +475,7 @@ export default function PlayerDashboard() {
           >
             <span className="tab-icon">🎟️</span>
             <span className="tab-text">My Games</span>
-            <span className="tab-badge">{myGames.length}</span>
+            <span className="tab-badge">{myGames.length + myWaitlist.length}</span>
           </button>
           <button
             className={`tab-btn player-tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
@@ -394,10 +500,12 @@ export default function PlayerDashboard() {
         <div className="loading-container"><div className="spinner"></div><p>Loading games...</p></div>
       ) : (
         <div className="events-grid">
-          {filteredGames.length > 0 ? filteredGames.map(game => {
-            // registrations includes guests (plusOneName entries), all occupy a slot
+          {orderedGames.length > 0 ? orderedGames.map(game => {
+            // totalSlots is the hard cap for ALL people (registrations + organiser if playing)
             const totalRegistered = game.registrations?.length || 0;
-            const spotsLeft = game.totalSlots - totalRegistered;
+            const organiserCount = getOrganiserCount(game);
+            const spotsTotal = game.totalSlots;
+            const spotsLeft = spotsTotal - totalRegistered - organiserCount;
             return (
               <EventCard
                 key={game._id}
@@ -409,11 +517,13 @@ export default function PlayerDashboard() {
                 time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 format={game.format}
                 fee={game.feeInPaise / 100}
-                spotsTotal={game.totalSlots}
+                spotsTotal={spotsTotal}
                 spotsLeft={Math.max(0, spotsLeft)}
                 isRegistered={myGames.some(myGame => myGame._id === game._id)}
+                isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
+                isWaitlistApproved={game._waitlistStatus === 'approved' || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')}
+                cancelReason={game.cancelReason}
                 players={game.registrations?.map((reg: any) => ({
-                  // guests show as "PlayerName_1", real players show their actual name
                   name: reg.plusOneName || reg.player?.name || 'Player',
                   initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
                   pos: reg.preferredPosition || 'any',
@@ -444,8 +554,11 @@ export default function PlayerDashboard() {
 
       {detailGame && (
         <div className="modal-overlay" onClick={() => setDetailGame(null)}>
-          <div className="modal-content" style={{ width: "92%", maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header" style={{ marginBottom: 16 }}>
+          <div
+            className="modal-content pd-event-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header pd-event-modal-header">
               <div className="modal-title-section">
                 <h2 style={{ margin: 0 }}>Event Details</h2>
                 <p className="modal-subtitle" style={{ marginTop: 8 }}>
@@ -454,16 +567,70 @@ export default function PlayerDashboard() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+            <div className="pd-event-detail-grid">
               {detailRows.map((row) => (
-                <div key={row.label} style={{ border: "1px solid #1f1f1f", padding: "10px 12px", background: "#111" }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#777", marginBottom: 4 }}>
+                <div key={row.label} className="pd-event-detail-card">
+                  <div className="pd-event-detail-label">
                     {row.label}
                   </div>
-                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>{row.value}</div>
+                  <div className="pd-event-detail-value">{row.value}</div>
                 </div>
               ))}
             </div>
+
+            {detailIsWaitlistApproved && !detailIsCancelled && (
+              <div style={{
+                border: "1px solid rgba(74,222,128,0.4)",
+                padding: "14px 16px",
+                background: "rgba(74,222,128,0.07)",
+                marginBottom: 16,
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}>
+                <span style={{ fontSize: 22 }}>🎉</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", marginBottom: 3 }}>
+                    Your waitlist spot has been approved!
+                  </div>
+                  <div style={{ color: "#a3e6bf", fontSize: 12, lineHeight: 1.5 }}>
+                    The organiser confirmed your place in this game. See you on the pitch!
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!detailIsWaitlistApproved && detailIsWaitlisted && !detailIsCancelled && (
+              <div style={{
+                border: "1px solid rgba(245,158,11,0.3)",
+                padding: "12px 16px",
+                background: "rgba(245,158,11,0.06)",
+                marginBottom: 16,
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}>
+                <span style={{ fontSize: 18 }}>📋</span>
+                <div style={{ color: "#fcd34d", fontSize: 12, lineHeight: 1.5 }}>
+                  You&apos;re on the waitlist. The organiser will notify you if a spot opens up.
+                </div>
+              </div>
+            )}
+
+            {detailIsCancelled && (
+              <div style={{ border: "1px solid #5c1b1b", padding: "12px", background: "#1a0808", marginBottom: 16, borderRadius: 4 }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#e05050", marginBottom: 6, fontWeight: 700 }}>
+                  Event Cancelled
+                </div>
+                <div style={{ color: "#ffaaaa", fontSize: 13, lineHeight: 1.5 }}>
+                  {detailGame.cancelReason
+                    ? detailGame.cancelReason
+                    : "This event has been cancelled by the organiser."}
+                </div>
+              </div>
+            )}
 
             {detailGame.notes && (
               <div style={{ border: "1px solid #1f1f1f", padding: "12px", background: "#111", marginBottom: 16 }}>
@@ -474,21 +641,19 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            <div style={{ border: "1px solid #1f1f1f", padding: "12px", background: "#111", marginBottom: 16 }}>
-              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#777", marginBottom: 8 }}>
-                Player Details (Total: {detailPlayers.length})
+            <div className="pd-event-player-section">
+              <div className="pd-event-player-section-head">
+                <span className="pd-event-player-title">Player Details</span>
+                <span className="pd-event-player-total">Total: {detailPlayers.length}</span>
               </div>
               {detailPlayers.length === 0 ? (
                 <div style={{ color: "#888", fontSize: 13 }}>No players registered yet.</div>
               ) : (
-                <div style={{ display: "grid", gap: 8 }}>
+                <div className="pd-event-player-list">
                   {detailPlayers.map((player: any) => (
-                    <div key={player.key} style={{ display: "flex", justifyContent: "space-between", gap: 8, border: "1px solid #222", padding: "8px 10px", background: "#0d0d0d" }}>
-                      <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>
+                    <div key={player.key} className="pd-event-player-row">
+                      <div className="pd-event-player-name">
                         {player.name} {player.isGuest ? "(Guest)" : ""}
-                      </div>
-                      <div style={{ color: "#a5a5a5", fontSize: 12, textTransform: "uppercase" }}>
-                        {player.position} • {player.team}
                       </div>
                     </div>
                   ))}
@@ -496,7 +661,17 @@ export default function PlayerDashboard() {
               )}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div className="pd-event-modal-actions">
+              {detailIsWaitlisted && !detailIsCancelled && (
+                <button
+                  className="card-btn cancel-btn"
+                  type="button"
+                  onClick={() => handleLeaveWaitlist(detailGame)}
+                  style={{ flex: "0 0 auto", minWidth: 180 }}
+                >
+                  <span>Leave Waitlist</span>
+                </button>
+              )}
               {detailIsRegistered && !detailIsCancelled && (
                 <button
                   className="card-btn cancel-btn"

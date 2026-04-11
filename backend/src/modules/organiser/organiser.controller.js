@@ -115,3 +115,104 @@ exports.deleteMyProfile = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+// ── Game Templates ────────────────────────────────────────────────────────────
+
+exports.getTemplates = async (req, res) => {
+  try {
+    const organiser = await Organiser.findById(req.user._id)
+      .select("gameTemplates")
+      .populate("gameTemplates.turf", "name location.city");
+    if (!organiser) return res.status(404).json({ success: false, message: "Organiser not found" });
+    return res.status(200).json({ success: true, data: organiser.gameTemplates || [] });
+  } catch (error) {
+    console.error("getTemplates error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.saveTemplate = async (req, res) => {
+  try {
+    const {
+      name, turf, format, durationMins, feeInRs, feeInPaise,
+      minPlayers, totalSlots, reportingMinsBeforeGame,
+      allowSizeChange, organiserIsPlaying, alternateFormats,
+    } = req.body;
+
+    if (!name || !name.trim())
+      return res.status(400).json({ success: false, message: "Template name is required" });
+
+    const template = {
+      name: name.trim(),
+      turf:                    turf                    || null,
+      format:                  format                  || "6v6",
+      durationMins:            durationMins            || 60,
+      feeInPaise:              feeInRs ? Math.round(Number(feeInRs) * 100) : (feeInPaise || 0),
+      minPlayers:              minPlayers              || 0,
+      totalSlots:              totalSlots              || 0,
+      reportingMinsBeforeGame: reportingMinsBeforeGame || 30,
+      allowSizeChange:         Boolean(allowSizeChange),
+      organiserIsPlaying:      Boolean(organiserIsPlaying),
+      alternateFormats: Array.isArray(alternateFormats)
+        ? alternateFormats.map((af) => ({
+            ...af,
+            feeInPaise: af.feeInRs ? Math.round(Number(af.feeInRs) * 100) : (af.feeInPaise || 0),
+          }))
+        : [],
+    };
+
+    const organiser = await Organiser.findByIdAndUpdate(
+      req.user._id,
+      { $push: { gameTemplates: template } },
+      { new: true, select: "gameTemplates" }
+    );
+
+    const saved = organiser.gameTemplates[organiser.gameTemplates.length - 1];
+    return res.status(201).json({ success: true, message: "Template saved", data: saved });
+  } catch (error) {
+    console.error("saveTemplate error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.updateTemplate = async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const organiser = await Organiser.findById(req.user._id);
+    if (!organiser) return res.status(404).json({ success: false, message: "Organiser not found" });
+
+    const tmpl = organiser.gameTemplates.id(templateId);
+    if (!tmpl) return res.status(404).json({ success: false, message: "Template not found" });
+
+    const allowed = [
+      "name","turf","format","durationMins","minPlayers","totalSlots",
+      "reportingMinsBeforeGame","allowSizeChange","organiserIsPlaying","alternateFormats",
+    ];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) tmpl[key] = req.body[key];
+    }
+    if (req.body.feeInRs !== undefined) tmpl.feeInPaise = Math.round(Number(req.body.feeInRs) * 100);
+
+    await organiser.save();
+    return res.status(200).json({ success: true, message: "Template updated", data: tmpl });
+  } catch (error) {
+    console.error("updateTemplate error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.deleteTemplate = async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const organiser = await Organiser.findByIdAndUpdate(
+      req.user._id,
+      { $pull: { gameTemplates: { _id: templateId } } },
+      { new: true, select: "gameTemplates" }
+    );
+    if (!organiser) return res.status(404).json({ success: false, message: "Organiser not found" });
+    return res.status(200).json({ success: true, message: "Template deleted" });
+  } catch (error) {
+    console.error("deleteTemplate error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};

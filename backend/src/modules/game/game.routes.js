@@ -1,15 +1,23 @@
 const express = require("express");
-const { 
-  createGame, 
-  getOrganiserGames, 
-  deleteGame, 
+const {
+  createGame,
+  getOrganiserGames,
+  deleteGame,
   updateGame,
   openGameForRegistration,
+  confirmGame,
+  addPlayerByOrganiser,
+  organiserWithdraw,
+  removeRegistration,
+  approveWaitlist,
   getAllGames,
   getGameById,
   getMyGames,
+  getMyWaitlist,
   registerForGame,
-  backoutFromGame
+  backoutFromGame,
+  joinWaitlist,
+  leaveWaitlist,
 } = require("./game.controller");
 const { protect, authorize } = require("../auth/auth.middleware");
 
@@ -25,6 +33,21 @@ router.route("/organisers/my-games")
 router.route("/organisers/:id/open")
   .patch(protect, authorize("organiser"), openGameForRegistration);
 
+router.route("/organisers/:id/confirm")
+  .patch(protect, authorize("organiser"), confirmGame);
+
+router.route("/organisers/:id/add-player")
+  .post(protect, authorize("organiser"), addPlayerByOrganiser);
+
+router.route("/organisers/:id/withdraw")
+  .post(protect, authorize("organiser"), organiserWithdraw);
+
+router.route("/organisers/:id/registrations/:regId")
+  .delete(protect, authorize("organiser"), removeRegistration);
+
+router.route("/organisers/:id/waitlist/:waitlistId/approve")
+  .post(protect, authorize("organiser"), approveWaitlist);
+
 router.route("/organisers/:id")
   .delete(protect, authorize("organiser"), deleteGame)
   .patch(protect, authorize("organiser"), updateGame);
@@ -33,11 +56,20 @@ router.route("/organisers/:id")
 router.route("/my-games")
   .get(protect, authorize("player"), getMyGames);
 
+router.route("/my-waitlist")
+  .get(protect, authorize("player"), getMyWaitlist);
+
 router.route("/:id/register")
   .post(protect, authorize("player"), registerForGame);
 
 router.route("/:id/backout")
   .post(protect, authorize("player"), backoutFromGame);
+
+router.route("/:id/waitlist")
+  .post(protect, authorize("player"), joinWaitlist);
+
+router.route("/:id/leave-waitlist")
+  .post(protect, authorize("player"), leaveWaitlist);
 
 router.route("/:id")
   .get(protect, authorize("player", "organiser"), getGameById);

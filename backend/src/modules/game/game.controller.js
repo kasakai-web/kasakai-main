@@ -1,40 +1,103 @@
 const Game = require("../../models/Game");
-const { sendGameCreatedEmail, sendGameRegistrationEmail, formatGamePlace } = require("../../utils/email");
+const Organiser = require("../../models/Organiser");
+const Player = require("../../models/Player");
+const {
+  sendGameCreatedEmail,
+  sendGameRegistrationEmail,
+  sendGameCancelledOrganizerEmail,
+  sendGameCancelledPlayerEmail,
+  sendGameBackoutPlayerEmail,
+  sendGameBackoutOrganizerEmail,
+  sendWaitlistJoinedEmail,
+  sendWaitlistApprovedEmail,
+  sendRemovedFromGameEmail,
+  formatGamePlace,
+} = require("../../utils/email");
 
 // @desc    Create new game
 // @route   POST /api/v1/games
 // @access  Private (Organiser only)
+// Helper: compute totalSlots from format string e.g. "5v5" → 10
+const slotsFromFormat = (fmt) => {
+  if (!fmt) return null;
+  const parts = fmt.split('v');
+  if (parts.length === 2) {
+    const n = parseInt(parts[0]) + parseInt(parts[1]);
+    return isNaN(n) ? null : n;
+  }
+  return null;
+};
+
 exports.createGame = async (req, res) => {
   try {
-    // Add user as organiser
-    req.body.organiser = req.user._id;
-    
-    // Convert fee from Rs to Paise
-    if (req.body.feeInRs) {
-        req.body.feeInPaise = req.body.feeInRs * 100;
+    const body = { ...req.body };
+    body.organiser = req.user._id;
+
+    // Fee conversion
+    if (body.feeInRs !== undefined) {
+      body.feeInPaise = Math.round(Number(body.feeInRs) * 100);
+      delete body.feeInRs;
     }
 
-    // Attempt to compute total slots from format (e.g. 5v5 -> 10 slots)
-    // format looks like "XvY"
-    if (req.body.format && !req.body.totalSlots) {
-        const parts = req.body.format.split('v');
-        if (parts.length === 2) {
-            req.body.totalSlots = parseInt(parts[0]) + parseInt(parts[1]);
-        }
-    }
-    
-    // Set a default minPlayers if not provided
-    if (!req.body.minPlayers && req.body.totalSlots) {
-        req.body.minPlayers = Math.floor(req.body.totalSlots * 0.7); // e.g. 10 -> 7
+    // Convert alternate format fees
+    if (Array.isArray(body.alternateFormats)) {
+      body.alternateFormats = body.alternateFormats.map((af) => ({
+        ...af,
+        feeInPaise: af.feeInRs !== undefined
+          ? Math.round(Number(af.feeInRs) * 100)
+          : (af.feeInPaise || 0),
+      }));
     }
 
-    // Set status to 'open' by default so players can immediately register
-    if (!req.body.status) {
-        req.body.status = 'open';
+    // Auto-compute totalSlots from format if not provided
+    if (!body.totalSlots && body.format) {
+      body.totalSlots = slotsFromFormat(body.format);
     }
 
-    const game = await Game.create(req.body);
-    await game.populate({ path: "turf", select: "name address" });
+    // Auto-compute minPlayers if not provided
+    if (!body.minPlayers && body.totalSlots) {
+      body.minPlayers = Math.floor(body.totalSlots * 0.7);
+    }
+
+    // Auto-compute endsAt from scheduledAt + durationMins
+    if (body.scheduledAt && body.durationMins) {
+      const start = new Date(body.scheduledAt);
+      body.endsAt = new Date(start.getTime() + Number(body.durationMins) * 60 * 1000);
+    }
+
+    // Default status
+    if (!body.status) body.status = 'open';
+
+    // Extract organiserGuestCount before create (not a schema field)
+    const organiserGuestCount = Math.min(parseInt(body.organiserGuestCount) || 0, 10);
+    delete body.organiserGuestCount;
+
+    // Enforce hard cap: organiser slot + guest slots must not exceed totalSlots
+    const organiserSlot = body.organiserIsPlaying ? 1 : 0;
+    const totalReserved = organiserSlot + organiserGuestCount;
+    if (body.totalSlots && totalReserved > body.totalSlots) {
+      return res.status(400).json({
+        success: false,
+        message: `Total participants (organiser + ${organiserGuestCount} guest${organiserGuestCount !== 1 ? 's' : ''}) exceeds the max player limit of ${body.totalSlots}.`,
+      });
+    }
+
+    const game = await Game.create(body);
+
+    // Auto-register organiser's guests as placeholder registrations
+    if (organiserGuestCount > 0) {
+      for (let i = 1; i <= organiserGuestCount; i++) {
+        game.registrations.push({
+          player:        req.user._id,
+          plusOneName:   `Guest ${i}`,
+          paymentStatus: 'pending',
+          signedUpAt:    new Date(),
+        });
+      }
+      await game.save();
+    }
+
+    await game.populate({ path: 'turf', select: 'name address' });
 
     if (req.user?.email) {
       sendGameCreatedEmail({
@@ -44,20 +107,14 @@ exports.createGame = async (req, res) => {
         scheduledAt: game.scheduledAt,
         format: game.format,
         place: formatGamePlace(game.turf),
-      }).catch((emailError) => {
-        console.error("[EMAIL] Failed to send game created email:", emailError?.message || emailError);
+      }).catch((err) => {
+        console.error('[EMAIL] Failed to send game created email:', err?.message || err);
       });
     }
 
-    res.status(201).json({
-      success: true,
-      data: game,
-    });
+    res.status(201).json({ success: true, data: game });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -125,10 +182,8 @@ exports.getOrganiserGames = async (req, res) => {
     const games = await Game.find({ organiser: req.user._id })
       .populate('turf', 'name location.city address')
       .populate('organiser', 'name phone')
-      .populate({
-        path: 'registrations.player',
-        select: 'name phone email',
-      })
+      .populate({ path: 'registrations.player', select: 'name phone email' })
+      .populate({ path: 'waitlist.player', select: 'name phone email' })
       .sort('-scheduledAt')
       .lean();
 
@@ -186,9 +241,89 @@ exports.deleteGame = async (req, res) => {
       });
     }
 
+    const cancelMessage = (req.body?.cancelMessage || '').trim();
+
     game.status = 'cancelled';
     game.cancelledAt = new Date();
+    if (cancelMessage) {
+      game.cancelReason = cancelMessage;
+    }
     await game.save();
+
+    // Reload the game fresh with all needed populations to guarantee data integrity
+    const populatedGame = await Game.findById(game._id)
+      .populate({ path: 'turf', select: 'name address' })
+      .populate({ path: 'registrations.player', select: 'name email' })
+      .populate({ path: 'organiser', select: 'name email' })
+      .lean();
+
+    const placeText = formatGamePlace(populatedGame.turf);
+    const gameTitle = populatedGame.title;
+    const scheduledAt = populatedGame.scheduledAt;
+    const gameFormat = populatedGame.format;
+
+    console.log(`[CANCEL] "${gameTitle}" cancelled. Registrations: ${populatedGame.registrations.length}`);
+
+    // ── Email: organiser confirmation ────────────────────────
+    const organiser = populatedGame.organiser;
+    if (organiser && organiser.email) {
+      sendGameCancelledOrganizerEmail({
+        to: organiser.email,
+        organiserName: organiser.name,
+        gameTitle,
+        scheduledAt,
+        format: gameFormat,
+        place: placeText,
+        cancelMessage,
+      }).catch((err) => {
+        console.error('[EMAIL] Organiser cancel email failed:', err?.message || err);
+      });
+      console.log(`[CANCEL] Organiser email → ${organiser.email}`);
+    }
+
+    // ── Email: every unique registered player ────────────────
+    const seenPlayerIds = new Set();
+    for (const reg of populatedGame.registrations) {
+      const player = reg.player;
+
+      // player may be an ObjectId (unpopulated) or a full object — handle both
+      if (!player) continue;
+      const playerId = player._id ? player._id.toString() : player.toString();
+
+      if (seenPlayerIds.has(playerId)) continue;
+      seenPlayerIds.add(playerId);
+
+      // If populate worked, player is an object with email; otherwise fetch manually
+      let email = player.email || null;
+      let name  = player.name  || 'Player';
+
+      if (!email) {
+        try {
+          const fetched = await Player.findById(playerId).select('name email').lean();
+          if (fetched) { email = fetched.email; name = fetched.name; }
+        } catch (_) {}
+      }
+
+      if (!email) {
+        console.warn(`[CANCEL] No email for player ${playerId} — skipping`);
+        continue;
+      }
+
+      console.log(`[CANCEL] Player email → ${email}`);
+      sendGameCancelledPlayerEmail({
+        to: email,
+        playerName: name,
+        gameTitle,
+        scheduledAt,
+        format: gameFormat,
+        place: placeText,
+        cancelMessage,
+      }).catch((err) => {
+        console.error(`[EMAIL] Player cancel email failed (${email}):`, err?.message || err);
+      });
+    }
+
+    console.log(`[CANCEL] Done. Notified ${seenPlayerIds.size} unique player(s)`);
 
     res.status(200).json({
       success: true,
@@ -236,25 +371,44 @@ exports.updateGame = async (req, res) => {
 
     // Update allowed fields
     const updateData = {};
+    const b = req.body;
 
-    if (req.body.title !== undefined) updateData.title = req.body.title;
-    if (req.body.format !== undefined) updateData.format = req.body.format;
-    if (req.body.totalSlots !== undefined) updateData.totalSlots = Number(req.body.totalSlots);
-    if (req.body.durationMins !== undefined) updateData.durationMins = Number(req.body.durationMins);
-    if (req.body.minPlayers !== undefined) updateData.minPlayers = Number(req.body.minPlayers);
-    if (req.body.feeInRs !== undefined) updateData.feeInPaise = Number(req.body.feeInRs) * 100;
-    if (req.body.feeInPaise !== undefined) updateData.feeInPaise = Number(req.body.feeInPaise);
-    if (req.body.turf !== undefined) updateData.turf = req.body.turf;
-    if (req.body.status !== undefined) updateData.status = req.body.status;
-    if (req.body.scheduledAt !== undefined) updateData.scheduledAt = new Date(req.body.scheduledAt);
-    if (req.body.cutoffAt !== undefined) updateData.cutoffAt = new Date(req.body.cutoffAt);
+    if (b.title        !== undefined) updateData.title        = b.title;
+    if (b.format       !== undefined) updateData.format       = b.format;
+    if (b.turf         !== undefined) updateData.turf         = b.turf;
+    if (b.status       !== undefined) updateData.status       = b.status;
+    if (b.totalSlots   !== undefined) updateData.totalSlots   = Number(b.totalSlots);
+    if (b.durationMins !== undefined) updateData.durationMins = Number(b.durationMins);
+    if (b.minPlayers   !== undefined) updateData.minPlayers   = Number(b.minPlayers);
+    if (b.feeInRs      !== undefined) updateData.feeInPaise   = Math.round(Number(b.feeInRs) * 100);
+    if (b.feeInPaise   !== undefined) updateData.feeInPaise   = Number(b.feeInPaise);
+    if (b.scheduledAt  !== undefined) updateData.scheduledAt  = new Date(b.scheduledAt);
+    if (b.cutoffAt     !== undefined) updateData.cutoffAt     = new Date(b.cutoffAt);
+    if (b.reportingMinsBeforeGame !== undefined) updateData.reportingMinsBeforeGame = Number(b.reportingMinsBeforeGame);
+    if (b.allowSizeChange         !== undefined) updateData.allowSizeChange         = Boolean(b.allowSizeChange);
+    if (b.organiserIsPlaying      !== undefined) updateData.organiserIsPlaying      = Boolean(b.organiserIsPlaying);
 
-    // If schedule changes and cutoff is not explicitly provided, keep it sensible.
-    if (updateData.scheduledAt && !updateData.cutoffAt) {
-      updateData.cutoffAt = new Date(new Date(updateData.scheduledAt).getTime() - 2 * 60 * 60 * 1000);
+    // Alternate formats
+    if (Array.isArray(b.alternateFormats)) {
+      updateData.alternateFormats = b.alternateFormats.map((af) => ({
+        ...af,
+        feeInPaise: af.feeInRs !== undefined
+          ? Math.round(Number(af.feeInRs) * 100)
+          : (af.feeInPaise || 0),
+      }));
     }
 
-    // Recompute minPlayers if omitted but totalSlots changed.
+    // Auto-recompute cutoffAt if scheduledAt changed but cutoffAt was not provided
+    if (updateData.scheduledAt && !updateData.cutoffAt) {
+      updateData.cutoffAt = new Date(updateData.scheduledAt.getTime() - 2 * 60 * 60 * 1000);
+    }
+
+    // Auto-recompute endsAt whenever scheduledAt or durationMins changes
+    const newScheduled = updateData.scheduledAt || game.scheduledAt;
+    const newDuration  = updateData.durationMins !== undefined ? updateData.durationMins : game.durationMins;
+    updateData.endsAt  = new Date(new Date(newScheduled).getTime() + Number(newDuration) * 60 * 1000);
+
+    // Recompute minPlayers if totalSlots changed and minPlayers not explicitly provided
     if (updateData.totalSlots !== undefined && updateData.minPlayers === undefined) {
       updateData.minPlayers = Math.floor(updateData.totalSlots * 0.7);
     }
@@ -283,6 +437,210 @@ exports.updateGame = async (req, res) => {
       success: false,
       message: "Server Error: " + error.message,
     });
+  }
+};
+
+// @desc    Confirm a game (open/tentative → confirmed)
+// @route   PATCH /api/v1/games/organisers/:id/confirm
+// @access  Private (Organiser only)
+exports.confirmGame = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (!['open','tentative'].includes(game.status))
+      return res.status(400).json({ success: false, message: `Cannot confirm a game with status "${game.status}"` });
+
+    const organiserCount = game.organiserIsPlaying ? 1 : 0;
+    const activePlayers = game.registrations.length + organiserCount;
+    if (activePlayers < game.minPlayers)
+      return res.status(400).json({
+        success: false,
+        message: `Need at least ${game.minPlayers} players to confirm. Currently ${activePlayers} registered.`,
+      });
+
+    game.status      = 'confirmed';
+    game.confirmedAt = new Date();
+    await game.save();
+
+    res.status(200).json({ success: true, message: 'Game confirmed', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc    Organiser adds a player to fill a spot
+// @route   POST /api/v1/games/organisers/:id/add-player
+// @access  Private (Organiser only)
+exports.addPlayerByOrganiser = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (['completed','cancelled'].includes(game.status))
+      return res.status(400).json({ success: false, message: 'Cannot add players to this game' });
+
+    const { playerId, plusOneName, preferredPosition, teamPreference } = req.body;
+
+    if (!playerId && !plusOneName)
+      return res.status(400).json({ success: false, message: 'Provide playerId or plusOneName' });
+
+    if (game.spotsRemaining < 1)
+      return res.status(400).json({ success: false, message: 'No spots remaining' });
+
+    // If adding by player ID, check not already registered
+    if (playerId) {
+      const Player = require('../../models/Player');
+      const player = await Player.findById(playerId);
+      if (!player) return res.status(404).json({ success: false, message: 'Player not found' });
+
+      const alreadyIn = game.registrations.some(
+        (r) => r.player.toString() === playerId && !r.plusOneName
+      );
+      if (alreadyIn)
+        return res.status(400).json({ success: false, message: 'Player is already registered' });
+
+      game.registrations.push({
+        player:            playerId,
+        preferredPosition: preferredPosition || 'any',
+        teamPreference:    teamPreference    || 'none',
+        paymentStatus:     'pending',
+        signedUpAt:        new Date(),
+      });
+    } else {
+      // Adding as a named guest without a player account
+      // Use organiser's own ID as the player ref (placeholder)
+      game.registrations.push({
+        player:            req.user._id,
+        plusOneName:       plusOneName.trim(),
+        preferredPosition: preferredPosition || 'any',
+        teamPreference:    teamPreference    || 'none',
+        paymentStatus:     'pending',
+        signedUpAt:        new Date(),
+      });
+    }
+
+    await game.save();
+    res.status(200).json({ success: true, message: 'Player added successfully', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc    Organiser removes a specific registration slot (e.g. a guest they added)
+// @route   DELETE /api/v1/games/organisers/:id/registrations/:regId
+// @access  Private (Organiser only)
+exports.removeRegistration = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id)
+      .populate({ path: 'turf', select: 'name address location' });
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+
+    const regIndex = game.registrations.findIndex(
+      (r) => r._id.toString() === req.params.regId
+    );
+    if (regIndex === -1)
+      return res.status(404).json({ success: false, message: 'Registration not found' });
+
+    const removedReg = game.registrations[regIndex];
+    game.registrations.splice(regIndex, 1);
+    await game.save();
+
+    await game.populate({ path: 'registrations.player', select: 'name phone email' });
+    await game.populate({ path: 'waitlist.player',       select: 'name phone email' });
+
+    // Notify the removed player (fire-and-forget) — only for real players, not organiser guests
+    if (!removedReg.plusOneName && removedReg.player) {
+      const playerDoc = await Player.findById(removedReg.player).select('name email').lean();
+      if (playerDoc?.email) {
+        sendRemovedFromGameEmail({
+          to:          playerDoc.email,
+          playerName:  playerDoc.name,
+          gameTitle:   game.title,
+          scheduledAt: game.scheduledAt,
+          format:      game.format,
+          place:       formatGamePlace(game.turf),
+        }).catch((err) => console.error('[EMAIL] removed-from-game failed:', err.message));
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Registration removed', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc    Organiser approves a waitlisted player (moves them into registrations)
+// @route   POST /api/v1/games/organisers/:id/waitlist/:waitlistId/approve
+// @access  Private (Organiser only)
+exports.approveWaitlist = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id)
+      .populate({ path: 'turf', select: 'name address location' });
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+
+    const waitlistEntry = game.waitlist.find(
+      (w) => w._id.toString() === req.params.waitlistId
+    );
+    if (!waitlistEntry)
+      return res.status(404).json({ success: false, message: 'Waitlist entry not found' });
+
+    if (waitlistEntry.status === 'approved')
+      return res.status(400).json({ success: false, message: 'Player is already approved' });
+
+    // Mark as approved — does NOT consume a slot (stays in waitlist array)
+    waitlistEntry.status      = 'approved';
+    waitlistEntry.notifiedAt  = new Date();
+
+    await game.save();
+
+    // Populate for response + email
+    await game.populate({ path: 'registrations.player', select: 'name phone email' });
+    await game.populate({ path: 'waitlist.player',       select: 'name phone email' });
+
+    // Send approval email to player (fire-and-forget)
+    const playerDoc = await Player.findById(waitlistEntry.player).select('name email').lean();
+    if (playerDoc?.email) {
+      sendWaitlistApprovedEmail({
+        to:          playerDoc.email,
+        playerName:  playerDoc.name,
+        gameTitle:   game.title,
+        scheduledAt: game.scheduledAt,
+        format:      game.format,
+        place:       formatGamePlace(game.turf),
+      }).catch((err) => console.error('[EMAIL] waitlist-approved failed:', err.message));
+    }
+
+    res.status(200).json({ success: true, message: 'Player approved from waitlist', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc    Organiser withdraws themselves from a game they signed up for
+// @route   POST /api/v1/games/organisers/:id/withdraw
+// @access  Private (Organiser only)
+exports.organiserWithdraw = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (!game.organiserIsPlaying)
+      return res.status(400).json({ success: false, message: 'You are not signed up to play in this game' });
+
+    game.organiserIsPlaying = false;
+    await game.save();
+
+    res.status(200).json({ success: true, message: 'Withdrawn from game successfully', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
   }
 };
 
@@ -470,13 +828,16 @@ exports.registerForGame = async (req, res) => {
       ? (POSITION_MAP[playerPositions[0]] || 'any')
       : 'any';
 
+    const willingIfFormatChange = req.body.willingIfFormatChange !== false; // default true
+
     // ── Main player registration ──────────────────────────
     game.registrations.push({
-      player:            req.user._id,
-      preferredPosition: playerPosition,
-      teamPreference:    playerTeam,
-      paymentStatus:     'pending',
-      signedUpAt:        new Date(),
+      player:                req.user._id,
+      preferredPosition:     playerPosition,
+      teamPreference:        playerTeam,
+      paymentStatus:         'pending',
+      willingIfFormatChange,
+      signedUpAt:            new Date(),
     });
 
     // ── Guest registrations ───────────────────────────────
@@ -527,27 +888,201 @@ exports.registerForGame = async (req, res) => {
   }
 };
 
+// @desc    Join the waitlist for a full game (no payment)
+// @route   POST /api/v1/games/:id/waitlist
+// @access  Private (Player)
+exports.joinWaitlist = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+
+    if (!['open', 'confirmed'].includes(game.status)) {
+      return res.status(400).json({ success: false, message: 'Game is not open for registration' });
+    }
+
+    if (game.spotsRemaining > 0) {
+      return res.status(400).json({ success: false, message: 'Spots are still available — please register normally' });
+    }
+
+    const alreadyRegistered = game.registrations.some(
+      (r) => r.player.toString() === req.user._id.toString() && !r.plusOneName
+    );
+    if (alreadyRegistered) {
+      return res.status(400).json({ success: false, message: 'You are already registered for this game' });
+    }
+
+    const alreadyWaiting = game.waitlist.some(
+      (w) => w.player.toString() === req.user._id.toString() && ['waiting', 'notified'].includes(w.status)
+    );
+    if (alreadyWaiting) {
+      return res.status(400).json({ success: false, message: 'You are already on the waitlist for this game' });
+    }
+
+    const playerPositions = Array.isArray(req.body.positions) ? req.body.positions : [];
+    const playerPosition = playerPositions.length > 0 ? (POSITION_MAP[playerPositions[0]] || 'any') : 'any';
+    const playerTeam = TEAM_MAP[req.body.teamPreference] || 'none';
+
+    game.waitlist.push({
+      player: req.user._id,
+      joinedAt: new Date(),
+      status: 'waiting',
+      preferredPosition: playerPosition,
+      teamPreference: playerTeam,
+      willingIfFormatChange: req.body.willingIfFormatChange !== false,
+    });
+
+    await game.save();
+    await game.populate({ path: 'turf', select: 'name address' });
+
+    if (req.user?.email) {
+      sendWaitlistJoinedEmail({
+        to: req.user.email,
+        playerName: req.user.name,
+        gameTitle: game.title,
+        scheduledAt: game.scheduledAt,
+        format: game.format,
+        place: formatGamePlace(game.turf),
+      }).catch((err) => console.error('[EMAIL] Waitlist join email failed:', err?.message || err));
+    }
+
+    const activeWaitlist = game.waitlist.filter((w) => ['waiting', 'notified'].includes(w.status));
+    res.status(200).json({
+      success: true,
+      message: "You've been added to the waitlist",
+      waitlistPosition: activeWaitlist.length,
+      data: game,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc    Leave the waitlist for a game
+// @route   POST /api/v1/games/:id/leave-waitlist
+// @access  Private (Player)
+exports.leaveWaitlist = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+
+    const hadEntry = game.waitlist.some(
+      (w) => w.player.toString() === req.user._id.toString()
+    );
+    if (!hadEntry) {
+      return res.status(400).json({ success: false, message: 'You are not on the waitlist for this game' });
+    }
+
+    game.waitlist = game.waitlist.filter(
+      (w) => w.player.toString() !== req.user._id.toString()
+    );
+    await game.save();
+
+    res.status(200).json({ success: true, message: 'Removed from waitlist successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc    Get all games where the current player is on the waitlist
+// @route   GET /api/v1/games/my-waitlist
+// @access  Private (Player)
+exports.getMyWaitlist = async (req, res) => {
+  try {
+    const games = await Game.find({
+      waitlist: { $elemMatch: { player: req.user._id, status: { $in: ['waiting', 'notified', 'approved'] } } },
+      scheduledAt: { $gt: new Date() },
+    })
+      .populate('turf', 'name location.city')
+      .populate('organiser', 'name')
+      .populate({ path: 'registrations.player', select: 'name' })
+      .sort('scheduledAt')
+      .lean();
+
+    // Attach the player's own waitlist entry status to each game object
+    const playerId = req.user._id.toString();
+    const result = games.map((game) => {
+      const myEntry = game.waitlist.find((w) => w.player.toString() === playerId);
+      return { ...game, _myWaitlistStatus: myEntry?.status || 'waiting' };
+    });
+
+    res.status(200).json({ success: true, count: result.length, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
 // @desc    Backout from a game
 // @route   POST /api/v1/games/:id/backout
 // @access  Private (Player)
 exports.backoutFromGame = async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
+    const game = await Game.findById(req.params.id)
+      .populate({ path: "organiser", select: "name email" })
+      .populate({ path: "turf",     select: "name address" })
+      .populate({ path: "registrations.player", select: "name email" });
 
     if (!game) {
       return res.status(404).json({ success: false, message: "Game not found" });
     }
 
     const playerId = req.user._id.toString();
-    const registrationsBefore = game.registrations.length;
-    game.registrations = game.registrations.filter((reg) => reg.player.toString() !== playerId);
-    const removedCount = registrationsBefore - game.registrations.length;
+    // reg.player may be a populated Document or a raw ObjectId — handle both
+    const regPlayerId = (reg) => String(reg.player?._id || reg.player);
 
-    if (removedCount === 0) {
+    const playerRegistrations = game.registrations.filter((reg) => regPlayerId(reg) === playerId);
+
+    if (playerRegistrations.length === 0) {
       return res.status(400).json({ success: false, message: "Not registered for this game" });
     }
 
+    const guestCount    = playerRegistrations.filter((reg) => reg.plusOneName).length;
+    const removedCount  = playerRegistrations.length;
+
+    game.registrations = game.registrations.filter((reg) => regPlayerId(reg) !== playerId);
+
     await game.save();
+
+    const playerName = req.user?.name || playerRegistrations.find((reg) => !reg.plusOneName)?.player?.name || "Player";
+    const playerEmail = req.user?.email || playerRegistrations.find((reg) => !reg.plusOneName)?.player?.email || null;
+    const organiserEmail = game.organiser?.email || null;
+    const organiserName = game.organiser?.name || "Organiser";
+    const placeText = formatGamePlace(game.turf);
+
+    const emailJobs = [];
+    if (playerEmail) {
+      emailJobs.push(
+        sendGameBackoutPlayerEmail({
+          to: playerEmail,
+          playerName,
+          gameTitle: game.title,
+          scheduledAt: game.scheduledAt,
+          format: game.format,
+          place: placeText,
+          guestCount,
+        }).catch((err) => {
+          console.error("[EMAIL] Backout player email failed:", err?.message || err);
+        })
+      );
+    }
+
+    if (organiserEmail) {
+      emailJobs.push(
+        sendGameBackoutOrganizerEmail({
+          to: organiserEmail,
+          organiserName,
+          playerName,
+          gameTitle: game.title,
+          scheduledAt: game.scheduledAt,
+          format: game.format,
+          place: placeText,
+          guestCount,
+        }).catch((err) => {
+          console.error("[EMAIL] Backout organiser email failed:", err?.message || err);
+        })
+      );
+    }
+
+    await Promise.allSettled(emailJobs);
 
     res.status(200).json({
       success: true,
