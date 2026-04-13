@@ -242,6 +242,29 @@ const buildRemovedFromGameTemplate = ({ playerName, gameTitle, scheduledAt, form
     </div>`,
 });
 
+const buildWaitlistSpotAvailableTemplate = ({ playerName, gameTitle, scheduledAt, format, place, gameLink }) => ({
+  subject: "⚽ A spot just opened up! — Kasa Kai",
+  html: `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">
+      <h2 style="margin-bottom:12px;color:#2d7a2d;">⚽ A spot just opened up!</h2>
+      <p style="margin:0 0 12px 0;">Hi ${playerName || "Player"},</p>
+      <p style="margin:0 0 16px 0;">Great news — a player just dropped out of <strong>${gameTitle || "the game"}</strong> and a spot is now free. You were on the waitlist, so you get first dibs!</p>
+      <p style="margin:0 0 16px 0;color:#b45309;font-weight:600;">⏱ Be quick — the first person to sign up gets the spot.</p>
+      <div style="background:#f5f7fb;border:1px solid #e0e5ef;padding:16px 20px;border-radius:10px;margin-bottom:24px;">
+        <p style="margin:0 0 8px 0;"><strong>Event name:</strong> ${gameTitle || "—"}</p>
+        <p style="margin:0 0 8px 0;"><strong>Place:</strong> ${place || "—"}</p>
+        <p style="margin:0 0 8px 0;"><strong>Format:</strong> ${format || "—"}</p>
+        <p style="margin:0;"><strong>Date &amp; time:</strong> ${formatGameDate(scheduledAt)}</p>
+      </div>
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${gameLink}" style="display:inline-block;background:#16a34a;color:#fff;font-weight:700;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:16px;letter-spacing:0.02em;">
+          ⚽ Claim My Spot
+        </a>
+      </div>
+      <p style="margin:0;color:#616161;font-size:13px;">If the spot is taken before you click, you'll remain on the waitlist and we'll notify you again if another opens up. No payment is charged until you complete sign-up.</p>
+    </div>`,
+});
+
 const buildWaitlistApprovedTemplate = ({ playerName, gameTitle, scheduledAt, format, place }) => ({
   subject: "You've been approved! — Kasa Kai",
   html: `
@@ -318,6 +341,11 @@ const sendGameCancelledPlayerEmail = ({ to, playerName, gameTitle, scheduledAt, 
   return sendMail({ to, subject: t.subject, html: t.html });
 };
 
+const sendWaitlistSpotAvailableEmail = ({ to, playerName, gameTitle, scheduledAt, format, place, gameLink }) => {
+  const t = buildWaitlistSpotAvailableTemplate({ playerName, gameTitle, scheduledAt, format, place, gameLink });
+  return sendMail({ to, subject: t.subject, html: t.html });
+};
+
 const sendWaitlistJoinedEmail = ({ to, playerName, gameTitle, scheduledAt, format, place }) => {
   const t = buildWaitlistJoinedTemplate({ playerName, gameTitle, scheduledAt, format, place });
   return sendMail({ to, subject: t.subject, html: t.html });
@@ -343,6 +371,7 @@ module.exports = {
   sendGameCancelledOrganizerEmail,
   sendGameCancelledPlayerEmail,
   sendWaitlistJoinedEmail,
+  sendWaitlistSpotAvailableEmail,
   sendWaitlistApprovedEmail,
   sendRemovedFromGameEmail,
   formatGamePlace,

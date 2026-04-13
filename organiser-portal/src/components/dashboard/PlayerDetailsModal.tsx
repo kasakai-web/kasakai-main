@@ -30,7 +30,6 @@ interface PlayerDetailsModalProps {
   organiserIsPlaying?: boolean;
   onToggleOrganiserPlaying?: () => void;
   onRemoveRegistration?: (regId: string) => Promise<void>;
-  onApproveWaitlist?: (waitlistId: string) => Promise<void>;
 }
 
 const POS_LABEL: Record<string, string> = {
@@ -78,7 +77,6 @@ export function PlayerDetailsModal({
   organiserIsPlaying = false,
   onToggleOrganiserPlaying,
   onRemoveRegistration,
-  onApproveWaitlist,
 }: PlayerDetailsModalProps) {
   const [copied, setCopied]           = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -173,21 +171,12 @@ export function PlayerDetailsModal({
             </span>
             <span className="pdm-stat-lbl">Available</span>
           </div>
-          {waitlist.filter((w) => w.status === "approved").length > 0 && (
+          {waitlist.length > 0 && (
             <>
               <div className="pdm-stat-div" />
               <div className="pdm-stat">
-                <span className="pdm-stat-val" style={{ color: "#4ade80" }}>{waitlist.filter((w) => w.status === "approved").length}</span>
-                <span className="pdm-stat-lbl">Approved</span>
-              </div>
-            </>
-          )}
-          {waitlist.filter((w) => w.status !== "approved").length > 0 && (
-            <>
-              <div className="pdm-stat-div" />
-              <div className="pdm-stat">
-                <span className="pdm-stat-val" style={{ color: "#f59e0b" }}>{waitlist.filter((w) => w.status !== "approved").length}</span>
-                <span className="pdm-stat-lbl">Waiting</span>
+                <span className="pdm-stat-val" style={{ color: "#f59e0b" }}>{waitlist.length}</span>
+                <span className="pdm-stat-lbl">Waitlist</span>
               </div>
             </>
           )}
@@ -256,134 +245,57 @@ export function PlayerDetailsModal({
           )}
         </div>
 
-        {/* Waitlist Section */}
+        {/* Waitlist Section — informational only, auto-notified when a slot opens */}
         {waitlist.length > 0 && (
           <div style={{ margin: "0 0 16px 0" }}>
-            {/* Approved sub-section */}
-            {waitlist.some((w) => w.status === "approved") && (
-              <>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 0 8px 0", borderTop: "1px solid #222", marginTop: 8,
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#4ade80" }}>
-                    ✓ Approved Waitlist ({waitlist.filter((w) => w.status === "approved").length})
-                  </span>
-                </div>
-                <div className="pdm-cards-list">
-                  {waitlist.filter((w) => w.status === "approved").map((entry, idx) => {
-                    const wId = entry._id || "";
-                    return (
-                      <div key={wId || idx} className="pdm-card pdm-card-player" style={{ borderLeft: "3px solid #4ade80" }}>
-                        <div className="pdm-slot-num" style={{ color: "#4ade80" }}>#{idx + 1}</div>
-                        <div className="pdm-avatar pdm-avatar-p" style={{ background: "rgba(74,222,128,0.12)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.3)" }}>
-                          {initials(entry.player?.name)}
-                        </div>
-                        <div className="pdm-card-body">
-                          <div className="pdm-card-top">
-                            <div className="pdm-card-name">{entry.player?.name || "Unknown"}</div>
-                            <span className="pdm-type-chip" style={{ background: "rgba(74,222,128,0.12)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.25)" }}>
-                              ✓ Approved
-                            </span>
-                          </div>
-                          {(entry.player?.phone || entry.player?.email) && (
-                            <div className="pdm-card-contact">
-                              {entry.player?.phone && (
-                                <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
-                              )}
-                              {entry.player?.email && (
-                                <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
-                              )}
-                            </div>
-                          )}
-                          <div className="pdm-card-tags">
-                            {entry.preferredPosition && entry.preferredPosition !== "any" && (
-                              <span className="pdm-pos-tag">{posLabel(entry.preferredPosition)}</span>
-                            )}
-                            {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
-                          </div>
-                        </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 0 8px 0", borderTop: "1px solid #222", marginTop: 8,
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
+                📋 Waitlist ({waitlist.length})
+              </span>
+              <span style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>
+                — auto-notified by email when a slot opens
+              </span>
+            </div>
+            <div className="pdm-cards-list">
+              {waitlist.map((entry, idx) => {
+                const wId = entry._id || "";
+                return (
+                  <div key={wId || idx} className="pdm-card pdm-card-player" style={{ borderLeft: "3px solid #f59e0b", opacity: 0.9 }}>
+                    <div className="pdm-slot-num" style={{ color: "#f59e0b" }}>#{idx + 1}</div>
+                    <div className="pdm-avatar pdm-avatar-p" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)" }}>
+                      {initials(entry.player?.name)}
+                    </div>
+                    <div className="pdm-card-body">
+                      <div className="pdm-card-top">
+                        <div className="pdm-card-name">{entry.player?.name || "Unknown"}</div>
+                        <span className="pdm-type-chip" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}>
+                          Waiting
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* Pending waitlist sub-section */}
-            {waitlist.some((w) => w.status !== "approved") && (
-              <>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 0 8px 0", borderTop: "1px solid #222", marginTop: 8,
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
-                    📋 Waiting ({waitlist.filter((w) => w.status !== "approved").length})
-                  </span>
-                </div>
-                <div className="pdm-cards-list">
-                  {waitlist.filter((w) => w.status !== "approved").map((entry, idx) => {
-                    const wId = entry._id || "";
-                    const isApproving = processingId === `approve-${wId}`;
-                    return (
-                      <div key={wId || idx} className="pdm-card pdm-card-player" style={{ borderLeft: "3px solid #f59e0b", opacity: 0.9 }}>
-                        <div className="pdm-slot-num" style={{ color: "#f59e0b" }}>#{idx + 1}</div>
-                        <div className="pdm-avatar pdm-avatar-p" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)" }}>
-                          {initials(entry.player?.name)}
-                        </div>
-                        <div className="pdm-card-body">
-                          <div className="pdm-card-top">
-                            <div className="pdm-card-name">{entry.player?.name || "Unknown"}</div>
-                            <span className="pdm-type-chip" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}>
-                              Waitlist
-                            </span>
-                          </div>
-                          {(entry.player?.phone || entry.player?.email) && (
-                            <div className="pdm-card-contact">
-                              {entry.player?.phone && (
-                                <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
-                              )}
-                              {entry.player?.email && (
-                                <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
-                              )}
-                            </div>
+                      {(entry.player?.phone || entry.player?.email) && (
+                        <div className="pdm-card-contact">
+                          {entry.player?.phone && (
+                            <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
                           )}
-                          <div className="pdm-card-tags">
-                            {entry.preferredPosition && entry.preferredPosition !== "any" && (
-                              <span className="pdm-pos-tag">{posLabel(entry.preferredPosition)}</span>
-                            )}
-                            {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
-                          </div>
+                          {entry.player?.email && (
+                            <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
+                          )}
                         </div>
-
-                        {onApproveWaitlist && wId && (
-                          <button
-                            disabled={isApproving}
-                            onClick={async () => {
-                              if (!window.confirm(`Approve ${entry.player?.name || "this player"} from waitlist?`)) return;
-                              setProcessingId(`approve-${wId}`);
-                              await onApproveWaitlist(wId);
-                              setProcessingId(null);
-                            }}
-                            style={{
-                              flexShrink: 0, alignSelf: "center", padding: "6px 14px",
-                              borderRadius: 6,
-                              background: isApproving ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.15)",
-                              border: "1px solid rgba(245,158,11,0.4)",
-                              color: "#f59e0b", fontSize: 12, fontWeight: 700,
-                              cursor: isApproving ? "not-allowed" : "pointer",
-                              whiteSpace: "nowrap" as const,
-                            }}
-                          >
-                            {isApproving ? "…" : "✓ Approve"}
-                          </button>
+                      )}
+                      <div className="pdm-card-tags">
+                        {entry.preferredPosition && entry.preferredPosition !== "any" && (
+                          <span className="pdm-pos-tag">{posLabel(entry.preferredPosition)}</span>
                         )}
+                        {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

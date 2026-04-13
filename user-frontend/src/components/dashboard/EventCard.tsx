@@ -68,8 +68,8 @@ export function EventCard({
               ? '✅ Completed'
               : 'Tentative'}
           </span>
-          {isWaitlisted && isWaitlistApproved && !isCancelled && <span className="registered-badge waitlist-approved-badge">✓ Waitlist Approved</span>}
-          {isWaitlisted && !isWaitlistApproved && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
+          {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
+          {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
           {isRegistered && !isCancelled && <span className="registered-badge">✓ Registered</span>}
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
         </div>
@@ -133,17 +133,21 @@ export function EventCard({
           <button className="card-btn cancelled-btn" disabled>
             <span>✕ Event Cancelled</span>
           </button>
-        ) : isWaitlisted && isWaitlistApproved ? (
-          <button className="card-btn approved-waitlist-btn" disabled>
-            <span>✓ Spot Approved!</span>
+        ) : isRegistered ? (
+          <button className="card-btn registered-btn" disabled>
+            <span>✓ You&apos;re Registered</span>
+          </button>
+        ) : isWaitlisted && spotsLeft > 0 ? (
+          // Waitlisted player + spot just opened → active "Sign Up Now!" button
+          <button
+            className="card-btn signup-btn"
+            onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
+          >
+            <span>⚽ Sign Up Now!</span>
           </button>
         ) : isWaitlisted ? (
           <button className="card-btn waitlist-btn" disabled>
             <span>📋 On Waitlist</span>
-          </button>
-        ) : isRegistered ? (
-          <button className="card-btn registered-btn" disabled>
-            <span>✓ You&apos;re Registered</span>
           </button>
         ) : (
           <>

@@ -8,9 +8,10 @@ import { buildApiUrl } from "@/utils/api";
 interface PlayerLoginFormProps {
   onSignupClick: () => void;
   onForgotClick: () => void;
+  redirectAfterLogin?: string | null;
 }
 
-export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFormProps) {
+export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLogin }: PlayerLoginFormProps) {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -85,7 +86,10 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       }
 
       const isNew = localStorage.getItem("newSignup") === "true";
-      if (isNew) {
+      if (redirectAfterLogin) {
+        // Came from a waitlist email link — go directly there
+        router.replace(redirectAfterLogin);
+      } else if (isNew) {
         localStorage.removeItem("newSignup");
         localStorage.setItem("showProfileBanner", "true");
         router.replace(`/dashboard/player/${user.id}/profile`);

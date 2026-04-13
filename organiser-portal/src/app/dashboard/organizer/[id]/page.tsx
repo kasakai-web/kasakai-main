@@ -139,27 +139,6 @@ export default function OrganizerDashboard() {
     }
   };
 
-  const handleApproveWaitlist = async (gameId: string, waitlistId: string) => {
-    const { token } = getSession();
-    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
-    const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/waitlist/${waitlistId}/approve`), {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
-    const { token: t2 } = getSession();
-    const refreshed = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
-      headers: { Authorization: `Bearer ${t2}` },
-    });
-    const refreshedData = await refreshed.json();
-    if (refreshedData.success) {
-      const updatedGames: any[] = refreshedData.data;
-      setGames(updatedGames);
-      setSelectedGame((prev: any) => updatedGames.find((g) => g._id === prev?._id) ?? prev);
-    }
-  };
-
   const handleCancelGame = async (gameId: string, message: string) => {
     setCancellingId(gameId);
     try {
@@ -568,9 +547,6 @@ export default function OrganizerDashboard() {
           onToggleOrganiserPlaying={() => handleOrganiserWithdraw(selectedGame._id)}
           onRemoveRegistration={async (regId) => {
             await handleRemoveRegistration(selectedGame._id, regId);
-          }}
-          onApproveWaitlist={async (waitlistId) => {
-            await handleApproveWaitlist(selectedGame._id, waitlistId);
           }}
           onClose={() => {
             setShowPlayersModal(false);

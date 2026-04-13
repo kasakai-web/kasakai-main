@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
@@ -14,6 +14,8 @@ import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
 
 function AuthFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectAfterLogin = searchParams.get("redirect") || null;
 
   const [step, setStep] = useState<
     | "login"
@@ -54,6 +56,7 @@ function AuthFlow() {
         <PlayerLoginForm
           onSignupClick={() => setStep("signup-form")}
           onForgotClick={() => setStep("forgot-step1")}
+          redirectAfterLogin={redirectAfterLogin}
         />
       )}
 

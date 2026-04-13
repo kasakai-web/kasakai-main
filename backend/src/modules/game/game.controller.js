@@ -9,10 +9,35 @@ const {
   sendGameBackoutPlayerEmail,
   sendGameBackoutOrganizerEmail,
   sendWaitlistJoinedEmail,
+  sendWaitlistSpotAvailableEmail,
   sendWaitlistApprovedEmail,
   sendRemovedFromGameEmail,
   formatGamePlace,
 } = require("../../utils/email");
+
+// ── Helper: notify all active waitlist players that a spot just opened ──────
+const notifyWaitlistedPlayers = async (game) => {
+  const activeWaitlist = game.waitlist.filter(
+    (w) => ['waiting', 'notified'].includes(w.status)
+  );
+  if (activeWaitlist.length === 0) return;
+
+  const gameLink = `${process.env.PLAYER_FRONTEND_URL || 'http://localhost:3000'}/join/${game._id}`;
+
+  for (const entry of activeWaitlist) {
+    const playerDoc = await Player.findById(entry.player).select('name email').lean();
+    if (!playerDoc?.email) continue;
+    sendWaitlistSpotAvailableEmail({
+      to:          playerDoc.email,
+      playerName:  playerDoc.name,
+      gameTitle:   game.title,
+      scheduledAt: game.scheduledAt,
+      format:      game.format,
+      place:       formatGamePlace(game.turf),
+      gameLink,
+    }).catch((err) => console.error('[EMAIL] waitlist-spot-available failed:', err.message));
+  }
+};
 
 // @desc    Create new game
 // @route   POST /api/v1/games
@@ -550,6 +575,11 @@ exports.removeRegistration = async (req, res) => {
     game.registrations.splice(regIndex, 1);
     await game.save();
 
+    // Notify waitlisted players that a slot opened (fire-and-forget)
+    notifyWaitlistedPlayers(game).catch((err) =>
+      console.error('[WAITLIST] Notify after remove-registration failed:', err.message)
+    );
+
     await game.populate({ path: 'registrations.player', select: 'name phone email' });
     await game.populate({ path: 'waitlist.player',       select: 'name phone email' });
 
@@ -628,7 +658,8 @@ exports.approveWaitlist = async (req, res) => {
 // @access  Private (Organiser only)
 exports.organiserWithdraw = async (req, res) => {
   try {
-    const game = await Game.findById(req.params.id);
+    const game = await Game.findById(req.params.id)
+      .populate({ path: 'turf', select: 'name address' });
     if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
     if (game.organiser.toString() !== req.user._id.toString())
       return res.status(403).json({ success: false, message: 'Not authorized' });
@@ -637,6 +668,11 @@ exports.organiserWithdraw = async (req, res) => {
 
     game.organiserIsPlaying = false;
     await game.save();
+
+    // Notify waitlisted players that a slot opened
+    notifyWaitlistedPlayers(game).catch((err) =>
+      console.error('[WAITLIST] Notify after organiser-withdraw failed:', err.message)
+    );
 
     res.status(200).json({ success: true, message: 'Withdrawn from game successfully', data: game });
   } catch (error) {
@@ -829,6 +865,14 @@ exports.registerForGame = async (req, res) => {
       : 'any';
 
     const willingIfFormatChange = req.body.willingIfFormatChange !== false; // default true
+
+    // If player was on the waitlist, remove their entry before registering
+    const wlIdx = game.waitlist.findIndex(
+      (w) => w.player.toString() === req.user._id.toString()
+    );
+    if (wlIdx !== -1) {
+      game.waitlist.splice(wlIdx, 1);
+    }
 
     // ── Main player registration ──────────────────────────
     game.registrations.push({
@@ -1041,6 +1085,11 @@ exports.backoutFromGame = async (req, res) => {
     game.registrations = game.registrations.filter((reg) => regPlayerId(reg) !== playerId);
 
     await game.save();
+
+    // Notify waitlisted players that a slot opened (fire-and-forget)
+    notifyWaitlistedPlayers(game).catch((err) =>
+      console.error('[WAITLIST] Notify after backout failed:', err.message)
+    );
 
     const playerName = req.user?.name || playerRegistrations.find((reg) => !reg.plusOneName)?.player?.name || "Player";
     const playerEmail = req.user?.email || playerRegistrations.find((reg) => !reg.plusOneName)?.player?.email || null;

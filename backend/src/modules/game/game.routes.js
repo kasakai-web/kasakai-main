@@ -9,7 +9,6 @@ const {
   addPlayerByOrganiser,
   organiserWithdraw,
   removeRegistration,
-  approveWaitlist,
   getAllGames,
   getGameById,
   getMyGames,
@@ -44,9 +43,6 @@ router.route("/organisers/:id/withdraw")
 
 router.route("/organisers/:id/registrations/:regId")
   .delete(protect, authorize("organiser"), removeRegistration);
-
-router.route("/organisers/:id/waitlist/:waitlistId/approve")
-  .post(protect, authorize("organiser"), approveWaitlist);
 
 router.route("/organisers/:id")
   .delete(protect, authorize("organiser"), deleteGame)

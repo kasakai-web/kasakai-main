@@ -17,6 +17,7 @@ export default function PlayerDashboard() {
   const [games, setGames] = useState<any[]>([]);
   const [myGames, setMyGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const openGameId = searchParams.get("openGame");
   const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [detailGame, setDetailGame] = useState<any>(null);
@@ -173,6 +174,20 @@ export default function PlayerDashboard() {
     }
     setActiveTab("all");
   }, [searchParams]);
+
+  // Auto-open game detail when arriving from a waitlist email link (/join/[gameId])
+  useEffect(() => {
+    if (loading || !openGameId) return;
+    const target = [...games, ...myWaitlist, ...myGames].find((g) => g._id === openGameId);
+    if (target) {
+      setDetailGame(target);
+      setActiveTab("my-games");
+    }
+    // Clear the openGame param from URL so refresh doesn't re-open
+    if (playerId) {
+      router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+    }
+  }, [loading, openGameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
 
@@ -422,9 +437,13 @@ export default function PlayerDashboard() {
   ] : [];
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
   const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
-  const detailWaitlistEntry = detailGame ? myWaitlist.find((wg) => wg._id === detailGame._id) : null;
-  const detailIsWaitlistApproved = detailIsWaitlisted && detailWaitlistEntry?._myWaitlistStatus === 'approved';
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
+  // Compute live spots remaining for the detail game
+  const detailSpotsLeft = detailGame ? Math.max(0,
+    detailGame.totalSlots
+    - (detailGame.registrations?.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus)).length || 0)
+    - (detailGame.organiserIsPlaying ? 1 : 0)
+  ) : 0;
   const detailPlayers = detailGame?.registrations?.map((reg: any, index: number) => ({
     key: `${reg._id || "reg"}-${index}`,
     name: reg.plusOneName || reg.player?.name || "Player",
@@ -578,7 +597,7 @@ export default function PlayerDashboard() {
               ))}
             </div>
 
-            {detailIsWaitlistApproved && !detailIsCancelled && (
+            {detailIsWaitlisted && detailSpotsLeft > 0 && !detailIsCancelled && (
               <div style={{
                 border: "1px solid rgba(74,222,128,0.4)",
                 padding: "14px 16px",
@@ -589,19 +608,19 @@ export default function PlayerDashboard() {
                 alignItems: "center",
                 gap: 12,
               }}>
-                <span style={{ fontSize: 22 }}>🎉</span>
+                <span style={{ fontSize: 22 }}>⚡</span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", marginBottom: 3 }}>
-                    Your waitlist spot has been approved!
+                    A spot just opened up — be first to claim it!
                   </div>
                   <div style={{ color: "#a3e6bf", fontSize: 12, lineHeight: 1.5 }}>
-                    The organiser confirmed your place in this game. See you on the pitch!
+                    You were on the waitlist for this game. A player dropped out — click Sign Up Now before someone else does.
                   </div>
                 </div>
               </div>
             )}
 
-            {!detailIsWaitlistApproved && detailIsWaitlisted && !detailIsCancelled && (
+            {detailIsWaitlisted && detailSpotsLeft === 0 && !detailIsCancelled && (
               <div style={{
                 border: "1px solid rgba(245,158,11,0.3)",
                 padding: "12px 16px",
@@ -614,7 +633,7 @@ export default function PlayerDashboard() {
               }}>
                 <span style={{ fontSize: 18 }}>📋</span>
                 <div style={{ color: "#fcd34d", fontSize: 12, lineHeight: 1.5 }}>
-                  You&apos;re on the waitlist. The organiser will notify you if a spot opens up.
+                  You&apos;re on the waitlist. We&apos;ll email you the moment a spot opens up — first to sign up gets it!
                 </div>
               </div>
             )}
@@ -662,6 +681,16 @@ export default function PlayerDashboard() {
             </div>
 
             <div className="pd-event-modal-actions">
+              {detailIsWaitlisted && detailSpotsLeft > 0 && !detailIsCancelled && (
+                <button
+                  className="card-btn signup-btn"
+                  type="button"
+                  onClick={() => { setDetailGame(null); handleBook(detailGame); }}
+                  style={{ flex: "0 0 auto", minWidth: 180 }}
+                >
+                  <span>⚽ Sign Up Now!</span>
+                </button>
+              )}
               {detailIsWaitlisted && !detailIsCancelled && (
                 <button
                   className="card-btn cancel-btn"
