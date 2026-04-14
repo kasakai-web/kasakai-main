@@ -1580,11 +1580,7 @@ body::after {
 .empty-title { font-family: var(--cond); font-size: 24px; font-weight: 800; color: var(--muted); }
 .empty-sub { font-size: 13px; color: #333; max-width: 280px; line-height: 1.6; }
 
-/* responsive */
-@media(max-width:900px) {
-  .sidebar { display: none; }
-  .dashboard-main { padding: 20px; }
-}
+/* responsive (legacy rules — kept minimal; full responsive is below) */
 @media(max-width:600px) {
   .events-grid { grid-template-columns: 1fr; }
   .bm-game-info { grid-template-columns: 1fr; }
@@ -2542,6 +2538,7 @@ body::after {
 /* Tablet: 768px – 1023px — icon-only sidebar */
 @media (min-width: 768px) and (max-width: 1023px) {
   .sidebar {
+    display: flex;
     width: 62px;
     overflow: hidden;
   }
@@ -2574,6 +2571,10 @@ body::after {
 
 /* Mobile: ≤ 767px — slide-in sidebar drawer */
 @media (max-width: 767px) {
+  .dashboard-app {
+    padding-top: 58px;
+  }
+
   .dashboard-nav {
     padding-right: 0;
     height: 58px;
@@ -2697,6 +2698,39 @@ body::after {
   .event-card { border-radius: 10px; }
 
   .dashboard-nav .logo-name { display: none; }
+
+  /* Hide wallet pill in navbar — sidebar shows wallet balance */
+  .wallet-pill { display: none; }
+
+  /* Tab navigation — horizontal scroll on small phones */
+  .player-tab-navigation {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .player-tab-navigation::-webkit-scrollbar { display: none; }
+  .player-tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 8.5px;
+  }
+
+  /* Page header stacks on mobile */
+  .page-eyebrow { font-size: 8.5px; }
+
+  /* Booking modal full-width on mobile */
+  .booking-modal-overlay {
+    align-items: flex-end;
+  }
+  .booking-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0;
+    max-height: 92vh;
+  }
 }
 
 /* ═══════════════════════════════════════════════

@@ -716,6 +716,18 @@
   .pd-event-player-meta {
     white-space: normal;
   }
+
+  .pd-event-modal-actions {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .pd-event-modal-actions button {
+    flex: 1 1 auto;
+    min-width: unset !important;
+    text-align: center;
+    justify-content: center;
+  }
 }
 
 /* ── Loading ── */
@@ -787,6 +799,8 @@
   .profile-title { font-size: 36px; }
   .pd-stats-grid { grid-template-columns: 1fr 1fr; }
   .pd-stat-cell:nth-child(2) { border-right: none; }
+  .pd-stat-cell:nth-child(4) { border-right: none; }
+  .pd-stat-value { font-size: 32px; }
   .pd-section { padding: 20px 16px; }
   .pd-actions { padding: 16px; flex-direction: column; }
   .pd-success-bar { padding: 12px 16px; }
@@ -794,6 +808,7 @@
   .pd-grid-2 { grid-template-columns: 1fr; }
   .pd-account-grid { grid-template-columns: 1fr; }
   .pd-referral-wrap { flex-direction: column; align-items: flex-start; }
+  .card-details-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ─────────────────────────────────────────────

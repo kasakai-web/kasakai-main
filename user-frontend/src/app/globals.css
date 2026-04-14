@@ -209,7 +209,7 @@ body {
 /* ═══════════════════════════ TABLET (768px – 1023px) ═══════════════════════════ */
 @media (min-width: 768px) and (max-width: 1023px) {
   .container {
-    padding: 0 28px;
+    padding: 0 28px !important;
   }
 
   .strip {
@@ -276,7 +276,7 @@ body {
 
 /* ═══════════════════════════ MOBILE (≤ 767px) ═══════════════════════════ */
 @media (max-width: 767px) {
-  .container { padding: 0 20px; }
+  .container { padding: 0 16px !important; }
 
   .strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -382,8 +382,11 @@ body {
 
   /* ── Sections: reduce padding on mobile ── */
   #features { padding: 56px 0 !important; }
-  #pricing { padding: 56px 0 !important; }
+  #pricing { padding: 56px 16px !important; }
   #features2 { padding: 56px 0 !important; }
+  #support { padding: 56px 16px !important; }
+  #testimonials { padding: 56px 16px !important; }
+  #cta, section[style*="var(--amber)"] { padding: 56px 16px !important; }
 
   /* ── Features section ── */
   #features .section-title { margin-bottom: 28px !important; }
