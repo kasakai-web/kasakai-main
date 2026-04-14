@@ -23,7 +23,7 @@ export default function PlayerDashboard() {
   const [detailGame, setDetailGame] = useState<any>(null);
   const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [walletBalance, setWalletBalance] = useState(1250);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
   const [myWaitlist, setMyWaitlist] = useState<any[]>([]);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
@@ -140,10 +140,28 @@ export default function PlayerDashboard() {
     }
   };
 
+  const fetchWalletBalance = async () => {
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      const res = await fetch(buildApiUrl("/api/v1/players/me/wallet"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) {
+        const w = data.data?.wallet;
+        setWalletBalance((w?.availablePaise ?? w?.balancePaise ?? 0) / 100);
+      }
+    } catch {
+      // non-critical
+    }
+  };
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile()]);
+      await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance()]);
     } finally {
       setLoading(false);
     }
@@ -310,6 +328,8 @@ export default function PlayerDashboard() {
 
       if (data.success) {
         setSelectedGame(null);
+        // Refresh wallet balance after a successful registration
+        fetchWalletBalance();
         if (isWaitlist) {
           showNotification("success", "You've joined the waitlist! We'll notify you when a spot opens.");
           setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
@@ -319,8 +339,20 @@ export default function PlayerDashboard() {
           setTimeout(() => { fetchDashboardData(); }, 500);
         }
       } else {
-        alert(isWaitlist ? `Waitlist failed: ${data.message}` : `Registration failed: ${data.message}`);
-        setSelectedGame(null);
+        if (data.code === "INSUFFICIENT_BALANCE") {
+          setSelectedGame(null);
+          showNotification(
+            "error",
+            "Insufficient wallet balance. Please recharge your wallet to sign up."
+          );
+          // Navigate to wallet page so the player can top up immediately
+          if (playerId) {
+            setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+          }
+        } else {
+          alert(isWaitlist ? `Waitlist failed: ${data.message}` : `Registration failed: ${data.message}`);
+          setSelectedGame(null);
+        }
       }
     } catch (error) {
       console.error("Failed to book", error);

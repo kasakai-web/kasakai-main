@@ -1,6 +1,7 @@
 const Game = require("../../models/Game");
 const Organiser = require("../../models/Organiser");
 const Player = require("../../models/Player");
+const walletService = require("../wallet/wallet.service");
 const {
   sendGameCreatedEmail,
   sendGameRegistrationEmail,
@@ -349,6 +350,24 @@ exports.deleteGame = async (req, res) => {
     }
 
     console.log(`[CANCEL] Done. Notified ${seenPlayerIds.size} unique player(s)`);
+
+    // ── Wallet refunds: group amountPaidPaise by player ──────
+    const refundByPlayer = {};
+    for (const reg of populatedGame.registrations) {
+      if (!reg.player) continue;
+      const pid = reg.player._id ? reg.player._id.toString() : reg.player.toString();
+      if (!refundByPlayer[pid]) refundByPlayer[pid] = 0;
+      refundByPlayer[pid] += reg.amountPaidPaise || 0;
+    }
+    for (const [pid, amount] of Object.entries(refundByPlayer)) {
+      if (amount <= 0) continue;
+      walletService.refund(
+        pid,
+        amount,
+        `Refund – game cancelled (${gameTitle})`,
+        populatedGame._id
+      ).catch((err) => console.error(`[WALLET] Cancellation refund for ${pid} failed:`, err.message));
+    }
 
     res.status(200).json({
       success: true,
@@ -841,7 +860,7 @@ exports.registerForGame = async (req, res) => {
 
     // Block if the player themselves (not a guest) is already registered
     const alreadyRegistered = game.registrations.some(
-      reg => reg.player.toString() === req.user._id.toString() && !reg.plusOneName
+      reg => reg.player && reg.player.toString() === req.user._id.toString() && !reg.plusOneName
     );
     if (alreadyRegistered) {
       return res.status(400).json({ success: false, message: "Already registered for this game" });
@@ -866,20 +885,60 @@ exports.registerForGame = async (req, res) => {
 
     const willingIfFormatChange = req.body.willingIfFormatChange !== false; // default true
 
-    // If player was on the waitlist, remove their entry before registering
-    const wlIdx = game.waitlist.findIndex(
-      (w) => w.player.toString() === req.user._id.toString()
+    // If player was on the waitlist, remove their entry before registering.
+    // Use filter (not splice) — Mongoose reliably tracks array reassignment.
+    const playerIdStr = req.user._id.toString();
+    const hadWaitlistEntry = game.waitlist.some(
+      (w) => w.player.toString() === playerIdStr
     );
-    if (wlIdx !== -1) {
-      game.waitlist.splice(wlIdx, 1);
+    if (hadWaitlistEntry) {
+      game.waitlist = game.waitlist.filter(
+        (w) => w.player.toString() !== playerIdStr
+      );
+      console.log(`[WAITLIST] Removed waitlist entry for player ${playerIdStr} on registration`);
     }
+
+    // ── Wallet deduction ──────────────────────────────────
+    const feePerSlot  = game.feeInPaise || 0;
+    const totalFee    = feePerSlot * totalNeeded;
+    let walletTxId    = null;
+
+    if (totalFee > 0) {
+      try {
+        const scheduledDate = new Date(game.scheduledAt).toLocaleDateString('en-IN', {
+          day: 'numeric', month: 'short',
+        });
+        const { transaction } = await walletService.debit(
+          req.user._id,
+          totalFee,
+          `Game signup – ${game.title || scheduledDate}`,
+          game._id
+        );
+        walletTxId = transaction._id;
+      } catch (walletErr) {
+        if (walletErr.code === 'INSUFFICIENT_BALANCE') {
+          return res.status(402).json({
+            success:   false,
+            code:      'INSUFFICIENT_BALANCE',
+            message:   'Insufficient wallet balance. Please recharge your wallet to sign up.',
+            required:  walletErr.required,
+            available: walletErr.available,
+          });
+        }
+        throw walletErr;
+      }
+    }
+
+    const payStatus = totalFee > 0 ? 'paid' : 'pending';
 
     // ── Main player registration ──────────────────────────
     game.registrations.push({
       player:                req.user._id,
       preferredPosition:     playerPosition,
       teamPreference:        playerTeam,
-      paymentStatus:         'pending',
+      paymentStatus:         payStatus,
+      amountPaidPaise:       feePerSlot,
+      walletLockId:          walletTxId,
       willingIfFormatChange,
       signedUpAt:            new Date(),
     });
@@ -894,12 +953,28 @@ exports.registerForGame = async (req, res) => {
         plusOneName:       guestName,
         preferredPosition: POSITION_MAP[guest?.position] || 'any',
         teamPreference:    TEAM_MAP[guest?.teamPreference] || 'none',
-        paymentStatus:     'pending',
+        paymentStatus:     payStatus,
+        amountPaidPaise:   feePerSlot,
+        walletLockId:      walletTxId,
         signedUpAt:        new Date(),
       });
     });
 
-    await game.save();
+    try {
+      await game.save();
+    } catch (saveErr) {
+      // Refund wallet if the game save fails so the player isn't charged
+      if (walletTxId && totalFee > 0) {
+        walletService.refund(
+          req.user._id,
+          totalFee,
+          `Refund – registration failed (${game.title || game._id})`,
+          game._id
+        ).catch((e) => console.error('[WALLET] Refund on save-fail failed:', e.message));
+      }
+      throw saveErr;
+    }
+
     await game.populate({ path: "turf", select: "name address" });
 
     if (req.user?.email) {
@@ -1082,9 +1157,27 @@ exports.backoutFromGame = async (req, res) => {
     const guestCount    = playerRegistrations.filter((reg) => reg.plusOneName).length;
     const removedCount  = playerRegistrations.length;
 
+    // ── Wallet refund ─────────────────────────────────────
+    const refundAmountPaise = playerRegistrations.reduce(
+      (sum, reg) => sum + (reg.amountPaidPaise || 0),
+      0
+    );
+
     game.registrations = game.registrations.filter((reg) => regPlayerId(reg) !== playerId);
 
     await game.save();
+
+    if (refundAmountPaise > 0) {
+      const scheduledDate = new Date(game.scheduledAt).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short',
+      });
+      walletService.refund(
+        req.user._id,
+        refundAmountPaise,
+        `Refund – backout from ${game.title || scheduledDate}`,
+        game._id
+      ).catch((err) => console.error('[WALLET] Refund after backout failed:', err.message));
+    }
 
     // Notify waitlisted players that a slot opened (fire-and-forget)
     notifyWaitlistedPlayers(game).catch((err) =>

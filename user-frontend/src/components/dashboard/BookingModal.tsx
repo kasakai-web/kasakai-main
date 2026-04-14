@@ -424,9 +424,17 @@ export function BookingModal({
                   </div>
 
                   {!canAfford && (
-                    <p style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
-                      Insufficient wallet balance for {1 + guests.length} player{guests.length > 0 ? "s" : ""}.
-                    </p>
+                    <div style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
+                      Insufficient balance.{" "}
+                      {playerId && (
+                        <Link
+                          href={`/dashboard/player/${playerId}/wallet`}
+                          style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}
+                        >
+                          Recharge your wallet
+                        </Link>
+                      )}
+                    </div>
                   )}
                 </>
               )}

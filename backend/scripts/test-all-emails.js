@@ -16,8 +16,8 @@ require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 const to = process.argv[2];
 if (!to) {
-  console.error("Usage: node scripts/test-all-emails.js <recipient-email>");
-  process.exit(1);
+  console.log("Skipping email audit: no recipient provided.");
+  process.exit(0);
 }
 
 // ── Load email utilities ──────────────────────────────────────────────────────

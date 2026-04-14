@@ -29,6 +29,7 @@ export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalRefreshing, setModalRefreshing] = useState(false);
 
   const fetchGames = async () => {
     try {
@@ -70,6 +71,36 @@ export default function OrganizerDashboard() {
       setLoading(false);
     }
   };
+
+  // Silently re-fetch and update selectedGame (used by modal refresh)
+  const refreshSelectedGame = async (silent = false) => {
+    if (!silent) setModalRefreshing(true);
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      const res = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        const updatedGames: any[] = data.data;
+        setGames(updatedGames);
+        setSelectedGame((prev: any) =>
+          updatedGames.find((g) => g._id === prev?._id) ?? prev
+        );
+      }
+    } finally {
+      if (!silent) setModalRefreshing(false);
+    }
+  };
+
+  // Auto-poll every 15 s while the players modal is open so the organiser
+  // sees when a waitlisted player signs up without manually refreshing.
+  useEffect(() => {
+    if (!showPlayersModal) return;
+    const interval = setInterval(() => refreshSelectedGame(true), 15000);
+    return () => clearInterval(interval);
+  }, [showPlayersModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -548,6 +579,8 @@ export default function OrganizerDashboard() {
           onRemoveRegistration={async (regId) => {
             await handleRemoveRegistration(selectedGame._id, regId);
           }}
+          onRefresh={() => refreshSelectedGame(false)}
+          isRefreshing={modalRefreshing}
           onClose={() => {
             setShowPlayersModal(false);
             setSelectedGame(null);

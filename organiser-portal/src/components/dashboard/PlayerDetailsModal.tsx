@@ -10,6 +10,7 @@ interface Registration {
   teamPreference?: string;
   signedUpAt?: string;
   paymentStatus?: string;
+  amountPaidPaise?: number;
 }
 
 interface WaitlistEntry {
@@ -30,6 +31,8 @@ interface PlayerDetailsModalProps {
   organiserIsPlaying?: boolean;
   onToggleOrganiserPlaying?: () => void;
   onRemoveRegistration?: (regId: string) => Promise<void>;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 const POS_LABEL: Record<string, string> = {
@@ -77,6 +80,8 @@ export function PlayerDetailsModal({
   organiserIsPlaying = false,
   onToggleOrganiserPlaying,
   onRemoveRegistration,
+  onRefresh,
+  isRefreshing = false,
 }: PlayerDetailsModalProps) {
   const [copied, setCopied]           = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -105,6 +110,10 @@ export function PlayerDetailsModal({
   const mainRegs  = players.filter((r) => !r.plusOneName);
   const guestRegs = players.filter((r) => !!r.plusOneName);
   const spotsLeft = Math.max(0, totalSlots - players.length - organiserCount);
+  const totalCollectedPaise = players.reduce(
+    (sum, r) => sum + (r.paymentStatus === "paid" || r.paymentStatus === "wallet_locked" ? (r.amountPaidPaise || 0) : 0),
+    0
+  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -119,6 +128,26 @@ export function PlayerDetailsModal({
             <p className="modal-subtitle">{gameName}</p>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid #333",
+                  color: isRefreshing ? "#555" : "#ccc",
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  cursor: isRefreshing ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  transition: "all 0.2s",
+                }}
+                title="Refresh player list"
+              >
+                {isRefreshing ? "↻ Refreshing…" : "↻ Refresh"}
+              </button>
+            )}
             <button
               onClick={handleCopyList}
               style={{
@@ -177,6 +206,17 @@ export function PlayerDetailsModal({
               <div className="pdm-stat">
                 <span className="pdm-stat-val" style={{ color: "#f59e0b" }}>{waitlist.length}</span>
                 <span className="pdm-stat-lbl">Waitlist</span>
+              </div>
+            </>
+          )}
+          {totalCollectedPaise > 0 && (
+            <>
+              <div className="pdm-stat-div" />
+              <div className="pdm-stat">
+                <span className="pdm-stat-val" style={{ color: "#4ade80", fontSize: 13 }}>
+                  ₹{totalCollectedPaise / 100}
+                </span>
+                <span className="pdm-stat-lbl">Collected</span>
               </div>
             </>
           )}
@@ -309,6 +349,34 @@ export function PlayerDetailsModal({
   );
 }
 
+const PAYMENT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+  paid:          { label: "Paid",    bg: "rgba(74,222,128,0.12)",  color: "#4ade80" },
+  wallet_locked: { label: "Locked",  bg: "rgba(167,139,250,0.12)", color: "#a78bfa" },
+  pending:       { label: "Pending", bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
+  refunded:      { label: "Refunded",bg: "rgba(96,165,250,0.12)",  color: "#60a5fa" },
+  forfeited:     { label: "Forfeited",bg:"rgba(248,113,113,0.12)", color: "#f87171" },
+};
+
+function PaymentBadge({ status, amountPaise }: { status?: string; amountPaise?: number }) {
+  if (!status) return null;
+  const cfg = PAYMENT_BADGE[status];
+  if (!cfg) return null;
+  return (
+    <span style={{
+      background: cfg.bg, color: cfg.color,
+      border: `1px solid ${cfg.color}44`,
+      borderRadius: 4, padding: "2px 7px",
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+      display: "inline-flex", alignItems: "center", gap: 4,
+    }}>
+      {cfg.label}
+      {amountPaise != null && amountPaise > 0 && (
+        <span style={{ opacity: 0.8 }}>₹{amountPaise / 100}</span>
+      )}
+    </span>
+  );
+}
+
 function PlayerCard({
   reg,
   slotNum,
@@ -339,9 +407,12 @@ function PlayerCard({
       <div className="pdm-card-body">
         <div className="pdm-card-top">
           <div className="pdm-card-name">{name}</div>
-          <span className={`pdm-type-chip ${isGuest ? "pdm-chip-guest" : "pdm-chip-player"}`}>
-            {isGuest ? "Guest" : "Player"}
-          </span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <PaymentBadge status={reg.paymentStatus} amountPaise={reg.amountPaidPaise} />
+            <span className={`pdm-type-chip ${isGuest ? "pdm-chip-guest" : "pdm-chip-player"}`}>
+              {isGuest ? "Guest" : "Player"}
+            </span>
+          </div>
         </div>
 
         {!isGuest && (reg.player?.phone || reg.player?.email) && (

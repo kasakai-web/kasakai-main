@@ -18,7 +18,8 @@ export default function DashboardLayout({
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
-  const [activeSection, setActiveSection] = useState<"browse" | "mygames" | "cancelled" | "completed" | "notifications" | "profile">("browse");
+  const [activeSection, setActiveSection] = useState<"browse" | "mygames" | "cancelled" | "completed" | "notifications" | "profile" | "wallet">("browse");
+  const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -77,6 +78,24 @@ export default function DashboardLayout({
       .catch(() => {});
   }, [authenticated]);
 
+  // Fetch wallet balance
+  useEffect(() => {
+    if (!authenticated) return;
+    const { token } = getSession();
+    if (!token) return;
+    fetch(buildApiUrl("/api/v1/players/me/wallet"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success) {
+          const w = data.data?.wallet;
+          setWalletBalancePaise(w?.availablePaise ?? w?.balancePaise ?? 0);
+        }
+      })
+      .catch(() => {});
+  }, [authenticated, pathname]);
+
   useEffect(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
 
@@ -87,6 +106,11 @@ export default function DashboardLayout({
 
     if (pathname.includes("/dashboard/player/") && pathname.endsWith("/profile")) {
       setActiveSection("profile");
+      return;
+    }
+
+    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/wallet")) {
+      setActiveSection("wallet");
       return;
     }
 
@@ -155,7 +179,7 @@ export default function DashboardLayout({
     return sessionUserId || "";
   };
 
-  const navigateToPlayer = (destination: "browse" | "my-games" | "cancelled" | "completed" | "profile" | "notifications") => {
+  const navigateToPlayer = (destination: "browse" | "my-games" | "cancelled" | "completed" | "profile" | "notifications" | "wallet") => {
     const resolvedUserId = resolvePlayerId();
     if (!resolvedUserId) return;
 
@@ -181,6 +205,11 @@ export default function DashboardLayout({
 
     if (destination === "notifications") {
       router.push(`/dashboard/player/${resolvedUserId}/notifications`);
+      return;
+    }
+
+    if (destination === "wallet") {
+      router.push(`/dashboard/player/${resolvedUserId}/wallet`);
       return;
     }
 
@@ -286,6 +315,21 @@ export default function DashboardLayout({
               <span className="sidebar-icon">✅</span>Completed Games
             </button>
             <button
+              className={`sidebar-link ${activeSection === 'wallet' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveSection("wallet");
+                setSidebarOpen(false);
+                navigateToPlayer("wallet");
+              }}
+            >
+              <span className="sidebar-icon">💰</span>Wallet
+              {walletBalancePaise !== null && (
+                <span style={{ marginLeft: "auto", color: "#c8ff3e", fontFamily: "var(--mono)", fontSize: "11px", fontWeight: 700 }}>
+                  ₹{(walletBalancePaise / 100).toLocaleString("en-IN")}
+                </span>
+              )}
+            </button>
+            <button
               className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("notifications");
@@ -329,9 +373,17 @@ export default function DashboardLayout({
               <div className="swc-label" style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>Wallet Balance</div>
               <div className="swc-amount" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--white)", fontSize: "20px", fontWeight: 600, marginBottom: "12px" }}>
                 <span className="wallet-dot" style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--lime)", display: "inline-block" }}></span>
-                ₹0
+                {walletBalancePaise !== null
+                  ? `₹${(walletBalancePaise / 100).toLocaleString("en-IN")}`
+                  : "₹—"}
               </div>
-              <button className="swc-topup" style={{ width: "100%", padding: "8px", background: "var(--white)", color: "var(--black)", border: "none", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>+ Top Up</button>
+              <button
+                className="swc-topup"
+                style={{ width: "100%", padding: "8px", background: "var(--white)", color: "var(--black)", border: "none", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                onClick={() => { setActiveSection("wallet"); setSidebarOpen(false); navigateToPlayer("wallet"); }}
+              >
+                + Top Up
+              </button>
             </div>
 
             <button 
