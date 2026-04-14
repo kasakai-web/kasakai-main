@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { buildApiUrl, getSession, clearSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import "../../../player-dashboard.css";
 
 interface WalletData {
@@ -101,6 +102,14 @@ export default function WalletPage() {
     if (!isAuthorized) { setLoading(false); return; }
     fetchWallet();
   }, [isAuthorized, fetchWallet]);
+
+  // Auto-refresh: balance + transactions update silently in background
+  useAutoRefresh(isAuthorized ? fetchWallet : null, {
+    interval:  30_000,
+    onFocus:   true,
+    onVisible: true,
+    enabled:   isAuthorized,
+  });
 
   const handleRecharge = async () => {
     setRechargeError(null);

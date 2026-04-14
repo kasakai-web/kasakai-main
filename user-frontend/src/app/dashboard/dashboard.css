@@ -2698,3 +2698,59 @@ body::after {
 
   .dashboard-nav .logo-name { display: none; }
 }
+
+/* ═══════════════════════════════════════════════
+   REAL-TIME — live indicator, flash animations
+═══════════════════════════════════════════════ */
+
+/* "● Live" badge next to eyebrow text */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: 20px;
+  padding: 2px 8px;
+  vertical-align: middle;
+}
+
+/* Pulsing green dot inside the live badge */
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: live-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* "Updated Xs ago" hint below the page title */
+.last-updated-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #444;
+  letter-spacing: 0.06em;
+  margin-top: 6px;
+}
+
+/* Spots-changed flash on EventCard detail item */
+@keyframes spots-flash-bg {
+  0%   { background: rgba(255, 255, 255, 0.08); border-radius: 6px; }
+  100% { background: transparent; }
+}
+
+.spots-flash {
+  animation: spots-flash-bg 1.2s ease forwards;
+}

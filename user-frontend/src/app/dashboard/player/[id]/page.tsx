@@ -1,13 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import "../../player-dashboard.css";
+
+function formatRelativeTime(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 5)  return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const mins = Math.floor(seconds / 60);
+  return `${mins}m ago`;
+}
 
 export default function PlayerDashboard() {
   const router = useRouter();
@@ -26,6 +35,7 @@ export default function PlayerDashboard() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
   const [myWaitlist, setMyWaitlist] = useState<any[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -162,10 +172,30 @@ export default function PlayerDashboard() {
     setLoading(true);
     try {
       await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance()]);
+      setLastUpdated(new Date());
     } finally {
       setLoading(false);
     }
   };
+
+  // Silent background refresh — no loading spinner, just updates data in-place
+  const silentRefresh = useCallback(async () => {
+    try {
+      await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchWalletBalance()]);
+      setLastUpdated(new Date());
+    } catch {
+      // non-critical background refresh
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthorized]);
+
+  // Auto-refresh: every 20 s + on window focus + on tab visible
+  useAutoRefresh(isAuthorized ? silentRefresh : null, {
+    interval:  20_000,
+    onFocus:   true,
+    onVisible: true,
+    enabled:   isAuthorized,
+  });
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -175,6 +205,13 @@ export default function PlayerDashboard() {
 
     fetchDashboardData();
   }, [isAuthorized]);
+
+  // Tick the "Updated Xs ago" label every 5 s
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const id = setInterval(() => setLastUpdated((d) => d ? new Date(d) : d), 5_000);
+    return () => clearInterval(id);
+  }, [lastUpdated]);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -494,15 +531,26 @@ export default function PlayerDashboard() {
 
       <div className="page-header">
         <div className="page-title-group">
-          <div className="page-eyebrow">Player Dashboard</div>
+          <div className="page-eyebrow">
+            Player Dashboard
+            <span className="live-badge">
+              <span className="live-dot" />
+              Live
+            </span>
+          </div>
           <div className="page-title">Your Football <span>World</span></div>
+          {lastUpdated && (
+            <div className="last-updated-hint">
+              Updated {formatRelativeTime(lastUpdated)}
+            </div>
+          )}
         </div>
         <div className="page-actions">
           <div className="search-box">
             <span className="search-icon">⌕</span>
-            <input 
-              type="text" 
-              placeholder="Search by venue or city..." 
+            <input
+              type="text"
+              placeholder="Search by venue or city..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

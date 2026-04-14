@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -52,6 +52,17 @@ export function EventCard({
   if (fillPercentage > 80) fillClass = "low";
   if (fillPercentage < 50) fillClass = "high";
 
+  // Flash the spots count when it changes (someone just registered or backed out)
+  const prevSpots = useRef(spotsLeft);
+  const [spotsFlash, setSpotsFlash] = useState<"down" | "up" | null>(null);
+  useEffect(() => {
+    if (prevSpots.current === spotsLeft) return;
+    setSpotsFlash(spotsLeft < prevSpots.current ? "down" : "up");
+    prevSpots.current = spotsLeft;
+    const t = setTimeout(() => setSpotsFlash(null), 1200);
+    return () => clearTimeout(t);
+  }, [spotsLeft]);
+
   return (
     <div className={`event-card ${effectiveStatus} ${isRegistered ? 'registered' : ''}`}>
       {/* Header with badge and price */}
@@ -99,9 +110,14 @@ export function EventCard({
           <span className="detail-label">Format</span>
           <span className="detail-value">{format}</span>
         </div>
-        <div className="detail-item">
+        <div className={`detail-item${spotsFlash ? " spots-flash" : ""}`}>
           <span className="detail-label">Spots</span>
-          <span className="detail-value">{spotsLeft}/{spotsTotal}</span>
+          <span
+            className="detail-value"
+            style={spotsFlash === "down" ? { color: "#f87171" } : spotsFlash === "up" ? { color: "#4ade80" } : undefined}
+          >
+            {spotsLeft}/{spotsTotal}
+          </span>
         </div>
       </div>
 
@@ -110,11 +126,16 @@ export function EventCard({
         <div className="capacity-bar">
           <div
             className={`capacity-fill ${fillClass}`}
-            style={{ width: `${fillPercentage}%` }}
+            style={{ width: `${fillPercentage}%`, transition: "width 0.6s ease" }}
           ></div>
         </div>
         <div className="capacity-text">
-          <span className="players-count">{spotsTotal - spotsLeft}</span>
+          <span
+            className="players-count"
+            style={spotsFlash === "down" ? { color: "#f87171" } : spotsFlash === "up" ? { color: "#4ade80" } : undefined}
+          >
+            {spotsTotal - spotsLeft}
+          </span>
           <span className="total-slots">of {spotsTotal}</span>
         </div>
       </div>

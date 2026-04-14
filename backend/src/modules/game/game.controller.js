@@ -901,20 +901,22 @@ exports.registerForGame = async (req, res) => {
     // ── Wallet deduction ──────────────────────────────────
     const feePerSlot  = game.feeInPaise || 0;
     const totalFee    = feePerSlot * totalNeeded;
-    let walletTxId    = null;
+    let walletTxId              = null;
+    let walletBalanceAfterPaise = null;
 
     if (totalFee > 0) {
       try {
         const scheduledDate = new Date(game.scheduledAt).toLocaleDateString('en-IN', {
           day: 'numeric', month: 'short',
         });
-        const { transaction } = await walletService.debit(
+        const { wallet, transaction } = await walletService.debit(
           req.user._id,
           totalFee,
           `Game signup – ${game.title || scheduledDate}`,
           game._id
         );
         walletTxId = transaction._id;
+        walletBalanceAfterPaise = wallet.balancePaise - wallet.lockedPaise; // availablePaise
       } catch (walletErr) {
         if (walletErr.code === 'INSUFFICIENT_BALANCE') {
           return res.status(402).json({
@@ -983,10 +985,12 @@ exports.registerForGame = async (req, res) => {
       sendGameRegistrationEmail({
         to: req.user.email,
         playerName,
-        gameTitle:   game.title,
-        scheduledAt: game.scheduledAt,
-        format:      game.format,
-        place:       placeText,
+        gameTitle:              game.title,
+        scheduledAt:            game.scheduledAt,
+        format:                 game.format,
+        place:                  placeText,
+        amountPaidPaise:        totalFee,
+        walletBalanceAfterPaise,
       }).catch((err) => {
         console.error("[EMAIL] Registration email failed:", err?.message || err);
       });

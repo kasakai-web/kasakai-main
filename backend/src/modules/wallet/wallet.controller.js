@@ -1,5 +1,6 @@
 const walletService     = require('./wallet.service');
 const WalletTransaction = require('../../models/WalletTransaction');
+const { sendWalletTopUpEmail } = require('../../utils/email');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/players/me/wallet
@@ -47,6 +48,17 @@ exports.topUpWallet = async (req, res) => {
       amountPaise,
       'Wallet top-up'
     );
+
+    if (req.user?.email) {
+      sendWalletTopUpEmail({
+        to:             req.user.email,
+        playerName:     req.user.name || 'Player',
+        amountPaise,
+        newBalancePaise: wallet.balancePaise,
+      }).catch((err) => {
+        console.error('[EMAIL] Wallet top-up email failed:', err?.message || err);
+      });
+    }
 
     return res.status(200).json({
       success: true,

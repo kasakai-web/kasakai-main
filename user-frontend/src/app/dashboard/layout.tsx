@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 const SERVER_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 import "./dashboard.css";
@@ -78,23 +79,31 @@ export default function DashboardLayout({
       .catch(() => {});
   }, [authenticated]);
 
-  // Fetch wallet balance
-  useEffect(() => {
+  // Fetch + auto-refresh wallet balance in sidebar
+  const refreshWalletBalance = useCallback(async () => {
     if (!authenticated) return;
     const { token } = getSession();
     if (!token) return;
-    fetch(buildApiUrl("/api/v1/players/me/wallet"), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.success) {
-          const w = data.data?.wallet;
-          setWalletBalancePaise(w?.availablePaise ?? w?.balancePaise ?? 0);
-        }
-      })
-      .catch(() => {});
-  }, [authenticated, pathname]);
+    try {
+      const res = await fetch(buildApiUrl("/api/v1/players/me/wallet"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data?.success) {
+        const w = data.data?.wallet;
+        setWalletBalancePaise(w?.availablePaise ?? w?.balancePaise ?? 0);
+      }
+    } catch {}
+  }, [authenticated]);
+
+  useEffect(() => { refreshWalletBalance(); }, [refreshWalletBalance, pathname]);
+
+  useAutoRefresh(authenticated ? refreshWalletBalance : null, {
+    interval:  30_000,
+    onFocus:   true,
+    onVisible: true,
+    enabled:   authenticated,
+  });
 
   useEffect(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;

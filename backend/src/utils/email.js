@@ -115,9 +115,15 @@ const buildGameCreatedTemplate = ({ organiserName, gameTitle, scheduledAt, forma
     </div>`,
 });
 
-const buildGameRegistrationTemplate = ({ playerName, gameTitle, scheduledAt, format, place }) => ({
-  subject: "You registered successfully for a Kasa Kai game",
-  html: `
+const buildGameRegistrationTemplate = ({ playerName, gameTitle, scheduledAt, format, place, amountPaidPaise, walletBalanceAfterPaise }) => {
+  const paidRupees = amountPaidPaise > 0 ? (amountPaidPaise / 100).toFixed(2) : null;
+  const balanceRupees = (walletBalanceAfterPaise != null && walletBalanceAfterPaise >= 0)
+    ? (walletBalanceAfterPaise / 100).toFixed(2)
+    : null;
+
+  return {
+    subject: "You registered successfully for a Kasa Kai game",
+    html: `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">
       <h2 style="margin-bottom:12px;">Registration successful</h2>
       <p style="margin:0 0 12px 0;">Hi ${playerName || "Player"},</p>
@@ -128,9 +134,16 @@ const buildGameRegistrationTemplate = ({ playerName, gameTitle, scheduledAt, for
         <p style="margin:0 0 8px 0;"><strong>Format:</strong> ${format || "—"}</p>
         <p style="margin:0;"><strong>Date &amp; time:</strong> ${formatGameDate(scheduledAt)}</p>
       </div>
+      ${paidRupees ? `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 20px;border-radius:10px;margin-top:14px;">
+        <p style="margin:0 0 6px 0;font-weight:700;color:#166534;">💳 Payment summary</p>
+        <p style="margin:0 0 6px 0;"><strong>Entry fee paid:</strong> ₹${paidRupees}</p>
+        ${balanceRupees !== null ? `<p style="margin:0;"><strong>Wallet balance remaining:</strong> ₹${balanceRupees}</p>` : ""}
+      </div>` : ""}
       <p style="margin:16px 0 0 0;color:#616161;font-size:13px;">Check your dashboard for more game details and updates.</p>
     </div>`,
-});
+  };
+};
 
 const buildGameBackoutPlayerTemplate = ({ playerName, gameTitle, scheduledAt, format, place, guestCount }) => ({
   subject: "Kasa Kai registration cancelled",
@@ -300,6 +313,29 @@ const buildGameCancelledPlayerTemplate = ({ playerName, gameTitle, scheduledAt, 
     </div>`,
 });
 
+const buildWalletTopUpTemplate = ({ playerName, amountPaise, newBalancePaise }) => {
+  const added   = (amountPaise    / 100).toFixed(2);
+  const balance = (newBalancePaise / 100).toFixed(2);
+  return {
+    subject: "Wallet recharged — Kasa Kai",
+    html: `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">
+      <h2 style="margin-bottom:12px;color:#16a34a;">💰 Wallet recharged!</h2>
+      <p style="margin:0 0 12px 0;">Hi ${playerName || "Player"},</p>
+      <p style="margin:0 0 16px 0;">Your Kasa Kai wallet has been topped up successfully.</p>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:16px 20px;border-radius:10px;">
+        <p style="margin:0 0 10px 0;font-size:15px;"><strong>Amount added:</strong>
+          <span style="color:#16a34a;font-size:20px;font-weight:700;"> ₹${added}</span>
+        </p>
+        <p style="margin:0;font-size:14px;"><strong>Current wallet balance:</strong>
+          <span style="font-weight:700;"> ₹${balance}</span>
+        </p>
+      </div>
+      <p style="margin:16px 0 0 0;color:#616161;font-size:13px;">You can use this balance to book upcoming Kasa Kai events. Happy playing!</p>
+    </div>`,
+  };
+};
+
 // ─── Public send functions ────────────────────────────────────────────────────
 const sendOtpEmail = ({ to, otp, role = "player", purpose = "signup" }) => {
   const t = buildOtpTemplate({ otp, role, purpose });
@@ -311,8 +347,13 @@ const sendGameCreatedEmail = ({ to, organiserName, gameTitle, scheduledAt, forma
   return sendMail({ to, subject: t.subject, html: t.html });
 };
 
-const sendGameRegistrationEmail = ({ to, playerName, gameTitle, scheduledAt, format, place }) => {
-  const t = buildGameRegistrationTemplate({ playerName, gameTitle, scheduledAt, format, place });
+const sendGameRegistrationEmail = ({ to, playerName, gameTitle, scheduledAt, format, place, amountPaidPaise = 0, walletBalanceAfterPaise = null }) => {
+  const t = buildGameRegistrationTemplate({ playerName, gameTitle, scheduledAt, format, place, amountPaidPaise, walletBalanceAfterPaise });
+  return sendMail({ to, subject: t.subject, html: t.html });
+};
+
+const sendWalletTopUpEmail = ({ to, playerName, amountPaise, newBalancePaise }) => {
+  const t = buildWalletTopUpTemplate({ playerName, amountPaise, newBalancePaise });
   return sendMail({ to, subject: t.subject, html: t.html });
 };
 
@@ -374,5 +415,6 @@ module.exports = {
   sendWaitlistSpotAvailableEmail,
   sendWaitlistApprovedEmail,
   sendRemovedFromGameEmail,
+  sendWalletTopUpEmail,
   formatGamePlace,
 };
