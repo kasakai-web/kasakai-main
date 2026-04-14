@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
@@ -21,6 +22,32 @@ export default function DashboardLayout({
   const [activeSection, setActiveSection] = useState("games");
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+
+  const refreshSidebarProfile = useCallback(async () => {
+    const { token } = getSession();
+    if (!token) return;
+
+    try {
+      const res = await fetch(buildApiUrl("/api/v1/organisers/me"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const name = data?.data?.name;
+      const img = data?.data?.profileImage;
+      if (name) {
+        setUserName(name);
+        localStorage.setItem("userName", name);
+      }
+      if (img) {
+        const url = `${SERVER_BASE}${img}`;
+        setUserProfileImage(url);
+        localStorage.setItem("userProfileImage", url);
+      }
+    } catch {
+      // non-critical
+    }
+  }, []);
 
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
@@ -65,26 +92,23 @@ export default function DashboardLayout({
     if (stored) setUserProfileImage(stored);
   }, [pathname]);
 
-  // Fetch profile image from API if not in localStorage
+  // Keep sidebar profile data synced without hard refresh.
   useEffect(() => {
     if (!authenticated) return;
-    if (localStorage.getItem("userProfileImage")) return;
-    const { token } = getSession();
-    if (!token) return;
-    fetch(buildApiUrl("/api/v1/organisers/me"), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const img = data?.data?.profileImage;
-        if (img) {
-          const url = `${SERVER_BASE}${img}`;
-          localStorage.setItem("userProfileImage", url);
-          setUserProfileImage(url);
-        }
-      })
-      .catch(() => {});
-  }, [authenticated]);
+    refreshSidebarProfile();
+  }, [authenticated, refreshSidebarProfile]);
+
+  useAutoRefresh(authenticated ? refreshSidebarProfile : null, { interval: 30_000 });
+
+  // Storage events keep sidebar in sync when profile is updated in another tab
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "userName" && e.newValue) setUserName(e.newValue);
+      if (e.key === "userProfileImage") setUserProfileImage(e.newValue || "");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/profile")) {

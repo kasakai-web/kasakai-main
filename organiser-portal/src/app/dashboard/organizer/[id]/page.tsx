@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import "../../organizer-dashboard.css";
 
 export default function OrganizerDashboard() {
@@ -30,13 +31,19 @@ export default function OrganizerDashboard() {
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalRefreshing, setModalRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [relativeTime, setRelativeTime] = useState("");
+  const isFetchingGamesRef = useRef(false);
 
-  const fetchGames = async () => {
+  const fetchGames = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
+    if (isFetchingGamesRef.current) return;
+    isFetchingGamesRef.current = true;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const { token } = getSession();
       if (!token) {
-        setLoading(false);
+        if (!silent) setLoading(false);
         clearSession();
         router.replace("/login?role=organiser");
         return;
@@ -61,46 +68,54 @@ export default function OrganizerDashboard() {
       const data = await res.json();
       
       if (data.success) {
-        setGames(data.data);
+        const nextGames: any[] = data.data || [];
+        setGames(nextGames);
+        setSelectedGame((prev: any) =>
+          prev ? nextGames.find((g) => g._id === prev._id) ?? prev : prev
+        );
+        setLastUpdated(new Date());
       } else {
         console.error("API Error:", data.message);
       }
     } catch (error) {
       console.error("Failed to fetch games", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      isFetchingGamesRef.current = false;
     }
-  };
+  }, [router]);
 
   // Silently re-fetch and update selectedGame (used by modal refresh)
-  const refreshSelectedGame = async (silent = false) => {
+  const refreshSelectedGame = useCallback(async (silent = false) => {
     if (!silent) setModalRefreshing(true);
     try {
-      const { token } = getSession();
-      if (!token) return;
-      const res = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success) {
-        const updatedGames: any[] = data.data;
-        setGames(updatedGames);
-        setSelectedGame((prev: any) =>
-          updatedGames.find((g) => g._id === prev?._id) ?? prev
-        );
-      }
+      await fetchGames({ silent: true });
     } finally {
       if (!silent) setModalRefreshing(false);
     }
-  };
+  }, [fetchGames]);
 
-  // Auto-poll every 15 s while the players modal is open so the organiser
-  // sees when a waitlisted player signs up without manually refreshing.
+  // Auto-poll every 15 s while the players modal is open
+  const modalSilentRefresh = useCallback(() => refreshSelectedGame(true), [refreshSelectedGame]);
+  useAutoRefresh(showPlayersModal ? modalSilentRefresh : null, { interval: 15_000 });
+
+  // Keep dashboard data fresh — 20 s poll + focus + visibility
+  const silentFetch = useCallback(() => fetchGames({ silent: true }), [fetchGames]);
+  useAutoRefresh(isAuthorized ? silentFetch : null, { interval: 20_000 });
+
+  // Tick every 5 s to update "Updated X ago" text
   useEffect(() => {
-    if (!showPlayersModal) return;
-    const interval = setInterval(() => refreshSelectedGame(true), 15000);
-    return () => clearInterval(interval);
-  }, [showPlayersModal]); // eslint-disable-line react-hooks/exhaustive-deps
+    function formatRelativeTime(d: Date) {
+      const secs = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (secs < 5) return "just now";
+      if (secs < 60) return `${secs}s ago`;
+      return `${Math.floor(secs / 60)}m ago`;
+    }
+    if (!lastUpdated) return;
+    setRelativeTime(formatRelativeTime(lastUpdated));
+    const id = setInterval(() => setRelativeTime(formatRelativeTime(lastUpdated)), 5000);
+    return () => clearInterval(id);
+  }, [lastUpdated]);
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -109,7 +124,7 @@ export default function OrganizerDashboard() {
     }
 
     fetchGames();
-  }, [isAuthorized]);
+  }, [isAuthorized, fetchGames]);
 
   const handleCreateEvent = (data: any) => {
     console.log("Event Created", data);
@@ -125,7 +140,7 @@ export default function OrganizerDashboard() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) { alert(data.message || 'Failed to confirm game'); return; }
-      fetchGames();
+      fetchGames({ silent: true });
     } catch (err) {
       alert('Failed to confirm game. Please try again.');
     }
@@ -142,7 +157,7 @@ export default function OrganizerDashboard() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) { alert(data.message || 'Failed to withdraw'); return; }
-      fetchGames();
+      fetchGames({ silent: true });
     } catch (err) {
       alert('Failed to withdraw. Please try again.');
     }
@@ -211,7 +226,7 @@ export default function OrganizerDashboard() {
       setCancelTargetGame(null);
       setCancelMessage("");
       // Refresh the games list
-      fetchGames();
+      fetchGames({ silent: true });
     } catch (error) {
       console.error('Error cancelling event:', error);
       alert(`Failed to cancel event. Please try again. ${(error as Error).message || ''}`);
@@ -251,8 +266,16 @@ export default function OrganizerDashboard() {
       {/* Header */}
       <div className="dashboard-header-section">
         <div className="header-left">
-          <h1 className="dashboard-title">Organizer Dashboard</h1>
-          <p className="dashboard-subtitle">Manage your events, track players, and monitor revenue</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h1 className="dashboard-title">Organizer Dashboard</h1>
+            <span className="live-badge"><span className="live-dot" />Live</span>
+          </div>
+          <p className="dashboard-subtitle">
+            Manage your events, track players, and monitor revenue
+            {relativeTime && (
+              <span className="last-updated-hint" style={{ marginLeft: 10 }}>· Updated {relativeTime}</span>
+            )}
+          </p>
         </div>
         <button className="btn-primary btn-lg" onClick={() => setShowCreateModal(true)}>
           <span className="btn-icon">+ </span>Create New Event
@@ -546,10 +569,10 @@ export default function OrganizerDashboard() {
           }
           onClose={() => setShowCreateModal(false)}
           onCreate={() => {
-            fetchGames();
+            fetchGames({ silent: true });
           }}
           onSuccess={() => {
-            fetchGames();
+            fetchGames({ silent: true });
           }}
         />
       )}
@@ -563,7 +586,7 @@ export default function OrganizerDashboard() {
             setSelectedGame(null);
           }}
           onSuccess={() => {
-            fetchGames();
+            fetchGames({ silent: true });
           }}
         />
       )}

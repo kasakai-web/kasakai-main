@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../organizer-dashboard.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 
@@ -67,10 +68,10 @@ export default function OrganiserProfilePage() {
     isActive: true,
   });
 
-  const clearSessionAndExit = () => {
+  const clearSessionAndExit = useCallback(() => {
     clearSession();
     router.replace("/login?role=organiser");
-  };
+  }, [router]);
 
   const parseApiResponse = async (res: Response) => {
     const contentType = res.headers.get("content-type") || "";
@@ -89,8 +90,8 @@ export default function OrganiserProfilePage() {
     return { success: false, message: responseText };
   };
 
-  const fetchProfile = async () => {
-    setLoading(true);
+  const fetchProfile = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
 
     const { token } = getSession();
@@ -144,9 +145,9 @@ export default function OrganiserProfilePage() {
     } catch (e) {
       setError((e as Error).message || "Failed to load profile");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [clearSessionAndExit]);
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -160,7 +161,11 @@ export default function OrganiserProfilePage() {
     }
 
     fetchProfile();
-  }, [isAuthorized]);
+  }, [isAuthorized, fetchProfile]);
+
+  // Keep profile data synced when changed from another tab/device.
+  const silentFetchProfile = useCallback(() => fetchProfile(true), [fetchProfile]);
+  useAutoRefresh(isAuthorized ? silentFetchProfile : null, { interval: 30_000 });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
