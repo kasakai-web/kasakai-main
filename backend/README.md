@@ -1,50 +1,110 @@
-# Backend Setup
+# Kasakai Backend
 
-This folder contains a scalable Node.js + Express backend starter structure.
+Backend service for Kasakai, built with Express and MongoDB.
+
+## Stack
+
+- Node.js + Express 5
+- MongoDB + Mongoose
+- JWT authentication
+- CORS + rate limiting + Helmet
+- Nodemailer email notifications
+
+## API Base
+
+- Base path: `/api/v1`
+- Health endpoint: `/health`
+
+Main route groups:
+
+- `/api/v1/auth`
+- `/api/v1/players`
+- `/api/v1/organisers`
+- `/api/v1/admin`
+- `/api/v1/games`
+- `/api/v1/turfs`
 
 ## Scripts
 
-- `npm run dev`: Start development server with auto-reload
-- `npm start`: Start server in normal mode
-- `npm run lint`: Run ESLint
-- `npm test`: Run Node.js test suite
+- `npm run dev` - start dev server with Nodemon
+- `npm start` - start production server
+- `npm run lint` - run ESLint
+- `npm test` - run Node test runner
 
-## Environment
+## Setup
 
-Edit `.env` for local values.
+### 1. Install
 
-### OTP Email Setup (GoDaddy)
+```bash
+npm install
+```
 
-Set these SMTP variables in `.env`:
+### 2. Environment
 
-- `SMTP_HOST=smtpout.secureserver.net`
-- `SMTP_PORT=465`
-- `SMTP_SECURE=true`
-- `SMTP_USER=your-business-email@yourdomain.com`
-- `SMTP_PASS=your-email-password`
-- `SMTP_FROM=Kasa Kai <your-business-email@yourdomain.com>`
+Create `.env` from `.env.example`:
 
-Registration OTP is now sent to email for both player and organiser flows.
+```bash
+cp .env.example .env
+```
 
-## Folder Structure
+Required/important keys:
+
+- `PORT=5000`
+- `NODE_ENV=development`
+- `MONGO_URI=<your-mongodb-uri>`
+- `JWT_SECRET=<strong-secret>`
+- `CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002`
+- `PLAYER_FRONTEND_URL=http://localhost:3000`
+
+Email/SMTP keys:
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+
+Optional:
+
+- `FAST2SMS_API_KEY`
+- `ADMIN_LOGIN_EMAIL`
+
+### 3. Run
+
+```bash
+npm run dev
+```
+
+## Production Checklist
+
+- Set `NODE_ENV=production`
+- Set strict `JWT_SECRET`
+- Set real `MONGO_URI`
+- Set all SMTP variables for email delivery
+- Set exact `CORS_ORIGIN` values for deployed frontends
+
+## Deployment
+
+This repository includes Azure deployment workflow:
+
+- `.github/workflows/main_kasakai-api.yml`
+
+The workflow builds and deploys the `backend` folder to Azure Web App `kasakai-backend`.
+
+## Project Structure
 
 ```text
 backend/
-  docs/
   scripts/
   src/
     config/
-    controllers/
     middlewares/
     models/
-    routes/
-    services/
+    modules/
     utils/
-    validations/
     app.js
     server.js
-  tests/
-  .env
   .env.example
   package.json
 ```

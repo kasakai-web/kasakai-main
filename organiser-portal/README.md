@@ -1,47 +1,64 @@
-# Organiser Portal
+# Kasakai Organiser Portal
 
-This app now contains organiser-only authentication and organiser dashboard flows migrated from the user frontend.
+Organiser-facing dashboard for creating and managing games, participants, and profile settings.
 
-## Local Setup
+## Stack
 
-1. Install dependencies:
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
 
-```bash
-npm install
-```
+## Scripts
 
-2. Configure environment in `.env`:
+- `npm run dev` - start dev server on port 3001
+- `npm run build` - create production build
+- `npm run start` - run production build
+- `npm run lint` - run ESLint
+
+## Environment
+
+Create `.env`:
 
 ```bash
 NEXT_PUBLIC_APP_NAME=Kasakai Organiser Portal
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
 ```
 
-3. Start backend (from `backend`):
+## Local Run
 
 ```bash
+npm install
 npm run dev
 ```
 
-4. Start organiser portal (from `organiser-portal`):
+Open:
 
-```bash
-npm run dev
-```
+- `http://localhost:3001`
 
-The organiser portal runs on `http://localhost:3001`.
+## Core Routes
 
-## Backend CORS
+- `/`
+- `/login`
+- `/dashboard`
+- `/dashboard/organizer/[id]`
+- `/dashboard/organizer/[id]/profile`
 
-Make sure backend `CORS_ORIGIN` allows both frontends during local development:
+## Backend Integration
+
+- Uses shared backend API at `/api/v1`.
+- Requires valid organiser authentication token in local storage.
+- Includes realtime-style dashboard/profile refresh on interval/focus/visibility.
+
+## CORS Requirement
+
+Ensure backend allows organiser origin in `CORS_ORIGIN`, for example:
 
 ```bash
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002
 ```
 
-## Available Organiser Routes
+## Production Notes
 
-- `/login`
-- `/dashboard`
-- `/dashboard/organizer/[id]`
-- `/dashboard/organizer/[id]/profile`
+- Set `NEXT_PUBLIC_API_BASE_URL` to deployed backend API URL.
+- Run `npm run build` in CI before release.
+- Keep organiser and backend versions in sync for dashboard features.

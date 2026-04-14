@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kasakai User Frontend
 
-## Getting Started
+Player-facing web app for browsing, joining, and managing football games.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router)
+- React 19
+- TypeScript
+
+## Scripts
+
+- `npm run dev` - run local dev server
+- `npm run dev:3000` - run on port 3000
+- `npm run build` - create production build
+- `npm run start` - run production build
+- `npm run lint` - run ESLint
+
+## Environment
+
+Create `.env` and set API URL:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Fallback behavior in code supports `/api/v1` proxy style if env is omitted, but explicit `NEXT_PUBLIC_API_BASE_URL` is recommended for production.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local Run
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev:3000
+```
 
-## Learn More
+Open:
 
-To learn more about Next.js, take a look at the following resources:
+- `http://localhost:3000`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Core Routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `/`
+- `/login`
+- `/dashboard`
+- `/dashboard/player/[id]`
+- `/dashboard/player/[id]/profile`
+- `/dashboard/player/[id]/wallet`
+- `/dashboard/player/[id]/notifications`
+- `/join/[gameId]`
 
-## Deploy on Vercel
+## Production Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Ensure backend CORS allows this domain.
+- Ensure `NEXT_PUBLIC_API_BASE_URL` points to deployed backend `/api/v1`.
+- Run `npm run build` in CI before deployment.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+This app can be deployed to any Next.js-compatible host (Vercel, Azure, etc.).
