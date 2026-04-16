@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { buildApiUrl, getSession } from "@/utils/api";
+import { useNotificationSocket, type IncomingNotification } from "@/hooks/useNotificationSocket";
 import "./NotificationBell.css";
 
 interface Notification {
@@ -134,6 +135,19 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
       router.push(n.actionUrl);
     }
   };
+
+  // Real-time: receive pushed notifications via Socket.io
+  const handleSocketNotification = useCallback((n: IncomingNotification) => {
+    // Always bump unread badge immediately
+    setUnread((c) => c + 1);
+    // If the panel is open, prepend the new item so it appears at the top
+    setNotifications((prev) => {
+      if (prev.some((x) => x._id === n._id)) return prev; // dedupe
+      return [n, ...prev];
+    });
+  }, []);
+
+  useNotificationSocket(handleSocketNotification);
 
   const markAllRead = async () => {
     if (marking || unread === 0) return;
