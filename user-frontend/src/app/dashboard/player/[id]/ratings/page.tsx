@@ -262,6 +262,12 @@ export default function MyRatingsPage() {
                         <div className="mpr-rating-label">Gameplay</div>
                         <Stars value={r.gameplayRating} size={18} />
                       </div>
+                      {r.gkAffinity != null && (
+                        <div className="mpr-rating-item">
+                          <div className="mpr-rating-label">GK Affinity</div>
+                          <Stars value={r.gkAffinity} size={18} />
+                        </div>
+                      )}
                     </div>
 
                     <div className="mpr-extras">
@@ -269,9 +275,6 @@ export default function MyRatingsPage() {
                         <span className="mpr-extra-chip mpr-position">
                           {r.preferredPosition.charAt(0).toUpperCase() + r.preferredPosition.slice(1)}
                         </span>
-                      )}
-                      {r.gkAffinity != null && (
-                        <span className="mpr-extra-chip">GK {r.gkAffinity}%</span>
                       )}
                     </div>
 

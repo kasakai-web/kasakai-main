@@ -14,7 +14,7 @@ const PlayerRatingSchema = new mongoose.Schema(
       enum: ['goalkeeper', 'defender', 'midfielder', 'forward', 'any'],
       default: 'any',
     },
-    gkAffinity: { type: Number, default: null, min: 0, max: 100 },
+    gkAffinity: { type: Number, default: null, min: 1, max: 5 },
 
     playWith:    [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],
     playAgainst: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],

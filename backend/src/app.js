@@ -69,6 +69,10 @@ const apiLimiter = rateLimit({
   max: 400,
   standardHeaders: true,
   legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.',
+  },
 });
 
 const authLimiter = rateLimit({

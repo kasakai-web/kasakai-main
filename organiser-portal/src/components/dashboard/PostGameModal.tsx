@@ -244,7 +244,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
         conductRating:     r.conductRating,
         gameplayRating:    r.gameplayRating,
         preferredPosition: r.preferredPosition,
-        gkAffinity:        r.gkAffinity,
+        gkAffinity:        r.gkAffinity && r.gkAffinity > 0 ? r.gkAffinity : null,
         playWith:          r.playWith,
         playAgainst:       r.playAgainst,
         notes:             r.notes || null,
@@ -570,25 +570,11 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
 
                       {(r.preferredPosition === "goalkeeper" ||
                         r.preferredPosition === "any") && (
-                        <div className="pgm-field-row">
-                          <label className="pgm-field-label">
-                            GK Affinity{" "}
-                            <span className="pgm-muted">
-                              {r.gkAffinity != null ? `${r.gkAffinity}%` : "not set"}
-                            </span>
-                          </label>
-                          <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            step={5}
-                            value={r.gkAffinity ?? 50}
-                            className="pgm-slider"
-                            onChange={(e) =>
-                              updateRating(r.playerId, "gkAffinity", Number(e.target.value))
-                            }
-                          />
-                        </div>
+                        <StarRating
+                          label="GK Affinity"
+                          value={r.gkAffinity ?? 0}
+                          onChange={(v) => updateRating(r.playerId, "gkAffinity", v)}
+                        />
                       )}
 
                       {otherAttended.length > 0 && (
