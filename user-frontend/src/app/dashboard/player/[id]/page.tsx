@@ -19,6 +19,17 @@ function formatRelativeTime(date: Date): string {
   return `${mins}m ago`;
 }
 
+const POPUP_SHOWN_KEY = "kk_feedback_popup_shown";
+const getShownPopupIds = (): string[] => {
+  try { return JSON.parse(localStorage.getItem(POPUP_SHOWN_KEY) || "[]"); } catch { return []; }
+};
+const markPopupShown = (gameId: string) => {
+  const shown = getShownPopupIds();
+  if (!shown.includes(gameId)) {
+    localStorage.setItem(POPUP_SHOWN_KEY, JSON.stringify([...shown, gameId]));
+  }
+};
+
 export default function PlayerDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,6 +50,7 @@ export default function PlayerDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [pendingFeedback, setPendingFeedback] = useState<any[]>([]);
   const [feedbackTargetGame, setFeedbackTargetGame] = useState<any>(null);
+  const [popupFeedbackGame, setPopupFeedbackGame] = useState<any>(null);
   const [myRatings, setMyRatings] = useState<any[]>([]);
   // Per-game feedback I already submitted — loaded when opening a completed game detail
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
@@ -199,7 +211,14 @@ export default function PlayerDashboard() {
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (data.success) setPendingFeedback(data.data || []);
+      if (data.success) {
+        const pending: any[] = data.data || [];
+        setPendingFeedback(pending);
+        // Show one-time popup for the first game the player hasn't been prompted for yet
+        const shown = getShownPopupIds();
+        const unseen = pending.find((g: any) => !shown.includes(g._id));
+        if (unseen) setPopupFeedbackGame(unseen);
+      }
     } catch {
       // non-critical
     }
@@ -723,8 +742,26 @@ export default function PlayerDashboard() {
         </div>
       )}
 
+      {/* One-time popup: shown once per game after organiser marks it complete */}
+      {popupFeedbackGame && (
+        <GameFeedbackModal
+          game={popupFeedbackGame}
+          isPopup
+          onSkip={() => {
+            markPopupShown(popupFeedbackGame._id);
+            setPopupFeedbackGame(null);
+          }}
+          onSubmit={() => {
+            markPopupShown(popupFeedbackGame._id);
+            setPopupFeedbackGame(null);
+            showNotification("success", "Feedback submitted — thank you!");
+            fetchPendingFeedback();
+          }}
+        />
+      )}
+
       {/* Feedback modal triggered from completed tab "Rate Game" button */}
-      {feedbackTargetGame && (
+      {!popupFeedbackGame && feedbackTargetGame && (
         <GameFeedbackModal
           game={feedbackTargetGame}
           onSkip={() => setFeedbackTargetGame(null)}

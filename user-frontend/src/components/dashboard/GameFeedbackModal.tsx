@@ -116,7 +116,7 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
   });
 
   return (
-    <div className={`gfm-overlay ${isPopup ? "gfm-popup" : ""}`} onClick={isPopup ? undefined : onSkip}>
+    <div className={`gfm-overlay ${isPopup ? "gfm-popup" : ""}`} onClick={onSkip}>
       <div className="gfm-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="gfm-header">
@@ -181,7 +181,7 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
         {/* Footer */}
         <div className="gfm-footer">
           <button className="gfm-btn-skip" onClick={onSkip} disabled={submitting}>
-            Skip — Rate Later
+            {isPopup ? "Skip — Don't ask again" : "Skip — Rate Later"}
           </button>
           <button
             className="gfm-btn-submit"
