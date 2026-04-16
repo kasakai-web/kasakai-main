@@ -364,7 +364,7 @@ export default function DashboardLayout({
               className={`sidebar-link ${activeSection === 'ratings' ? 'active' : ''}`}
               onClick={() => { setActiveSection("ratings"); setSidebarOpen(false); navigateToPlayer("ratings"); }}
             >
-              <span className="sidebar-icon">⭐</span>My Performance
+              <span className="sidebar-icon">⭐</span>My Feedback
             </button>
             <button
               className={`sidebar-link ${activeSection === 'wallet' ? 'active' : ''}`}

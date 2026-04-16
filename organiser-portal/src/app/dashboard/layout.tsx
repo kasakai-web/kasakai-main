@@ -251,7 +251,7 @@ export default function DashboardLayout({
                 if (userId) router.push(`/dashboard/organizer/${userId}/performance`);
               }}
             >
-              <span className="sidebar-icon">📊</span>My Performance
+              <span className="sidebar-icon">📊</span>My Feedback
             </button>
             <button
               className={`sidebar-link ${activeSection === 'finance' ? 'active' : ''}`}

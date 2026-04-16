@@ -69,6 +69,11 @@ exports.createGame = async (req, res) => {
     const body = { ...req.body };
     body.organiser = req.user._id;
 
+    // Reject past games
+    if (body.scheduledAt && new Date(body.scheduledAt) <= new Date()) {
+      return res.status(400).json({ success: false, message: 'Game must be scheduled in the future.' });
+    }
+
     // Fee conversion
     if (body.feeInRs !== undefined) {
       body.feeInPaise = Math.round(Number(body.feeInRs) * 100);

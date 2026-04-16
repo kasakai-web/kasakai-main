@@ -114,7 +114,7 @@ export default function PlayerDashboard() {
 
       const data = await res.json();
       console.log("[DEBUG] My games:", data);
-      
+
       if (data.success) {
         setMyGames(data.data || []);
       } else {
@@ -210,8 +210,8 @@ export default function PlayerDashboard() {
     try {
       await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance()]);
       setLastUpdated(new Date());
-      fetchPendingFeedback(); // fire-and-forget, shows popup if needed
-      fetchMyRatings();       // fire-and-forget, loads organiser ratings received
+      fetchPendingFeedback();
+      fetchMyRatings();
     } finally {
       setLoading(false);
     }
@@ -682,8 +682,8 @@ export default function PlayerDashboard() {
             const spotsTotal = game.totalSlots;
             const spotsLeft = spotsTotal - totalRegistered - organiserCount;
             return (
-              <div key={game._id} style={{ position: "relative" }}>
-                <EventCard
+              <EventCard
+                key={game._id}
                   id={game._id}
                   status={game.status as EventStatus}
                   venue={game.turf?.name || 'TBC'}
@@ -705,26 +705,14 @@ export default function PlayerDashboard() {
                   })) || []}
                   onBook={() => handleBook(game)}
                   onViewDetails={() => openGameDetail(game)}
+                  onRateGame={
+                    activeTab === "completed" &&
+                    game.status === "completed" &&
+                    pendingFeedback.some((pf) => pf._id === game._id)
+                      ? () => setFeedbackTargetGame(game)
+                      : undefined
+                  }
                 />
-                {/* Rate button for completed attended games */}
-                {activeTab === "completed" &&
-                  game.status === "completed" &&
-                  pendingFeedback.some((pf) => pf._id === game._id) && (
-                    <button
-                      type="button"
-                      onClick={() => setFeedbackTargetGame(game)}
-                      style={{
-                        position: "absolute", bottom: 12, right: 12,
-                        background: "rgba(196,213,108,0.9)", color: "#000",
-                        border: "none", borderRadius: 6, padding: "5px 12px",
-                        fontWeight: 800, fontSize: 11, cursor: "pointer",
-                        letterSpacing: "0.06em",
-                      }}
-                    >
-                      ⭐ Rate Game
-                    </button>
-                  )}
-              </div>
             )
           }) : (
             <div className="empty-state">
