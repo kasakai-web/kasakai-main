@@ -25,6 +25,13 @@ export default function DashboardLayout({
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
 
+  const resolveProfileImageUrl = useCallback((img?: string | null) => {
+    if (!img) return "";
+    if (/^(https?:|data:|blob:)/i.test(img)) return img;
+    if (img.startsWith("/")) return `${SERVER_BASE}${img}`;
+    return `${SERVER_BASE}/${img}`;
+  }, []);
+
   const refreshSidebarProfile = useCallback(async () => {
     const { token } = getSession();
     if (!token) return;
@@ -41,15 +48,19 @@ export default function DashboardLayout({
         setUserName(name);
         localStorage.setItem("userName", name);
       }
-      if (img) {
-        const url = `${SERVER_BASE}${img}`;
+      {
+        const url = resolveProfileImageUrl(img);
         setUserProfileImage(url);
-        localStorage.setItem("userProfileImage", url);
+        if (url) {
+          localStorage.setItem("userProfileImage", url);
+        } else {
+          localStorage.removeItem("userProfileImage");
+        }
       }
     } catch {
       // non-critical
     }
-  }, []);
+  }, [resolveProfileImageUrl]);
 
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
@@ -60,7 +71,7 @@ export default function DashboardLayout({
       setUserName(storedUserName);
     }
     if (storedProfileImage) {
-      setUserProfileImage(storedProfileImage);
+      setUserProfileImage(resolveProfileImageUrl(storedProfileImage));
     }
 
     if (storedUserId) {
@@ -86,13 +97,13 @@ export default function DashboardLayout({
     }
 
     setAuthResolved(true);
-  }, [pathname, router]);
+  }, [pathname, resolveProfileImageUrl, router]);
 
   // Re-read profile image from localStorage whenever path changes (e.g. after profile page update)
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("userProfileImage") : null;
-    if (stored) setUserProfileImage(stored);
-  }, [pathname]);
+    setUserProfileImage(resolveProfileImageUrl(stored));
+  }, [pathname, resolveProfileImageUrl]);
 
   // Keep sidebar profile data synced without hard refresh.
   useEffect(() => {
@@ -121,11 +132,24 @@ export default function DashboardLayout({
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "userName" && e.newValue) setUserName(e.newValue);
-      if (e.key === "userProfileImage") setUserProfileImage(e.newValue || "");
+      if (e.key === "userProfileImage") setUserProfileImage(resolveProfileImageUrl(e.newValue || ""));
     };
+
+    const onProfileUpdated = (evt: Event) => {
+      const customEvt = evt as CustomEvent<{ name?: string; profileImage?: string }>;
+      const nextName = customEvt.detail?.name;
+      const nextImage = customEvt.detail?.profileImage;
+      if (nextName) setUserName(nextName);
+      if (nextImage !== undefined) setUserProfileImage(resolveProfileImageUrl(nextImage));
+    };
+
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    window.addEventListener("organiser-profile-updated", onProfileUpdated as EventListener);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("organiser-profile-updated", onProfileUpdated as EventListener);
+    };
+  }, [resolveProfileImageUrl]);
 
   useEffect(() => {
     if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/notifications")) {
@@ -134,6 +158,14 @@ export default function DashboardLayout({
     }
     if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/profile")) {
       setActiveSection("profile");
+      return;
+    }
+    if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/performance")) {
+      setActiveSection("performance");
+      return;
+    }
+    if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/finance")) {
+      setActiveSection("finance");
       return;
     }
     setActiveSection("games");
@@ -211,6 +243,24 @@ export default function DashboardLayout({
               }}
             >
               <span className="sidebar-icon">🗂</span>My Games
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === 'performance' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveSection("performance");
+                if (userId) router.push(`/dashboard/organizer/${userId}/performance`);
+              }}
+            >
+              <span className="sidebar-icon">📊</span>My Performance
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === 'finance' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveSection("finance");
+                if (userId) router.push(`/dashboard/organizer/${userId}/finance`);
+              }}
+            >
+              <span className="sidebar-icon">💰</span>Financials
             </button>
             <button
               className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}

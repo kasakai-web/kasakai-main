@@ -793,6 +793,25 @@
   color: #fca5a5;
 }
 
+/* Text-label post-game action buttons (Complete / Attendance / Ratings) */
+.btn-postgame {
+  width: auto;
+  height: auto;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.btn-postgame:hover { opacity: 0.85; transform: scale(1.04); }
+
+.btn-postgame-complete   { background: rgba(196,213,108,0.14); color: #c4d56c; border: 1px solid rgba(196,213,108,0.3); }
+.btn-postgame-attendance { background: rgba(251,191,36,0.12);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);  }
+.btn-postgame-ratings    { background: rgba(74,222,128,0.10);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;

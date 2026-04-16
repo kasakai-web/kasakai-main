@@ -20,7 +20,7 @@ export default function DashboardLayout({
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
-  const [activeSection, setActiveSection] = useState<"browse" | "mygames" | "cancelled" | "completed" | "notifications" | "profile" | "wallet">("browse");
+  const [activeSection, setActiveSection] = useState<"browse" | "mygames" | "cancelled" | "completed" | "notifications" | "profile" | "wallet" | "ratings">("browse");
   const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
@@ -147,6 +147,11 @@ export default function DashboardLayout({
       return;
     }
 
+    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/ratings")) {
+      setActiveSection("ratings");
+      return;
+    }
+
     if (pathname.includes("/dashboard/player/")) {
       if (tab === "cancelled" || tab === "canceled") {
         setActiveSection("cancelled");
@@ -212,7 +217,7 @@ export default function DashboardLayout({
     return sessionUserId || "";
   };
 
-  const navigateToPlayer = (destination: "browse" | "my-games" | "cancelled" | "completed" | "profile" | "notifications" | "wallet") => {
+  const navigateToPlayer = (destination: "browse" | "my-games" | "cancelled" | "completed" | "profile" | "notifications" | "wallet" | "ratings") => {
     const resolvedUserId = resolvePlayerId();
     if (!resolvedUserId) return;
 
@@ -243,6 +248,11 @@ export default function DashboardLayout({
 
     if (destination === "wallet") {
       router.push(`/dashboard/player/${resolvedUserId}/wallet`);
+      return;
+    }
+
+    if (destination === "ratings") {
+      router.push(`/dashboard/player/${resolvedUserId}/ratings`);
       return;
     }
 
@@ -349,6 +359,12 @@ export default function DashboardLayout({
               onClick={() => { setActiveSection("completed"); setSidebarOpen(false); navigateToPlayer("completed"); }}
             >
               <span className="sidebar-icon">✅</span>Completed Games
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === 'ratings' ? 'active' : ''}`}
+              onClick={() => { setActiveSection("ratings"); setSidebarOpen(false); navigateToPlayer("ratings"); }}
+            >
+              <span className="sidebar-icon">⭐</span>My Performance
             </button>
             <button
               className={`sidebar-link ${activeSection === 'wallet' ? 'active' : ''}`}

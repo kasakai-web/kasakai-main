@@ -1,0 +1,264 @@
+/* ══════════════════════════════════════════════
+   MY PERFORMANCE / RATINGS PAGE
+══════════════════════════════════════════════ */
+
+/* ── Summary stats row ── */
+.mpr-stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.mpr-stat {
+  background: #0d0d0f;
+  border: 1px solid #1e1e24;
+  border-radius: 10px;
+  padding: 14px 20px;
+  min-width: 100px;
+  text-align: center;
+  flex: 1 1 90px;
+}
+
+.mpr-stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #f4efe8;
+  line-height: 1;
+  font-family: var(--mono, monospace);
+  margin-bottom: 4px;
+}
+.mpr-stat-value.mpr-gold { color: #fbbf24; }
+.mpr-stat-value.mpr-lime { color: #c4d56c; }
+
+.mpr-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #555;
+  font-weight: 700;
+}
+
+/* ── Rating cards grid ── */
+.mpr-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* ── Individual card ── */
+.mpr-card {
+  background: #0d0d0f;
+  border: 1px solid #1e1e24;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s;
+}
+.mpr-card:hover { border-color: rgba(196,213,108,0.2); }
+
+.mpr-card-feedback { border-color: rgba(74,222,128,0.12); }
+.mpr-card-feedback:hover { border-color: rgba(74,222,128,0.25); }
+
+/* ── Card header ── */
+.mpr-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mpr-card-game { flex: 1; min-width: 0; }
+
+.mpr-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f4efe8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.mpr-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mpr-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(196,213,108,0.1);
+  color: #c4d56c;
+  border: 1px solid rgba(196,213,108,0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mpr-date {
+  font-size: 11px;
+  color: #555;
+}
+
+.mpr-card-organiser {
+  font-size: 11px;
+  color: #444;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Ratings grid inside card ── */
+.mpr-ratings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mpr-rating-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mpr-rating-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #555;
+  font-weight: 700;
+}
+
+/* ── Extra chips ── */
+.mpr-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mpr-extra-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid #2a2a2e;
+  color: #666;
+  background: transparent;
+}
+
+.mpr-extra-chip.mpr-position {
+  background: rgba(196,213,108,0.08);
+  color: #c4d56c;
+  border-color: rgba(196,213,108,0.2);
+}
+
+.mpr-extra-chip.mpr-tag {
+  background: rgba(74,222,128,0.07);
+  color: #4ade80;
+  border-color: rgba(74,222,128,0.18);
+}
+
+/* ── Organiser notes ── */
+.mpr-notes {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+  border-top: 1px solid #1a1a1e;
+  padding-top: 8px;
+  line-height: 1.5;
+}
+
+/* ── Pending dot on tab badge ── */
+.mpr-pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fbbf24;
+  flex-shrink: 0;
+  animation: mpr-pulse 1.8s ease-in-out infinite;
+}
+@keyframes mpr-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── Section headings ── */
+.mpr-pending-section  { margin-bottom: 28px; }
+.mpr-submitted-section {}
+
+.mpr-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mpr-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #555;
+}
+
+.mpr-section-count {
+  font-size: 11px;
+  color: #444;
+  font-family: var(--mono, monospace);
+}
+
+/* ── Pending card variant ── */
+.mpr-card-pending {
+  border-color: rgba(251,191,36,0.2);
+  background: linear-gradient(160deg, #0d0d0f 80%, rgba(251,191,36,0.04));
+}
+.mpr-card-pending:hover { border-color: rgba(251,191,36,0.4); }
+
+.mpr-pending-hint {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* ── Give Feedback button ── */
+.mpr-btn-feedback {
+  background: #c4d56c;
+  color: #000;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.mpr-btn-feedback:hover { opacity: 0.88; transform: translateY(-1px); }
+
+/* ── Submitted tick ── */
+.mpr-submitted-tick {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4ade80;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.2);
+  padding: 3px 8px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .mpr-cards { grid-template-columns: 1fr; }
+  .mpr-stats-row { gap: 8px; }
+  .mpr-stat { padding: 12px 14px; min-width: 70px; }
+  .mpr-stat-value { font-size: 22px; }
+  .mpr-ratings-grid { grid-template-columns: 1fr; }
+}

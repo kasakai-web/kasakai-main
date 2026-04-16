@@ -1,6 +1,8 @@
-const Game = require("../../models/Game");
-const Organiser = require("../../models/Organiser");
-const Player = require("../../models/Player");
+const Game         = require("../../models/Game");
+const Organiser    = require("../../models/Organiser");
+const Player       = require("../../models/Player");
+const PlayerRating = require("../../models/PlayerRating");
+const GameFeedback = require("../../models/GameFeedback");
 const walletService = require("../wallet/wallet.service");
 const { notify } = require("../../services/notificationService");
 const {
@@ -1348,5 +1350,516 @@ exports.backoutFromGame = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error: " + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Mark game as completed
+// @route   PATCH /api/v1/games/organisers/:id/complete
+// @access  Private (Organiser)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.completeGame = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (game.status === 'completed')
+      return res.status(400).json({ success: false, message: 'Game is already completed' });
+    if (game.status === 'cancelled')
+      return res.status(400).json({ success: false, message: 'Cannot complete a cancelled game' });
+
+    game.status      = 'completed';
+    game.completedAt = new Date();
+    await game.save();
+
+    res.status(200).json({ success: true, message: 'Game marked as completed', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Save attendance for all registrations
+// @route   POST /api/v1/games/organisers/:id/attendance
+// @access  Private (Organiser)
+// Body: { attendance: [{ regId, status }] }
+//   status: 'present' | 'absent' | 'no_show'
+// ─────────────────────────────────────────────────────────────────────────────
+exports.markAttendance = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (game.status !== 'completed')
+      return res.status(400).json({ success: false, message: 'Complete the game before marking attendance' });
+
+    const attendance = Array.isArray(req.body.attendance) ? req.body.attendance : [];
+    const validStatuses = ['present', 'absent', 'no_show', 'not_marked'];
+
+    for (const item of attendance) {
+      const reg = game.registrations.id(item.regId);
+      if (!reg) continue;
+      if (validStatuses.includes(item.status)) reg.attended = item.status;
+    }
+
+    game.attendanceMarked   = true;
+    game.attendanceMarkedAt = new Date();
+    await game.save();
+
+    // Notify no-shows
+    for (const reg of game.registrations) {
+      if (reg.attended === 'no_show' && reg.player && !reg.plusOneName) {
+        notify(reg.player, 'player', {
+          type:  'system',
+          title: '⚠️ No-Show Recorded',
+          body:  `You were marked as a no-show for "${game.title}". This may affect your account standing.`,
+          game:  game._id,
+        }).catch(() => {});
+      }
+    }
+
+    await game.populate({ path: 'registrations.player', select: 'name phone email' });
+    res.status(200).json({ success: true, message: 'Attendance saved', data: game });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Save organiser ratings for attended players (bulk upsert)
+// @route   POST /api/v1/games/organisers/:id/player-ratings
+// @access  Private (Organiser)
+// Body: { ratings: [{ playerId, conductRating, gameplayRating, preferredPosition,
+//                     gkAffinity, playWith, playAgainst, notes }] }
+// ─────────────────────────────────────────────────────────────────────────────
+exports.savePlayerRatings = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id).lean();
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (game.status !== 'completed')
+      return res.status(400).json({ success: false, message: 'Game must be completed first' });
+
+    const ratings = Array.isArray(req.body.ratings) ? req.body.ratings : [];
+    if (ratings.length === 0)
+      return res.status(400).json({ success: false, message: 'No ratings provided' });
+
+    const ops = ratings.map((r) => ({
+      updateOne: {
+        filter: { game: game._id, player: r.playerId },
+        update: {
+          $set: {
+            organiser:         req.user._id,
+            conductRating:     Math.min(5, Math.max(1, Number(r.conductRating)  || 3)),
+            gameplayRating:    Math.min(5, Math.max(1, Number(r.gameplayRating) || 3)),
+            preferredPosition: r.preferredPosition || 'any',
+            gkAffinity:        r.gkAffinity != null ? Number(r.gkAffinity) : null,
+            playWith:          Array.isArray(r.playWith)    ? r.playWith    : [],
+            playAgainst:       Array.isArray(r.playAgainst) ? r.playAgainst : [],
+            notes:             r.notes || null,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    await PlayerRating.bulkWrite(ops);
+
+    // Update each player's aggregate conduct + gameplay ratings
+    for (const r of ratings) {
+      const allRatings = await PlayerRating.find({ player: r.playerId }).lean();
+      if (allRatings.length === 0) continue;
+      const avgConduct  = allRatings.reduce((s, x) => s + x.conductRating,  0) / allRatings.length;
+      const avgGameplay = allRatings.reduce((s, x) => s + x.gameplayRating, 0) / allRatings.length;
+      const combined = Math.round(((avgConduct + avgGameplay) / 2) * 10) / 10;
+      await Player.findByIdAndUpdate(r.playerId, { rating: combined });
+
+      // Notify the player their rating was saved
+      notify(r.playerId, 'player', {
+        type:  'system',
+        title: '⭐ Post-Game Rating Received',
+        body:  `Your performance in "${game.title}" has been rated by the organiser.`,
+        game:  game._id,
+      }).catch(() => {});
+    }
+
+    res.status(200).json({ success: true, message: 'Ratings saved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Get existing player ratings for a game (organiser view)
+// @route   GET /api/v1/games/organisers/:id/player-ratings
+// @access  Private (Organiser)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getPlayerRatings = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id).lean();
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+
+    const ratings = await PlayerRating.find({ game: req.params.id })
+      .populate('player', 'name phone')
+      .lean();
+
+    res.status(200).json({ success: true, data: ratings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Player submits feedback for a completed game
+// @route   POST /api/v1/games/:id/feedback
+// @access  Private (Player)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.submitFeedback = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id).lean();
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.status !== 'completed')
+      return res.status(400).json({ success: false, message: 'Game is not completed yet' });
+
+    // Player must have been marked as attended
+    const reg = game.registrations.find(
+      (r) => r.player && r.player.toString() === req.user._id.toString() && !r.plusOneName
+    );
+    if (!reg)
+      return res.status(403).json({ success: false, message: 'You were not registered for this game' });
+    if (reg.attended !== 'present')
+      return res.status(400).json({ success: false, message: 'Feedback is only available for players who attended' });
+
+    const { gameRating, organiserRating, venueRating, tags, comment, peerRatings } = req.body;
+    if (!gameRating || gameRating < 1 || gameRating > 5)
+      return res.status(400).json({ success: false, message: 'gameRating must be between 1 and 5' });
+
+    const feedback = await GameFeedback.findOneAndUpdate(
+      { game: game._id, submittedBy: req.user._id },
+      {
+        game:             game._id,
+        submittedBy:      req.user._id,
+        gameRating:       Number(gameRating),
+        organiserRating:  organiserRating  ? Number(organiserRating)  : null,
+        venueRating:      venueRating      ? Number(venueRating)      : null,
+        tags:             Array.isArray(tags) ? tags : [],
+        comment:          comment || null,
+        peerRatings:      Array.isArray(peerRatings) ? peerRatings : [],
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.status(200).json({ success: true, message: 'Feedback submitted', data: feedback });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Player gets their own feedback for a game
+// @route   GET /api/v1/games/:id/my-feedback
+// @access  Private (Player)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getMyFeedback = async (req, res) => {
+  try {
+    const feedback = await GameFeedback.findOne({
+      game: req.params.id,
+      submittedBy: req.user._id,
+    }).lean();
+    res.status(200).json({ success: true, data: feedback || null });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Get games where player was attended but hasn't submitted feedback
+// @route   GET /api/v1/games/pending-feedback
+// @access  Private (Player)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getPendingFeedback = async (req, res) => {
+  try {
+    // Find completed games where this player was marked present
+    const games = await Game.find({
+      status: 'completed',
+      attendanceMarked: true,
+      registrations: {
+        $elemMatch: {
+          player:   req.user._id,
+          plusOneName: null,
+          attended: 'present',
+        },
+      },
+    })
+      .populate('turf', 'name location.city')
+      .select('title scheduledAt format turf attendanceMarkedAt')
+      .lean();
+
+    if (games.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Filter out games where feedback was already submitted
+    const gameIds = games.map((g) => g._id);
+    const submitted = await GameFeedback.find({
+      game:        { $in: gameIds },
+      submittedBy: req.user._id,
+    }).select('game').lean();
+
+    const submittedSet = new Set(submitted.map((f) => f.game.toString()));
+    const pending = games.filter((g) => !submittedSet.has(g._id.toString()));
+
+    res.status(200).json({ success: true, data: pending });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Player gets their own received ratings (from organisers)
+// @route   GET /api/v1/games/my-ratings
+// @access  Private (Player)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getMyRatings = async (req, res) => {
+  try {
+    const ratings = await PlayerRating.find({ player: req.user._id })
+      .populate('game', 'title scheduledAt format turf')
+      .populate('organiser', 'name')
+      .sort('-createdAt')
+      .lean();
+
+    res.status(200).json({ success: true, data: ratings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Organiser views all player feedback for their game
+// @route   GET /api/v1/games/organisers/:id/game-feedback
+// @access  Private (Organiser)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getGameFeedback = async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id).lean();
+    if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
+    if (game.organiser.toString() !== req.user._id.toString())
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+
+    const feedback = await GameFeedback.find({ game: req.params.id })
+      .populate('submittedBy', 'name')
+      .sort('-createdAt')
+      .lean();
+
+    // Aggregate averages
+    const count = feedback.length;
+    const avgGame      = count ? feedback.reduce((s, f) => s + f.gameRating, 0) / count : null;
+    const avgOrganiser = (() => {
+      const rated = feedback.filter((f) => f.organiserRating);
+      return rated.length ? rated.reduce((s, f) => s + f.organiserRating, 0) / rated.length : null;
+    })();
+    const avgVenue = (() => {
+      const rated = feedback.filter((f) => f.venueRating);
+      return rated.length ? rated.reduce((s, f) => s + f.venueRating, 0) / rated.length : null;
+    })();
+
+    // Tag frequency
+    const tagCounts = {};
+    for (const f of feedback) {
+      for (const tag of f.tags || []) {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        feedback,
+        summary: {
+          count,
+          avgGame:       avgGame      ? Math.round(avgGame      * 10) / 10 : null,
+          avgOrganiser:  avgOrganiser ? Math.round(avgOrganiser * 10) / 10 : null,
+          avgVenue:      avgVenue     ? Math.round(avgVenue     * 10) / 10 : null,
+          tagCounts,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Organiser gets all player feedback received across ALL their games
+// @route   GET /api/v1/games/organisers/my-feedback-summary
+// @access  Private (Organiser)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getMyFeedbackSummary = async (req, res) => {
+  try {
+    const games = await Game.find({ organiser: req.user._id })
+      .select('_id title format scheduledAt turf')
+      .populate('turf', 'name location.city')
+      .lean();
+
+    const gameIds = games.map((g) => g._id);
+    if (gameIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: { feedback: [], summary: { count: 0, avgGame: null, avgOrganiser: null, avgVenue: null, tagCounts: {} } },
+      });
+    }
+
+    const gameMap = {};
+    for (const g of games) gameMap[g._id.toString()] = g;
+
+    const feedback = await GameFeedback.find({ game: { $in: gameIds } })
+      .populate('submittedBy', 'name')
+      .sort('-createdAt')
+      .lean();
+
+    const enriched = feedback.map((f) => ({
+      ...f,
+      gameInfo: gameMap[f.game.toString()] || null,
+    }));
+
+    const count = feedback.length;
+    const avgGame = count ? Math.round(feedback.reduce((s, f) => s + f.gameRating, 0) / count * 10) / 10 : null;
+    const withOrg = feedback.filter((f) => f.organiserRating);
+    const avgOrganiser = withOrg.length
+      ? Math.round(withOrg.reduce((s, f) => s + f.organiserRating, 0) / withOrg.length * 10) / 10 : null;
+    const withVenue = feedback.filter((f) => f.venueRating);
+    const avgVenue = withVenue.length
+      ? Math.round(withVenue.reduce((s, f) => s + f.venueRating, 0) / withVenue.length * 10) / 10 : null;
+    const tagCounts = {};
+    for (const f of feedback) {
+      for (const tag of f.tags || []) tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { feedback: enriched, summary: { count, avgGame, avgOrganiser, avgVenue, tagCounts } },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Organiser gets all player ratings they have given across ALL games
+// @route   GET /api/v1/games/organisers/my-ratings-given
+// @access  Private (Organiser)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getMyRatingsGiven = async (req, res) => {
+  try {
+    const ratings = await PlayerRating.find({ organiser: req.user._id })
+      .populate('player', 'name phone')
+      .populate('game',   'title format scheduledAt')
+      .sort('-createdAt')
+      .lean();
+
+    res.status(200).json({ success: true, data: ratings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
+  }
+};
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Organiser gets comprehensive financial summary across all their games
+// @route   GET /api/v1/games/organisers/financial-summary
+// @access  Private (Organiser)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getFinancialSummary = async (req, res) => {
+  try {
+    const organiserIdStr = req.user._id.toString();
+
+    const games = await Game.find({ organiser: req.user._id })
+      .select('_id title format scheduledAt status feeInPaise registrations turf')
+      .populate('turf', 'name')
+      .populate('registrations.player', 'name phone')
+      .sort('-scheduledAt')
+      .lean();
+
+    let totalRevenuePaise  = 0;
+    let totalRefundedPaise = 0;
+    let totalPaidPlayers   = 0;
+    let totalPaidGuests    = 0;
+    let totalOrgFreeSlots  = 0;
+    let totalOrgFreeGuests = 0;
+
+    const perGame = [];
+
+    for (const game of games) {
+      const paidPlayers   = [];
+      const paidGuests    = [];
+      const orgFreeSlots  = [];
+      const orgFreeGuests = [];
+      let revenuePaise  = 0;
+      let refundedPaise = 0;
+
+      for (const reg of game.registrations || []) {
+        const isOrgRef = (reg.player?._id?.toString() || reg.player?.toString()) === organiserIdStr;
+        const hasGuest = !!reg.plusOneName;
+
+        if (reg.paymentStatus === 'paid') {
+          revenuePaise += reg.amountPaidPaise || 0;
+          if (!hasGuest) {
+            paidPlayers.push({ name: reg.player?.name || 'Player', amountPaise: reg.amountPaidPaise || 0 });
+            totalPaidPlayers++;
+          } else {
+            paidGuests.push({ name: reg.plusOneName, amountPaise: reg.amountPaidPaise || 0 });
+            totalPaidGuests++;
+          }
+        } else if (reg.paymentStatus === 'refunded') {
+          refundedPaise += reg.amountPaidPaise || 0;
+        } else if (isOrgRef && hasGuest) {
+          orgFreeGuests.push({ name: reg.plusOneName });
+          totalOrgFreeGuests++;
+        } else if (!isOrgRef && (reg.amountPaidPaise || 0) === 0 && reg.paymentStatus === 'pending' && (game.feeInPaise || 0) > 0) {
+          orgFreeSlots.push({ name: reg.player?.name || 'Player' });
+          totalOrgFreeSlots++;
+        }
+      }
+
+      totalRevenuePaise  += revenuePaise;
+      totalRefundedPaise += refundedPaise;
+
+      perGame.push({
+        _id:          game._id,
+        title:        game.title,
+        format:       game.format,
+        scheduledAt:  game.scheduledAt,
+        status:       game.status,
+        feeInPaise:   game.feeInPaise || 0,
+        turfName:     game.turf?.name || null,
+        revenuePaise,
+        refundedPaise,
+        paidPlayers,
+        paidGuests,
+        orgFreeSlots,
+        orgFreeGuests,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalRevenuePaise,
+          totalRefundedPaise,
+          netRevenuePaise: totalRevenuePaise - totalRefundedPaise,
+          totalPaidPlayers,
+          totalPaidGuests,
+          totalOrgFreeSlots,
+          totalOrgFreeGuests,
+        },
+        games: perGame,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
   }
 };

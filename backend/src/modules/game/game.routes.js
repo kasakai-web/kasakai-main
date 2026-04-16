@@ -17,12 +17,25 @@ const {
   backoutFromGame,
   joinWaitlist,
   leaveWaitlist,
+  // Post-game
+  completeGame,
+  markAttendance,
+  savePlayerRatings,
+  getPlayerRatings,
+  submitFeedback,
+  getMyFeedback,
+  getPendingFeedback,
+  getMyRatings,
+  getGameFeedback,
+  getMyFeedbackSummary,
+  getMyRatingsGiven,
+  getFinancialSummary,
 } = require("./game.controller");
 const { protect, authorize } = require("../auth/auth.middleware");
 
 const router = express.Router();
 
-// Organiser-facing routes (must come BEFORE catch-all routes)
+// ── Organiser-facing routes (must come BEFORE catch-all routes) ──────────────
 router.route("/organisers/create")
   .post(protect, authorize("organiser"), createGame);
 
@@ -34,6 +47,28 @@ router.route("/organisers/:id/open")
 
 router.route("/organisers/:id/confirm")
   .patch(protect, authorize("organiser"), confirmGame);
+
+router.route("/organisers/:id/complete")
+  .patch(protect, authorize("organiser"), completeGame);
+
+router.route("/organisers/:id/attendance")
+  .post(protect, authorize("organiser"), markAttendance);
+
+router.route("/organisers/:id/player-ratings")
+  .get(protect, authorize("organiser"), getPlayerRatings)
+  .post(protect, authorize("organiser"), savePlayerRatings);
+
+router.route("/organisers/:id/game-feedback")
+  .get(protect, authorize("organiser"), getGameFeedback);
+
+router.route("/organisers/my-feedback-summary")
+  .get(protect, authorize("organiser"), getMyFeedbackSummary);
+
+router.route("/organisers/my-ratings-given")
+  .get(protect, authorize("organiser"), getMyRatingsGiven);
+
+router.route("/organisers/financial-summary")
+  .get(protect, authorize("organiser"), getFinancialSummary);
 
 router.route("/organisers/:id/add-player")
   .post(protect, authorize("organiser"), addPlayerByOrganiser);
@@ -48,12 +83,18 @@ router.route("/organisers/:id")
   .delete(protect, authorize("organiser"), deleteGame)
   .patch(protect, authorize("organiser"), updateGame);
 
-// Player-facing routes (more specific to less specific)
+// ── Player-facing routes (more specific to less specific) ────────────────────
 router.route("/my-games")
   .get(protect, authorize("player"), getMyGames);
 
 router.route("/my-waitlist")
   .get(protect, authorize("player"), getMyWaitlist);
+
+router.route("/my-ratings")
+  .get(protect, authorize("player"), getMyRatings);
+
+router.route("/pending-feedback")
+  .get(protect, authorize("player"), getPendingFeedback);
 
 router.route("/:id/register")
   .post(protect, authorize("player"), registerForGame);
@@ -66,6 +107,10 @@ router.route("/:id/waitlist")
 
 router.route("/:id/leave-waitlist")
   .post(protect, authorize("player"), leaveWaitlist);
+
+router.route("/:id/feedback")
+  .post(protect, authorize("player"), submitFeedback)
+  .get(protect, authorize("player"), getMyFeedback);
 
 router.route("/:id")
   .get(protect, authorize("player", "organiser"), getGameById);

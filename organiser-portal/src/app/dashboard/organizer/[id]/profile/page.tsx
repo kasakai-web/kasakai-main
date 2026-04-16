@@ -202,7 +202,14 @@ export default function OrganiserProfilePage() {
       const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
       setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
       setImagePreview(newImageUrl);
-      if (newImageUrl) localStorage.setItem("userProfileImage", newImageUrl);
+      if (newImageUrl) {
+        localStorage.setItem("userProfileImage", newImageUrl);
+      } else {
+        localStorage.removeItem("userProfileImage");
+      }
+      window.dispatchEvent(new CustomEvent("organiser-profile-updated", {
+        detail: { profileImage: newImageUrl || "" },
+      }));
     } catch {
       setError("Failed to upload image");
       setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
@@ -255,7 +262,11 @@ export default function OrganiserProfilePage() {
         return;
       }
 
-      localStorage.setItem("userName", data.data?.name || profile.name);
+      const latestName = data.data?.name || profile.name;
+      localStorage.setItem("userName", latestName);
+      window.dispatchEvent(new CustomEvent("organiser-profile-updated", {
+        detail: { name: latestName },
+      }));
       alert("Profile updated successfully");
       fetchProfile();
     } catch (e) {
