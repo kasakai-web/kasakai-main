@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const SERVER_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 import "./dashboard.css";
@@ -24,6 +25,7 @@ export default function DashboardLayout({
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarUnread, setSidebarUnread] = useState(0);
 
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
@@ -97,6 +99,28 @@ export default function DashboardLayout({
   }, [authenticated]);
 
   useEffect(() => { refreshWalletBalance(); }, [refreshWalletBalance, pathname]);
+
+  // Fetch notification unread count for sidebar badge
+  const refreshUnreadCount = useCallback(async () => {
+    if (!authenticated) return;
+    const { token } = getSession();
+    if (!token) return;
+    try {
+      const res = await fetch(buildApiUrl("/api/v1/notifications/unread-count"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data?.success) setSidebarUnread(data.data?.count ?? 0);
+    } catch {}
+  }, [authenticated]);
+
+  useEffect(() => { refreshUnreadCount(); }, [refreshUnreadCount, pathname]);
+  useAutoRefresh(authenticated ? refreshUnreadCount : null, {
+    interval:  15_000,
+    onFocus:   true,
+    onVisible: true,
+    enabled:   authenticated,
+  });
 
   useAutoRefresh(authenticated ? refreshWalletBalance : null, {
     interval:  30_000,
@@ -266,8 +290,11 @@ export default function DashboardLayout({
           <div className="role-tab active player" style={{ cursor: "default" }}>Player Dashboard</div>
         </div>
 
-        <div className="nav-right" style={{ borderLeft: "none" }}>
-          {/* Removed wallet and user-pill from here as per request to match homepage clean look */}
+        <div className="nav-right" style={{ borderLeft: "1px solid var(--border)", paddingRight: "8px" }}>
+          <NotificationBell onViewAll={() => {
+            const resolvedId = resolvePlayerId();
+            if (resolvedId) router.push(`/dashboard/player/${resolvedId}/notifications`);
+          }} />
         </div>
 
         {/* Mobile sidebar toggle */}
@@ -347,7 +374,11 @@ export default function DashboardLayout({
               }}
             >
               <span className="sidebar-icon">🔔</span>Notifications
-              <span style={{ marginLeft: "auto", background: "var(--coral)", color: "#fff", fontFamily: "var(--mono)", fontSize: "9px", padding: "2px 6px", borderRadius: "10px" }}>3</span>
+              {sidebarUnread > 0 && (
+                <span style={{ marginLeft: "auto", background: "#ff4444", color: "#fff", fontFamily: "var(--mono)", fontSize: "9px", padding: "2px 6px", borderRadius: "10px", fontWeight: 700 }}>
+                  {sidebarUnread > 99 ? "99+" : sidebarUnread}
+                </span>
+              )}
             </button>
             <button
               className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}

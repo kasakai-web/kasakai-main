@@ -2,6 +2,7 @@ const Game = require("../../models/Game");
 const Organiser = require("../../models/Organiser");
 const Player = require("../../models/Player");
 const walletService = require("../wallet/wallet.service");
+const { notify } = require("../../services/notificationService");
 const {
   sendGameCreatedEmail,
   sendGameRegistrationEmail,
@@ -37,6 +38,13 @@ const notifyWaitlistedPlayers = async (game) => {
       place:       formatGamePlace(game.turf),
       gameLink,
     }).catch((err) => console.error('[EMAIL] waitlist-spot-available failed:', err.message));
+
+    notify(entry.player, 'player', {
+      type:      'waitlist_spot',
+      title:     '🔔 Spot Available!',
+      body:      `A spot just opened in "${game.title}". Register now before it's gone!`,
+      game:      game._id,
+    }).catch(() => {});
   }
 };
 
@@ -137,6 +145,14 @@ exports.createGame = async (req, res) => {
         console.error('[EMAIL] Failed to send game created email:', err?.message || err);
       });
     }
+
+    notify(req.user._id, 'organiser', {
+      type:      'game_created',
+      title:     '🏟️ Game Created',
+      body:      `"${game.title}" is live and ready to accept registrations.`,
+      actionUrl: `/dashboard/organizer/${req.user._id}`,
+      game:      game._id,
+    }).catch(() => {});
 
     res.status(201).json({ success: true, data: game });
   } catch (error) {
@@ -347,6 +363,24 @@ exports.deleteGame = async (req, res) => {
       }).catch((err) => {
         console.error(`[EMAIL] Player cancel email failed (${email}):`, err?.message || err);
       });
+
+      // In-app notification for each player
+      notify(playerId, 'player', {
+        type:      'game_cancelled',
+        title:     '⛔ Game Cancelled',
+        body:      `"${gameTitle}" has been cancelled by the organiser.${cancelMessage ? ` Reason: ${cancelMessage}` : ''}`,
+        game:      populatedGame._id,
+      }).catch(() => {});
+    }
+
+    // In-app notification for organiser
+    if (organiser?._id) {
+      notify(organiser._id, 'organiser', {
+        type:      'game_cancelled',
+        title:     '⛔ Game Cancelled',
+        body:      `You cancelled "${gameTitle}". ${seenPlayerIds.size} player(s) have been notified.`,
+        game:      populatedGame._id,
+      }).catch(() => {});
     }
 
     console.log(`[CANCEL] Done. Notified ${seenPlayerIds.size} unique player(s)`);
@@ -615,6 +649,13 @@ exports.removeRegistration = async (req, res) => {
           place:       formatGamePlace(game.turf),
         }).catch((err) => console.error('[EMAIL] removed-from-game failed:', err.message));
       }
+
+      notify(removedReg.player, 'player', {
+        type:      'player_removed',
+        title:     '❌ Removed from Game',
+        body:      `You've been removed from "${game.title}" by the organiser. Your payment will be refunded.`,
+        game:      game._id,
+      }).catch(() => {});
     }
 
     res.status(200).json({ success: true, message: 'Registration removed', data: game });
@@ -664,6 +705,15 @@ exports.approveWaitlist = async (req, res) => {
         format:      game.format,
         place:       formatGamePlace(game.turf),
       }).catch((err) => console.error('[EMAIL] waitlist-approved failed:', err.message));
+    }
+
+    if (waitlistEntry.player) {
+      notify(waitlistEntry.player, 'player', {
+        type:      'waitlist_approved',
+        title:     '✅ Waitlist Approved!',
+        body:      `The organiser has approved your spot in "${game.title}". You're in!`,
+        game:      game._id,
+      }).catch(() => {});
     }
 
     res.status(200).json({ success: true, message: 'Player approved from waitlist', data: game });
@@ -996,6 +1046,14 @@ exports.registerForGame = async (req, res) => {
       });
     }
 
+    notify(req.user._id, 'player', {
+      type:      'game_registered',
+      title:     '✅ You\'re In!',
+      body:      `You've registered for "${game.title}". See you on the field!`,
+      actionUrl: `/dashboard/player/${req.user._id}`,
+      game:      game._id,
+    }).catch(() => {});
+
     const guestCount = guestInput.length;
     console.log(`[DEBUG] Registered player + ${guestCount} guest(s) for game`);
 
@@ -1067,6 +1125,13 @@ exports.joinWaitlist = async (req, res) => {
         place: formatGamePlace(game.turf),
       }).catch((err) => console.error('[EMAIL] Waitlist join email failed:', err?.message || err));
     }
+
+    notify(req.user._id, 'player', {
+      type:      'waitlist_joined',
+      title:     '⏳ Added to Waitlist',
+      body:      `You're on the waitlist for "${game.title}". We'll notify you when a spot opens.`,
+      game:      game._id,
+    }).catch(() => {});
 
     const activeWaitlist = game.waitlist.filter((w) => ['waiting', 'notified'].includes(w.status));
     res.status(200).json({
@@ -1229,6 +1294,23 @@ exports.backoutFromGame = async (req, res) => {
     }
 
     await Promise.allSettled(emailJobs);
+
+    // In-app notifications
+    notify(req.user._id, 'player', {
+      type:      'game_backout_player',
+      title:     '↩ Backout Confirmed',
+      body:      `You've backed out of "${game.title}".${refundAmountPaise > 0 ? ` ₹${(refundAmountPaise / 100).toFixed(0)} will be refunded to your wallet.` : ''}`,
+      game:      game._id,
+    }).catch(() => {});
+
+    if (game.organiser?._id) {
+      notify(game.organiser._id, 'organiser', {
+        type:      'game_backout_organiser',
+        title:     '📢 Player Backed Out',
+        body:      `${playerName} has backed out of "${game.title}". A spot is now available.`,
+        game:      game._id,
+      }).catch(() => {});
+    }
 
     res.status(200).json({
       success: true,

@@ -1,5 +1,5 @@
 const express = require('express');
-const { adminLogin, adminMe, listUsers, listOrganisers, listGames, listPayments } = require('./admin.controller');
+const { adminLogin, adminMe, listUsers, listOrganisers, listGames, listPayments, listNotifications } = require('./admin.controller');
 const { protect, authorize } = require('../auth/auth.middleware');
 
 const router = express.Router();
@@ -13,5 +13,6 @@ router.get('/users', protect, authorize('admin'), listUsers);
 router.get('/organisers', protect, authorize('admin'), listOrganisers);
 router.get('/games', protect, authorize('admin'), listGames);
 router.get('/payments', protect, authorize('admin'), listPayments);
+router.get('/notifications', protect, authorize('admin'), listNotifications);
 
 module.exports = router;

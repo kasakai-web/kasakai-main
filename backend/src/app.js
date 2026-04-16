@@ -15,6 +15,7 @@ const gameRoutes = require('./modules/game/game.routes');
 const playerRoutes = require('./modules/player/player.routes');
 const organiserRoutes = require('./modules/organiser/organiser.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
+const notificationRoutes = require('./modules/notification/notification.routes');
 
 const app = express();
 
@@ -90,6 +91,7 @@ app.use('/api/v1/games', gameRoutes);
 app.use('/api/v1/players', playerRoutes);
 app.use('/api/v1/organisers', organiserRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 app.get('/health', async (req, res) => {
   try {

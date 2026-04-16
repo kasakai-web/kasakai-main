@@ -5,6 +5,7 @@ import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const SERVER_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 import "./dashboard.css";
@@ -22,6 +23,7 @@ export default function DashboardLayout({
   const [activeSection, setActiveSection] = useState("games");
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [sidebarUnread, setSidebarUnread] = useState(0);
 
   const refreshSidebarProfile = useCallback(async () => {
     const { token } = getSession();
@@ -100,6 +102,21 @@ export default function DashboardLayout({
 
   useAutoRefresh(authenticated ? refreshSidebarProfile : null, { interval: 30_000 });
 
+  const refreshUnreadCount = useCallback(async () => {
+    const { token } = getSession();
+    if (!token) return;
+    try {
+      const res = await fetch(buildApiUrl("/api/v1/notifications/unread-count"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data?.success) setSidebarUnread(data.data?.count ?? 0);
+    } catch {}
+  }, []);
+
+  useEffect(() => { if (authenticated) refreshUnreadCount(); }, [authenticated, refreshUnreadCount, pathname]);
+  useAutoRefresh(authenticated ? refreshUnreadCount : null, { interval: 15_000 });
+
   // Storage events keep sidebar in sync when profile is updated in another tab
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -111,11 +128,14 @@ export default function DashboardLayout({
   }, []);
 
   useEffect(() => {
+    if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/notifications")) {
+      setActiveSection("notifications");
+      return;
+    }
     if (pathname.includes("/dashboard/organizer/") && pathname.endsWith("/profile")) {
       setActiveSection("profile");
       return;
     }
-
     setActiveSection("games");
   }, [pathname]);
 
@@ -166,7 +186,10 @@ export default function DashboardLayout({
           <div className="role-tab active organiser" style={{ cursor: "default" }}>Organiser Dashboard</div>
         </div>
 
-        <div className="nav-right" style={{ borderLeft: "none" }}>
+        <div className="nav-right" style={{ borderLeft: "1px solid var(--border)", paddingRight: "8px", gap: "4px" }}>
+          <NotificationBell onViewAll={() => {
+            if (userId) router.push(`/dashboard/organizer/${userId}/notifications`);
+          }} />
           <button className="sidebar-link" onClick={handleLogout} style={{ color: "#ff4444", opacity: 0.9 }}>
             <span className="sidebar-icon">🚪</span>Log Out
           </button>
@@ -188,6 +211,20 @@ export default function DashboardLayout({
               }}
             >
               <span className="sidebar-icon">🗂</span>My Games
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveSection("notifications");
+                if (userId) router.push(`/dashboard/organizer/${userId}/notifications`);
+              }}
+            >
+              <span className="sidebar-icon">🔔</span>Notifications
+              {sidebarUnread > 0 && (
+                <span style={{ marginLeft: "auto", background: "#ff4444", color: "#fff", fontFamily: "var(--mono)", fontSize: "9px", padding: "2px 6px", borderRadius: "10px", fontWeight: 700 }}>
+                  {sidebarUnread > 99 ? "99+" : sidebarUnread}
+                </span>
+              )}
             </button>
             <button
               className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}

@@ -1,5 +1,8 @@
+"use client";
+
 import styles from "./dashboard.module.css";
 import { sectionPaths, sectionTitles, type DashboardSection } from "./constants";
+import { NotificationBell } from "./notifications/NotificationBell";
 
 type TopbarProps = {
   activeSection: DashboardSection;
@@ -21,6 +24,7 @@ export function Topbar({ activeSection, onVerifyOrganisers, onOpenSidebar }: Top
         {sectionPaths[activeSection]}
       </span>
       <div className={styles.topbarActions}>
+        <NotificationBell />
         <button className={styles.topbarBtn} type="button">
           Export
         </button>

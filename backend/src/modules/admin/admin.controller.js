@@ -3,6 +3,7 @@ const Admin = require('../../models/Admin');
 const Player = require('../../models/Player');
 const Organiser = require('../../models/Organiser');
 const Game = require('../../models/Game');
+const Notification = require('../../models/Notification');
 
 const formatJoinedAt = (value) => {
   if (!value) return null;
@@ -313,6 +314,34 @@ exports.listPayments = async (req, res) => {
     });
   } catch (err) {
     console.error('[listPayments]', err);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/admin/notifications
+// Returns the most recent platform-wide notifications (last 50 across all users)
+// ─────────────────────────────────────────────────────────────────────────────
+exports.listNotifications = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const skip  = parseInt(req.query.skip) || 0;
+
+    const [notifications, total] = await Promise.all([
+      Notification.find({})
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Notification.countDocuments({}),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: { notifications, total },
+    });
+  } catch (err) {
+    console.error('[listNotifications]', err);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };

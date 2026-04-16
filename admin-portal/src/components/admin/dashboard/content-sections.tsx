@@ -590,42 +590,104 @@ function Payments() {
   );
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  game_created:           "Game Created",
+  game_registered:        "Player Registered",
+  game_cancelled:         "Game Cancelled",
+  game_backout_player:    "Player Backed Out",
+  game_backout_organiser: "Organiser Backout",
+  waitlist_joined:        "Joined Waitlist",
+  waitlist_spot:          "Waitlist Spot Open",
+  waitlist_approved:      "Waitlist Approved",
+  player_removed:         "Player Removed",
+  wallet_topup:           "Wallet Top-up",
+  wallet_debit:           "Wallet Debit",
+  wallet_refund:          "Wallet Refund",
+  system:                 "System",
+};
+
+function notifTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+type AdminNotifRow = {
+  _id: string;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+  recipientRole: string;
+};
+
 function Notifications() {
-  const feed = [
-    ["Game created", "Saturday 7v7 created by Vikram Rao. Notification sent to 48 community members.", "2 min ago · 48 recipients", "Delivered"],
-    ["Teams published", "Teams for Friday 5v5 published. Sent to 10 players.", "1 hr ago · 10 recipients", "Delivered"],
-    ["SoS blast", "SoS triggered for Monday 6v6 — 2 spots needed. Sent to waitlist + community.", "3 hr ago · 22 recipients", "Partial"],
-    ["Waitlist spot", "Priya Nair notified of open spot in Saturday 7v7. Response window: 10 min.", "4 hr ago · 1 recipient", "Delivered"],
-    ["Game cancelled", "Monday 6v6 cancelled. Refunds processed for 4 players.", "6 hr ago · 4 recipients", "Delivered"],
-    ["Delivery failed", "3 messages failed — rate limit hit on WhatsApp API.", "8 hr ago", "Failed"],
-  ];
+  const [notifs, setNotifs] = useState<AdminNotifRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    const token = getAdminToken();
+    if (!token) return;
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1").replace(/\/$/, "");
+    fetch(`${base}/admin/notifications?limit=50`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success) {
+          const list: AdminNotifRow[] = data.data?.notifications ?? [];
+          setNotifs(list);
+          setTotal(data.data?.total ?? list.length);
+          setUnread(list.filter((n) => !n.isRead).length);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <>
       <div className={styles.sectionHead}>
         <div>
-          <div className={styles.sectionTitle}>Notifications Log</div>
-          <div className={styles.sectionSub}>All platform notifications sent via WhatsApp and push</div>
+          <div className={styles.sectionTitle}>Platform Notifications</div>
+          <div className={styles.sectionSub}>Recent in-app notifications across all users</div>
         </div>
-        <button className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`} type="button">Send Broadcast</button>
       </div>
       <div className={styles.summaryThree}>
-        <div className={styles.summaryItem}><div className={styles.statLabel}>Sent Today</div><div className={styles.summaryValue}>284</div></div>
-        <div className={styles.summaryItem}><div className={styles.statLabel}>WhatsApp Delivered</div><div className={styles.summaryValue}>99.2%</div></div>
-        <div className={styles.summaryItem}><div className={styles.statLabel}>Failed</div><div className={styles.summaryValue}>3</div></div>
+        <div className={styles.summaryItem}><div className={styles.statLabel}>Total (Last 50)</div><div className={styles.summaryValue}>{loading ? "—" : total}</div></div>
+        <div className={styles.summaryItem}><div className={styles.statLabel}>Unread</div><div className={styles.summaryValue}>{loading ? "—" : unread}</div></div>
+        <div className={styles.summaryItem}><div className={styles.statLabel}>Read</div><div className={styles.summaryValue}>{loading ? "—" : total - unread}</div></div>
       </div>
-      <div className={styles.notifFeed}>
-        {feed.map((f) => (
-          <div key={f[0]} className={styles.notifItem}>
-            <div>
-              <div className={styles.notifType}>{f[0]}</div>
-              <div className={styles.notifMsg}>{f[1]}</div>
-              <div className={styles.notifTime}>{f[2]}</div>
+      {loading ? (
+        <div style={{ padding: "32px 0", textAlign: "center", color: "var(--muted)" }}>Loading…</div>
+      ) : notifs.length === 0 ? (
+        <div style={{ padding: "32px 0", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>No platform notifications yet.</div>
+      ) : (
+        <div className={styles.notifFeed}>
+          {notifs.map((n) => (
+            <div key={n._id} className={styles.notifItem}>
+              <div>
+                <div className={styles.notifType}>{n.title}</div>
+                <div className={styles.notifMsg}>{n.body}</div>
+                <div className={styles.notifTime}>{notifTimeAgo(n.createdAt)} · {n.recipientRole}</div>
+              </div>
+              <span className={`${styles.badge} ${n.isRead ? styles.badgeGreen : styles.badgeAmber}`}>
+                {n.isRead ? "Read" : "Unread"}
+              </span>
             </div>
-            <span className={`${styles.badge} ${f[3] === "Delivered" ? styles.badgeGreen : f[3] === "Partial" ? styles.badgeAmber : styles.badgeRed}`}>{f[3]}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

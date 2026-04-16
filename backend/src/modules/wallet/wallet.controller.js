@@ -1,6 +1,7 @@
 const walletService     = require('./wallet.service');
 const WalletTransaction = require('../../models/WalletTransaction');
 const { sendWalletTopUpEmail } = require('../../utils/email');
+const { notify } = require('../../services/notificationService');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/players/me/wallet
@@ -59,6 +60,13 @@ exports.topUpWallet = async (req, res) => {
         console.error('[EMAIL] Wallet top-up email failed:', err?.message || err);
       });
     }
+
+    notify(req.user._id, req.user.role || 'player', {
+      type:      'wallet_topup',
+      title:     '💰 Wallet Recharged',
+      body:      `₹${(amountPaise / 100).toFixed(0)} added to your wallet. New balance: ₹${(wallet.balancePaise / 100).toFixed(0)}.`,
+      actionUrl: `/dashboard/player/${req.user._id}/wallet`,
+    }).catch(() => {});
 
     return res.status(200).json({
       success: true,
