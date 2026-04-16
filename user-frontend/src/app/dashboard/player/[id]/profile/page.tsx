@@ -378,12 +378,6 @@ export default function PlayerProfilePage() {
         {/* ── Stats strip ── */}
         <div className="pp-stats-strip">
           <div className="pp-stat">
-            <div className="pp-stat-val">{profile.rating?.toFixed(1) || "0.0"}</div>
-            <div className="pp-stat-key">Rating</div>
-            <div className="pp-stat-sub">/ 5.0</div>
-          </div>
-          <div className="pp-stat-div" />
-          <div className="pp-stat">
             <div className="pp-stat-val">{profile.totalGamesPlayed ?? 0}</div>
             <div className="pp-stat-key">Games</div>
             <div className="pp-stat-sub">played</div>

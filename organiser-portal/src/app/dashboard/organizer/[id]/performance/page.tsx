@@ -8,26 +8,6 @@ import "../../../organizer-dashboard.css";
 import "./performance.css";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface FeedbackEntry {
-  _id: string;
-  submittedBy: { name: string };
-  gameRating: number;
-  organiserRating?: number;
-  venueRating?: number;
-  tags: string[];
-  comment?: string;
-  createdAt: string;
-  gameInfo?: { _id: string; title?: string; format?: string; scheduledAt?: string; turf?: { name?: string } };
-}
-
-interface FeedbackSummary {
-  count: number;
-  avgGame: number | null;
-  avgOrganiser: number | null;
-  avgVenue: number | null;
-  tagCounts: Record<string, number>;
-}
-
 interface PlayerRatingGiven {
   _id: string;
   player: { _id: string; name: string; phone?: string };
@@ -61,9 +41,6 @@ export default function OrgPerformancePage() {
     redirectTo: "/login?role=organiser",
   });
 
-  const [activeTab, setActiveTab] = useState<"feedback" | "ratings">("feedback");
-  const [feedback, setFeedback] = useState<FeedbackEntry[]>([]);
-  const [summary, setSummary] = useState<FeedbackSummary | null>(null);
   const [ratingsGiven, setRatingsGiven] = useState<PlayerRatingGiven[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,16 +49,9 @@ export default function OrgPerformancePage() {
     if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
     setLoading(true);
     try {
-      const [fbRes, ratingRes] = await Promise.allSettled([
-        fetch(buildApiUrl("/api/v1/games/organisers/my-feedback-summary"), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(buildApiUrl("/api/v1/games/organisers/my-ratings-given"),    { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      if (fbRes.status === "fulfilled" && fbRes.value.ok) {
-        const d = await fbRes.value.json();
-        if (d.success) { setFeedback(d.data.feedback || []); setSummary(d.data.summary); }
-      }
-      if (ratingRes.status === "fulfilled" && ratingRes.value.ok) {
-        const d = await ratingRes.value.json();
+      const res = await fetch(buildApiUrl("/api/v1/games/organisers/my-ratings-given"), { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const d = await res.json();
         if (d.success) setRatingsGiven(d.data || []);
       }
     } catch {
@@ -106,145 +76,13 @@ export default function OrgPerformancePage() {
       {/* Header */}
       <div className="dashboard-header-section">
         <div className="header-left">
-          <h1 className="dashboard-title">My Performance</h1>
-          <p className="dashboard-subtitle">Feedback received from players · Ratings given to players</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="tabs-section">
-        <div className="tab-navigation">
-          <button
-            className={`tab-btn ${activeTab === "feedback" ? "active" : ""}`}
-            onClick={() => setActiveTab("feedback")}
-          >
-            <span className="tab-icon">📋</span>
-            <span className="tab-text">Feedback Received</span>
-            <span className="tab-badge">{summary?.count ?? 0}</span>
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "ratings" ? "active" : ""}`}
-            onClick={() => setActiveTab("ratings")}
-          >
-            <span className="tab-icon">⭐</span>
-            <span className="tab-text">Ratings Given to Players</span>
-            <span className="tab-badge">{ratingsGiven.length}</span>
-          </button>
+          <h1 className="dashboard-title">Ratings Given to Players</h1>
+          <p className="dashboard-subtitle">Conduct and gameplay ratings you gave after completed games</p>
         </div>
       </div>
 
       {loading ? (
         <div className="loading-container"><div className="spinner" /><p>Loading…</p></div>
-      ) : activeTab === "feedback" ? (
-
-        /* ── FEEDBACK RECEIVED ── */
-        <>
-          {summary && summary.count > 0 && (
-            <div className="op-stats-row">
-              <div className="op-stat">
-                <div className="op-stat-value">{summary.count}</div>
-                <div className="op-stat-label">Responses</div>
-              </div>
-              {summary.avgGame != null && (
-                <div className="op-stat">
-                  <div className="op-stat-value op-gold">{summary.avgGame}</div>
-                  <div className="op-stat-label">Avg Game</div>
-                </div>
-              )}
-              {summary.avgOrganiser != null && (
-                <div className="op-stat">
-                  <div className="op-stat-value op-lime">{summary.avgOrganiser}</div>
-                  <div className="op-stat-label">Avg Organiser</div>
-                </div>
-              )}
-              {summary.avgVenue != null && (
-                <div className="op-stat">
-                  <div className="op-stat-value op-green">{summary.avgVenue}</div>
-                  <div className="op-stat-label">Avg Venue</div>
-                </div>
-              )}
-              {Object.keys(summary.tagCounts).length > 0 && (
-                <div className="op-top-tags">
-                  <div className="op-stat-label" style={{ marginBottom: 6 }}>Top Tags</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                    {Object.entries(summary.tagCounts)
-                      .sort(([, a], [, b]) => b - a)
-                      .slice(0, 5)
-                      .map(([tag, count]) => (
-                        <span key={tag} className="op-tag">
-                          {tag} <span className="op-tag-count">×{count}</span>
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {feedback.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📋</div>
-              <h3>No feedback yet</h3>
-              <p>Players submit feedback after completed games. Their ratings and comments appear here.</p>
-            </div>
-          ) : (
-            <div className="op-cards">
-              {feedback.map((fb) => (
-                <div key={fb._id} className="op-card">
-                  {/* Game info header */}
-                  <div className="op-card-header">
-                    <div className="op-card-main">
-                      <div className="op-card-name">{fb.gameInfo?.title || "Game"}</div>
-                      <div className="op-card-meta">
-                        {fb.gameInfo?.format && <span className="op-badge">{fb.gameInfo.format}</span>}
-                        {fb.gameInfo?.scheduledAt && (
-                          <span className="op-muted">
-                            {new Date(fb.gameInfo.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                          </span>
-                        )}
-                        {fb.gameInfo?.turf?.name && <span className="op-muted">{fb.gameInfo.turf.name}</span>}
-                      </div>
-                    </div>
-                    <div className="op-card-sub">by {fb.submittedBy?.name || "Player"}</div>
-                  </div>
-
-                  {/* Ratings row */}
-                  <div className="op-ratings-row">
-                    <div className="op-rating-cell">
-                      <div className="op-rating-label">Game</div>
-                      <Stars value={fb.gameRating} size={17} />
-                    </div>
-                    {fb.organiserRating && (
-                      <div className="op-rating-cell">
-                        <div className="op-rating-label">Organiser</div>
-                        <Stars value={fb.organiserRating} size={17} />
-                      </div>
-                    )}
-                    {fb.venueRating && (
-                      <div className="op-rating-cell">
-                        <div className="op-rating-label">Venue</div>
-                        <Stars value={fb.venueRating} size={17} />
-                      </div>
-                    )}
-                  </div>
-
-                  {fb.tags?.length > 0 && (
-                    <div className="op-tags-row">
-                      {fb.tags.map((tag) => (
-                        <span key={tag} className="op-tag op-tag-feedback">{tag}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  {fb.comment && (
-                    <div className="op-comment">"{fb.comment}"</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-
       ) : (
 
         /* ── RATINGS GIVEN TO PLAYERS ── */
@@ -312,7 +150,7 @@ export default function OrgPerformancePage() {
                     {r.gkAffinity != null && (
                       <div className="op-rating-cell">
                         <div className="op-rating-label">GK Affinity</div>
-                        <span className="op-stat-value" style={{ fontSize: 18 }}>{r.gkAffinity}%</span>
+                        <Stars value={r.gkAffinity} size={17} />
                       </div>
                     )}
                   </div>

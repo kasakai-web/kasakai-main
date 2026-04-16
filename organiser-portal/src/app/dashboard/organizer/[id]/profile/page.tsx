@@ -45,6 +45,7 @@ export default function OrganiserProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [overallRating, setOverallRating] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState("");
@@ -102,9 +103,10 @@ export default function OrganiserProfilePage() {
     }
 
     try {
-      const res = await fetch(buildApiUrl("/api/v1/organisers/me"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [res, fbRes] = await Promise.all([
+        fetch(buildApiUrl("/api/v1/organisers/me"), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl("/api/v1/games/organisers/my-feedback-summary"), { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
 
       if (res.status === 401 || res.status === 403) {
         clearSessionAndExit();
@@ -115,6 +117,15 @@ export default function OrganiserProfilePage() {
       if (!res.ok || !data.success) {
         setError(data.message || `HTTP ${res.status}`);
         return;
+      }
+
+      if (fbRes.ok) {
+        try {
+          const fbData = await fbRes.json();
+          if (fbData.success && fbData.data?.summary?.avgOrganiser != null) {
+            setOverallRating(fbData.data.summary.avgOrganiser);
+          }
+        } catch {}
       }
 
       const o = data.data || {};
@@ -412,6 +423,14 @@ export default function OrganiserProfilePage() {
                 {profile.approvalStatus || "pending"}
               </span>
             </div>
+            {overallRating != null && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                {[1,2,3,4,5].map((n) => (
+                  <span key={n} style={{ fontSize: 18, color: n <= Math.round(overallRating) ? "#fbbf24" : "#2a2a2a", lineHeight: 1 }}>★</span>
+                ))}
+                <span style={{ fontSize: 13, color: "#888", fontFamily: "var(--mono, monospace)" }}>{overallRating}/5 overall</span>
+              </div>
+            )}
             {(profile.location?.city || profile.location?.state) && (
               <p className="op-hero-location">
                 📍 {[profile.location.city, profile.location.state].filter(Boolean).join(", ")}
