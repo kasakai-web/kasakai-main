@@ -383,9 +383,8 @@ exports.deleteGame = async (req, res) => {
       }).catch(() => {});
     }
 
-    console.log(`[CANCEL] Done. Notified ${seenPlayerIds.size} unique player(s)`);
-
     // ── Wallet refunds: group amountPaidPaise by player ──────
+    // Do this BEFORE final notification so we can include refund amount in message
     const refundByPlayer = {};
     for (const reg of populatedGame.registrations) {
       if (!reg.player) continue;
@@ -393,8 +392,24 @@ exports.deleteGame = async (req, res) => {
       if (!refundByPlayer[pid]) refundByPlayer[pid] = 0;
       refundByPlayer[pid] += reg.amountPaidPaise || 0;
     }
+
+    console.log(`[CANCEL] Done. Notified ${seenPlayerIds.size} unique player(s)`);
+
+    // ── Send refund notifications with amount ─────────────────
     for (const [pid, amount] of Object.entries(refundByPlayer)) {
       if (amount <= 0) continue;
+
+      // Send in-app notification with refund amount
+      const refundRupees = (amount / 100).toFixed(0);
+      notify(pid, 'player', {
+        type:      'refund_credited',
+        title:     '💰 Refund Credited',
+        body:      `₹${refundRupees} has been credited to your wallet for "${gameTitle}" cancellation.`,
+        game:      populatedGame._id,
+        actionUrl: `/dashboard/player/${pid}/wallet`,
+      }).catch(() => {});
+
+      // Process the wallet refund
       walletService.refund(
         pid,
         amount,
@@ -1295,11 +1310,22 @@ exports.backoutFromGame = async (req, res) => {
 
     await Promise.allSettled(emailJobs);
 
-    // In-app notifications
+    // In-app notifications - FIRST: refund credit notification
+    if (refundAmountPaise > 0) {
+      notify(req.user._id, 'player', {
+        type:      'refund_credited',
+        title:     '💰 Refund Credited',
+        body:      `₹${(refundAmountPaise / 100).toFixed(0)} has been credited to your wallet for "${game.title}" cancellation.`,
+        game:      game._id,
+        actionUrl: `/dashboard/player/${req.user._id}/wallet`,
+      }).catch(() => {});
+    }
+
+    // SECOND: backout confirmation notification
     notify(req.user._id, 'player', {
       type:      'game_backout_player',
       title:     '↩ Backout Confirmed',
-      body:      `You've backed out of "${game.title}".${refundAmountPaise > 0 ? ` ₹${(refundAmountPaise / 100).toFixed(0)} will be refunded to your wallet.` : ''}`,
+      body:      `You've successfully backed out of "${game.title}".${refundAmountPaise > 0 ? ` ₹${(refundAmountPaise / 100).toFixed(0)} will be in your wallet shortly.` : ''}`,
       game:      game._id,
     }).catch(() => {});
 

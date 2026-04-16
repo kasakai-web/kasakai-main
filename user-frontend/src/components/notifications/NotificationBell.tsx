@@ -27,13 +27,14 @@ const TYPE_ICON: Record<string, string> = {
   game_cancelled:        "⛔",
   game_backout_player:   "↩",
   game_backout_organiser:"📢",
+  refund_credited:       "💚",
   waitlist_joined:       "⏳",
   waitlist_spot:         "🔔",
   waitlist_approved:     "🎉",
   player_removed:        "❌",
   wallet_topup:          "💰",
   wallet_debit:          "💸",
-  wallet_refund:         "💚",
+  wallet_refund:         "💰",
   system:                "ℹ️",
 };
 
