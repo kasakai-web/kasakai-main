@@ -20,7 +20,7 @@ export function Footer() {
             <div>
               <p style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.22em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '16px'}}>Company</p>
               <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                <a href="#" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>About</a>
+                <a href="/about" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>About Us</a>
                 <a href="#" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>Blog</a>
                 <a href="#" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>Careers</a>
                 <a href="#" style={{fontSize: '14px', color: 'rgba(255,255,255,.55)', textDecoration: 'none'}}>Contact</a>
