@@ -38,22 +38,6 @@ const platformCards = [
     description: "Keep an eye on approvals, platform health, users, organiser activity, and global notifications.",
     accent: "#d98b6a",
   },
-  {
-    title: "Backend Services",
-    description: "JWT auth, payments, notifications, refunds, email flows, and real-time-ready APIs hold the system together.",
-    accent: "#8a7bc7",
-  },
-];
-
-const backendStack = [
-  "Node.js + Express",
-  "MongoDB + Mongoose",
-  "JWT auth",
-  "Socket.io notifications",
-  "Wallet transactions",
-  "Email + SMS flows",
-  "Upload handling",
-  "Role-based APIs",
 ];
 
 const portalSnapshots = [
@@ -268,59 +252,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section style={{ padding: "0 0 84px" }}>
-          <div className="container">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, alignItems: "stretch" }}>
-              <div style={{ border: "1px solid var(--border)", background: "#0d0d0d", padding: 28 }}>
-                <p style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: "var(--lime)", marginBottom: 12 }}>
-                  Backend Stack
-                </p>
-                <h2 style={{ fontFamily: "var(--cond)", fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 0.96, marginBottom: 14 }}>
-                  Built to keep the whole platform moving.
-                </h2>
-                <p style={{ color: "var(--muted)", lineHeight: 1.85 }}>
-                  The backend is where authentication, registration flow, wallet state, notifications, email jobs, and refunds stay in sync.
-                </p>
-              </div>
-              <div style={{ border: "1px solid var(--border)", background: "#0b0b0b", padding: 24 }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  {backendStack.map((item) => (
-                    <span
-                      key={item}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: 999,
-                        border: "1px solid var(--border)",
-                        background: "rgba(255,255,255,0.03)",
-                        fontFamily: "var(--mono)",
-                        fontSize: 11,
-                        letterSpacing: ".08em",
-                        textTransform: "uppercase",
-                        color: "var(--white)",
-                      }}
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--border)", display: "grid", gap: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                    <span style={{ color: "var(--muted)" }}>Reliability focus</span>
-                    <strong>Refunds, notifications, auth</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                    <span style={{ color: "var(--muted)" }}>Data model focus</span>
-                    <strong>Players, organisers, games, wallets</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                    <span style={{ color: "var(--muted)" }}>Operations focus</span>
-                    <strong>Real-time status and clean handoffs</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
       <Footer />
     </>
