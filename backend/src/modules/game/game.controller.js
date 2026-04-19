@@ -1263,9 +1263,12 @@ exports.backoutFromGame = async (req, res) => {
       0
     );
 
-    game.registrations = game.registrations.filter((reg) => regPlayerId(reg) !== playerId);
-
-    await game.save({ validateModifiedOnly: true });
+    // Use $pull directly to avoid re-validating legacy null-player subdocuments
+    await Game.findByIdAndUpdate(
+      game._id,
+      { $pull: { registrations: { player: req.user._id } } },
+      { runValidators: false }
+    );
 
     if (refundAmountPaise > 0) {
       const scheduledDate = new Date(game.scheduledAt).toLocaleDateString('en-IN', {
