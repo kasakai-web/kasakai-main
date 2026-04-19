@@ -45,6 +45,38 @@ const platformCards = [
   },
 ];
 
+const backendStack = [
+  "Node.js + Express",
+  "MongoDB + Mongoose",
+  "JWT auth",
+  "Socket.io notifications",
+  "Wallet transactions",
+  "Email + SMS flows",
+  "Upload handling",
+  "Role-based APIs",
+];
+
+const portalSnapshots = [
+  {
+    title: "Player Portal",
+    caption: "Games, wallet, ratings, feedback",
+    accent: "#c4d56c",
+    blocks: ["Browse games", "Join / waitlist", "Wallet balance", "Feedback prompt"],
+  },
+  {
+    title: "Organiser Portal",
+    caption: "Create, manage, finance, notifications",
+    accent: "#6fc8da",
+    blocks: ["Create event", "Monitor registrations", "Finance snapshot", "Refund actions"],
+  },
+  {
+    title: "Admin Portal",
+    caption: "Approvals, health, moderation",
+    accent: "#d98b6a",
+    blocks: ["Approve accounts", "View analytics", "Platform alerts", "Moderation tools"],
+  },
+];
+
 export default function AboutPage() {
   return (
     <>
@@ -78,7 +110,7 @@ export default function AboutPage() {
 
         <section style={{ padding: "72px 0 0" }}>
           <div className="container">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
               {platformCards.map((card) => (
                 <article key={card.title} style={{ border: "1px solid var(--border)", background: "#0d0d0d", padding: 24, minHeight: 210 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 999, background: `${card.accent}18`, border: `1px solid ${card.accent}40`, marginBottom: 18 }} />
@@ -87,6 +119,64 @@ export default function AboutPage() {
                   </p>
                   <h2 style={{ fontFamily: "var(--cond)", fontSize: 30, lineHeight: 0.95, marginBottom: 12 }}>{card.title}</h2>
                   <p style={{ color: "var(--muted)", lineHeight: 1.8 }}>{card.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "48px 0 0" }}>
+          <div className="container">
+            <div style={{ marginBottom: 18 }}>
+              <p style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".22em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>
+                Product Snapshots
+              </p>
+              <h2 style={{ fontFamily: "var(--cond)", fontSize: "clamp(30px, 4vw, 48px)", lineHeight: 0.96 }}>
+                Three portals, one system, one football workflow.
+              </h2>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+              {portalSnapshots.map((portal) => (
+                <article key={portal.title} style={{ border: "1px solid var(--border)", background: "#0d0d0d", padding: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <div>
+                      <p style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", color: portal.accent, marginBottom: 6 }}>
+                        Live Interface
+                      </p>
+                      <h3 style={{ fontFamily: "var(--cond)", fontSize: 30, lineHeight: 1 }}>{portal.title}</h3>
+                    </div>
+                    <div style={{ width: 12, height: 12, borderRadius: 999, background: portal.accent }} />
+                  </div>
+                  <div style={{ border: "1px solid var(--border)", background: "#111", padding: 14, borderRadius: 10, marginBottom: 14 }}>
+                    <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 999, background: "#ff6b6b" }} />
+                      <span style={{ width: 9, height: 9, borderRadius: 999, background: "#fbbf24" }} />
+                      <span style={{ width: 9, height: 9, borderRadius: 999, background: "#4ade80" }} />
+                    </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {portal.blocks.map((block, index) => (
+                        <div
+                          key={block}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "10px 12px",
+                            border: "1px solid var(--border)",
+                            background: index === 0 ? `${portal.accent}10` : "#0b0b0b",
+                            borderRadius: 8,
+                            color: "var(--white)",
+                            fontSize: 13,
+                          }}
+                        >
+                          <span>{block}</span>
+                          <span style={{ color: portal.accent, fontFamily: "var(--mono)", fontSize: 10 }}>✓</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <p style={{ color: "var(--muted)", lineHeight: 1.8 }}>{portal.caption}</p>
                 </article>
               ))}
             </div>
@@ -104,7 +194,7 @@ export default function AboutPage() {
               </h2>
             </div>
 
-            <div className="strip" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 0 }}>
+            <div className="strip" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 0 }}>
               {values.map((item) => (
                 <article key={item.title} style={{ padding: 28, borderRight: "1px solid var(--border)" }}>
                   <p style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--lime)", marginBottom: 12 }}>
@@ -120,7 +210,7 @@ export default function AboutPage() {
 
         <section style={{ padding: "0 0 84px" }}>
           <div className="container">
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 24, alignItems: "stretch" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, alignItems: "stretch" }}>
               <div style={{ border: "1px solid var(--border)", background: "#0d0d0d", padding: 28 }}>
                 <p style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 12 }}>
                   What we do
@@ -172,6 +262,60 @@ export default function AboutPage() {
                 <div style={{ padding: 18, background: "#0d0d0d", border: "1px solid var(--border)" }}>
                   <div style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>For Admins</div>
                   <p style={{ color: "var(--muted)", lineHeight: 1.8 }}>Monitor approvals, system activity, and platform-wide usage to keep the ecosystem trustworthy and healthy.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: "0 0 84px" }}>
+          <div className="container">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, alignItems: "stretch" }}>
+              <div style={{ border: "1px solid var(--border)", background: "#0d0d0d", padding: 28 }}>
+                <p style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: "var(--lime)", marginBottom: 12 }}>
+                  Backend Stack
+                </p>
+                <h2 style={{ fontFamily: "var(--cond)", fontSize: "clamp(30px, 4vw, 46px)", lineHeight: 0.96, marginBottom: 14 }}>
+                  Built to keep the whole platform moving.
+                </h2>
+                <p style={{ color: "var(--muted)", lineHeight: 1.85 }}>
+                  The backend is where authentication, registration flow, wallet state, notifications, email jobs, and refunds stay in sync.
+                </p>
+              </div>
+              <div style={{ border: "1px solid var(--border)", background: "#0b0b0b", padding: 24 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {backendStack.map((item) => (
+                    <span
+                      key={item}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 999,
+                        border: "1px solid var(--border)",
+                        background: "rgba(255,255,255,0.03)",
+                        fontFamily: "var(--mono)",
+                        fontSize: 11,
+                        letterSpacing: ".08em",
+                        textTransform: "uppercase",
+                        color: "var(--white)",
+                      }}
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--border)", display: "grid", gap: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                    <span style={{ color: "var(--muted)" }}>Reliability focus</span>
+                    <strong>Refunds, notifications, auth</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                    <span style={{ color: "var(--muted)" }}>Data model focus</span>
+                    <strong>Players, organisers, games, wallets</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                    <span style={{ color: "var(--muted)" }}>Operations focus</span>
+                    <strong>Real-time status and clean handoffs</strong>
+                  </div>
                 </div>
               </div>
             </div>
