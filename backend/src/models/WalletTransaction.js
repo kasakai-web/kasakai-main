@@ -34,7 +34,7 @@ const WalletTransactionSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    razorpayOrderId:   { type: String, default: null },
+    razorpayOrderId:   { type: String, default: null, index: true },
     razorpayPaymentId: { type: String, default: null },
     razorpaySignature: { type: String, default: null },
     status: {

@@ -16,6 +16,7 @@ const playerRoutes = require('./modules/player/player.routes');
 const organiserRoutes = require('./modules/organiser/organiser.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
 const notificationRoutes = require('./modules/notification/notification.routes');
+const webhookRoutes      = require('./modules/webhook/webhook.routes');
 
 const app = express();
 
@@ -59,6 +60,9 @@ app.use(
     credentials: true,
   })
 );
+
+// Webhook route uses raw body for HMAC verification — must be registered BEFORE express.json()
+app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));

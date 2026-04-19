@@ -2,10 +2,38 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Script from "next/script";
 import { buildApiUrl, getSession, clearSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import "../../../player-dashboard.css";
+
+// Razorpay checkout type (loaded via CDN script)
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill?: { name?: string; contact?: string; email?: string };
+  theme: { color: string };
+  modal: { ondismiss: () => void };
+  handler: (response: RazorpayResponse) => void;
+}
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+interface RazorpayInstance {
+  open: () => void;
+}
 
 interface WalletData {
   _id: string;
@@ -51,6 +79,9 @@ function fmtDate(iso: string) {
   });
 }
 
+// Modal steps
+type ModalStep = "amount" | "terms" | "processing" | "success" | "cancelled";
+
 export default function WalletPage() {
   const router = useRouter();
   const routeParams = useParams<{ id?: string | string[] }>();
@@ -67,12 +98,13 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Recharge modal state
-  const [showRecharge, setShowRecharge] = useState(false);
-  const [rechargeAmountStr, setRechargeAmountStr] = useState("");
-  const [rechargeLoading, setRechargeLoading] = useState(false);
-  const [rechargeError, setRechargeError] = useState<string | null>(null);
-  const [rechargeSuccess, setRechargeSuccess] = useState(false);
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [modalStep, setModalStep] = useState<ModalStep>("amount");
+  const [amountStr, setAmountStr] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [razorpayReady, setRazorpayReady] = useState(false);
 
   const fetchWallet = useCallback(async () => {
     const { token } = getSession();
@@ -91,8 +123,8 @@ export default function WalletPage() {
         setWallet(data.data.wallet);
         setTransactions(data.data.transactions);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load wallet");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load wallet");
     } finally {
       setLoading(false);
     }
@@ -103,7 +135,6 @@ export default function WalletPage() {
     fetchWallet();
   }, [isAuthorized, fetchWallet]);
 
-  // Auto-refresh: balance + transactions update silently in background
   useAutoRefresh(isAuthorized ? fetchWallet : null, {
     interval:  30_000,
     onFocus:   true,
@@ -111,315 +142,581 @@ export default function WalletPage() {
     enabled:   isAuthorized,
   });
 
-  const handleRecharge = async () => {
-    setRechargeError(null);
-    const amount = parseFloat(rechargeAmountStr);
-    if (!amount || amount <= 0) {
-      setRechargeError("Enter a valid amount.");
+  const openModal = () => {
+    setModalStep("amount");
+    setAmountStr("");
+    setTermsAccepted(false);
+    setModalError(null);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    if (modalStep === "processing") return; // don't close mid-payment
+    setShowModal(false);
+  };
+
+  // Step 1 → Step 2: validate amount then show T&C
+  const handleAmountContinue = () => {
+    const amount = parseFloat(amountStr);
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      setModalError("Please enter a valid amount.");
+      return;
+    }
+    if (amount < 10) {
+      setModalError("Minimum recharge is ₹10.");
       return;
     }
     if (amount > 100000) {
-      setRechargeError("Maximum top-up is ₹1,00,000.");
+      setModalError("Maximum recharge is ₹1,00,000.");
       return;
     }
+    setModalError(null);
+    setModalStep("terms");
+  };
+
+  // Step 2 → Payment: create order then open Razorpay
+  const handleProceedToPayment = async () => {
+    if (!termsAccepted) {
+      setModalError("Please accept the Terms & Conditions to proceed.");
+      return;
+    }
+    if (!razorpayReady) {
+      setModalError("Payment system loading, please try again.");
+      return;
+    }
+
+    const amount = parseFloat(amountStr);
+    const amountPaise = Math.round(amount * 100);
 
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
 
-    setRechargeLoading(true);
+    setModalError(null);
+    setModalStep("processing");
+
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me/wallet/topup"), {
-        method: "POST",
+      // Create order on backend — amount is validated and stored server-side
+      const orderRes = await fetch(buildApiUrl("/api/v1/players/me/wallet/orders"), {
+        method:  "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ amountPaise: Math.round(amount * 100) }),
+        body:    JSON.stringify({ amountPaise }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setRechargeError(data.message || "Top-up failed. Please try again.");
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok || !orderData.success) {
+        setModalError(orderData.message || "Failed to create payment order.");
+        setModalStep("terms");
         return;
       }
-      setRechargeSuccess(true);
-      setWallet(data.data.wallet);
-      await fetchWallet();
-      setTimeout(() => {
-        setShowRecharge(false);
-        setRechargeSuccess(false);
-        setRechargeAmountStr("");
-      }, 1800);
+
+      const { orderId, amount: orderAmount, currency, keyId } = orderData.data;
+
+      // Open Razorpay checkout popup
+      const rzp = new window.Razorpay({
+        key:         keyId,
+        amount:      orderAmount,   // authoritative amount from backend
+        currency,
+        name:        "Kasa Kai",
+        description: "Wallet Recharge",
+        order_id:    orderId,
+        prefill: {},
+        theme: { color: "#c8ff3e" },
+        modal: {
+          ondismiss: () => {
+            // Payment cancelled or popup closed by user
+            setModalStep("cancelled");
+          },
+        },
+        handler: async (response: RazorpayResponse) => {
+          // Payment succeeded on Razorpay side — verify on our backend
+          setModalStep("processing");
+          try {
+            const verifyRes = await fetch(buildApiUrl("/api/v1/players/me/wallet/verify"), {
+              method:  "POST",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body:    JSON.stringify({
+                razorpayOrderId:  response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyData.success) {
+              if (verifyData.data?.wallet) setWallet(verifyData.data.wallet);
+              setModalStep("success");
+              fetchWallet(); // refresh transactions too
+            } else {
+              setModalError(verifyData.message || "Payment verification failed. Contact support.");
+              setModalStep("terms");
+            }
+          } catch {
+            // Webhook will still credit wallet even if this fails
+            setModalError("Verification request failed. Your wallet will be updated shortly.");
+            setModalStep("cancelled");
+          }
+        },
+      });
+
+      rzp.open();
     } catch {
-      setRechargeError("Network error. Please try again.");
-    } finally {
-      setRechargeLoading(false);
+      setModalError("Something went wrong. Please try again.");
+      setModalStep("terms");
     }
   };
 
   if (!isAuthorized) return null;
 
   return (
-    <div className="player-dashboard-container">
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-title-group">
-          <div className="page-eyebrow">Wallet</div>
-          <div className="page-title">Your <span>Balance</span></div>
-        </div>
-      </div>
+    <>
+      {/* Razorpay checkout.js — loaded once, available globally */}
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+        onLoad={() => setRazorpayReady(true)}
+      />
 
-      {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <p>Loading wallet…</p>
-        </div>
-      ) : error ? (
-        <div style={{ color: "#f87171", padding: "24px", textAlign: "center" }}>{error}</div>
-      ) : (
-        <div style={{ maxWidth: 680, width: "100%" }}>
-
-          {/* Balance card */}
-          <div style={{
-            background: "rgba(200,255,62,0.06)",
-            border: "1px solid rgba(200,255,62,0.25)",
-            borderRadius: 12,
-            padding: "28px 28px 24px",
-            marginBottom: 24,
-          }}>
-            <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#888", marginBottom: 8 }}>
-              Available Balance
-            </div>
-            <div style={{ fontSize: 42, fontWeight: 800, color: "#c8ff3e", letterSpacing: "-0.02em", marginBottom: 20 }}>
-              {wallet ? fmtRupees(wallet.availablePaise ?? wallet.balancePaise) : "₹0"}
-            </div>
-
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
-              {[
-                { label: "Total Added",   val: wallet?.totalTopUpPaise    ?? 0, color: "#4ade80" },
-                { label: "Total Spent",   val: wallet?.totalSpentPaise    ?? 0, color: "#f87171" },
-                { label: "Total Refunded",val: wallet?.totalRefundedPaise ?? 0, color: "#60a5fa" },
-              ].map(({ label, val, color }) => (
-                <div key={label} style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid #222",
-                  borderRadius: 8,
-                  padding: "10px 16px",
-                  flex: "1 1 120px",
-                }}>
-                  <div style={{ fontSize: 11, color: "#666", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color }}>{fmtRupees(val)}</div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => { setShowRecharge(true); setRechargeError(null); setRechargeSuccess(false); }}
-              style={{
-                background: "#c8ff3e",
-                color: "#000",
-                border: "none",
-                borderRadius: 8,
-                padding: "12px 28px",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: "pointer",
-                letterSpacing: "0.04em",
-              }}
-            >
-              + Recharge Wallet
-            </button>
+      <div className="player-dashboard-container">
+        {/* Header */}
+        <div className="page-header">
+          <div className="page-title-group">
+            <div className="page-eyebrow">Wallet</div>
+            <div className="page-title">Your <span>Balance</span></div>
           </div>
+        </div>
 
-          {/* Transaction history */}
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", marginBottom: 14 }}>
-              Transaction History
+        {loading ? (
+          <div className="loading-container">
+            <div className="spinner" />
+            <p>Loading wallet…</p>
+          </div>
+        ) : error ? (
+          <div style={{ color: "#f87171", padding: "24px", textAlign: "center" }}>{error}</div>
+        ) : (
+          <div style={{ maxWidth: 680, width: "100%" }}>
+
+            {/* Balance card */}
+            <div style={{
+              background: "rgba(200,255,62,0.06)",
+              border: "1px solid rgba(200,255,62,0.25)",
+              borderRadius: 12,
+              padding: "28px 28px 24px",
+              marginBottom: 24,
+            }}>
+              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#888", marginBottom: 8 }}>
+                Available Balance
+              </div>
+              <div style={{ fontSize: 42, fontWeight: 800, color: "#c8ff3e", letterSpacing: "-0.02em", marginBottom: 20 }}>
+                {wallet ? fmtRupees(wallet.availablePaise ?? wallet.balancePaise) : "₹0"}
+              </div>
+
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
+                {[
+                  { label: "Total Added",    val: wallet?.totalTopUpPaise    ?? 0, color: "#4ade80" },
+                  { label: "Total Spent",    val: wallet?.totalSpentPaise    ?? 0, color: "#f87171" },
+                  { label: "Total Refunded", val: wallet?.totalRefundedPaise ?? 0, color: "#60a5fa" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid #222",
+                    borderRadius: 8,
+                    padding: "10px 16px",
+                    flex: "1 1 120px",
+                  }}>
+                    <div style={{ fontSize: 11, color: "#666", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color }}>{fmtRupees(val)}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={openModal}
+                style={{
+                  background: "#c8ff3e",
+                  color: "#000",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "12px 28px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                + Recharge Wallet
+              </button>
             </div>
 
-            {transactions.length === 0 ? (
-              <div style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid #1a1a1a",
-                borderRadius: 10,
-                padding: "32px",
-                textAlign: "center",
-                color: "#555",
-                fontSize: 14,
-              }}>
-                No transactions yet. Recharge to get started.
+            {/* Transaction history */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", marginBottom: 14 }}>
+                Transaction History
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {transactions.map((tx) => {
-                  const cfg = TX_CONFIG[tx.type] ?? { label: tx.type, sign: "", color: "#ccc", icon: "•" };
-                  const isCredit = ["topup", "refund", "bonus", "unlock"].includes(tx.type);
-                  const desc = tx.description || (tx.game?.title ? `${cfg.label} – ${tx.game.title}` : cfg.label);
-                  return (
-                    <div key={tx._id} style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 14,
-                      padding: "14px 16px",
-                      background: "rgba(255,255,255,0.025)",
-                      borderRadius: 8,
-                      border: "1px solid #1a1a1a",
-                    }}>
-                      <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 8,
-                        background: isCredit ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
+
+              {transactions.length === 0 ? (
+                <div style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid #1a1a1a",
+                  borderRadius: 10,
+                  padding: "32px",
+                  textAlign: "center",
+                  color: "#555",
+                  fontSize: 14,
+                }}>
+                  No transactions yet. Recharge to get started.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {transactions.map((tx) => {
+                    const cfg = TX_CONFIG[tx.type] ?? { label: tx.type, sign: "", color: "#ccc", icon: "•" };
+                    const isCredit = ["topup", "refund", "bonus", "unlock"].includes(tx.type);
+                    const desc = tx.description || (tx.game?.title ? `${cfg.label} – ${tx.game.title}` : cfg.label);
+                    return (
+                      <div key={tx._id} style={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 16,
-                        flexShrink: 0,
+                        gap: 14,
+                        padding: "14px 16px",
+                        background: "rgba(255,255,255,0.025)",
+                        borderRadius: 8,
+                        border: "1px solid #1a1a1a",
                       }}>
-                        {cfg.icon}
-                      </div>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          background: isCredit ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 16,
+                          flexShrink: 0,
+                        }}>
+                          {cfg.icon}
+                        </div>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {desc}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {desc}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+                            {fmtDate(tx.createdAt)}
+                            {tx.status !== "success" && (
+                              <span style={{ marginLeft: 8, color: tx.status === "failed" ? "#f87171" : "#f59e0b", fontWeight: 600 }}>
+                                {tx.status.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-                          {fmtDate(tx.createdAt)}
-                          {tx.status !== "success" && (
-                            <span style={{ marginLeft: 8, color: tx.status === "failed" ? "#f87171" : "#f59e0b", fontWeight: 600 }}>
-                              {tx.status.toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
 
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: cfg.color }}>
-                          {cfg.sign}{fmtRupees(tx.amountPaise)}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>
-                          Bal: {fmtRupees(tx.balanceAfterPaise)}
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: cfg.color }}>
+                            {cfg.sign}{fmtRupees(tx.amountPaise)}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>
+                            Bal: {fmtRupees(tx.balanceAfterPaise)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Recharge modal */}
-      {showRecharge && (
-        <div
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 999, padding: 16,
-          }}
-          onClick={() => !rechargeLoading && setShowRecharge(false)}
-        >
+        {/* ── Recharge Modal ── */}
+        {showModal && (
           <div
             style={{
-              background: "#111", border: "1px solid #2a2a2a", borderRadius: 14,
-              padding: "32px 28px", width: "100%", maxWidth: 400,
+              position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              zIndex: 999, padding: 16,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={closeModal}
           >
-            {rechargeSuccess ? (
-              <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>✓</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#4ade80", marginBottom: 6 }}>
-                  Wallet Recharged!
-                </div>
-                <div style={{ fontSize: 13, color: "#888" }}>
-                  ₹{rechargeAmountStr} added to your wallet.
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 6 }}>
-                  Recharge Wallet
-                </div>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 20 }}>
-                  Enter the amount you want to add.
-                  {/* Razorpay payment will be integrated here. */}
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100000}
-                    placeholder="e.g. 500"
-                    value={rechargeAmountStr}
-                    onChange={(e) => setRechargeAmountStr(e.target.value)}
+            <div
+              style={{
+                background: "#111", border: "1px solid #2a2a2a", borderRadius: 14,
+                padding: "32px 28px", width: "100%", maxWidth: 420,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* ── Step: success ── */}
+              {modalStep === "success" && (
+                <div style={{ textAlign: "center", padding: "16px 0" }}>
+                  <div style={{ fontSize: 52, marginBottom: 14 }}>✓</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: "#4ade80", marginBottom: 8 }}>
+                    Wallet Recharged!
+                  </div>
+                  <div style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>
+                    ₹{amountStr} has been added to your wallet.
+                  </div>
+                  <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
+                    New balance: {wallet ? fmtRupees(wallet.availablePaise ?? wallet.balancePaise) : "—"}
+                  </div>
+                  <button
+                    onClick={closeModal}
                     style={{
-                      width: "100%", background: "#0a0a0a", border: "1px solid #333",
-                      borderRadius: 8, padding: "12px 14px", color: "#fff",
-                      fontSize: 22, fontWeight: 700, outline: "none",
-                      boxSizing: "border-box",
+                      background: "#c8ff3e", color: "#000", border: "none", borderRadius: 8,
+                      padding: "12px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer",
                     }}
-                    onKeyDown={(e) => e.key === "Enter" && handleRecharge()}
-                    autoFocus
-                  />
+                  >
+                    Done
+                  </button>
                 </div>
+              )}
 
-                {/* Quick amount chips */}
-                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-                  {[100, 200, 500, 1000].map((amt) => (
+              {/* ── Step: cancelled / payment dismissed ── */}
+              {modalStep === "cancelled" && (
+                <div style={{ textAlign: "center", padding: "16px 0" }}>
+                  <div style={{ fontSize: 40, marginBottom: 14 }}>ⓘ</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#f59e0b", marginBottom: 10 }}>
+                    Payment Not Completed
+                  </div>
+                  <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, marginBottom: 8 }}>
+                    Your payment was not completed.
+                  </div>
+                  <div style={{
+                    background: "rgba(200,255,62,0.06)",
+                    border: "1px solid rgba(200,255,62,0.15)",
+                    borderRadius: 8,
+                    padding: "12px 16px",
+                    fontSize: 13,
+                    color: "#c8ff3e",
+                    marginBottom: 24,
+                    lineHeight: 1.6,
+                  }}>
+                    If any amount was deducted from your bank, it will be automatically
+                    credited back to your Kasa Kai wallet within a few minutes — not to your bank account.
+                  </div>
+                  {modalError && (
+                    <div style={{ color: "#f87171", fontSize: 12, marginBottom: 14 }}>
+                      {modalError}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 10 }}>
                     <button
-                      key={amt}
-                      onClick={() => setRechargeAmountStr(String(amt))}
+                      onClick={closeModal}
                       style={{
-                        background: rechargeAmountStr === String(amt) ? "rgba(200,255,62,0.15)" : "rgba(255,255,255,0.05)",
-                        border: `1px solid ${rechargeAmountStr === String(amt) ? "rgba(200,255,62,0.4)" : "#2a2a2a"}`,
-                        color: rechargeAmountStr === String(amt) ? "#c8ff3e" : "#aaa",
-                        borderRadius: 6, padding: "6px 14px", fontSize: 13,
-                        fontWeight: 600, cursor: "pointer",
+                        flex: 1, background: "transparent", border: "1px solid #333",
+                        color: "#888", borderRadius: 8, padding: "12px",
+                        fontSize: 13, fontWeight: 600, cursor: "pointer",
                       }}
                     >
-                      ₹{amt}
+                      Close
                     </button>
-                  ))}
-                </div>
-
-                {rechargeError && (
-                  <div style={{ color: "#f87171", fontSize: 12, marginBottom: 14 }}>
-                    {rechargeError}
+                    <button
+                      onClick={() => { setModalStep("amount"); setModalError(null); }}
+                      style={{
+                        flex: 2, background: "#c8ff3e", color: "#000", border: "none",
+                        borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                      }}
+                    >
+                      Try Again
+                    </button>
                   </div>
-                )}
-
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button
-                    onClick={() => setShowRecharge(false)}
-                    disabled={rechargeLoading}
-                    style={{
-                      flex: 1, background: "transparent", border: "1px solid #333",
-                      color: "#888", borderRadius: 8, padding: "12px",
-                      fontSize: 13, fontWeight: 600, cursor: "pointer",
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleRecharge}
-                    disabled={rechargeLoading || !rechargeAmountStr}
-                    style={{
-                      flex: 2, background: rechargeLoading ? "#555" : "#c8ff3e",
-                      color: "#000", border: "none", borderRadius: 8,
-                      padding: "12px", fontSize: 13, fontWeight: 700,
-                      cursor: rechargeLoading ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {rechargeLoading ? "Processing…" : `Proceed to Payment`}
-                  </button>
                 </div>
-              </>
-            )}
+              )}
+
+              {/* ── Step: processing ── */}
+              {modalStep === "processing" && (
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <div className="spinner" />
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "#ccc" }}>
+                    Processing payment…
+                  </div>
+                  <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>
+                    Please do not close this window.
+                  </div>
+                </div>
+              )}
+
+              {/* ── Step: amount entry ── */}
+              {modalStep === "amount" && (
+                <>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
+                    Recharge Wallet
+                  </div>
+                  <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>
+                    Enter the amount you want to add (₹10 – ₹1,00,000)
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={100000}
+                      placeholder="e.g. 500"
+                      value={amountStr}
+                      onChange={(e) => { setAmountStr(e.target.value); setModalError(null); }}
+                      style={{
+                        width: "100%", background: "#0a0a0a", border: "1px solid #333",
+                        borderRadius: 8, padding: "12px 14px", color: "#fff",
+                        fontSize: 22, fontWeight: 700, outline: "none", boxSizing: "border-box",
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleAmountContinue()}
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Quick amount chips */}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+                    {[100, 200, 500, 1000].map((amt) => (
+                      <button
+                        key={amt}
+                        onClick={() => setAmountStr(String(amt))}
+                        style={{
+                          background: amountStr === String(amt) ? "rgba(200,255,62,0.15)" : "rgba(255,255,255,0.05)",
+                          border: `1px solid ${amountStr === String(amt) ? "rgba(200,255,62,0.4)" : "#2a2a2a"}`,
+                          color: amountStr === String(amt) ? "#c8ff3e" : "#aaa",
+                          borderRadius: 6, padding: "6px 14px", fontSize: 13,
+                          fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        ₹{amt}
+                      </button>
+                    ))}
+                  </div>
+
+                  {modalError && (
+                    <div style={{ color: "#f87171", fontSize: 12, marginBottom: 14 }}>{modalError}</div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={closeModal}
+                      style={{
+                        flex: 1, background: "transparent", border: "1px solid #333",
+                        color: "#888", borderRadius: 8, padding: "12px",
+                        fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAmountContinue}
+                      disabled={!amountStr}
+                      style={{
+                        flex: 2, background: amountStr ? "#c8ff3e" : "#333",
+                        color: amountStr ? "#000" : "#666", border: "none", borderRadius: 8,
+                        padding: "12px", fontSize: 13, fontWeight: 700,
+                        cursor: amountStr ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      Continue →
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ── Step: terms & conditions ── */}
+              {modalStep === "terms" && (
+                <>
+                  <button
+                    onClick={() => { setModalStep("amount"); setModalError(null); }}
+                    style={{
+                      background: "none", border: "none", color: "#555", cursor: "pointer",
+                      fontSize: 12, marginBottom: 16, padding: 0,
+                    }}
+                  >
+                    ← Back
+                  </button>
+
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
+                    Review &amp; Pay
+                  </div>
+                  <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>
+                    You are about to add <strong style={{ color: "#c8ff3e" }}>₹{amountStr}</strong> to your wallet.
+                  </div>
+
+                  {/* Summary box */}
+                  <div style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid #222",
+                    borderRadius: 10,
+                    padding: "16px",
+                    marginBottom: 20,
+                  }}>
+                    <Row label="Amount" value={`₹${amountStr}`} />
+                    <Row label="Payment via" value="Razorpay (UPI / Card / Net Banking)" />
+                    <Row label="Credited to" value="Kasa Kai Wallet" highlight />
+                    <Row label="Refund policy" value="Wallet credit only — not to bank" />
+                  </div>
+
+                  {/* Legal checkbox */}
+                  <label style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    cursor: "pointer", marginBottom: 20,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => { setTermsAccepted(e.target.checked); setModalError(null); }}
+                      style={{ marginTop: 2, accentColor: "#c8ff3e", width: 16, height: 16, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: "#888", lineHeight: 1.6 }}>
+                      I have read and agree to the{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e" }}>
+                        Terms &amp; Conditions
+                      </a>
+                      ,{" "}
+                      <a href="/refund-policy" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e" }}>
+                        Refund Policy
+                      </a>
+                      , and{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e" }}>
+                        Privacy Policy
+                      </a>
+                      . I understand that wallet top-ups are non-refundable to my bank account.
+                    </span>
+                  </label>
+
+                  {modalError && (
+                    <div style={{ color: "#f87171", fontSize: 12, marginBottom: 14 }}>{modalError}</div>
+                  )}
+
+                  <button
+                    onClick={handleProceedToPayment}
+                    disabled={!termsAccepted}
+                    style={{
+                      width: "100%",
+                      background: termsAccepted ? "#c8ff3e" : "#222",
+                      color: termsAccepted ? "#000" : "#555",
+                      border: `1px solid ${termsAccepted ? "transparent" : "#333"}`,
+                      borderRadius: 8, padding: "14px",
+                      fontSize: 14, fontWeight: 700,
+                      cursor: termsAccepted ? "pointer" : "not-allowed",
+                      letterSpacing: "0.03em",
+                    }}
+                  >
+                    Pay ₹{amountStr} via Razorpay
+                  </button>
+
+                  <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "#444" }}>
+                    Secured by Razorpay · 256-bit SSL encryption
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    </>
+  );
+}
+
+function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #1a1a1a" }}>
+      <span style={{ fontSize: 12, color: "#555" }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: highlight ? "#c8ff3e" : "#aaa" }}>{value}</span>
     </div>
   );
 }

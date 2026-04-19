@@ -135,7 +135,7 @@ exports.createGame = async (req, res) => {
           signedUpAt:    new Date(),
         });
       }
-      await game.save();
+      await game.save({ validateModifiedOnly: true });
     }
 
     await game.populate({ path: 'turf', select: 'name address' });
@@ -198,7 +198,7 @@ exports.openGameForRegistration = async (req, res) => {
 
     // Transition game to 'open' status
     game.status = 'open';
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     res.status(200).json({
       success: true,
@@ -297,7 +297,7 @@ exports.deleteGame = async (req, res) => {
     if (cancelMessage) {
       game.cancelReason = cancelMessage;
     }
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     // Reload the game fresh with all needed populations to guarantee data integrity
     const populatedGame = await Game.findById(game._id)
@@ -562,7 +562,7 @@ exports.confirmGame = async (req, res) => {
 
     game.status      = 'confirmed';
     game.confirmedAt = new Date();
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     res.status(200).json({ success: true, message: 'Game confirmed', data: game });
   } catch (error) {
@@ -622,7 +622,7 @@ exports.addPlayerByOrganiser = async (req, res) => {
       });
     }
 
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
     res.status(200).json({ success: true, message: 'Player added successfully', data: game });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
@@ -648,7 +648,7 @@ exports.removeRegistration = async (req, res) => {
 
     const removedReg = game.registrations[regIndex];
     game.registrations.splice(regIndex, 1);
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     // Notify waitlisted players that a slot opened (fire-and-forget)
     notifyWaitlistedPlayers(game).catch((err) =>
@@ -710,7 +710,7 @@ exports.approveWaitlist = async (req, res) => {
     waitlistEntry.status      = 'approved';
     waitlistEntry.notifiedAt  = new Date();
 
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     // Populate for response + email
     await game.populate({ path: 'registrations.player', select: 'name phone email' });
@@ -758,7 +758,7 @@ exports.organiserWithdraw = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You are not signed up to play in this game' });
 
     game.organiserIsPlaying = false;
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     // Notify waitlisted players that a slot opened
     notifyWaitlistedPlayers(game).catch((err) =>
@@ -1004,40 +1004,51 @@ exports.registerForGame = async (req, res) => {
     }
 
     const payStatus = totalFee > 0 ? 'paid' : 'pending';
-
-    // ── Main player registration ──────────────────────────
-    game.registrations.push({
-      player:                req.user._id,
-      preferredPosition:     playerPosition,
-      teamPreference:        playerTeam,
-      paymentStatus:         payStatus,
-      amountPaidPaise:       feePerSlot,
-      walletLockId:          walletTxId,
-      willingIfFormatChange,
-      signedUpAt:            new Date(),
-    });
-
-    // ── Guest registrations ───────────────────────────────
     const playerName = req.user.name || 'Player';
-    guestInput.forEach((guest, idx) => {
-      const fallbackGuestName = `Guest ${idx + 1}`;
-      const guestName = (guest?.name || '').trim() || fallbackGuestName;
-      game.registrations.push({
+
+    // Build the new registration entries
+    const newRegistrations = [
+      {
+        player:                req.user._id,
+        preferredPosition:     playerPosition,
+        teamPreference:        playerTeam,
+        paymentStatus:         payStatus,
+        amountPaidPaise:       feePerSlot,
+        walletLockId:          walletTxId,
+        willingIfFormatChange,
+        signedUpAt:            new Date(),
+      },
+      ...guestInput.map((guest, idx) => ({
         player:            req.user._id,
-        plusOneName:       guestName,
+        plusOneName:       (guest?.name || '').trim() || `Guest ${idx + 1}`,
         preferredPosition: POSITION_MAP[guest?.position] || 'any',
         teamPreference:    TEAM_MAP[guest?.teamPreference] || 'none',
         paymentStatus:     payStatus,
         amountPaidPaise:   feePerSlot,
         walletLockId:      walletTxId,
         signedUpAt:        new Date(),
-      });
-    });
+      })),
+    ];
 
+    // Use $push via findByIdAndUpdate so Mongoose never re-validates existing
+    // subdocuments that may have legacy null-player entries in older games.
     try {
-      await game.save();
+      const updateOps = { $push: { registrations: { $each: newRegistrations } } };
+      if (hadWaitlistEntry) {
+        updateOps.$pull = { waitlist: { player: req.user._id } };
+      }
+      const updated = await Game.findByIdAndUpdate(
+        game._id,
+        updateOps,
+        { new: true, runValidators: false }
+      ).populate({ path: 'turf', select: 'name address' });
+
+      if (!updated) throw new Error('Game not found after update');
+
+      // Swap in the freshly-updated document for the rest of the handler
+      Object.assign(game, updated.toObject());
     } catch (saveErr) {
-      // Refund wallet if the game save fails so the player isn't charged
+      // Refund wallet if the DB write fails so the player is not charged
       if (walletTxId && totalFee > 0) {
         walletService.refund(
           req.user._id,
@@ -1048,8 +1059,6 @@ exports.registerForGame = async (req, res) => {
       }
       throw saveErr;
     }
-
-    await game.populate({ path: "turf", select: "name address" });
 
     if (req.user?.email) {
       const placeText = formatGamePlace(game.turf);
@@ -1134,7 +1143,7 @@ exports.joinWaitlist = async (req, res) => {
       willingIfFormatChange: req.body.willingIfFormatChange !== false,
     });
 
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
     await game.populate({ path: 'turf', select: 'name address' });
 
     if (req.user?.email) {
@@ -1185,7 +1194,7 @@ exports.leaveWaitlist = async (req, res) => {
     game.waitlist = game.waitlist.filter(
       (w) => w.player.toString() !== req.user._id.toString()
     );
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     res.status(200).json({ success: true, message: 'Removed from waitlist successfully' });
   } catch (error) {
@@ -1256,7 +1265,7 @@ exports.backoutFromGame = async (req, res) => {
 
     game.registrations = game.registrations.filter((reg) => regPlayerId(reg) !== playerId);
 
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     if (refundAmountPaise > 0) {
       const scheduledDate = new Date(game.scheduledAt).toLocaleDateString('en-IN', {
@@ -1376,7 +1385,7 @@ exports.completeGame = async (req, res) => {
 
     game.status      = 'completed';
     game.completedAt = new Date();
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     res.status(200).json({ success: true, message: 'Game marked as completed', data: game });
   } catch (error) {
@@ -1411,7 +1420,7 @@ exports.markAttendance = async (req, res) => {
 
     game.attendanceMarked   = true;
     game.attendanceMarkedAt = new Date();
-    await game.save();
+    await game.save({ validateModifiedOnly: true });
 
     // Notify no-shows
     for (const reg of game.registrations) {

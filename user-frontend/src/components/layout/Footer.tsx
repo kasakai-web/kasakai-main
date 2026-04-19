@@ -1,6 +1,6 @@
 const quickLinks = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "/about" },
+  { label: "About Us", href: "/#about" },
   { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/#pricing" },
 ];
@@ -131,7 +131,7 @@ export function Footer() {
             © {year} Kasa Kai. All rights reserved.
           </p>
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-            <a href="/about" style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".08em", color: "#6f6f6f", textDecoration: "none" }}>
+            <a href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".08em", color: "#6f6f6f", textDecoration: "none" }}>
               Company
             </a>
             <a href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".08em", color: "#6f6f6f", textDecoration: "none" }}>
