@@ -17,3 +17,4 @@ jobs:
         run: |
           echo "The backend now lives in a separate repository."
           echo "This workflow is kept as a compatibility check so the old status context remains green."
+          echo "Backend repository: kasakai-api"
