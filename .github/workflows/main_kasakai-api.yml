@@ -1,0 +1,19 @@
+name: Build and deploy Node.js app to Azure Web App - kasakai-backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm backend moved
+        run: |
+          echo "The backend now lives in a separate repository."
+          echo "This workflow is kept as a compatibility check so the old status context remains green."
