@@ -46,6 +46,7 @@ type AdminPaymentListResponse = {
 type AdminNotifRow = {
   _id: string; type: string; title: string; body: string;
   isRead: boolean; createdAt: string; recipientRole: string;
+  recipientName?: string | null; recipientPhone?: string | null;
 };
 
 // Game detail
@@ -756,7 +757,7 @@ function Notifications() {
   const filtered = notifs.filter((n) => {
     const q = search.trim().toLowerCase();
     return (
-      [n.title, n.body, n.recipientRole, n.type].join(" ").toLowerCase().includes(q) &&
+      [n.title, n.body, n.recipientRole, n.type, n.recipientName || "", n.recipientPhone || ""].join(" ").toLowerCase().includes(q) &&
       (roleFilter === "all" || n.recipientRole === roleFilter)
     );
   });
@@ -788,9 +789,19 @@ function Notifications() {
           {filtered.map((n) => (
             <div key={n._id} className={styles.notifItem}>
               <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "4px" }}>
+                <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginBottom: "4px" }}>
                   <span className={`${styles.badge} ${styles.badgeGray}`}>{TYPE_LABEL[n.type] || n.type}</span>
                   <span className={`${styles.badge} ${n.recipientRole === "organiser" ? styles.badgeBlue : styles.badgeGray}`}>{n.recipientRole}</span>
+                  {n.recipientName && (
+                    <span style={{ fontSize: "13px", color: "var(--white)", fontWeight: 600 }}>
+                      {n.recipientName}
+                      {n.recipientPhone && (
+                        <span style={{ fontWeight: 400, color: "var(--muted)", marginLeft: "6px", fontSize: "11px" }}>
+                          {n.recipientPhone}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div className={styles.notifMsg}><strong>{n.title}</strong> — {n.body}</div>
                 <div className={styles.notifTime}>{notifTimeAgo(n.createdAt)}</div>
