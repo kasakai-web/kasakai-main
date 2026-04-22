@@ -12,15 +12,26 @@ const API_BASE =
 
 type AdminUserRow = {
   id: string; name: string; phone: string; email?: string | null;
-  role: "player" | "organiser"; gamesPlayed?: number; gamesHosted?: number;
-  rating?: number; joinedAt?: string | null; status: string; location?: string | null;
+  role: "player" | "organiser"; isVerified?: boolean;
+  gamesPlayed?: number; gamesHosted?: number;
+  noShowCount?: number; backoutCount?: number;
+  rating?: number;
+  // player-specific wallet fields
+  totalSpentPaise?: number; walletBalancePaise?: number;
+  // organiser-specific
+  earningsPaise?: number; pendingPayoutPaise?: number;
+  cancellationRate?: number;
+  joinedAt?: string | null; status: string; location?: string | null;
 };
 
 type AdminOrganiserRow = {
   id: string; name: string; phone: string; email?: string | null;
-  gamesHosted?: number; rating?: number; earningsPaise?: number;
-  joinedAt?: string | null; status: string; approvalStatus?: string;
-  isActive?: boolean; location?: string | null;
+  whatsappNumber?: string | null; isVerified?: boolean; isActive?: boolean;
+  approvalStatus?: string; status: string;
+  gamesHosted?: number; totalPlayersManaged?: number;
+  rating?: number; totalRatingsReceived?: number; cancellationRate?: number;
+  earningsPaise?: number; pendingPayoutPaise?: number;
+  joinedAt?: string | null; location?: string | null; suspendReason?: string | null;
 };
 
 type AdminGameRow = {
@@ -344,10 +355,10 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Rating</th><th>Joined</th><th>Status</th></tr>
+            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Rating</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
             {filtered.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
                 <td>{u.name}</td>
@@ -355,8 +366,27 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
                 <td><span className={`${styles.badge} ${u.role === "organiser" ? styles.badgeBlue : styles.badgeGray}`}>{u.role === "organiser" ? "Organiser" : "Player"}</span></td>
                 <td>{u.email || "—"}</td>
                 <td>{u.location || "—"}</td>
-                <td>{u.role === "organiser" ? (u.gamesHosted ?? 0) : (u.gamesPlayed ?? 0)}</td>
-                <td>{typeof u.rating === "number" ? u.rating.toFixed(1) : "—"}</td>
+                <td>
+                  {u.role === "organiser" ? (u.gamesHosted ?? 0) : (u.gamesPlayed ?? 0)}
+                  {u.role === "player" && (u.noShowCount ?? 0) > 0 && (
+                    <div style={{ fontSize: "11px", color: "var(--red)" }}>{u.noShowCount} no-show{(u.noShowCount ?? 0) > 1 ? "s" : ""}</div>
+                  )}
+                </td>
+                <td>
+                  {u.rating != null && u.rating > 0
+                    ? <span style={{ color: "var(--amber)", fontWeight: 600 }}>★ {(u.rating as number).toFixed(1)}</span>
+                    : <span style={{ color: "var(--muted)", fontSize: "12px" }}>No ratings</span>
+                  }
+                </td>
+                <td>
+                  {u.role === "organiser"
+                    ? <span style={{ color: "var(--green)", fontWeight: 600 }}>{formatCurrency(u.earningsPaise)}</span>
+                    : <span style={{ color: "var(--red)" }}>{formatCurrency(u.totalSpentPaise)}</span>
+                  }
+                  {u.role === "player" && (u.walletBalancePaise ?? 0) > 0 && (
+                    <div style={{ fontSize: "11px", color: "var(--green)" }}>Bal: {formatCurrency(u.walletBalancePaise)}</div>
+                  )}
+                </td>
                 <td>{formatDate(u.joinedAt)}</td>
                 <td><span className={`${styles.badge} ${badgeClassForStatus(u.status)}`}>{formatStatusLabel(u.status)}</span></td>
               </tr>
@@ -371,9 +401,14 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 // ── Organisers ────────────────────────────────────────────────────────────────
 
 function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
-  const [organisers, setOrganisers] = useState<AdminOrganiserRow[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState("");
+  const [organisers, setOrganisers]     = useState<AdminOrganiserRow[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState("");
+  const [search, setSearch]             = useState("");
+  const [actionBusy, setActionBusy]     = useState<string | null>(null);
+  const [actionError, setActionError]   = useState("");
+  const [suspendTarget, setSuspendTarget] = useState<AdminOrganiserRow | null>(null);
+  const [suspendReason, setSuspendReason] = useState("");
 
   const fetchOrganisers = useCallback(async () => {
     setLoading(true); setError("");
@@ -390,31 +425,153 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 
   useEffect(() => { fetchOrganisers(); }, [fetchOrganisers]);
 
+  async function doAction(id: string, action: "approve" | "reject" | "reactivate", body?: object) {
+    setActionBusy(id + action); setActionError("");
+    try {
+      const token = getAdminToken();
+      const res   = await fetch(`${API_BASE}/admin/organisers/${id}/${action}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.message || "Action failed."); return; }
+      await fetchOrganisers();
+    } catch { setActionError("Cannot reach the server."); }
+    finally { setActionBusy(null); }
+  }
+
+  async function doSuspend() {
+    if (!suspendTarget) return;
+    setActionBusy(suspendTarget.id + "suspend"); setActionError("");
+    try {
+      const token = getAdminToken();
+      const res   = await fetch(`${API_BASE}/admin/organisers/${suspendTarget.id}/suspend`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: suspendReason.trim() || "Suspended by admin." }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.message || "Suspend failed."); return; }
+      setSuspendTarget(null); setSuspendReason("");
+      await fetchOrganisers();
+    } catch { setActionError("Cannot reach the server."); }
+    finally { setActionBusy(null); }
+  }
+
+  // Fix: approved-but-suspended organisers were falling through all three filters
   const pending  = organisers.filter((o) => o.approvalStatus === "pending");
   const approved = organisers.filter((o) => o.approvalStatus === "approved" && o.isActive !== false);
-  const other    = organisers.filter((o) => !["pending", "approved"].includes(o.approvalStatus || ""));
+  const other    = organisers.filter((o) => !pending.includes(o) && !approved.includes(o));
 
-  const ORow = ({ o }: { o: AdminOrganiserRow }) => (
-    <tr key={o.id}>
-      <td>{o.name}</td>
-      <td>{o.phone}</td>
+  const q = search.trim().toLowerCase();
+  const applySearch = (list: AdminOrganiserRow[]) =>
+    q ? list.filter((o) => [o.name, o.phone, o.email || "", o.whatsappNumber || "", o.location || ""].join(" ").toLowerCase().includes(q)) : list;
+
+  const ORow = ({ o }: { o: AdminOrganiserRow }) => {
+    const busy = actionBusy !== null;
+    return (
+    <tr>
+      <td>
+        <div style={{ fontWeight: 500 }}>{o.name}</div>
+        {o.suspendReason && <div style={{ fontSize: "11px", color: "var(--red)" }}>{o.suspendReason}</div>}
+      </td>
+      <td>
+        <div>{o.phone}</div>
+        {o.whatsappNumber && o.whatsappNumber !== o.phone && (
+          <div style={{ fontSize: "11px", color: "var(--muted)" }}>WA: {o.whatsappNumber}</div>
+        )}
+      </td>
       <td>{o.email || "—"}</td>
       <td>{o.location || "—"}</td>
       <td>{formatDate(o.joinedAt)}</td>
-      <td>{o.gamesHosted ?? 0}</td>
-      <td>{typeof o.rating === "number" ? o.rating.toFixed(1) : "—"}</td>
-      <td style={{ color: "var(--green)" }}>{formatCurrency(o.earningsPaise)}</td>
-      <td><span className={`${styles.badge} ${badgeClassForStatus(o.approvalStatus)}`}>{formatStatusLabel(o.approvalStatus)}</span></td>
-      <td><div className={styles.actions}><button className={styles.actionBtn} onClick={() => onOpenDetail(o.name)}>View</button></div></td>
+      <td>
+        <div>{o.gamesHosted ?? 0} hosted</div>
+        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{o.totalPlayersManaged ?? 0} players</div>
+      </td>
+      <td>
+        {o.rating != null && o.rating > 0
+          ? <div style={{ color: "var(--amber)", fontWeight: 600 }}>★ {o.rating.toFixed(1)}<span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 400, marginLeft: "4px" }}>({o.totalRatingsReceived ?? 0})</span></div>
+          : <div style={{ color: "var(--muted)", fontSize: "12px" }}>No ratings yet</div>
+        }
+      </td>
+      <td>
+        {o.cancellationRate != null && o.cancellationRate > 0
+          ? <span style={{ color: o.cancellationRate > 20 ? "var(--red)" : "var(--amber)" }}>{o.cancellationRate.toFixed(1)}%</span>
+          : <span style={{ color: "var(--muted)" }}>0%</span>
+        }
+      </td>
+      <td>
+        <div style={{ color: "var(--green)", fontWeight: 600 }}>{formatCurrency(o.earningsPaise)}</div>
+        {(o.pendingPayoutPaise ?? 0) > 0 && (
+          <div style={{ fontSize: "11px", color: "var(--amber)" }}>Pending: {formatCurrency(o.pendingPayoutPaise)}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.badge} ${badgeClassForStatus(o.status)}`}>{formatStatusLabel(o.status)}</span>
+      </td>
+      <td>
+        <div className={styles.actions}>
+          {o.approvalStatus === "pending" && (
+            <>
+              <button
+                className={styles.actionBtn}
+                style={{ color: "var(--green)", borderColor: "rgba(34,197,94,0.4)" }}
+                disabled={busy}
+                onClick={() => doAction(o.id, "approve")}
+              >
+                {actionBusy === o.id + "approve" ? "…" : "Approve"}
+              </button>
+              <button
+                className={styles.actionBtn}
+                style={{ color: "var(--red)", borderColor: "rgba(239,68,68,0.4)" }}
+                disabled={busy}
+                onClick={() => doAction(o.id, "reject")}
+              >
+                {actionBusy === o.id + "reject" ? "…" : "Reject"}
+              </button>
+            </>
+          )}
+          {o.approvalStatus === "approved" && o.isActive && (
+            <button
+              className={styles.actionBtn}
+              style={{ color: "var(--amber)", borderColor: "rgba(245,158,11,0.4)" }}
+              disabled={busy}
+              onClick={() => { setSuspendTarget(o); setSuspendReason(""); }}
+            >
+              Suspend
+            </button>
+          )}
+          {!o.isActive && o.approvalStatus !== "pending" && o.approvalStatus !== "rejected" && (
+            <button
+              className={styles.actionBtn}
+              style={{ color: "var(--green)", borderColor: "rgba(34,197,94,0.4)" }}
+              disabled={busy}
+              onClick={() => doAction(o.id, "reactivate")}
+            >
+              {actionBusy === o.id + "reactivate" ? "…" : "Reactivate"}
+            </button>
+          )}
+        </div>
+      </td>
     </tr>
-  );
+    );
+  };
 
-  const OTable = ({ rows, cols }: { rows: AdminOrganiserRow[]; cols: number }) => (
-    <div className={styles.tableWrap}>
+  const OTable = ({ rows, emptyMsg }: { rows: AdminOrganiserRow[]; emptyMsg: string }) => (
+    <div className={styles.tableWrap} style={{ marginBottom: "20px" }}>
       <table className={styles.table}>
-        <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Location</th><th>Joined</th><th>Games</th><th>Rating</th><th>Earnings</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Name</th><th>Phone / WhatsApp</th><th>Email</th><th>Location</th>
+            <th>Joined</th><th>Games</th><th>Rating</th><th>Cancel Rate</th>
+            <th>Earnings</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
         <tbody>
-          {!loading && rows.length === 0 && <tr><td colSpan={cols} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>None.</td></tr>}
+          {rows.length === 0 && (
+            <tr><td colSpan={11} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>{emptyMsg}</td></tr>
+          )}
           {rows.map((o) => <ORow key={o.id} o={o} />)}
         </tbody>
       </table>
@@ -425,13 +582,55 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
     <>
       <Head title="Organisers" sub={loading ? "Loading…" : `${organisers.length} total organisers`} />
       {error && <div className={styles.formError}>{error}</div>}
+      <div className={styles.toolbar}>
+        <input className={styles.searchInput} placeholder="Search by name, phone, WhatsApp, email, location…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <button className={styles.actionBtn} type="button" onClick={fetchOrganisers}>Refresh</button>
+      </div>
       {loading && <div className={styles.loadingState}>Loading organisers…</div>}
-      <div className={styles.blockTitle}>Pending Verification ({pending.length})</div>
-      <OTable rows={pending} cols={10} />
-      <div className={styles.blockTitleSuccess}>Approved Organisers ({approved.length})</div>
-      <OTable rows={approved} cols={10} />
-      <div className={styles.blockTitle}>Rejected / Suspended ({other.length})</div>
-      <OTable rows={other} cols={10} />
+      <div className={styles.blockTitle}>Pending Verification ({applySearch(pending).length})</div>
+      <OTable rows={applySearch(pending)} emptyMsg="No pending organisers." />
+      <div className={styles.blockTitleSuccess}>Approved &amp; Active ({applySearch(approved).length})</div>
+      <OTable rows={applySearch(approved)} emptyMsg="No approved organisers." />
+      <div className={styles.blockTitle}>Rejected / Suspended ({applySearch(other).length})</div>
+      <OTable rows={applySearch(other)} emptyMsg="None." />
+
+      {/* Suspend reason modal */}
+      {suspendTarget && (
+        <div className={styles.modalOverlay} onClick={() => setSuspendTarget(null)}>
+          <div className={styles.modal} style={{ maxWidth: "440px" }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <div className={styles.sectionTitle}>Suspend Organiser</div>
+              <button className={styles.modalClose} type="button" onClick={() => setSuspendTarget(null)}>✕</button>
+            </div>
+            <div style={{ marginBottom: "14px", color: "var(--text)", fontSize: "14px" }}>
+              Suspending <strong>{suspendTarget.name}</strong>. They will not be able to create or manage games.
+            </div>
+            <label className={styles.formLabel}>
+              Reason (shown to admin log)
+              <input
+                className={styles.searchInput}
+                style={{ width: "100%", marginTop: "6px" }}
+                placeholder="e.g. Multiple complaints from players"
+                value={suspendReason}
+                onChange={(e) => setSuspendReason(e.target.value)}
+              />
+            </label>
+            {actionError && <div className={styles.formError} style={{ marginTop: "10px" }}>{actionError}</div>}
+            <div className={styles.modalActions} style={{ marginTop: "18px" }}>
+              <button className={styles.actionBtn} type="button" onClick={() => setSuspendTarget(null)}>Cancel</button>
+              <button
+                className={styles.actionBtn}
+                style={{ color: "var(--red)", borderColor: "rgba(239,68,68,0.5)", background: "var(--red-bg)" }}
+                type="button"
+                disabled={actionBusy !== null}
+                onClick={doSuspend}
+              >
+                {actionBusy !== null ? "Suspending…" : "Confirm Suspend"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
