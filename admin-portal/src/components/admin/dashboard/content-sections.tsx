@@ -1114,46 +1114,93 @@ function Notifications() {
 // ── Feedback (live) ───────────────────────────────────────────────────────────
 
 type FbSortKey = "date" | "gameRating" | "organiserRating" | "venueRating";
+type PrSortKey = "date" | "conduct" | "gameplay" | "avg";
 
 type CommentModalData = { comment: string; player: string; game: string };
 
+type PlayerRatingRow = {
+  id: string;
+  playerName: string; playerPhone?: string | null;
+  organiserName: string; organiserPhone?: string | null;
+  gameTitle?: string | null; gameFormat?: string | null; gameDate?: string | null;
+  conductRating: number; gameplayRating: number; avgRating: number;
+  preferredPosition?: string | null; gkAffinity?: number | null;
+  notes?: string | null; ratedAt?: string | null;
+};
+
 function Feedback() {
+  const [tab, setTab] = useState<"player" | "organiser">("player");
+
+  // ── Tab 1: Player → Platform (GameFeedback) ────────────────────────────────
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [summary, setSummary]   = useState<{ avgGame?: number | null; tagCounts?: Record<string, number> }>({});
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
-  const [search, setSearch]     = useState("");
+  const [fbLoading, setFbLoading] = useState(true);
+  const [fbError, setFbError]     = useState("");
+  const [fbSearch, setFbSearch]   = useState("");
   const [sortKey, setSortKey]   = useState<FbSortKey>("date");
   const [sortDir, setSortDir]   = useState<"asc" | "desc">("desc");
   const [commentModal, setCommentModal] = useState<CommentModalData | null>(null);
 
+  // ── Tab 2: Organiser → Player (PlayerRating) ───────────────────────────────
+  const [prRows, setPrRows]       = useState<PlayerRatingRow[]>([]);
+  const [prTotal, setPrTotal]     = useState(0);
+  const [prLoading, setPrLoading] = useState(true);
+  const [prError, setPrError]     = useState("");
+  const [prSearch, setPrSearch]   = useState("");
+  const [prSortKey, setPrSortKey] = useState<PrSortKey>("date");
+  const [prSortDir, setPrSortDir] = useState<"asc" | "desc">("desc");
+  const [notesModal, setNotesModal] = useState<{ notes: string; player: string; organiser: string } | null>(null);
+
   useEffect(() => {
     const token = getAdminToken();
-    if (!token) { setLoading(false); setError("Admin session missing."); return; }
+    if (!token) { setFbLoading(false); setFbError("Admin session missing."); return; }
     fetch(`${API_BASE}/admin/feedback?limit=200`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d: FeedbackApiResponse) => {
         if (d.success) { setFeedback(d.data || []); setSummary(d.summary || {}); }
-        else setError(d.message || "Failed to load feedback.");
+        else setFbError(d.message || "Failed to load feedback.");
       })
-      .catch(() => setError("Cannot reach the server."))
-      .finally(() => setLoading(false));
+      .catch(() => setFbError("Cannot reach the server."))
+      .finally(() => setFbLoading(false));
   }, []);
 
+  useEffect(() => {
+    const token = getAdminToken();
+    if (!token) { setPrLoading(false); setPrError("Admin session missing."); return; }
+    fetch(`${API_BASE}/admin/player-ratings?limit=200`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) { setPrRows(d.data || []); setPrTotal(d.count ?? 0); }
+        else setPrError(d.message || "Failed to load player ratings.");
+      })
+      .catch(() => setPrError("Cannot reach the server."))
+      .finally(() => setPrLoading(false));
+  }, []);
+
+  // ── Tab 1 helpers ──────────────────────────────────────────────────────────
   function toggleSort(key: FbSortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("desc"); }
   }
-
   function sortIcon(key: FbSortKey) {
     if (sortKey !== key) return <span style={{ color: "var(--muted2)", marginLeft: "4px" }}>↕</span>;
     return <span style={{ marginLeft: "4px" }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
   }
 
+  // ── Tab 2 helpers ──────────────────────────────────────────────────────────
+  function togglePrSort(key: PrSortKey) {
+    if (prSortKey === key) setPrSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setPrSortKey(key); setPrSortDir("desc"); }
+  }
+  function prSortIcon(key: PrSortKey) {
+    if (prSortKey !== key) return <span style={{ color: "var(--muted2)", marginLeft: "4px" }}>↕</span>;
+    return <span style={{ marginLeft: "4px" }}>{prSortDir === "asc" ? "↑" : "↓"}</span>;
+  }
+
   const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
 
-  const filtered = feedback.filter((f) => {
-    const q = search.trim().toLowerCase();
+  const fbFiltered = feedback.filter((f) => {
+    const q = fbSearch.trim().toLowerCase();
     return [
       f.submittedBy?.name || "", f.submittedBy?.phone || "",
       f.game?.title || "", f.game?.organiser?.name || "",
@@ -1161,7 +1208,7 @@ function Feedback() {
     ].join(" ").toLowerCase().includes(q);
   });
 
-  const sorted = [...filtered].sort((a, b) => {
+  const fbSorted = [...fbFiltered].sort((a, b) => {
     let av = 0, bv = 0;
     if (sortKey === "date")           { av = new Date(a.createdAt).getTime(); bv = new Date(b.createdAt).getTime(); }
     if (sortKey === "gameRating")     { av = a.gameRating ?? 0;       bv = b.gameRating ?? 0; }
@@ -1170,130 +1217,295 @@ function Feedback() {
     return sortDir === "asc" ? av - bv : bv - av;
   });
 
-  const topTags = Object.entries(summary.tagCounts || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const prFiltered = prRows.filter((r) => {
+    const q = prSearch.trim().toLowerCase();
+    return [r.playerName, r.playerPhone || "", r.organiserName, r.organiserPhone || "", r.gameTitle || "", r.notes || ""].join(" ").toLowerCase().includes(q);
+  });
 
+  const prSorted = [...prFiltered].sort((a, b) => {
+    let av = 0, bv = 0;
+    if (prSortKey === "date")     { av = a.ratedAt ? new Date(a.ratedAt).getTime() : 0; bv = b.ratedAt ? new Date(b.ratedAt).getTime() : 0; }
+    if (prSortKey === "conduct")  { av = a.conductRating;  bv = b.conductRating; }
+    if (prSortKey === "gameplay") { av = a.gameplayRating; bv = b.gameplayRating; }
+    if (prSortKey === "avg")      { av = a.avgRating;      bv = b.avgRating; }
+    return prSortDir === "asc" ? av - bv : bv - av;
+  });
+
+  const topTags = Object.entries(summary.tagCounts || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const TRUNC = 80;
 
   return (
     <>
-      <Head title="Player Feedback" sub={loading ? "Loading…" : `${feedback.length} feedback submissions`} />
+      <Head title="Feedback" sub="Player feedback to platform · Organiser ratings to players" />
 
-      <div className={styles.paymentSummary}>
-        <div className={styles.payCard}><div className={styles.statLabel}>Total Submissions</div><div className={styles.payValue}>{loading ? "—" : feedback.length}</div><div className={styles.paySub}>Post-game feedback</div></div>
-        <div className={styles.payCard}><div className={styles.statLabel}>Avg Game Rating</div><div className={styles.payValue} style={{ color: "var(--amber)" }}>{summary.avgGame != null ? `${summary.avgGame} / 5` : "—"}</div><div className={styles.paySub}>Across all submitted feedback</div></div>
-        <div className={styles.payCard}>
-          <div className={styles.statLabel}>Top Tags</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "6px" }}>
-            {topTags.length === 0 ? <span style={{ color: "var(--muted)", fontSize: "13px" }}>—</span> : topTags.map(([tag, count]) => (
-              <span key={tag} className={`${styles.badge} ${styles.badgeGray}`}>{tag} ({count})</span>
-            ))}
-          </div>
-        </div>
+      {/* Tab bar */}
+      <div className={styles.tabBar}>
+        <button
+          className={`${styles.tab} ${tab === "player" ? styles.tabActive : ""}`}
+          type="button"
+          onClick={() => setTab("player")}
+        >
+          Player → Platform ({feedback.length})
+        </button>
+        <button
+          className={`${styles.tab} ${tab === "organiser" ? styles.tabActive : ""}`}
+          type="button"
+          onClick={() => setTab("organiser")}
+        >
+          Organiser → Players ({prTotal})
+        </button>
       </div>
 
-      <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search by player, organiser, turf, game or comment…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
-
-      {error   && <div className={styles.formError}>{error}</div>}
-      {loading && <div className={styles.loadingState}>Loading feedback…</div>}
-
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Game</th>
-              <th>Organiser</th>
-              <th>Turf / Venue</th>
-              <th style={thSort} onClick={() => toggleSort("date")}>Date{sortIcon("date")}</th>
-              <th style={thSort} onClick={() => toggleSort("gameRating")}>Game ★{sortIcon("gameRating")}</th>
-              <th style={thSort} onClick={() => toggleSort("organiserRating")}>Organiser ★{sortIcon("organiserRating")}</th>
-              <th style={thSort} onClick={() => toggleSort("venueRating")}>Venue ★{sortIcon("venueRating")}</th>
-              <th>Tags</th>
-              <th>Comment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!loading && sorted.length === 0 && (
-              <tr><td colSpan={10} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No feedback submitted yet.</td></tr>
-            )}
-            {sorted.map((f) => (
-              <tr key={f._id}>
-                <td>
-                  <div style={{ fontWeight: 500 }}>{f.submittedBy?.name || "—"}</div>
-                  <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.submittedBy?.phone || ""}</div>
-                </td>
-                <td>
-                  {f.game?.title || "—"}
-                  <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.game?.format || ""}</div>
-                </td>
-                <td>
-                  <div>{f.game?.organiser?.name || "—"}</div>
-                  <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.game?.organiser?.phone || ""}</div>
-                </td>
-                <td>
-                  <div>{f.game?.turf?.name || "—"}</div>
-                  {(f.game?.turf?.address?.area || f.game?.turf?.address?.city) && (
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>
-                      {[f.game?.turf?.address?.area, f.game?.turf?.address?.city].filter(Boolean).join(", ")}
-                    </div>
-                  )}
-                </td>
-                <td>{formatDate(f.createdAt)}</td>
-                <td style={{ color: "var(--amber)" }}>{starRating(f.gameRating)}</td>
-                <td style={{ color: "var(--amber)" }}>{starRating(f.organiserRating)}</td>
-                <td style={{ color: "var(--amber)" }}>{starRating(f.venueRating)}</td>
-                <td>
-                  {(f.tags || []).map((tag) => (
-                    <span key={tag} className={`${styles.badge} ${styles.badgeGray}`} style={{ marginRight: "3px" }}>{tag}</span>
-                  ))}
-                </td>
-                <td style={{ maxWidth: "200px" }}>
-                  {!f.comment ? (
-                    <span style={{ color: "var(--muted)" }}>—</span>
-                  ) : f.comment.length <= TRUNC ? (
-                    <span style={{ fontSize: "13px" }}>{f.comment}</span>
-                  ) : (
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "150px", display: "inline-block" }}>
-                        {f.comment}
-                      </span>
-                      <button
-                        type="button"
-                        title="View full comment"
-                        onClick={() => setCommentModal({ comment: f.comment!, player: f.submittedBy?.name || "Unknown", game: f.game?.title || "Unknown game" })}
-                        style={{ flexShrink: 0, background: "var(--surface2)", border: "1px solid var(--border2)", color: "var(--white)", width: "24px", height: "24px", borderRadius: "50%", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
-                      >
-                        →
-                      </button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Full-comment modal */}
-      {commentModal && (
-        <div className={styles.modalOverlay} onClick={() => setCommentModal(null)}>
-          <div className={styles.modal} style={{ maxWidth: "540px" }} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHead}>
-              <div>
-                <div className={styles.sectionTitle}>Full Comment</div>
-                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "5px" }}>
-                  {commentModal.player} &nbsp;·&nbsp; {commentModal.game}
-                </div>
+      {/* ── Tab 1: Player feedback ─────────────────────────────────────────── */}
+      {tab === "player" && (
+        <>
+          <div className={styles.paymentSummary}>
+            <div className={styles.payCard}><div className={styles.statLabel}>Total Submissions</div><div className={styles.payValue}>{fbLoading ? "—" : feedback.length}</div><div className={styles.paySub}>Post-game feedback</div></div>
+            <div className={styles.payCard}><div className={styles.statLabel}>Avg Game Rating</div><div className={styles.payValue} style={{ color: "var(--amber)" }}>{summary.avgGame != null ? `${summary.avgGame} / 5` : "—"}</div><div className={styles.paySub}>Across all submitted feedback</div></div>
+            <div className={styles.payCard}>
+              <div className={styles.statLabel}>Top Tags</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "6px" }}>
+                {topTags.length === 0 ? <span style={{ color: "var(--muted)", fontSize: "13px" }}>—</span> : topTags.map(([tag, count]) => (
+                  <span key={tag} className={`${styles.badge} ${styles.badgeGray}`}>{tag} ({count})</span>
+                ))}
               </div>
-              <button className={styles.modalClose} type="button" onClick={() => setCommentModal(null)}>✕</button>
             </div>
-            <p style={{ fontSize: "15px", lineHeight: "1.75", color: "var(--text)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-              {commentModal.comment}
-            </p>
           </div>
-        </div>
+
+          <div className={styles.toolbar}>
+            <input className={styles.searchInput} placeholder="Search by player, organiser, turf, game or comment…" value={fbSearch} onChange={(e) => setFbSearch(e.target.value)} />
+          </div>
+
+          {fbError   && <div className={styles.formError}>{fbError}</div>}
+          {fbLoading && <div className={styles.loadingState}>Loading feedback…</div>}
+
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Game</th>
+                  <th>Organiser</th>
+                  <th>Turf / Venue</th>
+                  <th style={thSort} onClick={() => toggleSort("date")}>Date{sortIcon("date")}</th>
+                  <th style={thSort} onClick={() => toggleSort("gameRating")}>Game ★{sortIcon("gameRating")}</th>
+                  <th style={thSort} onClick={() => toggleSort("organiserRating")}>Organiser ★{sortIcon("organiserRating")}</th>
+                  <th style={thSort} onClick={() => toggleSort("venueRating")}>Venue ★{sortIcon("venueRating")}</th>
+                  <th>Tags</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!fbLoading && fbSorted.length === 0 && (
+                  <tr><td colSpan={10} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No feedback submitted yet.</td></tr>
+                )}
+                {fbSorted.map((f) => (
+                  <tr key={f._id}>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{f.submittedBy?.name || "—"}</div>
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.submittedBy?.phone || ""}</div>
+                    </td>
+                    <td>
+                      {f.game?.title || "—"}
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.game?.format || ""}</div>
+                    </td>
+                    <td>
+                      <div>{f.game?.organiser?.name || "—"}</div>
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.game?.organiser?.phone || ""}</div>
+                    </td>
+                    <td>
+                      <div>{f.game?.turf?.name || "—"}</div>
+                      {(f.game?.turf?.address?.area || f.game?.turf?.address?.city) && (
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>
+                          {[f.game?.turf?.address?.area, f.game?.turf?.address?.city].filter(Boolean).join(", ")}
+                        </div>
+                      )}
+                    </td>
+                    <td>{formatDate(f.createdAt)}</td>
+                    <td style={{ color: "var(--amber)" }}>{starRating(f.gameRating)}</td>
+                    <td style={{ color: "var(--amber)" }}>{starRating(f.organiserRating)}</td>
+                    <td style={{ color: "var(--amber)" }}>{starRating(f.venueRating)}</td>
+                    <td>
+                      {(f.tags || []).map((tag) => (
+                        <span key={tag} className={`${styles.badge} ${styles.badgeGray}`} style={{ marginRight: "3px" }}>{tag}</span>
+                      ))}
+                    </td>
+                    <td style={{ maxWidth: "200px" }}>
+                      {!f.comment ? (
+                        <span style={{ color: "var(--muted)" }}>—</span>
+                      ) : f.comment.length <= TRUNC ? (
+                        <span style={{ fontSize: "13px" }}>{f.comment}</span>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "150px", display: "inline-block" }}>
+                            {f.comment}
+                          </span>
+                          <button
+                            type="button"
+                            title="View full comment"
+                            onClick={() => setCommentModal({ comment: f.comment!, player: f.submittedBy?.name || "Unknown", game: f.game?.title || "Unknown game" })}
+                            style={{ flexShrink: 0, background: "var(--surface2)", border: "1px solid var(--border2)", color: "var(--white)", width: "24px", height: "24px", borderRadius: "50%", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                          >
+                            →
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Full-comment modal */}
+          {commentModal && (
+            <div className={styles.modalOverlay} onClick={() => setCommentModal(null)}>
+              <div className={styles.modal} style={{ maxWidth: "540px" }} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalHead}>
+                  <div>
+                    <div className={styles.sectionTitle}>Full Comment</div>
+                    <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "5px" }}>
+                      {commentModal.player} &nbsp;·&nbsp; {commentModal.game}
+                    </div>
+                  </div>
+                  <button className={styles.modalClose} type="button" onClick={() => setCommentModal(null)}>✕</button>
+                </div>
+                <p style={{ fontSize: "15px", lineHeight: "1.75", color: "var(--text)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  {commentModal.comment}
+                </p>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Tab 2: Organiser → Player ratings ──────────────────────────────── */}
+      {tab === "organiser" && (
+        <>
+          <div className={styles.summaryThree}>
+            <div className={styles.summaryItem}><div className={styles.statLabel}>Total Ratings</div><div className={styles.summaryValue}>{prLoading ? "—" : prTotal}</div></div>
+            <div className={styles.summaryItem}>
+              <div className={styles.statLabel}>Avg Conduct</div>
+              <div className={styles.summaryValue} style={{ color: "var(--amber)" }}>
+                {prRows.length > 0
+                  ? (prRows.reduce((s, r) => s + r.conductRating, 0) / prRows.length).toFixed(1)
+                  : "—"}
+              </div>
+            </div>
+            <div className={styles.summaryItem}>
+              <div className={styles.statLabel}>Avg Gameplay</div>
+              <div className={styles.summaryValue} style={{ color: "var(--amber)" }}>
+                {prRows.length > 0
+                  ? (prRows.reduce((s, r) => s + r.gameplayRating, 0) / prRows.length).toFixed(1)
+                  : "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.toolbar}>
+            <input className={styles.searchInput} placeholder="Search by player, organiser, game or notes…" value={prSearch} onChange={(e) => setPrSearch(e.target.value)} />
+          </div>
+
+          {prError   && <div className={styles.formError}>{prError}</div>}
+          {prLoading && <div className={styles.loadingState}>Loading player ratings…</div>}
+
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Organiser</th>
+                  <th>Game</th>
+                  <th>Position</th>
+                  <th style={thSort} onClick={() => togglePrSort("conduct")}>Conduct ★{prSortIcon("conduct")}</th>
+                  <th style={thSort} onClick={() => togglePrSort("gameplay")}>Gameplay ★{prSortIcon("gameplay")}</th>
+                  <th style={thSort} onClick={() => togglePrSort("avg")}>Avg ★{prSortIcon("avg")}</th>
+                  <th style={thSort} onClick={() => togglePrSort("date")}>Date{prSortIcon("date")}</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!prLoading && prSorted.length === 0 && (
+                  <tr><td colSpan={9} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No organiser ratings submitted yet.</td></tr>
+                )}
+                {prSorted.map((r) => (
+                  <tr key={String(r.id)}>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{r.playerName}</div>
+                      {r.playerPhone && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{r.playerPhone}</div>}
+                    </td>
+                    <td>
+                      <div>{r.organiserName}</div>
+                      {r.organiserPhone && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{r.organiserPhone}</div>}
+                    </td>
+                    <td>
+                      <div>{r.gameTitle || "—"}</div>
+                      {r.gameFormat && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{r.gameFormat}</div>}
+                    </td>
+                    <td>
+                      {r.preferredPosition
+                        ? <span className={`${styles.badge} ${styles.badgeGray}`}>{formatStatusLabel(r.preferredPosition)}</span>
+                        : <span style={{ color: "var(--muted)" }}>—</span>
+                      }
+                      {r.gkAffinity != null && (
+                        <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>GK: {r.gkAffinity}/5</div>
+                      )}
+                    </td>
+                    <td style={{ color: "var(--amber)", fontWeight: 600 }}>★ {r.conductRating.toFixed(1)}</td>
+                    <td style={{ color: "var(--amber)", fontWeight: 600 }}>★ {r.gameplayRating.toFixed(1)}</td>
+                    <td style={{ fontWeight: 700 }}>
+                      <span style={{ color: r.avgRating >= 4 ? "var(--green)" : r.avgRating >= 3 ? "var(--amber)" : "var(--red)" }}>
+                        ★ {r.avgRating.toFixed(1)}
+                      </span>
+                    </td>
+                    <td>{formatDate(r.ratedAt)}</td>
+                    <td style={{ maxWidth: "180px" }}>
+                      {!r.notes ? (
+                        <span style={{ color: "var(--muted)" }}>—</span>
+                      ) : r.notes.length <= TRUNC ? (
+                        <span style={{ fontSize: "13px" }}>{r.notes}</span>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "130px", display: "inline-block" }}>
+                            {r.notes}
+                          </span>
+                          <button
+                            type="button"
+                            title="View full notes"
+                            onClick={() => setNotesModal({ notes: r.notes!, player: r.playerName, organiser: r.organiserName })}
+                            style={{ flexShrink: 0, background: "var(--surface2)", border: "1px solid var(--border2)", color: "var(--white)", width: "24px", height: "24px", borderRadius: "50%", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                          >
+                            →
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Full-notes modal */}
+          {notesModal && (
+            <div className={styles.modalOverlay} onClick={() => setNotesModal(null)}>
+              <div className={styles.modal} style={{ maxWidth: "540px" }} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalHead}>
+                  <div>
+                    <div className={styles.sectionTitle}>Organiser Notes</div>
+                    <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "5px" }}>
+                      {notesModal.organiser} &nbsp;→&nbsp; {notesModal.player}
+                    </div>
+                  </div>
+                  <button className={styles.modalClose} type="button" onClick={() => setNotesModal(null)}>✕</button>
+                </div>
+                <p style={{ fontSize: "15px", lineHeight: "1.75", color: "var(--text)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  {notesModal.notes}
+                </p>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </>
   );
