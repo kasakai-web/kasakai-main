@@ -30,12 +30,18 @@ type AdminGameRow = {
 };
 
 type AdminPaymentRow = {
-  id: string; playerName: string; type: string; amountPaise: number;
-  gameTitle: string; method: string; paidAt?: string | null; status: string;
+  id: string; playerName: string; playerPhone?: string | null;
+  type: string; amountPaise: number; balanceAfterPaise?: number;
+  gameTitle?: string | null;
+  organiserName?: string | null; organiserPhone?: string | null;
+  description?: string | null;
+  razorpayOrderId?: string | null; razorpayPaymentId?: string | null;
+  paidAt?: string | null; status: string;
 };
 
 type AdminPaymentSummary = {
-  totalProcessedPaise?: number; totalRefundedPaise?: number; pendingCount?: number;
+  totalTopUpPaise?: number; totalDebitPaise?: number;
+  totalRefundedPaise?: number; pendingCount?: number;
 };
 
 type AdminPaymentListResponse = {
@@ -648,12 +654,24 @@ function Games() {
 
 // ── Payments ──────────────────────────────────────────────────────────────────
 
+const TXN_TYPE_LABEL: Record<string, { label: string; cls: string }> = {
+  topup:       { label: "Top-up",      cls: "badgeGreen"  },
+  lock:        { label: "Lock",        cls: "badgeAmber"  },
+  unlock:      { label: "Unlock",      cls: "badgeGray"   },
+  debit:       { label: "Debit",       cls: "badgeBlue"   },
+  refund:      { label: "Refund",      cls: "badgeViolet" },
+  backout_fee: { label: "Backout Fee", cls: "badgeRed"    },
+  bonus:       { label: "Bonus",       cls: "badgeGreen"  },
+  withdrawal:  { label: "Withdrawal",  cls: "badgeRed"    },
+};
+
 function Payments() {
   const [payments, setPayments] = useState<AdminPaymentRow[]>([]);
   const [summary, setSummary]   = useState<AdminPaymentSummary>({});
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [search, setSearch]     = useState("");
+  const [typeFilter, setTypeFilter]     = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchPayments = useCallback(async () => {
@@ -675,48 +693,123 @@ function Payments() {
   const filtered = payments.filter((p) => {
     const q = search.trim().toLowerCase();
     return (
-      [p.playerName, p.gameTitle].join(" ").toLowerCase().includes(q) &&
-      (statusFilter === "all" || p.status.toLowerCase() === statusFilter)
+      [p.playerName, p.playerPhone || "", p.gameTitle || "", p.organiserName || "", p.description || "", p.razorpayPaymentId || ""].join(" ").toLowerCase().includes(q) &&
+      (typeFilter   === "all" || p.type === typeFilter) &&
+      (statusFilter === "all" || p.status === statusFilter)
     );
   });
 
   return (
     <>
-      <Head title="Payments" sub={loading ? "Loading…" : `${payments.length} payment records`} />
-      <div className={styles.paymentSummary}>
-        <div className={styles.payCard}><div className={styles.statLabel}>Total Processed</div><div className={styles.payValue}>{formatCurrency(summary.totalProcessedPaise)}</div><div className={styles.paySub}>Paid registrations</div></div>
-        <div className={styles.payCard}><div className={styles.statLabel}>Refunds Issued</div><div className={styles.payValue}>{formatCurrency(summary.totalRefundedPaise)}</div><div className={styles.paySub}>Cancellations &amp; backouts</div></div>
-        <div className={styles.payCard}><div className={styles.statLabel}>Pending</div><div className={styles.payValue}>{summary.pendingCount ?? 0}</div><div className={styles.paySub}>Awaiting payment</div></div>
+      <Head title="Payments" sub={loading ? "Loading…" : `${payments.length} wallet transactions`} />
+
+      {/* Summary cards */}
+      <div className={styles.summaryFour}>
+        <div className={styles.summaryItem}>
+          <div className={styles.statLabel}>Total Top-ups</div>
+          <div className={styles.summaryValue} style={{ color: "var(--green)" }}>{formatCurrency(summary.totalTopUpPaise)}</div>
+          <div className={styles.paySub}>Razorpay recharges</div>
+        </div>
+        <div className={styles.summaryItem}>
+          <div className={styles.statLabel}>Total Debits</div>
+          <div className={styles.summaryValue}>{formatCurrency(summary.totalDebitPaise)}</div>
+          <div className={styles.paySub}>Game fees &amp; backout charges</div>
+        </div>
+        <div className={styles.summaryItem}>
+          <div className={styles.statLabel}>Total Refunded</div>
+          <div className={styles.summaryValue} style={{ color: "var(--violet)" }}>{formatCurrency(summary.totalRefundedPaise)}</div>
+          <div className={styles.paySub}>Cancellations &amp; refunds</div>
+        </div>
+        <div className={styles.summaryItem}>
+          <div className={styles.statLabel}>Pending</div>
+          <div className={styles.summaryValue} style={{ color: "var(--amber)" }}>{summary.pendingCount ?? 0}</div>
+          <div className={styles.paySub}>Unconfirmed transactions</div>
+        </div>
       </div>
+
+      {/* Filters */}
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search by player or game…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className={styles.searchInput} placeholder="Search player, phone, game, Razorpay ID…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select className={styles.filterSelect} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="all">All Types</option>
+          <option value="topup">Top-up</option>
+          <option value="lock">Lock</option>
+          <option value="unlock">Unlock</option>
+          <option value="debit">Debit</option>
+          <option value="refund">Refund</option>
+          <option value="backout_fee">Backout Fee</option>
+          <option value="bonus">Bonus</option>
+          <option value="withdrawal">Withdrawal</option>
+        </select>
         <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All Status</option>
           <option value="success">Success</option>
-          <option value="refunded">Refunded</option>
           <option value="pending">Pending</option>
           <option value="failed">Failed</option>
         </select>
+        <button className={styles.actionBtn} type="button" onClick={fetchPayments}>Refresh</button>
       </div>
-      {error && <div className={styles.formError}>{error}</div>}
-      {loading && <div className={styles.loadingState}>Loading payments…</div>}
+
+      {error   && <div className={styles.formError}>{error}</div>}
+      {loading && <div className={styles.loadingState}>Loading transactions…</div>}
+
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>Txn ID</th><th>Player</th><th>Type</th><th>Amount</th><th>Game</th><th>Method</th><th>Date</th><th>Status</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Txn ID</th><th>Player</th><th>Type</th><th>Amount</th>
+              <th>Balance After</th><th>Game</th><th>Organiser</th>
+              <th>Description / Razorpay</th><th>Date</th><th>Status</th>
+            </tr>
+          </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No payment records.</td></tr>}
-            {filtered.map((p) => (
-              <tr key={p.id}>
-                <td style={{ fontFamily: "monospace", fontSize: "12px" }}>{String(p.id).slice(-8).toUpperCase()}</td>
-                <td>{p.playerName}</td>
-                <td><span className={`${styles.badge} ${styles.badgeBlue}`}>{p.type}</span></td>
-                <td>{formatCurrency(p.amountPaise)}</td>
-                <td>{p.gameTitle}</td>
-                <td>{p.method}</td>
-                <td>{formatDateTime(p.paidAt)}</td>
-                <td><span className={`${styles.badge} ${badgeClassForStatus(p.status)}`}>{formatStatusLabel(p.status)}</span></td>
-              </tr>
-            ))}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={10} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No transactions found.</td></tr>
+            )}
+            {filtered.map((p) => {
+              const txnMeta = TXN_TYPE_LABEL[p.type] || { label: p.type, cls: "badgeGray" };
+              return (
+                <tr key={String(p.id)}>
+                  <td style={{ fontFamily: "monospace", fontSize: "11px", color: "var(--muted)" }}>
+                    {String(p.id).slice(-8).toUpperCase()}
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{p.playerName}</div>
+                    {p.playerPhone && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.playerPhone}</div>}
+                  </td>
+                  <td>
+                    <span className={`${styles.badge} ${styles[txnMeta.cls as keyof typeof styles]}`}>
+                      {txnMeta.label}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 600, color: ["refund", "unlock", "bonus"].includes(p.type) ? "var(--green)" : ["debit", "lock", "backout_fee", "withdrawal"].includes(p.type) ? "var(--red)" : "var(--text)" }}>
+                    {["debit", "lock", "backout_fee", "withdrawal"].includes(p.type) ? "−" : "+"}{formatCurrency(p.amountPaise)}
+                  </td>
+                  <td style={{ fontSize: "12px", color: "var(--muted)" }}>{formatCurrency(p.balanceAfterPaise)}</td>
+                  <td>{p.gameTitle || <span style={{ color: "var(--muted)" }}>—</span>}</td>
+                  <td>
+                    {p.organiserName
+                      ? <>
+                          <div style={{ fontWeight: 500 }}>{p.organiserName}</div>
+                          {p.organiserPhone && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.organiserPhone}</div>}
+                        </>
+                      : <span style={{ color: "var(--muted)" }}>—</span>
+                    }
+                  </td>
+                  <td style={{ maxWidth: "180px" }}>
+                    {p.description && <div style={{ fontSize: "12px" }}>{p.description}</div>}
+                    {p.razorpayPaymentId && (
+                      <div style={{ fontFamily: "monospace", fontSize: "10px", color: "var(--muted)", marginTop: "2px" }}>
+                        {p.razorpayPaymentId}
+                      </div>
+                    )}
+                    {!p.description && !p.razorpayPaymentId && <span style={{ color: "var(--muted)" }}>—</span>}
+                  </td>
+                  <td>{formatDateTime(p.paidAt)}</td>
+                  <td><span className={`${styles.badge} ${badgeClassForStatus(p.status)}`}>{formatStatusLabel(p.status)}</span></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
