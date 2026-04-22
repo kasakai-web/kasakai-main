@@ -99,7 +99,11 @@ type OrganiserEarningRow = {
 // Feedback
 type FeedbackRow = {
   _id: string;
-  game?: { title?: string; format?: string; scheduledAt?: string } | null;
+  game?: {
+    title?: string; format?: string; scheduledAt?: string;
+    organiser?: { name?: string; phone?: string } | null;
+    turf?: { name?: string; address?: { area?: string; city?: string } } | null;
+  } | null;
   submittedBy?: { name?: string; phone?: string } | null;
   gameRating: number; organiserRating?: number | null; venueRating?: number | null;
   tags?: string[]; comment?: string | null; createdAt: string;
@@ -817,17 +821,24 @@ function Notifications() {
 
 // ── Feedback (live) ───────────────────────────────────────────────────────────
 
+type FbSortKey = "date" | "gameRating" | "organiserRating" | "venueRating";
+
+type CommentModalData = { comment: string; player: string; game: string };
+
 function Feedback() {
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [summary, setSummary]   = useState<{ avgGame?: number | null; tagCounts?: Record<string, number> }>({});
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [search, setSearch]     = useState("");
+  const [sortKey, setSortKey]   = useState<FbSortKey>("date");
+  const [sortDir, setSortDir]   = useState<"asc" | "desc">("desc");
+  const [commentModal, setCommentModal] = useState<CommentModalData | null>(null);
 
   useEffect(() => {
     const token = getAdminToken();
     if (!token) { setLoading(false); setError("Admin session missing."); return; }
-    fetch(`${API_BASE}/admin/feedback?limit=100`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE}/admin/feedback?limit=200`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d: FeedbackApiResponse) => {
         if (d.success) { setFeedback(d.data || []); setSummary(d.summary || {}); }
@@ -837,16 +848,44 @@ function Feedback() {
       .finally(() => setLoading(false));
   }, []);
 
+  function toggleSort(key: FbSortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+
+  function sortIcon(key: FbSortKey) {
+    if (sortKey !== key) return <span style={{ color: "var(--muted2)", marginLeft: "4px" }}>↕</span>;
+    return <span style={{ marginLeft: "4px" }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
+  }
+
+  const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
+
   const filtered = feedback.filter((f) => {
     const q = search.trim().toLowerCase();
-    return [f.submittedBy?.name || "", f.game?.title || "", f.comment || ""].join(" ").toLowerCase().includes(q);
+    return [
+      f.submittedBy?.name || "", f.submittedBy?.phone || "",
+      f.game?.title || "", f.game?.organiser?.name || "",
+      f.game?.turf?.name || "", f.comment || "",
+    ].join(" ").toLowerCase().includes(q);
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    let av = 0, bv = 0;
+    if (sortKey === "date")           { av = new Date(a.createdAt).getTime(); bv = new Date(b.createdAt).getTime(); }
+    if (sortKey === "gameRating")     { av = a.gameRating ?? 0;       bv = b.gameRating ?? 0; }
+    if (sortKey === "organiserRating"){ av = a.organiserRating ?? 0;  bv = b.organiserRating ?? 0; }
+    if (sortKey === "venueRating")    { av = a.venueRating ?? 0;      bv = b.venueRating ?? 0; }
+    return sortDir === "asc" ? av - bv : bv - av;
   });
 
   const topTags = Object.entries(summary.tagCounts || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
+  const TRUNC = 80;
+
   return (
     <>
       <Head title="Player Feedback" sub={loading ? "Loading…" : `${feedback.length} feedback submissions`} />
+
       <div className={styles.paymentSummary}>
         <div className={styles.payCard}><div className={styles.statLabel}>Total Submissions</div><div className={styles.payValue}>{loading ? "—" : feedback.length}</div><div className={styles.paySub}>Post-game feedback</div></div>
         <div className={styles.payCard}><div className={styles.statLabel}>Avg Game Rating</div><div className={styles.payValue} style={{ color: "var(--amber)" }}>{summary.avgGame != null ? `${summary.avgGame} / 5` : "—"}</div><div className={styles.paySub}>Across all submitted feedback</div></div>
@@ -859,45 +898,111 @@ function Feedback() {
           </div>
         </div>
       </div>
+
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search by player, game or comment…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className={styles.searchInput} placeholder="Search by player, organiser, turf, game or comment…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      {error && <div className={styles.formError}>{error}</div>}
+
+      {error   && <div className={styles.formError}>{error}</div>}
       {loading && <div className={styles.loadingState}>Loading feedback…</div>}
+
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Player</th><th>Game</th><th>Date</th><th>Game ★</th><th>Organiser ★</th><th>Venue ★</th><th>Tags</th><th>Comment</th></tr>
+            <tr>
+              <th>Player</th>
+              <th>Game</th>
+              <th>Organiser</th>
+              <th>Turf / Venue</th>
+              <th style={thSort} onClick={() => toggleSort("date")}>Date{sortIcon("date")}</th>
+              <th style={thSort} onClick={() => toggleSort("gameRating")}>Game ★{sortIcon("gameRating")}</th>
+              <th style={thSort} onClick={() => toggleSort("organiserRating")}>Organiser ★{sortIcon("organiserRating")}</th>
+              <th style={thSort} onClick={() => toggleSort("venueRating")}>Venue ★{sortIcon("venueRating")}</th>
+              <th>Tags</th>
+              <th>Comment</th>
+            </tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={8} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No feedback submitted yet.</td></tr>}
-            {filtered.map((f) => (
+            {!loading && sorted.length === 0 && (
+              <tr><td colSpan={10} style={{ textAlign: "center", padding: "24px", color: "var(--muted)" }}>No feedback submitted yet.</td></tr>
+            )}
+            {sorted.map((f) => (
               <tr key={f._id}>
                 <td>
-                  {f.submittedBy?.name || "—"}
+                  <div style={{ fontWeight: 500 }}>{f.submittedBy?.name || "—"}</div>
                   <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.submittedBy?.phone || ""}</div>
                 </td>
                 <td>
                   {f.game?.title || "—"}
                   <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.game?.format || ""}</div>
                 </td>
+                <td>
+                  <div>{f.game?.organiser?.name || "—"}</div>
+                  <div style={{ fontSize: "11px", color: "var(--muted)" }}>{f.game?.organiser?.phone || ""}</div>
+                </td>
+                <td>
+                  <div>{f.game?.turf?.name || "—"}</div>
+                  {(f.game?.turf?.address?.area || f.game?.turf?.address?.city) && (
+                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>
+                      {[f.game?.turf?.address?.area, f.game?.turf?.address?.city].filter(Boolean).join(", ")}
+                    </div>
+                  )}
+                </td>
                 <td>{formatDate(f.createdAt)}</td>
-                <td style={{ color: "var(--amber)", letterSpacing: "0.03em" }}>{starRating(f.gameRating)}</td>
-                <td style={{ color: "var(--amber)", letterSpacing: "0.03em" }}>{starRating(f.organiserRating)}</td>
-                <td style={{ color: "var(--amber)", letterSpacing: "0.03em" }}>{starRating(f.venueRating)}</td>
+                <td style={{ color: "var(--amber)" }}>{starRating(f.gameRating)}</td>
+                <td style={{ color: "var(--amber)" }}>{starRating(f.organiserRating)}</td>
+                <td style={{ color: "var(--amber)" }}>{starRating(f.venueRating)}</td>
                 <td>
                   {(f.tags || []).map((tag) => (
                     <span key={tag} className={`${styles.badge} ${styles.badgeGray}`} style={{ marginRight: "3px" }}>{tag}</span>
                   ))}
                 </td>
-                <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {f.comment || "—"}
+                <td style={{ maxWidth: "200px" }}>
+                  {!f.comment ? (
+                    <span style={{ color: "var(--muted)" }}>—</span>
+                  ) : f.comment.length <= TRUNC ? (
+                    <span style={{ fontSize: "13px" }}>{f.comment}</span>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "150px", display: "inline-block" }}>
+                        {f.comment}
+                      </span>
+                      <button
+                        type="button"
+                        title="View full comment"
+                        onClick={() => setCommentModal({ comment: f.comment!, player: f.submittedBy?.name || "Unknown", game: f.game?.title || "Unknown game" })}
+                        style={{ flexShrink: 0, background: "var(--surface2)", border: "1px solid var(--border2)", color: "var(--white)", width: "24px", height: "24px", borderRadius: "50%", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Full-comment modal */}
+      {commentModal && (
+        <div className={styles.modalOverlay} onClick={() => setCommentModal(null)}>
+          <div className={styles.modal} style={{ maxWidth: "540px" }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <div>
+                <div className={styles.sectionTitle}>Full Comment</div>
+                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "5px" }}>
+                  {commentModal.player} &nbsp;·&nbsp; {commentModal.game}
+                </div>
+              </div>
+              <button className={styles.modalClose} type="button" onClick={() => setCommentModal(null)}>✕</button>
+            </div>
+            <p style={{ fontSize: "15px", lineHeight: "1.75", color: "var(--text)", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {commentModal.comment}
+            </p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
