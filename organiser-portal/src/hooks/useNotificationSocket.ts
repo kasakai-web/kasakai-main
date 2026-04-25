@@ -51,10 +51,13 @@ export function useNotificationSocket(
       console.warn("[SOCKET] Connection error:", err.message);
     });
 
-    socket.on("new-notification", (n: IncomingNotification) => {
-      cbRef.current(n);
-    });
+   socket.on("new-notification", (n: IncomingNotification) => {
+  console.log("🔔 Notification:", n);
 
+  alert(`${n.title}\n${n.body}`); // 👈 ADD HERE
+
+  cbRef.current(n);
+});
     socketRef.current = socket;
   }, []);
 

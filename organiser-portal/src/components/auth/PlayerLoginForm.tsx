@@ -41,15 +41,16 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       });
 
       const data = await response.json();
+      console.log("LOGIN RESPONSE:", data); // 👈 ADD THIS
 
       if (!response.ok) {
         throw new Error(response.status === 401 ? "Wrong credentials" : data.message || "Failed to login");
       }
 
       const { token, user } = data;
-      localStorage.setItem("authToken", token);
+      localStorage.setItem("authToken", token); // ✅ consistent
       localStorage.setItem("userRole", user.role || "organiser");
-      localStorage.setItem("userId", user.id);
+      localStorage.setItem("userId", user._id); // ✅ important
       localStorage.setItem("userName", user.name || "User");
       if (user.profileImage) {
         const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
@@ -89,9 +90,9 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       if (isNew) {
         localStorage.removeItem("newSignup");
         localStorage.setItem("showProfileBanner", "true");
-        router.replace(`/dashboard/organizer/${user.id}/profile`);
+        router.replace(`/dashboard/organizer/${user._id}/profile`);
       } else {
-        router.replace(`/dashboard/organizer/${user.id}`);
+        router.replace(`/dashboard/organizer/${user._id}`);
       }
     } catch (err: any) {
       if (err instanceof TypeError && /fetch/i.test(err.message || "")) {

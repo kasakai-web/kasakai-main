@@ -1,4 +1,7 @@
+const TeamDistributor = require("../../utils/teamDistributor");
+const GameDecisionEngine = require("../../utils/gameDecisionEngine");
 const express = require("express");
+
 const {
   createGame,
   getOrganiserGames,
@@ -18,11 +21,14 @@ const {
   joinWaitlist,
   leaveWaitlist,
 } = require("./game.controller");
+
 const { protect, authorize } = require("../auth/auth.middleware");
 
 const router = express.Router();
 
-// Organiser-facing routes (must come BEFORE catch-all routes)
+
+// ================= ORGANISER ROUTES =================
+
 router.route("/organisers/create")
   .post(protect, authorize("organiser"), createGame);
 
@@ -48,7 +54,9 @@ router.route("/organisers/:id")
   .delete(protect, authorize("organiser"), deleteGame)
   .patch(protect, authorize("organiser"), updateGame);
 
-// Player-facing routes (more specific to less specific)
+
+// ================= PLAYER ROUTES =================
+
 router.route("/my-games")
   .get(protect, authorize("player"), getMyGames);
 
@@ -67,11 +75,107 @@ router.route("/:id/waitlist")
 router.route("/:id/leave-waitlist")
   .post(protect, authorize("player"), leaveWaitlist);
 
+
+// ================= CUSTOM LOGIC ROUTES =================
+
+// ✅ TEAM DISTRIBUTION
+router.post("/:id/distribute", async (req, res) => {
+  try {
+    const { players } = req.body;
+
+    console.log("Players received:", players);
+
+    if (!players || players.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Not enough players",
+      });
+    }
+
+    const distributor = new TeamDistributor(players);
+    const result = distributor.generateTeams();
+
+    return res.json({
+      success: true,
+      teams: result.teams,
+    });
+
+  } catch (err) {
+    console.error("Distribution error:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+
+// ✅ GAME DECISION ENGINE
+router.post("/:id/evaluate", async (req, res) => {
+  try {
+    const { players, time } = req.body;
+
+    console.log("Evaluate called:", time, players?.length);
+
+    if (!players) {
+      return res.status(400).json({
+        success: false,
+        message: "Players missing",
+      });
+    }
+
+    const engine = new GameDecisionEngine(players.length);
+    let result;
+
+    if (time === "8PM") {
+      result = engine.evaluateAt8PM();
+    } 
+    else if (time === "10PM") {
+      result = engine.evaluateAt10PM();
+
+      // 🔥 AUTO DISTRIBUTE WHEN CONFIRMED
+      if (result.action === "CONFIRM" && players.length >= 2) {
+        const distributor = new TeamDistributor(players);
+        const teamResult = distributor.generateTeams();
+
+        return res.json({
+          success: true,
+          decision: result,
+          teams: teamResult.teams
+        });
+      }
+    } 
+    else if (time === "BEFORE_GAME") {
+      result = engine.evaluateBeforeGame();
+    } 
+    else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid time",
+      });
+    }
+
+    console.log("Decision:", result);
+
+    return res.json({
+      success: true,
+      decision: result,
+    });
+
+  } catch (err) {
+    console.error("Decision error:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+
+// ================= GAME FETCH =================
+
 router.route("/:id")
   .get(protect, authorize("player", "organiser"), getGameById);
 
-// Catch-all route for listing games (must come LAST)
+
+// ================= ALL GAMES =================
+
 router.route("/")
   .get(protect, authorize("player"), getAllGames);
+
 
 module.exports = router;

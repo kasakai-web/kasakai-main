@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 
+import { getAuthHeaders } from "@/utils/api";
+
 interface Registration {
   _id?: string;
   player?: { _id?: string; name?: string; phone?: string; email?: string };
@@ -23,6 +25,7 @@ interface WaitlistEntry {
 }
 
 interface PlayerDetailsModalProps {
+  gameId: string;   // ✅ ADD THIS
   gameName: string;
   players: Registration[];
   waitlist?: WaitlistEntry[];
@@ -71,7 +74,21 @@ function initials(name?: string) {
   return name.substring(0, 2).toUpperCase();
 }
 
+function mapPosition(pos?: string) {
+  if (!pos) return "Any";
+
+  const p = pos.toLowerCase();
+
+  if (p.includes("goal")) return "G";
+  if (p.includes("def")) return "D";
+  if (p.includes("mid")) return "M";
+  if (p.includes("for")) return "F";
+
+  return "Any";
+}
+
 export function PlayerDetailsModal({
+  gameId,
   gameName,
   players,
   waitlist = [],
@@ -83,7 +100,52 @@ export function PlayerDetailsModal({
   onRefresh,
   isRefreshing = false,
 }: PlayerDetailsModalProps) {
-  const [copied, setCopied]           = useState(false);
+
+  // ✅ ADD HERE
+  const [teams, setTeams] = useState<any>(null);
+
+  const [copied, setCopied] = useState(false);
+ const handleDistribute = async () => {
+  try {
+    const res = await fetch(
+      `http://localhost:5000/api/v1/games/organisers/${gameId}/distribute`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          players: players.map((p: any) => ({
+            name: p.plusOneName || p.player?.name,
+            rating: p.player?.rating ?? 5,
+            gkQuotient: p.player?.gkQuotient ?? 0,
+            position: mapPosition(p.preferredPosition),
+            playWith: p.player?.playWith || [],
+            playAgainst: p.player?.playAgainst || [],
+          })),
+        }),
+      }
+    );
+
+    const data = await res.json();
+    console.log("DISTRIBUTE RESPONSE:", data);
+
+    if (!res.ok || !data.success) {
+      alert(data.message || "Team generation failed");
+      return;
+    }
+
+    const teamsData = data.data;
+
+    setTeams(teamsData);
+
+    alert("Teams created! ✅");
+
+    onRefresh?.();
+
+  } catch (err) {
+    console.error("Error distributing teams:", err);
+    alert("Something went wrong");
+  }
+};
   const [processingId, setProcessingId] = useState<string | null>(null);
   // totalSlots is the hard cap (includes organiser slot when organiserIsPlaying)
   const organiserCount = organiserIsPlaying ? 1 : 0;
@@ -165,6 +227,22 @@ export function PlayerDetailsModal({
             >
               {copied ? "✓ Copied!" : "📋 Copy List"}
             </button>
+            <button
+            onClick={handleDistribute}
+            style={{
+              background: "rgba(59,130,246,0.15)",
+              border: "1px solid rgba(59,130,246,0.3)",
+              color: "#3b82f6",
+              padding: "6px 12px",
+              borderRadius: 6,
+              fontSize: 12,
+              cursor: "pointer",
+              fontWeight: 600,
+              transition: "all 0.2s",
+            }}
+            title="Auto distribute teams">
+              ⚽ Distribute Teams
+              </button>
             <button className="close-btn" onClick={onClose}>✕</button>
           </div>
         </div>
@@ -339,6 +417,29 @@ export function PlayerDetailsModal({
           </div>
         )}
 
+        {teams && (
+  <div style={{ marginTop: 20 }}>
+    <h3 style={{ color: "#fff" }}>⚽ Teams</h3>
+
+    <div style={{ display: "flex", gap: 40 }}>
+
+      <div>
+        <h4 style={{ color: "#ef4444" }}>Red Team</h4>
+        {teams?.teamA?.map((p: any, i: number) => (
+  <div key={i} style={{ color: "#ccc" }}>{p.name || p}</div>
+))}
+      </div>
+
+      <div>
+        <h4 style={{ color: "#3b82f6" }}>Blue Team</h4>
+        {teams?.teamB?.map((p: any, i: number) => (
+  <div key={i} style={{ color: "#ccc" }}>{p.name || p}</div>
+))}
+      </div>
+
+    </div>
+  </div>
+)}
         <div className="modal-footer">
           <button className="btn-close" onClick={onClose}>
             Close

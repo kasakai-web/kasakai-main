@@ -1,3 +1,4 @@
+const { notify } = require("./services/notificationService");
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const http = require('http');
@@ -94,3 +95,97 @@ mongoose
     console.error('MongoDB connection error:', err);
     process.exit(1);
   });
+const cron = require("node-cron");
+const Game = require("./models/Game");
+const GameDecisionEngine = require("./utils/gameDecisionEngine");
+
+const runGameDecision = async (time) => {
+  console.log(`⏰ Running ${time} game decision...`);
+
+  const games = await Game.find({ status: "open" });
+
+  for (let game of games) {
+    const playerCount =
+      game.registrations.length + (game.organiserIsPlaying ? 1 : 0);
+
+    const engine = new GameDecisionEngine(playerCount);
+
+    let decision;
+
+    if (time === "8PM") {
+      decision = engine.evaluateAt8PM();
+    } else if (time === "10PM") {
+      decision = engine.evaluateAt10PM();
+    }
+
+    console.log("Game:", game.title, "Players:", playerCount, decision);
+
+    if (decision.action === "SUGGEST_CANCEL") {
+      console.log("⚠ Suggest cancel:", game.title);
+    }
+
+   if (decision.action === "CONFIRM") {
+  if (playerCount >= 10 && playerCount <= 14) {
+    game.format = "7v7";
+  } else if (playerCount > 14) {
+    game.format = "9v9";
+  }
+
+  game.status = "confirmed";
+  await game.save();
+
+  console.log("✅ Game confirmed:", game.title, "Format:", game.format);
+
+  // 🔔 notify organiser
+  notify(game.organiser, "organiser", {
+    type: "game_confirmed",
+    title: "✅ Game Confirmed!",
+    body: `${game.title} is confirmed (${game.format})`,
+    game: game._id,
+  });
+
+  // 🔔 notify players
+  for (let reg of game.registrations) {
+    if (!reg.player) continue;
+
+    notify(reg.player, "player", {
+      type: "game_confirmed",
+      title: "⚽ Game Confirmed!",
+      body: `${game.title} is ON! Get ready 🔥`,
+      game: game._id,
+    });
+  }
+}
+
+if (decision.action === "CANCEL") {
+  game.status = "cancelled";
+  await game.save();
+
+  console.log("❌ Game cancelled:", game.title);
+
+  // 🔔 notify organiser
+  notify(game.organiser, "organiser", {
+    type: "game_cancelled",
+    title: "❌ Game Cancelled",
+    body: `${game.title} has been cancelled`,
+    game: game._id,
+  });
+
+  // 🔔 notify players
+  for (let reg of game.registrations) {
+    if (!reg.player) continue;
+
+    notify(reg.player, "player", {
+      type: "game_cancelled",
+      title: "❌ Game Cancelled",
+      body: `${game.title} has been cancelled`,
+      game: game._id,
+    });
+  }
+}
+  }
+};
+
+// ✅ Runs ONLY once at exact times
+cron.schedule("0 20 * * *", () => runGameDecision("8PM"));  // 8 PM
+cron.schedule("0 22 * * *", () => runGameDecision("10PM")); // 10 PM

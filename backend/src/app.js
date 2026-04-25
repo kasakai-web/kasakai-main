@@ -38,13 +38,18 @@ app.use(
   cors({
     origin(origin, callback) {
       // In local development, allow localhost origins on any port.
-      if (
-        env.nodeEnv === 'development' &&
-        origin &&
-        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
-      ) {
-        return callback(null, true);
-      }
+      //if (
+      //  env.nodeEnv === 'development' &&
+      //  origin &&
+      //  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
+      //) {
+      //  return callback(null, true);
+     // }
+
+     // Allow all origins in development for local testing (prevents CORS issues across devices/IPs)
+     if (env.nodeEnv === 'development') {
+      return callback(null, true);
+    }
 
       const normalizedOrigin = normalizeOrigin(origin);
 

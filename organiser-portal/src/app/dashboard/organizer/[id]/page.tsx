@@ -260,6 +260,10 @@ export default function OrganizerDashboard() {
 
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
   const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
+  const handleLogout = () => {
+  clearSession(); // ✅ better than localStorage.clear()
+  router.replace("/login?role=organiser");
+};
 
   return (
     <div className="organizer-dashboard-container">
@@ -593,6 +597,7 @@ export default function OrganizerDashboard() {
 
       {showPlayersModal && selectedGame && (
         <PlayerDetailsModal
+          gameId={selectedGame._id}
           gameName={selectedGame.title}
           players={selectedGame.registrations || []}
           waitlist={selectedGame.waitlist || []}

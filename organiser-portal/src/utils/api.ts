@@ -45,3 +45,12 @@ export const clearSession = () => {
   localStorage.removeItem("userName");
   localStorage.removeItem("userProfileImage");
 };
+
+export const getAuthHeaders = () => {
+  const token = isBrowser() ? localStorage.getItem("authToken") : null;
+
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};

@@ -1,7 +1,7 @@
 ﻿const mongoose = require('mongoose');
 require('dotenv').config();
 
-const Venue = require('./src/models/Venue');
+const Venue = require('./src/models/Turf');
 
 const turfs = [
   {

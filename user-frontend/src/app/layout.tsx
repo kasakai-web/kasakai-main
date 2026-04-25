@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import SocketClient from "./SocketClient";
 
 export const metadata: Metadata = {
   title: "Kasa Kai — Organised Football",
@@ -15,12 +16,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>
+    <html lang="en">
+      <body>
+        <SocketClient /> {/* 👈 this handles socket */}
         {children}
       </body>
     </html>

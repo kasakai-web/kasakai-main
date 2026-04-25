@@ -36,10 +36,10 @@ function AuthFlow() {
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
-    const uRole = localStorage.getItem("userRole") || "organiser";
+    const uRole = localStorage.getItem("userRole");
     const uId = localStorage.getItem("userId");
 
-    if (token && uRole && uId && step === "login") {
+    if (token && uId && uRole === "organiser" && step === "login") {
       router.replace(`/dashboard/organizer/${uId}`);
     }
   }, [router, step]);
