@@ -1,4 +1,5 @@
-const Game = require("../../models/Game"); // keep if this path works
+const Game = require("../../models/Game");
+const PlayerRating = require("../../models/PlayerRating");
 const TeamDistributor = require("../../utils/teamDistributor");
 const express = require("express");
 const {
@@ -51,104 +52,122 @@ router.route("/organisers/:id/open")
 router.route("/organisers/:id/confirm")
   .patch(protect, authorize("organiser"), confirmGame);
 
-// ✅ ADD DISTRIBUTE HERE (NOT AT BOTTOM)
 router.post(
   "/organisers/:id/distribute",
   protect,
   authorize("organiser"),
   async (req, res) => {
     try {
-      console.log("🚀 USING REAL ALGO");
-
       const gameId = req.params.id;
+      const game   = await Game.findById(gameId).populate("registrations.player");
 
-const game = await Game.findById(gameId)
-  .populate("registrations.player");
+      if (!game) {
+        return res.status(404).json({ success: false, message: "Game not found" });
+      }
 
-if (!game) {
-  return res.status(404).json({
-    success: false,
-    message: "Game not found",
-  });
-}
+      // Ownership check — only the game's organiser may distribute
+      if (game.organiser.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: "Not authorized to distribute this game" });
+      }
 
-const validRegs = (game.registrations || []).filter(
-  (r) => !['refunded','forfeited'].includes(r.paymentStatus)
-);
-const positionMap = {
-  goalkeeper: "G",
-  defender: "D",
-  midfielder: "M",
-  forward: "F",
-  any: "Any"
-};
-const players = validRegs.map((reg) => {
-  const p = reg.player;
+      const validRegs = (game.registrations || []).filter(
+        r => !['refunded', 'forfeited'].includes(r.paymentStatus)
+      );
 
-  return {
-    id: p?._id,
-    name: p?.name || "Unknown",
+      if (validRegs.length < 2) {
+        return res.status(400).json({ success: false, message: "Need at least 2 players to distribute" });
+      }
 
-    rating: p?.rating || 5,
+      // Fetch the most-recent organiser rating for every registered player to get
+      // gkAffinity, playWith, and playAgainst (stored as ObjectId refs — populate names).
+      const playerIds = validRegs.map(r => r.player?._id).filter(Boolean);
+      const allRatings = await PlayerRating.find({ player: { $in: playerIds } })
+        .populate("playWith",    "name")
+        .populate("playAgainst", "name")
+        .sort({ createdAt: -1 })
+        .lean();
 
-    position: positionMap[reg.preferredPosition] || "Any",
+      // Keep only the most recent rating per player (array is already sorted desc)
+      const ratingMap = {};
+      for (const r of allRatings) {
+        const pid = r.player.toString();
+        if (!ratingMap[pid]) ratingMap[pid] = r;
+      }
 
-    gkQuotient: reg.preferredPosition === "goalkeeper" ? 1 : 0,
+      const positionMap = {
+        goalkeeper: "G",
+        defender:   "D",
+        midfielder: "M",
+        forward:    "F",
+        any:        "Any",
+      };
 
-    playWith: [],
-    playAgainst: [],
-  };
-});
+      const players = validRegs.map(reg => {
+        const p   = reg.player;
+        const pid = p?._id?.toString();
+        const pr  = pid ? ratingMap[pid] : null;
 
-// ➕ Add organiser if playing
-if (game.organiserIsPlaying) {
-  players.push({
-    id: game.organiser,
-    name: "Organiser",
-    rating: 5,
-    position: "Any",
-    gkQuotient: 0,
-    playWith: [],
-    playAgainst: [],
-  });
-}
+        // Dedicated GK → gkQuotient 3; gkAffinity ≥ 2 from organiser rating → use that value.
+        let gkQuotient = 0;
+        if (reg.preferredPosition === "goalkeeper") {
+          gkQuotient = 3;
+        } else if (pr?.gkAffinity != null && pr.gkAffinity >= 2) {
+          gkQuotient = pr.gkAffinity;
+        }
 
-console.log("Players from DB:", players.length);
+        return {
+          id:          p?._id,
+          name:        p?.name   || "Unknown",
+          // Use 2.5 (mid-range) for unrated players so they don't appear max-skilled.
+          rating:      (p?.rating > 0) ? p.rating : 2.5,
+          position:    positionMap[reg.preferredPosition] || "Any",
+          gkQuotient,
+          // playWith / playAgainst come from PlayerRating as populated Player docs → extract names.
+          playWith:    pr?.playWith?.map(p => p.name).filter(Boolean)    ?? [],
+          playAgainst: pr?.playAgainst?.map(p => p.name).filter(Boolean) ?? [],
+          signedUpAt:  reg.signedUpAt,
+        };
+      });
 
-      if (players.length < game.minPlayers) {
-        return res.status(400).json({
-          success: false,
-          message: "Not enough players",
+      // Include the organiser as a player if they are playing
+      if (game.organiserIsPlaying) {
+        players.push({
+          id:          game.organiser,
+          name:        "Organiser",
+          rating:      2.5,
+          position:    "Any",
+          gkQuotient:  0,
+          playWith:    [],
+          playAgainst: [],
+          signedUpAt:  game.createdAt,
         });
       }
 
+      if (players.length < (game.minPlayers || 2)) {
+        return res.status(400).json({ success: false, message: "Not enough players to distribute" });
+      }
+
       const distributor = new TeamDistributor(players);
-      const result = distributor.generateTeams();
+      const result      = distributor.generateTeams();
 
       return res.json({
         success: true,
         data: {
-          teamA: result.teams.teamA.players,
-          teamB: result.teams.teamB.players,
-          statsA: result.teams.teamA.stats,
-          statsB: result.teams.teamB.stats,
-          isBalanced: result.isBalanced,
-          skillDifference: result.skillDifference
-        }
+          teamA:           result.teams.teamA.players,
+          teamB:           result.teams.teamB.players,
+          statsA:          result.teams.teamA.stats,
+          statsB:          result.teams.teamB.stats,
+          isBalanced:      result.isBalanced,
+          skillDifference: result.skillDifference,
+          reasoningLog:    result.reasoningLog,
+        },
       });
-
     } catch (err) {
-      console.error(err);
-      res.status(500).json({
-        success: false,
-        message: err.message,
-      });
+      console.error("[DISTRIBUTE]", err);
+      res.status(500).json({ success: false, message: err.message });
     }
   }
 );
-
-router.route("/organisers/:id/complete")
-  .patch(protect, authorize("organiser"), completeGame);
 
 router.route("/organisers/:id/complete")
   .patch(protect, authorize("organiser"), completeGame);
