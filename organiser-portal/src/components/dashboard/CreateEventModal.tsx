@@ -102,6 +102,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
     if (!title.trim()) newErrors.title = "Event title is required";
     if (!turf)         newErrors.turf  = "Please select a turf";
     if (!date)         newErrors.date  = "Date is required";
+    if (date && new Date(`${date}T${time}`) <= new Date())
+      newErrors.date = "Game must be scheduled in the future";
     if (!feeInRs || isNaN(Number(feeInRs)) || Number(feeInRs) < 0)
       newErrors.feeInRs = "Valid fee is required";
     // Capacity check: organiser + guests must not exceed totalSlots
@@ -231,6 +233,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <input
                   type="date"
                   value={date}
+                  min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setDate(e.target.value)}
                   className={`form-input ${errors.date ? "error" : ""}`}
                 />

@@ -1,19 +1,18 @@
 # Kasakai Monorepo
 
-Kasakai is a multi-app football event platform with separate experiences for players, organisers, and admins, backed by a shared Node.js API.
+Kasakai is a multi-app football event platform with separate experiences for players, organisers, and admins. The backend API now lives in a separate repository, while this workspace contains the three Next.js frontends.
 
 ## Repositories In This Workspace
 
-- `backend` - Express + MongoDB API (`/api/v1`)
 - `user-frontend` - Player-facing Next.js app
 - `organiser-portal` - Organiser-facing Next.js app
 - `admin-portal` - Admin-facing Next.js app
 
 ## Tech Stack
 
-- Backend: Node.js, Express 5, MongoDB (Mongoose), JWT, Nodemailer
 - Frontend: Next.js 16 (App Router), React 19, TypeScript
-- CI/CD: GitHub Actions, Azure Web App (backend)
+- API: External Node.js / MongoDB service exposed at `/api/v1`
+- CI/CD: Frontend builds in GitHub Actions or host-specific pipelines
 
 ## Local Development
 
@@ -21,7 +20,7 @@ Kasakai is a multi-app football event platform with separate experiences for pla
 
 - Node.js 22+
 - npm 10+
-- MongoDB instance (local or hosted)
+- Access to the deployed backend API or a local backend running on port 5000
 
 ### 2. Install Dependencies
 
@@ -36,8 +35,7 @@ cd ../admin-portal && npm install
 
 ### 3. Configure Environment
 
-- Backend: copy `backend/.env.example` to `backend/.env` and fill values.
-- Frontends: create `.env` in each frontend if you need custom API base URL.
+- Create `.env` in each frontend if you need a custom API base URL.
 
 Recommended frontend variable:
 
@@ -50,10 +48,6 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api/v1
 In separate terminals:
 
 ```bash
-# API
-cd backend
-npm run dev
-
 # Player app (3000)
 cd user-frontend
 npm run dev:3000
@@ -70,7 +64,6 @@ npm run dev -- -p 3002
 ## Production Build Commands
 
 ```bash
-cd backend && npm run lint && npm test
 cd ../user-frontend && npm run build
 cd ../organiser-portal && npm run build
 cd ../admin-portal && npm run build
@@ -78,13 +71,12 @@ cd ../admin-portal && npm run build
 
 ## Deployment Notes
 
-- Backend Azure workflow: `.github/workflows/main_kasakai-api.yml`
-- Backend workflow triggers on changes under `backend/**` and deploys app `kasakai-backend`.
 - Frontends can be deployed independently (for example on Vercel/Netlify/Azure Static Web Apps).
+- Backend deployment is handled in the separate API repository.
 
 ## API Base Paths
 
-Backend serves:
+Backend API serves:
 
 - `/api/v1/auth`
 - `/api/v1/players`
@@ -99,7 +91,6 @@ Health endpoint:
 
 ## Documentation Per App
 
-- See `backend/README.md`
 - See `user-frontend/README.md`
 - See `organiser-portal/README.md`
 - See `admin-portal/README.md`

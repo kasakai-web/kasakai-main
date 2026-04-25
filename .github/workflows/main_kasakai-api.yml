@@ -1,15 +1,9 @@
 name: Build and deploy Node.js app to Azure Web App - kasakai-backend
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches:
       - main
-    paths:
-      - backend/**
-      - .github/workflows/main_kasakai-api.yml
   workflow_dispatch:
 
 jobs:
@@ -19,55 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-
-      - name: Install dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Create deployment package
-        working-directory: backend
-        run: zip -r ../backend.zip . -x "node_modules/*" ".git/*" ".github/*" ".env" ".env.*" "coverage/*" "dist/*"
-
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-zip
-          path: backend.zip
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Validate publish profile matches app
-        shell: bash
-        env:
-          PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+      - name: Confirm backend moved
         run: |
-          if [ -z "$PUBLISH_PROFILE" ]; then
-            echo "AZURE_WEBAPP_PUBLISH_PROFILE is empty or missing."
-            exit 1
-          fi
-
-          if ! echo "$PUBLISH_PROFILE" | grep -qi "kasakai-backend"; then
-            echo "Publish profile does not appear to belong to app 'kasakai-backend'."
-            echo "Download the publish profile from Azure App Service 'kasakai-backend' and update secret AZURE_WEBAPP_PUBLISH_PROFILE."
-            exit 1
-          fi
-
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-zip
-          path: .
-
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'kasakai-backend'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: backend.zip
+          echo "The backend now lives in a separate repository."
+          echo "This workflow is kept as a compatibility check so the old status context remains green."
+          echo "Backend repository: kasakai-api"

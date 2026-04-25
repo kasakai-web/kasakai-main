@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
+import { PostGameModal } from "@/components/dashboard/PostGameModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -23,6 +24,8 @@ export default function OrganizerDashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPlayersModal, setShowPlayersModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPostGameModal, setShowPostGameModal] = useState(false);
+  const [postGameTarget, setPostGameTarget] = useState<any>(null);
   const [cancelTargetGame, setCancelTargetGame] = useState<any>(null);
   const [cancelMessage, setCancelMessage] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -30,10 +33,30 @@ export default function OrganizerDashboard() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [modalRefreshing, setModalRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [relativeTime, setRelativeTime] = useState("");
   const isFetchingGamesRef = useRef(false);
+
+  const fetchWithLocalFallback = useCallback(
+    async (url: string, init?: RequestInit): Promise<Response> => {
+      try {
+        return await fetch(url, init);
+      } catch (err) {
+        // On some local setups, localhost can fail while 127.0.0.1 works.
+        if (
+          err instanceof TypeError &&
+          url.includes("localhost")
+        ) {
+          const fallbackUrl = url.replace("localhost", "127.0.0.1");
+          return fetch(fallbackUrl, init);
+        }
+        throw err;
+      }
+    },
+    []
+  );
 
   const fetchGames = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
@@ -41,6 +64,7 @@ export default function OrganizerDashboard() {
     isFetchingGamesRef.current = true;
     try {
       if (!silent) setLoading(true);
+      if (!silent) setFetchError(null);
       const { token } = getSession();
       if (!token) {
         if (!silent) setLoading(false);
@@ -49,7 +73,7 @@ export default function OrganizerDashboard() {
         return;
       }
       
-      const res = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
+      const res = await fetchWithLocalFallback(buildApiUrl("/api/v1/games/organisers/my-games"), {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -70,20 +94,26 @@ export default function OrganizerDashboard() {
       if (data.success) {
         const nextGames: any[] = data.data || [];
         setGames(nextGames);
+        setFetchError(null);
         setSelectedGame((prev: any) =>
           prev ? nextGames.find((g) => g._id === prev._id) ?? prev : prev
         );
         setLastUpdated(new Date());
       } else {
-        console.error("API Error:", data.message);
+        if (!silent) setFetchError(data.message || "Could not load games right now.");
       }
     } catch (error) {
-      console.error("Failed to fetch games", error);
+      const msg =
+        error instanceof TypeError
+          ? "Unable to reach backend. Ensure backend is running on port 5000 and check NEXT_PUBLIC_API_BASE_URL."
+          : "Failed to load games. Please try again.";
+      if (!silent) setFetchError(msg);
+      console.warn("[ORG_DASHBOARD] fetchGames failed:", error);
     } finally {
       if (!silent) setLoading(false);
       isFetchingGamesRef.current = false;
     }
-  }, [router]);
+  }, [fetchWithLocalFallback, router]);
 
   // Silently re-fetch and update selectedGame (used by modal refresh)
   const refreshSelectedGame = useCallback(async (silent = false) => {
@@ -286,6 +316,21 @@ export default function OrganizerDashboard() {
         </button>
       </div>
 
+      {fetchError && (
+        <div style={{
+          marginBottom: 14,
+          background: "rgba(248,113,113,0.08)",
+          border: "1px solid rgba(248,113,113,0.28)",
+          color: "#fda4af",
+          borderRadius: 10,
+          padding: "10px 12px",
+          fontSize: 13,
+          fontWeight: 600,
+        }}>
+          {fetchError}
+        </div>
+      )}
+
       {/* Stats Overview */}
       <div className="stats-overview">
         <div className="stat-card stat-active">
@@ -474,6 +519,13 @@ export default function OrganizerDashboard() {
                             style={{ background: 'rgba(255,179,71,0.15)', color: '#ffb347', border: '1px solid rgba(255,179,71,0.3)', fontSize: 12 }}
                           >↩</button>
                         )}
+                        {!['cancelled', 'completed'].includes(game.status) && (
+                          <button
+                            className="btn-postgame btn-postgame-complete"
+                            onClick={() => { setPostGameTarget(game); setShowPostGameModal(true); }}
+                            title="Complete Game & Rate Players"
+                          >Complete</button>
+                        )}
                         <button
                           className="btn-action btn-cancel"
                           onClick={() => openCancelModal(game)}
@@ -540,16 +592,32 @@ export default function OrganizerDashboard() {
                       <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>
                     </div>
                     <div className="col col-actions">
-                      <button 
+                      <button
                         className="btn-action btn-players"
-                        onClick={() => {
-                          setSelectedGame(game);
-                          setShowPlayersModal(true);
-                        }}
+                        onClick={() => { setSelectedGame(game); setShowPlayersModal(true); }}
                         title="View Players"
-                      >
-                        👥
-                      </button>
+                      >👥</button>
+                      {game.status !== 'completed' && game.status !== 'cancelled' && (
+                        <button
+                          className="btn-postgame btn-postgame-complete"
+                          onClick={() => { setPostGameTarget(game); setShowPostGameModal(true); }}
+                          title="Complete Game & Rate Players"
+                        >Complete</button>
+                      )}
+                      {game.status === 'completed' && !game.attendanceMarked && (
+                        <button
+                          className="btn-postgame btn-postgame-attendance"
+                          onClick={() => { setPostGameTarget(game); setShowPostGameModal(true); }}
+                          title="Mark Attendance & Rate Players"
+                        >Attendance</button>
+                      )}
+                      {game.status === 'completed' && game.attendanceMarked && (
+                        <button
+                          className="btn-postgame btn-postgame-ratings"
+                          onClick={() => { setPostGameTarget(game); setShowPostGameModal(true); }}
+                          title="View / Edit Ratings"
+                        >Ratings</button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -612,6 +680,18 @@ export default function OrganizerDashboard() {
           onClose={() => {
             setShowPlayersModal(false);
             setSelectedGame(null);
+          }}
+        />
+      )}
+
+      {showPostGameModal && postGameTarget && (
+        <PostGameModal
+          game={postGameTarget}
+          onClose={() => { setShowPostGameModal(false); setPostGameTarget(null); }}
+          onDone={() => {
+            setShowPostGameModal(false);
+            setPostGameTarget(null);
+            fetchGames({ silent: true });
           }}
         />
       )}

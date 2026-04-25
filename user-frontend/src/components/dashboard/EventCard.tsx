@@ -22,6 +22,7 @@ export interface EventCardProps {
   players: { name: string; initials: string; pos: string }[];
   onBook: (game: any) => void;
   onViewDetails: () => void;
+  onRateGame?: () => void;
 }
 
 export function EventCard({
@@ -42,6 +43,7 @@ export function EventCard({
   players,
   onBook,
   onViewDetails,
+  onRateGame,
 }: EventCardProps) {
   const isCancelled = status === "cancelled";
   const isFull = !isCancelled && spotsLeft <= 0;
@@ -153,6 +155,10 @@ export function EventCard({
         {isCancelled ? (
           <button className="card-btn cancelled-btn" disabled>
             <span>✕ Event Cancelled</span>
+          </button>
+        ) : isRegistered && onRateGame ? (
+          <button className="card-btn signup-btn" onClick={onRateGame}>
+            <span>⭐ Rate this game</span>
           </button>
         ) : isRegistered ? (
           <button className="card-btn registered-btn" disabled>

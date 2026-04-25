@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
+import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -17,6 +18,17 @@ function formatRelativeTime(date: Date): string {
   const mins = Math.floor(seconds / 60);
   return `${mins}m ago`;
 }
+
+const POPUP_SHOWN_KEY = "kk_feedback_popup_shown";
+const getShownPopupIds = (): string[] => {
+  try { return JSON.parse(localStorage.getItem(POPUP_SHOWN_KEY) || "[]"); } catch { return []; }
+};
+const markPopupShown = (gameId: string) => {
+  const shown = getShownPopupIds();
+  if (!shown.includes(gameId)) {
+    localStorage.setItem(POPUP_SHOWN_KEY, JSON.stringify([...shown, gameId]));
+  }
+};
 
 export default function PlayerDashboard() {
   const router = useRouter();
@@ -36,6 +48,13 @@ export default function PlayerDashboard() {
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
   const [myWaitlist, setMyWaitlist] = useState<any[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [pendingFeedback, setPendingFeedback] = useState<any[]>([]);
+  const [feedbackTargetGame, setFeedbackTargetGame] = useState<any>(null);
+  const [popupFeedbackGame, setPopupFeedbackGame] = useState<any>(null);
+  const [myRatings, setMyRatings] = useState<any[]>([]);
+  // Per-game feedback I already submitted — loaded when opening a completed game detail
+  const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
+  const [detailGameRating, setDetailGameRating] = useState<any>(null); // organiser rating for this game
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -107,7 +126,7 @@ export default function PlayerDashboard() {
 
       const data = await res.json();
       console.log("[DEBUG] My games:", data);
-      
+
       if (data.success) {
         setMyGames(data.data || []);
       } else {
@@ -168,11 +187,50 @@ export default function PlayerDashboard() {
     }
   };
 
+  const fetchMyRatings = async () => {
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      const res = await fetch(buildApiUrl("/api/v1/games/my-ratings"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) setMyRatings(data.data || []);
+    } catch {
+      // non-critical
+    }
+  };
+
+  const fetchPendingFeedback = async () => {
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      const res = await fetch(buildApiUrl("/api/v1/games/pending-feedback"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) {
+        const pending: any[] = data.data || [];
+        setPendingFeedback(pending);
+        // Show one-time popup for the first game the player hasn't been prompted for yet
+        const shown = getShownPopupIds();
+        const unseen = pending.find((g: any) => !shown.includes(g._id));
+        if (unseen) setPopupFeedbackGame(unseen);
+      }
+    } catch {
+      // non-critical
+    }
+  };
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
       await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance()]);
       setLastUpdated(new Date());
+      fetchPendingFeedback();
+      fetchMyRatings();
     } finally {
       setLoading(false);
     }
@@ -245,6 +303,43 @@ export default function PlayerDashboard() {
   }, [loading, openGameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
+
+  const openGameDetail = async (game: any) => {
+    setDetailGame(game);
+    setDetailGameFeedback(null);
+    setDetailGameRating(null);
+    if (game.status !== "completed") return;
+    const { token } = getSession();
+    if (!token) return;
+    // Fetch submitted feedback + received organiser rating in parallel (always fresh)
+    try {
+      const [fbRes, ratingsRes] = await Promise.allSettled([
+        fetch(buildApiUrl(`/api/v1/games/${game._id}/feedback`), {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(buildApiUrl("/api/v1/games/my-ratings"), {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      if (fbRes.status === "fulfilled" && fbRes.value.ok) {
+        const d = await fbRes.value.json();
+        if (d.success) setDetailGameFeedback(d.data);
+      }
+      if (ratingsRes.status === "fulfilled" && ratingsRes.value.ok) {
+        const d = await ratingsRes.value.json();
+        if (d.success) {
+          const all: any[] = d.data || [];
+          setMyRatings(all); // keep cache fresh
+          const match = all.find(
+            (r: any) => r.game?._id === game._id || r.game === game._id
+          );
+          setDetailGameRating(match ?? null);
+        }
+      }
+    } catch {
+      // non-critical
+    }
+  };
 
   const changeTab = (tab: "all" | "my-games" | "cancelled" | "completed") => {
     setActiveTab(tab);
@@ -438,9 +533,9 @@ export default function PlayerDashboard() {
   });
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
   const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
-  // In "My Games" tab, merge registered + waitlisted games; tag waitlisted with _isWaitlisted + _waitlistStatus
+  // In "My Games" tab, merge registered + waitlisted games; exclude cancelled (they belong in the Cancelled tab)
   const myGamesWithWaitlist = [
-    ...myGames,
+    ...myGames.filter((g) => !String(g.status || "").trim().toLowerCase().startsWith("cancel")),
     ...myWaitlist
       .filter((wg) => !myGames.some((mg) => mg._id === wg._id))
       .map((wg) => ({ ...wg, _isWaitlisted: true, _waitlistStatus: wg._myWaitlistStatus || 'waiting' })),
@@ -574,7 +669,7 @@ export default function PlayerDashboard() {
           >
             <span className="tab-icon">🎟️</span>
             <span className="tab-text">My Games</span>
-            <span className="tab-badge">{myGames.length + myWaitlist.length}</span>
+            <span className="tab-badge">{myGamesWithWaitlist.length}</span>
           </button>
           <button
             className={`tab-btn player-tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
@@ -608,28 +703,35 @@ export default function PlayerDashboard() {
             return (
               <EventCard
                 key={game._id}
-                id={game._id}
-                status={game.status as EventStatus}
-                venue={game.turf?.name || 'TBC'}
-                city={game.turf?.location?.city || 'TBC'}
-                date={new Date(game.scheduledAt).toISOString().split('T')[0]}
-                time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                format={game.format}
-                fee={game.feeInPaise / 100}
-                spotsTotal={spotsTotal}
-                spotsLeft={Math.max(0, spotsLeft)}
-                isRegistered={myGames.some(myGame => myGame._id === game._id)}
-                isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
-                isWaitlistApproved={game._waitlistStatus === 'approved' || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')}
-                cancelReason={game.cancelReason}
-                players={game.registrations?.map((reg: any) => ({
-                  name: reg.plusOneName || reg.player?.name || 'Player',
-                  initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
-                  pos: reg.preferredPosition || 'any',
-                })) || []}
-                onBook={() => handleBook(game)}
-                onViewDetails={() => setDetailGame(game)}
-              />
+                  id={game._id}
+                  status={game.status as EventStatus}
+                  venue={game.turf?.name || 'TBC'}
+                  city={game.turf?.location?.city || 'TBC'}
+                  date={new Date(game.scheduledAt).toISOString().split('T')[0]}
+                  time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  format={game.format}
+                  fee={game.feeInPaise / 100}
+                  spotsTotal={spotsTotal}
+                  spotsLeft={Math.max(0, spotsLeft)}
+                  isRegistered={myGames.some(myGame => myGame._id === game._id)}
+                  isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
+                  isWaitlistApproved={game._waitlistStatus === 'approved' || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')}
+                  cancelReason={game.cancelReason}
+                  players={game.registrations?.map((reg: any) => ({
+                    name: reg.plusOneName || reg.player?.name || 'Player',
+                    initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
+                    pos: reg.preferredPosition || 'any',
+                  })) || []}
+                  onBook={() => handleBook(game)}
+                  onViewDetails={() => openGameDetail(game)}
+                  onRateGame={
+                    activeTab === "completed" &&
+                    game.status === "completed" &&
+                    pendingFeedback.some((pf) => pf._id === game._id)
+                      ? () => setFeedbackTargetGame(game)
+                      : undefined
+                  }
+                />
             )
           }) : (
             <div className="empty-state">
@@ -638,6 +740,37 @@ export default function PlayerDashboard() {
             </div>
           )}
         </div>
+      )}
+
+      {/* One-time popup: shown once per game after organiser marks it complete */}
+      {popupFeedbackGame && (
+        <GameFeedbackModal
+          game={popupFeedbackGame}
+          isPopup
+          onSkip={() => {
+            markPopupShown(popupFeedbackGame._id);
+            setPopupFeedbackGame(null);
+          }}
+          onSubmit={() => {
+            markPopupShown(popupFeedbackGame._id);
+            setPopupFeedbackGame(null);
+            showNotification("success", "Feedback submitted — thank you!");
+            fetchPendingFeedback();
+          }}
+        />
+      )}
+
+      {/* Feedback modal triggered from completed tab "Rate Game" button */}
+      {!popupFeedbackGame && feedbackTargetGame && (
+        <GameFeedbackModal
+          game={feedbackTargetGame}
+          onSkip={() => setFeedbackTargetGame(null)}
+          onSubmit={() => {
+            setFeedbackTargetGame(null);
+            showNotification("success", "Feedback submitted — thank you!");
+            fetchPendingFeedback();
+          }}
+        />
       )}
 
       {selectedGame && (
@@ -652,7 +785,7 @@ export default function PlayerDashboard() {
       )}
 
       {detailGame && (
-        <div className="modal-overlay" onClick={() => setDetailGame(null)}>
+        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setDetailGameRating(null); }}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -760,7 +893,112 @@ export default function PlayerDashboard() {
               )}
             </div>
 
+            {/* ── Organiser Rating Received ── */}
+            {detailGame.status === "completed" && detailGameRating && (
+              <div style={{ margin: "0 0 16px", padding: "14px 16px", background: "rgba(196,213,108,0.06)", border: "1px solid rgba(196,213,108,0.18)", borderRadius: 10 }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#c4d56c", marginBottom: 10, fontWeight: 700 }}>
+                  ⭐ Your Performance Rating
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Conduct</div>
+                    <div style={{ display: "flex", gap: 2 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <span key={n} style={{ fontSize: 16, color: n <= detailGameRating.conductRating ? "#fbbf24" : "#333" }}>★</span>
+                      ))}
+                      <span style={{ fontSize: 11, color: "#666", marginLeft: 4 }}>{detailGameRating.conductRating}/5</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Gameplay</div>
+                    <div style={{ display: "flex", gap: 2 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <span key={n} style={{ fontSize: 16, color: n <= detailGameRating.gameplayRating ? "#fbbf24" : "#333" }}>★</span>
+                      ))}
+                      <span style={{ fontSize: 11, color: "#666", marginLeft: 4 }}>{detailGameRating.gameplayRating}/5</span>
+                    </div>
+                  </div>
+                  {detailGameRating.preferredPosition && detailGameRating.preferredPosition !== "any" && (
+                    <div>
+                      <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Position</div>
+                      <div style={{ fontSize: 13, color: "#c4d56c", fontWeight: 600, textTransform: "capitalize" }}>{detailGameRating.preferredPosition}</div>
+                    </div>
+                  )}
+                  {detailGameRating.gkAffinity != null && (
+                    <div>
+                      <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>GK Affinity</div>
+                      <div style={{ fontSize: 13, color: "#c4d56c", fontWeight: 600 }}>{detailGameRating.gkAffinity}%</div>
+                    </div>
+                  )}
+                </div>
+                {detailGameRating.notes && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: "#888", fontStyle: "italic", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
+                    "{detailGameRating.notes}"
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── My Submitted Feedback ── */}
+            {detailGame.status === "completed" && detailGameFeedback && (
+              <div style={{ margin: "0 0 16px", padding: "14px 16px", background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 10 }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#4ade80", marginBottom: 10, fontWeight: 700 }}>
+                  ✓ Your Feedback Submitted
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>Game</span>
+                    <div style={{ display: "flex", gap: 2 }}>
+                      {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize: 15, color: n <= detailGameFeedback.gameRating ? "#fbbf24" : "#333" }}>★</span>)}
+                    </div>
+                  </div>
+                  {detailGameFeedback.organiserRating && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>Organiser</span>
+                      <div style={{ display: "flex", gap: 2 }}>
+                        {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize: 15, color: n <= detailGameFeedback.organiserRating ? "#fbbf24" : "#333" }}>★</span>)}
+                      </div>
+                    </div>
+                  )}
+                  {detailGameFeedback.venueRating && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em" }}>Venue</span>
+                      <div style={{ display: "flex", gap: 2 }}>
+                        {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize: 15, color: n <= detailGameFeedback.venueRating ? "#fbbf24" : "#333" }}>★</span>)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {detailGameFeedback.tags?.length > 0 && (
+                  <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {detailGameFeedback.tags.map((tag: string) => (
+                      <span key={tag} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 20, background: "rgba(74,222,128,0.1)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.2)" }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {detailGameFeedback.comment && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#888", fontStyle: "italic", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
+                    "{detailGameFeedback.comment}"
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="pd-event-modal-actions">
+              {/* Rate Game button — show only if game is completed and feedback not yet submitted */}
+              {detailGame.status === "completed" &&
+                detailIsRegistered &&
+                !detailGameFeedback &&
+                pendingFeedback.some((g) => g._id === detailGame._id) && (
+                  <button
+                    className="card-btn"
+                    type="button"
+                    onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setFeedbackTargetGame(detailGame); }}
+                    style={{ background: "rgba(196,213,108,0.14)", color: "#c4d56c", border: "1px solid rgba(196,213,108,0.3)", flex: "0 0 auto", minWidth: 140 }}
+                  >
+                    ⭐ Rate Game
+                  </button>
+                )}
               {detailIsWaitlisted && detailSpotsLeft > 0 && !detailIsCancelled && (
                 <button
                   className="card-btn signup-btn"
@@ -781,7 +1019,7 @@ export default function PlayerDashboard() {
                   <span>Leave Waitlist</span>
                 </button>
               )}
-              {detailIsRegistered && !detailIsCancelled && (
+              {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
                 <button
                   className="card-btn cancel-btn"
                   type="button"
@@ -792,7 +1030,7 @@ export default function PlayerDashboard() {
                   <span>{cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}</span>
                 </button>
               )}
-              <button className="btn-close" type="button" onClick={() => setDetailGame(null)}>Close</button>
+              <button className="btn-close" type="button" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setDetailGameRating(null); }}>Close</button>
             </div>
           </div>
         </div>

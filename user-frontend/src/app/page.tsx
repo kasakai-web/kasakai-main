@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect } from "react";
+import { AboutSection } from "@/components/sections/AboutSection";
 import { CTASection } from "@/components/sections/CTASection";
 import { FAQSection } from "@/components/sections/FAQSection";
 import { FeaturesSection } from "@/components/sections/FeaturesSection";
@@ -63,6 +64,7 @@ export default function Home() {
       <main>
         <HeroSection />
         <StatsStrip />
+        <AboutSection />
         <FeaturesSection />
         <HowItWorksSection />
         <RolesSection />

@@ -4,6 +4,7 @@ export const dashboardSections = [
   "organisers",
   "games",
   "payments",
+  "finance",
   "notifications",
   "feedback",
   "disputes",
@@ -14,29 +15,31 @@ export const dashboardSections = [
 export type DashboardSection = (typeof dashboardSections)[number];
 
 export const sectionTitles: Record<DashboardSection, string> = {
-  dashboard: "Dashboard",
-  users: "All Users",
-  organisers: "Organisers",
-  games: "Games & Events",
-  payments: "Payments",
+  dashboard:     "Dashboard",
+  users:         "All Users",
+  organisers:    "Organisers",
+  games:         "Games & Events",
+  payments:      "Payments",
+  finance:       "Finance",
   notifications: "Notifications",
-  feedback: "Feedback",
-  disputes: "Disputes",
-  communities: "Communities",
-  venues: "Venues & Turfs",
+  feedback:      "Feedback",
+  disputes:      "Disputes",
+  communities:   "Communities",
+  venues:        "Venues & Turfs",
 };
 
 export const sectionPaths: Record<DashboardSection, string> = {
-  dashboard: "Overview",
-  users: "People / Users",
-  organisers: "People / Organisers",
-  games: "Platform / Games",
-  payments: "Platform / Payments",
+  dashboard:     "Overview",
+  users:         "People / Users",
+  organisers:    "People / Organisers",
+  games:         "Platform / Games",
+  payments:      "Platform / Payments",
+  finance:       "Platform / Finance",
   notifications: "Platform / Notifications",
-  feedback: "Platform / Feedback",
-  disputes: "Platform / Disputes",
-  communities: "Config / Communities",
-  venues: "Config / Venues",
+  feedback:      "Platform / Feedback",
+  disputes:      "Platform / Disputes",
+  communities:   "Config / Communities",
+  venues:        "Config / Venues",
 };
 
 export type SidebarItem = {
@@ -59,25 +62,26 @@ export const sidebarGroups: SidebarGroup[] = [
   {
     label: "People",
     items: [
-      { section: "users", label: "All Users", badge: "1,240" },
-      { section: "organisers", label: "Organisers", badge: "3 pending", badgeTone: "red" },
+      { section: "users",      label: "All Users" },
+      { section: "organisers", label: "Organisers", badge: "pending", badgeTone: "red" },
     ],
   },
   {
     label: "Platform",
     items: [
-      { section: "games", label: "Games & Events" },
-      { section: "payments", label: "Payments" },
-      { section: "notifications", label: "Notifications", badge: "12" },
-      { section: "feedback", label: "Feedback" },
-      { section: "disputes", label: "Disputes", badge: "5", badgeTone: "red" },
+      { section: "games",         label: "Games & Events" },
+      { section: "payments",      label: "Payments" },
+      { section: "finance",       label: "Finance" },
+      { section: "notifications", label: "Notifications" },
+      { section: "feedback",      label: "Feedback" },
+      { section: "disputes",      label: "Disputes", badgeTone: "red" },
     ],
   },
   {
     label: "Config",
     items: [
       { section: "communities", label: "Communities" },
-      { section: "venues", label: "Venues / Turfs" },
+      { section: "venues",      label: "Venues / Turfs" },
     ],
   },
 ];
