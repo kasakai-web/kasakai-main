@@ -20,7 +20,7 @@ export default function SocketClient() {
       alert(`${data.title}\n${data.body}`);
     });
 
-    return () => socket.disconnect();
+    return () => { socket.disconnect(); };
   }, []);
 
   return null;
