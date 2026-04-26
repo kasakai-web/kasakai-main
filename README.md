@@ -1,5 +1,6 @@
 # Kasakai Monorepo
 
+
 Kasakai is a multi-app football event platform with separate experiences for players, organisers, and admins. The backend API now lives in a separate repository, while this workspace contains the three Next.js frontends.
 
 ## Repositories In This Workspace
