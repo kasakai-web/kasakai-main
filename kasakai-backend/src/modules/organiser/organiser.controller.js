@@ -1,6 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const Organiser = require("../../models/Organiser");
+const Player = require("../../models/Player");
 
 const safeOrganiserSelect = "-password -otp -otpExpires";
 
@@ -213,6 +214,39 @@ exports.deleteTemplate = async (req, res) => {
     return res.status(200).json({ success: true, message: "Template deleted" });
   } catch (error) {
     console.error("deleteTemplate error:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Organiser uploads/replaces a player's profile image
+// @route   POST /api/v1/organisers/me/players/:playerId/profile-image
+// @access  Private (Organiser)
+exports.uploadPlayerImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image file provided" });
+    }
+
+    const player = await Player.findById(req.params.playerId).select("_id name profileImage");
+    if (!player) {
+      return res.status(404).json({ success: false, message: "Player not found" });
+    }
+
+    if (player.profileImage) {
+      const oldPath = path.join(__dirname, "../../../uploads", path.basename(player.profileImage));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+    const updated = await Player.findByIdAndUpdate(
+      req.params.playerId,
+      { $set: { profileImage: imageUrl } },
+      { new: true }
+    ).select("_id name profileImage");
+
+    return res.status(200).json({ success: true, data: updated, message: "Player image updated" });
+  } catch (error) {
+    console.error("uploadPlayerImage organiser error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

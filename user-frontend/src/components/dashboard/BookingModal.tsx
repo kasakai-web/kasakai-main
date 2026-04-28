@@ -24,6 +24,8 @@ type Guest = {
 
 export type BookingGuest = Guest;
 
+type RegisteredPlayer = { name: string; id?: string };
+
 interface BookingModalProps {
   game: BookingGame | null;
   onClose: () => void;
@@ -32,10 +34,13 @@ interface BookingModalProps {
     guests: Guest[],
     teamPreference: string,
     willingIfFormatChange: boolean,
+    playWith: string[],
+    playAgainst: string[],
   ) => void;
   walletBalance: number;
   playerPositions?: string[];
   playerId?: string;
+  registeredPlayers?: RegisteredPlayer[];
 }
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"] as const;
@@ -183,10 +188,13 @@ export function BookingModal({
   walletBalance,
   playerPositions = [],
   playerId,
+  registeredPlayers = [],
 }: BookingModalProps) {
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
   const [guests, setGuests] = useState<Guest[]>([]);
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
+  const [playWith, setPlayWith] = useState<string[]>([]);
+  const [playAgainst, setPlayAgainst] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
   const [notification, setNotification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -218,13 +226,17 @@ export function BookingModal({
     setGuests((previous) => previous.map((guest, currentIndex) => (currentIndex === index ? { ...guest, ...patch } : guest)));
   };
 
+  const togglePref = (list: string[], setList: (v: string[]) => void, name: string) => {
+    setList(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
+  };
+
   const handleConfirm = async () => {
     const hasPhoto = typeof window !== "undefined" && !!localStorage.getItem("userProfileImage");
     if (!hasPhoto) { setPhotoError(true); return; }
     setPhotoError(false);
     setIsLoading(true);
     try {
-      onConfirm(game, guests, teamPreference, willingIfFormatChange);
+      onConfirm(game, guests, teamPreference, willingIfFormatChange, playWith, playAgainst);
       await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setNotification(true);
@@ -240,6 +252,8 @@ export function BookingModal({
     setSuccess(false);
     setGuests([]);
     setWillingIfFormatChange(true);
+    setPlayWith([]);
+    setPlayAgainst([]);
     setNotification(false);
     setIsLoading(false);
     onClose();
@@ -361,6 +375,66 @@ export function BookingModal({
                   This helps the organiser decide whether to switch format if numbers change.
                 </p>
               </div>
+
+              {registeredPlayers.length > 0 && (
+                <div>
+                  <div className="bm-section-title">Play With / Play Against</div>
+                  <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--muted,#666)" }}>
+                    Optional — tap a player to set a preference. These help the organiser balance teams.
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {registeredPlayers.map((p) => {
+                      const withSelected    = playWith.includes(p.name);
+                      const againstSelected = playAgainst.includes(p.name);
+                      return (
+                        <div key={p.id ?? p.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ flex: 1, fontSize: 13, color: "var(--white)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {p.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (againstSelected) togglePref(playAgainst, setPlayAgainst, p.name);
+                              togglePref(playWith, setPlayWith, p.name);
+                            }}
+                            style={{
+                              padding: "3px 10px",
+                              fontSize: 11,
+                              borderRadius: 20,
+                              border: "1px solid",
+                              cursor: "pointer",
+                              background: withSelected ? "rgba(74,222,128,0.18)" : "transparent",
+                              borderColor: withSelected ? "#4ade80" : "rgba(255,255,255,0.15)",
+                              color: withSelected ? "#4ade80" : "#666",
+                            }}
+                          >
+                            With
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (withSelected) togglePref(playWith, setPlayWith, p.name);
+                              togglePref(playAgainst, setPlayAgainst, p.name);
+                            }}
+                            style={{
+                              padding: "3px 10px",
+                              fontSize: 11,
+                              borderRadius: 20,
+                              border: "1px solid",
+                              cursor: "pointer",
+                              background: againstSelected ? "rgba(248,113,113,0.18)" : "transparent",
+                              borderColor: againstSelected ? "#f87171" : "rgba(255,255,255,0.15)",
+                              color: againstSelected ? "#f87171" : "#666",
+                            }}
+                          >
+                            Against
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="bm-guests-section">
                 <div className="bm-guests-header">

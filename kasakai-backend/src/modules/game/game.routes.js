@@ -122,9 +122,15 @@ router.post(
           rating:      (p?.rating > 0) ? p.rating : 2.5,
           position:    positionMap[reg.preferredPosition] || "Any",
           gkQuotient,
-          // playWith / playAgainst come from PlayerRating as populated Player docs → extract names.
-          playWith:    pr?.playWith?.map(p => p.name).filter(Boolean)    ?? [],
-          playAgainst: pr?.playAgainst?.map(p => p.name).filter(Boolean) ?? [],
+          // Merge PlayerRating history with per-game registration preferences (deduplicated).
+          playWith:    [...new Set([
+            ...(pr?.playWith?.map(p => p.name).filter(Boolean) ?? []),
+            ...(reg.playWith ?? []),
+          ])],
+          playAgainst: [...new Set([
+            ...(pr?.playAgainst?.map(p => p.name).filter(Boolean) ?? []),
+            ...(reg.playAgainst ?? []),
+          ])],
           signedUpAt:  reg.signedUpAt,
         };
       });

@@ -52,6 +52,7 @@ export default function PlayerDashboard() {
   const [feedbackTargetGame, setFeedbackTargetGame] = useState<any>(null);
   const [popupFeedbackGame, setPopupFeedbackGame] = useState<any>(null);
   const [myRatings, setMyRatings] = useState<any[]>([]);
+  const [selectedGamePlayers, setSelectedGamePlayers] = useState<{ name: string; id?: string }[]>([]);
   // Per-game feedback I already submitted — loaded when opening a completed game detail
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [detailGameRating, setDetailGameRating] = useState<any>(null); // organiser rating for this game
@@ -371,6 +372,14 @@ export default function PlayerDashboard() {
       spots: Math.max(0, spotsLeft),
       waitlist: isFull,
     };
+    const players = (game.registrations || [])
+      .filter((r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus))
+      .map((r: any) => ({
+        name: r.plusOneName || r.player?.name || 'Player',
+        id:   r.player?._id || r._id,
+      }))
+      .filter((p: any) => p.name && p.name !== 'Player');
+    setSelectedGamePlayers(players);
     setSelectedGame(formattedGame);
   };
 
@@ -423,6 +432,8 @@ export default function PlayerDashboard() {
     guests: BookingGuest[],
     teamPreference: string,
     willingIfFormatChange: boolean,
+    playWith: string[],
+    playAgainst: string[],
   ) => {
     try {
       const { token } = getSession();
@@ -440,6 +451,8 @@ export default function PlayerDashboard() {
       const body: any = {
         teamPreference,
         positions: playerPositions,
+        playWith,
+        playAgainst,
         guests: guests.map((g, index) => {
           const fallbackName = `Guest ${index + 1}`;
           return {
@@ -781,6 +794,7 @@ export default function PlayerDashboard() {
           onConfirm={handleConfirmBooking}
           playerPositions={playerPositions}
           playerId={playerId}
+          registeredPlayers={selectedGamePlayers}
         />
       )}
 

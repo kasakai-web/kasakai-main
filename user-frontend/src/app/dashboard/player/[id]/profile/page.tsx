@@ -55,10 +55,9 @@ export default function PlayerProfilePage() {
   const [error, setError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
-  const [requirePhoto, setRequirePhoto] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [showLightbox, setShowLightbox] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<PlayerProfile>({
     name: "",
@@ -144,9 +143,6 @@ export default function PlayerProfilePage() {
       localStorage.removeItem("showProfileBanner");
       setShowWelcomeBanner(true);
     }
-    if (localStorage.getItem("requirePhotoUpload") === "true") {
-      setRequirePhoto(true);
-    }
     fetchProfile();
   }, [isAuthorized]);
 
@@ -185,14 +181,7 @@ export default function PlayerProfilePage() {
       const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
       setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
       setImagePreview(newImageUrl);
-      if (newImageUrl) {
-        localStorage.setItem("userProfileImage", newImageUrl);
-        if (localStorage.getItem("requirePhotoUpload") === "true") {
-          localStorage.removeItem("requirePhotoUpload");
-          setRequirePhoto(false);
-          setTimeout(() => router.replace(`/dashboard/player/${routeUserId}`), 1000);
-        }
-      }
+      if (newImageUrl) localStorage.setItem("userProfileImage", newImageUrl);
     } catch {
       setError("Failed to upload image");
       setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
@@ -296,14 +285,6 @@ export default function PlayerProfilePage() {
   return (
     <div className="player-dashboard-container">
 
-      {/* ── Image Lightbox ── */}
-      {showLightbox && imagePreview && (
-        <div className="pp-lightbox" onClick={() => setShowLightbox(false)}>
-          <img className="pp-lightbox-img" src={imagePreview} alt="Profile" onClick={(e) => e.stopPropagation()} />
-          <button className="pp-lightbox-close" onClick={() => setShowLightbox(false)} aria-label="Close">✕</button>
-        </div>
-      )}
-
       {/* ── Delete Modal ── */}
       {deleteStep > 0 && (
         <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
@@ -330,25 +311,6 @@ export default function PlayerProfilePage() {
         </div>
       )}
 
-      {/* ── Require Photo Banner ── */}
-      {requirePhoto && (
-        <div style={{
-          background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.4)",
-          borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          display: "flex", gap: 14, alignItems: "flex-start",
-        }}>
-          <span style={{ fontSize: 22, flexShrink: 0 }}>📸</span>
-          <div>
-            <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#f87171", fontSize: 14 }}>
-              Profile photo required before you can join games
-            </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#aaa", lineHeight: 1.5 }}>
-              A real photo helps organisers verify players and ensures game quality. Please upload or take a photo below to continue.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* ── Welcome Banner ── */}
       {showWelcomeBanner && (
         <div className="pp-welcome-banner">
@@ -370,27 +332,23 @@ export default function PlayerProfilePage() {
               className="pp-avatar"
               onClick={() => {
                 if (imageUploading) return;
-                if (imagePreview) setShowLightbox(true);
+                if (imagePreview) setLightboxOpen(true);
                 else imageInputRef.current?.click();
               }}
+              style={{ cursor: imagePreview ? "zoom-in" : "pointer" }}
             >
               {imagePreview
                 ? <img src={imagePreview} alt="Profile" />
-                : <span className="pp-avatar-placeholder">{profile.name ? profile.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() : "?"}</span>
+                : <span className="pp-avatar-placeholder">{profile.name ? profile.name.substring(0, 2).toUpperCase() : "?"}</span>
               }
-              <div className="pp-avatar-overlay">
-                {imagePreview ? (
-                  // View icon
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                ) : (
-                  // Camera icon
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                )}
+              <div
+                className="pp-avatar-overlay"
+                onClick={(e) => { e.stopPropagation(); if (!imageUploading) imageInputRef.current?.click(); }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
               </div>
               {imageUploading && (
                 <div className="pp-avatar-spinner">
@@ -401,13 +359,42 @@ export default function PlayerProfilePage() {
             <button type="button" className="pp-photo-btn" onClick={() => imageInputRef.current?.click()} disabled={imageUploading}>
               {imageUploading ? "Uploading…" : imagePreview ? "Change photo" : "Upload photo"}
             </button>
-            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" style={{ display: "none" }} onChange={handleImageUpload} />
-            {!imagePreview && (
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#888", textAlign: "center", lineHeight: 1.4, maxWidth: 140 }}>
-                📸 A real photo is required to join games
-              </p>
-            )}
+            <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
           </div>
+
+          {/* ── Lightbox ── */}
+          {lightboxOpen && imagePreview && (
+            <div
+              onClick={() => setLightboxOpen(false)}
+              style={{
+                position: "fixed", inset: 0, zIndex: 2000,
+                background: "rgba(0,0,0,0.92)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "zoom-out",
+              }}
+            >
+              <img
+                src={imagePreview}
+                alt="Profile full size"
+                style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, objectFit: "contain", boxShadow: "0 8px 48px rgba(0,0,0,0.6)" }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(false)}
+                style={{
+                  position: "absolute", top: 20, right: 24,
+                  background: "rgba(255,255,255,0.1)", border: "none",
+                  color: "#fff", fontSize: 28, lineHeight: 1,
+                  width: 44, height: 44, borderRadius: "50%",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {/* Info */}
           <div className="pp-hero-info">

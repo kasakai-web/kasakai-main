@@ -5,6 +5,7 @@ const {
   updateMyProfile,
   deleteMyProfile,
   uploadProfileImage,
+  uploadPlayerImage,
   getTemplates,
   saveTemplate,
   updateTemplate,
@@ -26,6 +27,14 @@ router.post(
   authorize("organiser"),
   upload.single("profileImage"),
   uploadProfileImage
+);
+
+router.post(
+  "/me/players/:playerId/profile-image",
+  protect,
+  authorize("organiser"),
+  upload.single("profileImage"),
+  uploadPlayerImage
 );
 
 // Game templates

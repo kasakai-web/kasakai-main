@@ -31,6 +31,9 @@ const RegistrationSchema = new mongoose.Schema(
       default: null,
     },
 
+    playWith:    { type: [String], default: [] },
+    playAgainst: { type: [String], default: [] },
+
     paymentStatus: {
       type: String,
       enum: ['pending','wallet_locked','paid','refunded','forfeited'],

@@ -962,6 +962,9 @@ exports.registerForGame = async (req, res) => {
     const playerName = req.user.name || 'Player';
 
     // Build the new registration entries
+    const playWith    = Array.isArray(req.body.playWith)    ? req.body.playWith.filter(Boolean)    : [];
+    const playAgainst = Array.isArray(req.body.playAgainst) ? req.body.playAgainst.filter(Boolean) : [];
+
     const newRegistrations = [
       {
         player:                req.user._id,
@@ -971,6 +974,8 @@ exports.registerForGame = async (req, res) => {
         amountPaidPaise:       feePerSlot,
         walletLockId:          walletTxId,
         willingIfFormatChange,
+        playWith,
+        playAgainst,
         signedUpAt:            new Date(),
       },
       ...guestInput.map((guest, idx) => ({

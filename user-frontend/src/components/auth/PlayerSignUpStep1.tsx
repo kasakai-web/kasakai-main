@@ -37,6 +37,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
+    if (!profileImageDataUrl) newErrors.image = "A profile photo is required";
     if (!firstName.trim()) newErrors.firstName = "Name is required";
     if (!validatePhone(phone)) newErrors.phone = "Enter valid 10-digit phone (starting 6-9)";
     if (!validateEmail(email)) newErrors.email = "Enter valid email";
@@ -90,7 +91,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
             height: "90px",
             borderRadius: "50%",
             background: profileImageDataUrl ? "transparent" : "#1a1a2e",
-            border: `2px dashed ${profileImageDataUrl ? "var(--yellow)" : "#555"}`,
+            border: `2px dashed ${errors.image ? "#ff6b6b" : profileImageDataUrl ? "var(--yellow)" : "#555"}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -121,9 +122,12 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
             padding: 0,
           }}
         >
-          {profileImageDataUrl ? "Change photo" : "Upload profile photo"} (optional)
+          {profileImageDataUrl ? "Change photo" : "Upload profile photo *"}
         </button>
         {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
+        <p style={{ color: "#888", fontSize: "11px", marginTop: "8px", textAlign: "center", maxWidth: "260px", lineHeight: 1.5 }}>
+          Adding a photo is important to ensure quality of the game.
+        </p>
         <input
           ref={fileInputRef}
           type="file"
