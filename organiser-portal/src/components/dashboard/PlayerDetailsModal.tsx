@@ -522,13 +522,20 @@ function PlayerCard({
   const pos     = posLabel(reg.preferredPosition);
   const team    = teamInfo(reg.teamPreference);
   const date    = fmtDate(reg.signedUpAt);
+  const imgSrc  = !isGuest && reg.player?.profileImage
+    ? (reg.player.profileImage.startsWith("http") ? reg.player.profileImage : `${IMG_BASE}${reg.player.profileImage}`)
+    : null;
+  const [imgFailed, setImgFailed] = React.useState(false);
 
   return (
     <div className={`pdm-card ${isGuest ? "pdm-card-guest" : "pdm-card-player"}`}>
       {slotNum !== undefined && <div className="pdm-slot-num">#{slotNum}</div>}
 
-      <div className={`pdm-avatar ${isGuest ? "pdm-avatar-g" : "pdm-avatar-p"}`}>
-        {initials(name)}
+      <div className={`pdm-avatar ${isGuest ? "pdm-avatar-g" : "pdm-avatar-p"}`} style={{ padding: 0, overflow: "hidden" }}>
+        {imgSrc && !imgFailed
+          ? <img src={imgSrc} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "50%" }} onError={() => setImgFailed(true)} />
+          : initials(name)
+        }
       </div>
 
       <div className="pdm-card-body">

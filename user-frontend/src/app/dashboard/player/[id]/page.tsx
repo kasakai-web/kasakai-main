@@ -376,7 +376,7 @@ export default function PlayerDashboard() {
       .filter((r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus))
       .map((r: any) => ({
         name: r.plusOneName || r.player?.name || 'Player',
-        id:   r.player?._id || r._id,
+        id:   r._id,
       }))
       .filter((p: any) => p.name && p.name !== 'Player');
     setSelectedGamePlayers(players);

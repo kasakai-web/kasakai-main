@@ -131,7 +131,11 @@ export default function OrganiserProfilePage() {
       }
 
       const o = data.data || {};
-      setImagePreview(o.profileImage ? `${API_BASE_URL}${o.profileImage}` : null);
+      const imageUrl = o.profileImage ? `${API_BASE_URL}${o.profileImage}` : null;
+      setImagePreview(imageUrl);
+      if (imageUrl) {
+        localStorage.setItem("userProfileImage", imageUrl);
+      }
       setProfile({
         name: o.name || "",
         email: o.email || "",
@@ -430,7 +434,7 @@ export default function OrganiserProfilePage() {
               }}
             >
               {imagePreview
-                ? <img src={imagePreview} alt="Profile" />
+                ? <img src={imagePreview} alt="Profile" onError={() => { setImagePreview(null); localStorage.removeItem("userProfileImage"); }} />
                 : <span className="op-avatar-placeholder">
                     {profile.name ? profile.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() : "?"}
                   </span>

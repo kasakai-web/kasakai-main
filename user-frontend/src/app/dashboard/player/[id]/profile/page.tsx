@@ -103,7 +103,11 @@ export default function PlayerProfilePage() {
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) { setError(data.message || `HTTP ${res.status}`); return; }
       const p = data.data || {};
-      setImagePreview(p.profileImage ? `${API_BASE_URL}${p.profileImage}` : null);
+      const imageUrl = p.profileImage ? `${API_BASE_URL}${p.profileImage}` : null;
+      setImagePreview(imageUrl);
+      if (imageUrl) {
+        localStorage.setItem("userProfileImage", imageUrl);
+      }
       setProfile({
         name: p.name || "",
         email: p.email || "",
@@ -341,7 +345,7 @@ export default function PlayerProfilePage() {
               style={{ cursor: imagePreview ? "zoom-in" : "pointer" }}
             >
               {imagePreview
-                ? <img src={imagePreview} alt="Profile" />
+                ? <img src={imagePreview} alt="Profile" onError={() => { setImagePreview(null); localStorage.removeItem("userProfileImage"); }} />
                 : <span className="pp-avatar-placeholder">{profile.name ? profile.name.substring(0, 2).toUpperCase() : "?"}</span>
               }
               <div

@@ -228,7 +228,7 @@ exports.getOrganiserGames = async (req, res) => {
     const games = await Game.find({ organiser: req.user._id })
       .populate('turf', 'name location.city address')
       .populate('organiser', 'name phone')
-      .populate({ path: 'registrations.player', select: 'name phone email' })
+      .populate({ path: 'registrations.player', select: 'name phone email profileImage' })
       .populate({ path: 'waitlist.player', select: 'name phone email' })
       .sort('-scheduledAt')
       .lean();
@@ -645,7 +645,7 @@ exports.removeRegistration = async (req, res) => {
       console.error('[WAITLIST] Notify after remove-registration failed:', err.message)
     );
 
-    await game.populate({ path: 'registrations.player', select: 'name phone email' });
+    await game.populate({ path: 'registrations.player', select: 'name phone email profileImage' });
     await game.populate({ path: 'waitlist.player',       select: 'name phone email' });
 
     // Notify the removed player (fire-and-forget) — only for real players, not organiser guests
@@ -703,7 +703,7 @@ exports.approveWaitlist = async (req, res) => {
     await game.save({ validateModifiedOnly: true });
 
     // Populate for response + email
-    await game.populate({ path: 'registrations.player', select: 'name phone email' });
+    await game.populate({ path: 'registrations.player', select: 'name phone email profileImage' });
     await game.populate({ path: 'waitlist.player',       select: 'name phone email' });
 
     // Send approval email to player (fire-and-forget)
@@ -1395,7 +1395,7 @@ exports.markAttendance = async (req, res) => {
       }
     }
 
-    await game.populate({ path: 'registrations.player', select: 'name phone email' });
+    await game.populate({ path: 'registrations.player', select: 'name phone email profileImage' });
     res.status(200).json({ success: true, message: 'Attendance saved', data: game });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error: ' + error.message });
