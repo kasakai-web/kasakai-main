@@ -5,7 +5,7 @@ import { io, Socket } from "socket.io-client";
 import { getSession } from "@/utils/api";
 
 const SERVER_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1"
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1"
 ).replace(/\/api\/v1\/?$/, "");
 
 export interface IncomingNotification {
@@ -51,13 +51,9 @@ export function useNotificationSocket(
       console.warn("[SOCKET] Connection error:", err.message);
     });
 
-   socket.on("new-notification", (n: IncomingNotification) => {
-  console.log("🔔 Notification:", n);
-
-  alert(`${n.title}\n${n.body}`); // 👈 ADD HERE
-
-  cbRef.current(n);
-});
+    socket.on("new-notification", (n: IncomingNotification) => {
+      cbRef.current(n);
+    });
     socketRef.current = socket;
   }, []);
 

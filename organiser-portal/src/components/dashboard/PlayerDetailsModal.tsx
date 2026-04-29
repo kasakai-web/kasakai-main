@@ -4,7 +4,7 @@ import React, { useRef, useState } from "react";
 
 import { buildApiUrl, getAuthHeaders } from "@/utils/api";
 
-const IMG_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1").replace(/\/api\/v1\/?$/, "");
+const IMG_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
 
 interface Registration {
   _id?: string;

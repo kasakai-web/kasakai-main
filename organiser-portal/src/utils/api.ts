@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1";
 
 const isBrowser = () => typeof window !== "undefined";
 

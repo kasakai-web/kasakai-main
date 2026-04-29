@@ -2,7 +2,7 @@ const rawApiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
   process.env.NEXT_PUBLIC_API_URL?.trim();
 
-const API_BASE_URL = rawApiBaseUrl || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1";
+const API_BASE_URL = rawApiBaseUrl || "http://localhost:5000/api/v1";
 
 const isBrowser = () => typeof window !== "undefined";
 
