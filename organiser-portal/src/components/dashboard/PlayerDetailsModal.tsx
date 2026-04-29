@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 
 import { buildApiUrl, getAuthHeaders } from "@/utils/api";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 const IMG_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
 
@@ -131,6 +132,9 @@ export function PlayerDetailsModal({
   };
 
   const [copied, setCopied] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
  const handleDistribute = async () => {
   try {
     const res = await fetch(
@@ -204,6 +208,7 @@ export function PlayerDetailsModal({
   );
 
   return (
+    <>
     <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal-content pdm-modal"
@@ -374,10 +379,14 @@ export function PlayerDetailsModal({
                     onRemove={
                       onRemoveRegistration && regId
                         ? async () => {
-                            if (!window.confirm(`Remove ${reg.plusOneName || reg.player?.name || "this player"} from the game?`)) return;
-                            setProcessingId(regId);
-                            await onRemoveRegistration(regId);
-                            setProcessingId(null);
+                            const doRemove = async () => {
+                              setProcessingId(regId);
+                              await onRemoveRegistration(regId);
+                              setProcessingId(null);
+                            };
+                            setConfirmMessage(`Remove ${reg.plusOneName || reg.player?.name || "this player"} from the game?`);
+                            confirmActionRef.current = doRemove;
+                            setConfirmVisible(true);
                           }
                         : undefined
                     }
@@ -473,6 +482,29 @@ export function PlayerDetailsModal({
         </div>
       </div>
     </div>
+    <ConfirmationModal
+      open={confirmVisible}
+      title="Remove player"
+      message={confirmMessage || "Are you sure you want to continue?"}
+      confirmLabel="Remove"
+      cancelLabel="Keep player"
+      loading={processingId !== null}
+      onCancel={() => {
+        setConfirmVisible(false);
+        confirmActionRef.current = null;
+        setConfirmMessage(null);
+      }}
+      onConfirm={async () => {
+        setConfirmVisible(false);
+        const act = confirmActionRef.current;
+        confirmActionRef.current = null;
+        setConfirmMessage(null);
+        if (act) {
+          await act();
+        }
+      }}
+    />
+    </>
   );
 }
 

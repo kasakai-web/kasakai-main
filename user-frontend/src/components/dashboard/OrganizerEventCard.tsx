@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { EventStatus } from "./EventCard";
 import { buildApiUrl } from "@/utils/api";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 export interface OrganizerEventCardProps {
   id: number | string;
@@ -33,41 +34,44 @@ export function OrganizerEventCard({
 }: OrganizerEventCardProps) {
   const [showPlayers, setShowPlayers] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
 
   const handleCancelEvent = async () => {
-    const confirmCancel = window.confirm(
-      `Are you sure you want to cancel "${title}"?\n\nThis action cannot be undone and will permanently remove the event from the database.`
-    );
+    const doCancel = async () => {
+      setIsDeleting(true);
+      try {
+        const token = localStorage.getItem("authToken");
 
-    if (!confirmCancel) return;
+        const response = await fetch(buildApiUrl(`/api/v1/games/organisers/${id}`), {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-    setIsDeleting(true);
-    try {
-      const token = localStorage.getItem("authToken");
+        const data = await response.json();
 
-      const response = await fetch(buildApiUrl(`/api/v1/games/organisers/${id}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+        if (data.success) {
+          alert('Event cancelled and removed successfully!');
+          // Refresh the page to update the games list
+          window.location.reload();
+        } else {
+          alert(`Failed to cancel event: ${data.message}`);
         }
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert('Event cancelled and removed successfully!');
-        // Refresh the page to update the games list
-        window.location.reload();
-      } else {
-        alert(`Failed to cancel event: ${data.message}`);
+      } catch (error) {
+        console.error('Error cancelling event:', error);
+        alert('Failed to cancel event. Please try again.');
+      } finally {
+        setIsDeleting(false);
       }
-    } catch (error) {
-      console.error('Error cancelling event:', error);
-      alert('Failed to cancel event. Please try again.');
-    } finally {
-      setIsDeleting(false);
-    }
+    };
+
+    setConfirmMessage(`Are you sure you want to cancel "${title}"?\n\nThis action cannot be undone and will permanently remove the event from the database.`);
+    confirmActionRef.current = doCancel;
+    setConfirmVisible(true);
   };
 
   const currentPlayers = spotsTotal - spotsLeft;
@@ -150,6 +154,28 @@ export function OrganizerEventCard({
           </div>
         </div>
       )}
+      <ConfirmationModal
+        open={confirmVisible}
+        title="Cancel event"
+        message={confirmMessage || "Are you sure you want to continue?"}
+        confirmLabel="Cancel event"
+        cancelLabel="Keep event"
+        loading={isDeleting}
+        onCancel={() => {
+          setConfirmVisible(false);
+          confirmActionRef.current = null;
+          setConfirmMessage(null);
+        }}
+        onConfirm={async () => {
+          setConfirmVisible(false);
+          const act = confirmActionRef.current;
+          confirmActionRef.current = null;
+          setConfirmMessage(null);
+          if (act) {
+            await act();
+          }
+        }}
+      />
     </div>
   );
 }

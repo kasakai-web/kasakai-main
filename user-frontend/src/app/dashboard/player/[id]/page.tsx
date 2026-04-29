@@ -6,6 +6,7 @@ import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -43,6 +44,9 @@ export default function PlayerDashboard() {
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [detailGame, setDetailGame] = useState<any>(null);
   const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
@@ -389,42 +393,45 @@ export default function PlayerDashboard() {
   };
 
   const handleCancelRegistration = async (game: any) => {
-    const { token } = getSession();
-    if (!token) {
-      clearSession();
-      router.replace("/login?role=player");
-      return;
-    }
-
-    const confirmed = window.confirm("Do you want to cancel your registration for this event?");
-    if (!confirmed) return;
-
-    setCancellingGameId(game._id);
-    try {
-      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/backout`), {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        showNotification("error", data.message || "Unable to cancel registration right now.");
+    const doCancel = async () => {
+      const { token } = getSession();
+      if (!token) {
+        clearSession();
+        router.replace("/login?role=player");
         return;
       }
 
-      showNotification("success", data.message || "Registration cancelled successfully.");
-      setDetailGame(null);
-      fetchDashboardData();
-      setActiveTab("my-games");
-      if (playerId) {
-        router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+      setCancellingGameId(game._id);
+      try {
+        const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/backout`), {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          showNotification("error", data.message || "Unable to cancel registration right now.");
+          return;
+        }
+
+        showNotification("success", data.message || "Registration cancelled successfully.");
+        setDetailGame(null);
+        fetchDashboardData();
+        setActiveTab("my-games");
+        if (playerId) {
+          router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+        }
+      } catch (error) {
+        console.error("Failed to cancel registration", error);
+        showNotification("error", "Cancellation failed. Please try again.");
+      } finally {
+        setCancellingGameId(null);
       }
-    } catch (error) {
-      console.error("Failed to cancel registration", error);
-      showNotification("error", "Cancellation failed. Please try again.");
-    } finally {
-      setCancellingGameId(null);
-    }
+    };
+
+    setConfirmMessage("Do you want to cancel your registration for this event?");
+    confirmActionRef.current = doCancel;
+    setConfirmVisible(true);
   };
 
   const handleConfirmBooking = async (
@@ -509,27 +516,29 @@ export default function PlayerDashboard() {
   const handleLeaveWaitlist = async (game: any) => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
-
-    const confirmed = window.confirm("Remove yourself from the waitlist for this event?");
-    if (!confirmed) return;
-
-    try {
-      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/leave-waitlist`), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        showNotification("error", data.message || "Failed to leave waitlist.");
-        return;
+    const doLeave = async () => {
+      try {
+        const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/leave-waitlist`), {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showNotification("error", data.message || "Failed to leave waitlist.");
+          return;
+        }
+        showNotification("success", "Removed from waitlist.");
+        setDetailGame(null);
+        fetchMyWaitlist();
+        fetchAllGames();
+      } catch {
+        showNotification("error", "Failed to leave waitlist. Please try again.");
       }
-      showNotification("success", "Removed from waitlist.");
-      setDetailGame(null);
-      fetchMyWaitlist();
-      fetchAllGames();
-    } catch {
-      showNotification("error", "Failed to leave waitlist. Please try again.");
-    }
+    };
+
+    setConfirmMessage("Remove yourself from the waitlist for this event?");
+    confirmActionRef.current = doLeave;
+    setConfirmVisible(true);
   };
 
   const cancelledGames = myGames.filter((game) => {
@@ -797,6 +806,29 @@ export default function PlayerDashboard() {
           registeredPlayers={selectedGamePlayers}
         />
       )}
+
+      <ConfirmationModal
+        open={confirmVisible}
+        title="Confirm cancellation"
+        message={confirmMessage || "Do you want to continue?"}
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        loading={!!cancellingGameId}
+        onCancel={() => {
+          setConfirmVisible(false);
+          confirmActionRef.current = null;
+          setConfirmMessage(null);
+        }}
+        onConfirm={async () => {
+          setConfirmVisible(false);
+          const action = confirmActionRef.current;
+          confirmActionRef.current = null;
+          setConfirmMessage(null);
+          if (action) {
+            await action();
+          }
+        }}
+      />
 
       {detailGame && (
         <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setDetailGameRating(null); }}>

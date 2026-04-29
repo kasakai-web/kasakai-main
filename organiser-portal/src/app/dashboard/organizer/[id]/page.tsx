@@ -6,6 +6,7 @@ import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
 import { PostGameModal } from "@/components/dashboard/PostGameModal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -30,6 +31,9 @@ export default function OrganizerDashboard() {
   const [cancelMessage, setCancelMessage] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [selectedGame, setSelectedGame] = useState<any>(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,20 +181,25 @@ export default function OrganizerDashboard() {
   };
 
   const handleOrganiserWithdraw = async (gameId: string) => {
-    if (!window.confirm('Are you sure you want to withdraw yourself from this game?')) return;
-    const { token } = getSession();
-    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
-    try {
-      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/withdraw`), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { alert(data.message || 'Failed to withdraw'); return; }
-      fetchGames({ silent: true });
-    } catch (err) {
-      alert('Failed to withdraw. Please try again.');
-    }
+    const doWithdraw = async () => {
+      const { token } = getSession();
+      if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+      try {
+        const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/withdraw`), {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) { alert(data.message || 'Failed to withdraw'); return; }
+        fetchGames({ silent: true });
+      } catch (err) {
+        alert('Failed to withdraw. Please try again.');
+      }
+    };
+
+    setConfirmMessage('Are you sure you want to withdraw yourself from this game?');
+    confirmActionRef.current = doWithdraw;
+    setConfirmVisible(true);
   };
 
   const handleRemoveRegistration = async (gameId: string, regId: string) => {
@@ -315,6 +324,28 @@ export default function OrganizerDashboard() {
           <span className="btn-icon">+ </span>Create New Event
         </button>
       </div>
+
+      <ConfirmationModal
+        open={confirmVisible}
+        title="Withdraw from game"
+        message={confirmMessage || "Are you sure you want to continue?"}
+        confirmLabel="Withdraw"
+        cancelLabel="Keep me in"
+        onCancel={() => {
+          setConfirmVisible(false);
+          confirmActionRef.current = null;
+          setConfirmMessage(null);
+        }}
+        onConfirm={async () => {
+          setConfirmVisible(false);
+          const act = confirmActionRef.current;
+          confirmActionRef.current = null;
+          setConfirmMessage(null);
+          if (act) {
+            await act();
+          }
+        }}
+      />
 
       {fetchError && (
         <div style={{
