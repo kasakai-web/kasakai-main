@@ -26,6 +26,7 @@ export default function DashboardLayout({
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
+  const [showPhotoReminder, setShowPhotoReminder] = useState(false);
 
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
@@ -45,9 +46,8 @@ export default function DashboardLayout({
 
     if (authToken && storedRole === "player" && storedUserId) {
       setAuthenticated(true);
-      // Force profile page if image is required and user is not already there
-      if (localStorage.getItem("requirePhotoUpload") === "true" && !pathname.includes("/profile")) {
-        router.replace(`/dashboard/player/${storedUserId}/profile`);
+      if (localStorage.getItem("requirePhotoUpload") === "true") {
+        setShowPhotoReminder(true);
       }
     } else {
       setAuthenticated(false);
@@ -62,6 +62,10 @@ export default function DashboardLayout({
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("userProfileImage") : null;
     if (stored) setUserProfileImage(stored);
+    // Hide reminder once user is on profile page or has uploaded a photo
+    if (pathname.includes("/profile") || stored) {
+      setShowPhotoReminder(false);
+    }
   }, [pathname]);
 
   // Fetch profile image from API if not in localStorage
@@ -458,6 +462,49 @@ export default function DashboardLayout({
 
         {/* MAIN CONTENT */}
         <main className="dashboard-main">
+          {showPhotoReminder && (
+            <div style={{
+              background: "rgba(200,255,62,0.08)",
+              border: "1px solid rgba(200,255,62,0.3)",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              margin: "16px 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: "18px" }}>📸</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, color: "#c8ff3e", fontWeight: 700, fontSize: "14px" }}>Profile photo required</p>
+                <p style={{ margin: 0, color: "var(--muted)", fontSize: "12px", marginTop: "2px" }}>
+                  Add a profile photo so organisers and teammates can recognise you.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigateToPlayer("profile")}
+                style={{
+                  background: "#c8ff3e", color: "#000", border: "none",
+                  borderRadius: "6px", padding: "7px 14px",
+                  fontSize: "12px", fontWeight: 700, cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                Add Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPhotoReminder(false)}
+                aria-label="Dismiss"
+                style={{
+                  background: "none", border: "none", color: "var(--muted)",
+                  cursor: "pointer", fontSize: "18px", lineHeight: 1, flexShrink: 0, padding: "0 4px",
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )}
           {children}
         </main>
       </div>

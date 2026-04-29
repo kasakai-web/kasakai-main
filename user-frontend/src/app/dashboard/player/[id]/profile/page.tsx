@@ -181,7 +181,10 @@ export default function PlayerProfilePage() {
       const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
       setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
       setImagePreview(newImageUrl);
-      if (newImageUrl) localStorage.setItem("userProfileImage", newImageUrl);
+      if (newImageUrl) {
+        localStorage.setItem("userProfileImage", newImageUrl);
+        localStorage.removeItem("requirePhotoUpload");
+      }
     } catch {
       setError("Failed to upload image");
       setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
