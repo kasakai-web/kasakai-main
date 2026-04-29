@@ -45,6 +45,10 @@ export default function DashboardLayout({
 
     if (authToken && storedRole === "player" && storedUserId) {
       setAuthenticated(true);
+      // Force profile page if image is required and user is not already there
+      if (localStorage.getItem("requirePhotoUpload") === "true" && !pathname.includes("/profile")) {
+        router.replace(`/dashboard/player/${storedUserId}/profile`);
+      }
     } else {
       setAuthenticated(false);
       clearSession();

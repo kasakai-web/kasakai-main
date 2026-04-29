@@ -9,7 +9,7 @@ interface Registration {
   _id: string;
   player?: { _id: string; name: string; phone?: string };
   plusOneName?: string | null;
-  attended?: "present" | "absent" | "no_show" | "not_marked";
+  attended?: "present" | "absent" | "not_marked";
 }
 
 interface Game {
@@ -22,7 +22,7 @@ interface Game {
   attendanceMarked?: boolean;
 }
 
-type AttendanceStatus = "present" | "absent" | "no_show";
+type AttendanceStatus = "present" | "absent";
 
 interface FeedbackSummary {
   count: number;
@@ -105,12 +105,14 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
   const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
   const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
 
-  // Pre-load existing attendance marks
+  // Pre-load existing attendance marks — map legacy no_show → absent
   useEffect(() => {
     const init: Record<string, AttendanceStatus> = {};
     for (const reg of game.registrations) {
-      const s = reg.attended;
-      init[reg._id] = s === "present" || s === "absent" || s === "no_show" ? s : "present";
+      const s = reg.attended as string | undefined;
+      if (s === "present") init[reg._id] = "present";
+      else if (s === "absent" || s === "no_show") init[reg._id] = "absent";
+      else init[reg._id] = "present";
     }
     setAttendance(init);
   }, [game]);
@@ -140,7 +142,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
       // 2. Save attendance
       const attendancePayload = game.registrations.map((reg) => ({
         regId:  reg._id,
-        status: attendance[reg._id] || "present",
+        status: attendance[reg._id] === "absent" ? "absent" : "present",
       }));
 
       const attRes = await fetch(
@@ -306,7 +308,6 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
 
   const presentCount = Object.values(attendance).filter((s) => s === "present").length;
   const absentCount  = Object.values(attendance).filter((s) => s === "absent").length;
-  const noShowCount  = Object.values(attendance).filter((s) => s === "no_show").length;
 
   return (
     <div className="pgm-overlay" onClick={onClose}>
@@ -353,7 +354,6 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
             <div className="pgm-summary-row">
               <span className="pgm-summary-chip present">{presentCount} Present</span>
               <span className="pgm-summary-chip absent">{absentCount} Absent</span>
-              <span className="pgm-summary-chip noshow">{noShowCount} No-Show</span>
             </div>
 
             {playerRegs.length === 0 && (
@@ -370,18 +370,20 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
                     <span className="pgm-player-name">{reg.player!.name}</span>
                   </div>
                   <div className="pgm-attendance-btns">
-                    {(["present", "absent", "no_show"] as AttendanceStatus[]).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className={`pgm-att-btn pgm-att-${s} ${attendance[reg._id] === s ? "active" : ""}`}
-                        onClick={() =>
-                          setAttendance((prev) => ({ ...prev, [reg._id]: s }))
-                        }
-                      >
-                        {s === "present" ? "Present" : s === "absent" ? "Absent" : "No-Show"}
-                      </button>
-                    ))}
+                    <button
+                      type="button"
+                      className={`pgm-att-btn pgm-att-present ${attendance[reg._id] === "present" ? "active" : ""}`}
+                      onClick={() => setAttendance((prev) => ({ ...prev, [reg._id]: "present" }))}
+                    >
+                      ✓ Present
+                    </button>
+                    <button
+                      type="button"
+                      className={`pgm-att-btn pgm-att-absent ${attendance[reg._id] === "absent" ? "active" : ""}`}
+                      onClick={() => setAttendance((prev) => ({ ...prev, [reg._id]: "absent" }))}
+                    >
+                      ✕ Absent
+                    </button>
                   </div>
                 </div>
               ))}
@@ -418,7 +420,6 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
             <div className="pgm-summary-row" style={{ padding: "14px 24px 0" }}>
               <span className="pgm-summary-chip present">{presentCount} Present</span>
               <span className="pgm-summary-chip absent">{absentCount} Absent</span>
-              <span className="pgm-summary-chip noshow">{noShowCount} No-Show</span>
               <span style={{ marginLeft: "auto", fontSize: 11, color: "#555" }}>
                 {Object.keys(ratings).length} player{Object.keys(ratings).length !== 1 ? "s" : ""} rated
               </span>

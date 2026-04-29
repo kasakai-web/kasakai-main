@@ -27,6 +27,11 @@ const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, idx) => {
   return { value, label: `${displayHour}:${minutes} ${period}` };
 });
 
+interface GuestReg {
+  _id: string;
+  plusOneName: string;
+}
+
 interface EditEventModalProps {
   gameId: string;
   initialData: any; // full game object from API
@@ -35,6 +40,16 @@ interface EditEventModalProps {
 }
 
 export function EditEventModal({ gameId, initialData, onClose, onSuccess }: EditEventModalProps) {
+  // Derive organiser's existing guest registrations from initialData
+  const { userId } = getSession();
+  const [guests, setGuests] = useState<GuestReg[]>(() =>
+    (initialData.registrations || []).filter(
+      (r: any) => r.plusOneName && r.player && (r.player._id || r.player).toString() === userId
+    ).map((r: any) => ({ _id: r._id, plusOneName: r.plusOneName }))
+  );
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [guestError, setGuestError]     = useState("");
+
   const initialDateTime = useMemo(() => {
     const scheduled = initialData.scheduledAt ? new Date(initialData.scheduledAt) : null;
     if (!scheduled) return { date: "", time: "18:00" };
@@ -69,6 +84,55 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       .then((d) => { if (d.success) setTurfs(d.data || []); })
       .catch(console.error);
   }, []);
+
+  const addGuest = async () => {
+    setGuestError("");
+    const { token } = getSession();
+    if (!token) return;
+    const guestNumber = guests.length + 1;
+    const organiserName = initialData.organiser?.name || "Organiser";
+    const firstName = organiserName.trim().split(/\s+/)[0];
+    const plusOneName = `${firstName} + ${guestNumber}`;
+    setGuestLoading(true);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-player`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ plusOneName }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setGuestError(data.message || "Failed to add guest"); return; }
+      // Find the newly added registration in the returned game
+      const newReg = (data.data?.registrations || []).find(
+        (r: any) => r.plusOneName === plusOneName && !guests.some(g => g._id === r._id)
+      );
+      if (newReg) setGuests((prev) => [...prev, { _id: newReg._id, plusOneName: newReg.plusOneName }]);
+    } catch (err: any) {
+      setGuestError(err.message || "Failed to add guest");
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
+  const removeGuest = async (regId: string) => {
+    setGuestError("");
+    const { token } = getSession();
+    if (!token) return;
+    setGuestLoading(true);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/registrations/${regId}`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setGuestError(data.message || "Failed to remove guest"); return; }
+      setGuests((prev) => prev.filter((g) => g._id !== regId));
+    } catch (err: any) {
+      setGuestError(err.message || "Failed to remove guest");
+    } finally {
+      setGuestLoading(false);
+    }
+  };
 
   const handleFormatChange = (f: Format) => {
     setFormat(f);
@@ -266,9 +330,57 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
               </span>
             </div>
 
-            <p style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
-              To add or remove guests, use the <strong>👥 Player List</strong> button on the event row.
-            </p>
+          </Section>
+
+          {/* ── Your Guests ── */}
+          <Section title="Your Guests">
+            {guestError && (
+              <div style={{ fontSize: 12, color: "#f87171", marginBottom: 8 }}>⚠️ {guestError}</div>
+            )}
+
+            {guests.length === 0 && (
+              <p style={{ fontSize: 12, color: "#666", margin: 0 }}>No guests added yet.</p>
+            )}
+
+            {guests.map((g, idx) => (
+              <div key={g._id} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "rgba(200,255,62,0.04)", border: "1px solid #2a2a2a",
+                borderRadius: 8, padding: "8px 12px",
+              }}>
+                <span style={{ fontSize: 13, color: "#ddd" }}>
+                  <span style={{ color: "#c8ff3e", fontWeight: 600, marginRight: 8 }}>#{idx + 1}</span>
+                  {g.plusOneName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeGuest(g._id)}
+                  disabled={guestLoading}
+                  style={{
+                    background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)",
+                    color: "#f87171", borderRadius: 6, padding: "4px 10px", fontSize: 12,
+                    cursor: guestLoading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addGuest}
+              disabled={guestLoading || guests.length >= 10}
+              style={{
+                marginTop: 4, width: "100%", padding: "9px 0",
+                background: "rgba(200,255,62,0.06)", border: "1px dashed rgba(200,255,62,0.3)",
+                borderRadius: 8, color: "#c8ff3e", fontSize: 13, fontWeight: 600,
+                cursor: (guestLoading || guests.length >= 10) ? "not-allowed" : "pointer",
+                opacity: (guestLoading || guests.length >= 10) ? 0.5 : 1,
+              }}
+            >
+              {guestLoading ? "…" : "+ Add Guest"}
+            </button>
           </Section>
 
           <div className="form-actions" style={{ marginTop: 24 }}>

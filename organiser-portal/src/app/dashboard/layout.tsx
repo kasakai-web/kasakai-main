@@ -90,6 +90,11 @@ export default function DashboardLayout({
       }
 
       setAuthenticated(true);
+      // Force profile page if image is required and user is not already there
+      if (localStorage.getItem("requirePhotoUpload") === "true" && !pathname.includes("/profile")) {
+        const uid = pathname.match(/\/dashboard\/organizer\/([^/?#]+)/)?.[1] || storedUserId || "";
+        router.replace(`/dashboard/organizer/${uid}/profile`);
+      }
     } else {
       setAuthenticated(false);
       clearSession();

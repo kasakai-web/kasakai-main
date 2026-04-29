@@ -130,7 +130,7 @@ exports.createGame = async (req, res) => {
       for (let i = 1; i <= organiserGuestCount; i++) {
         game.registrations.push({
           player:        req.user._id,
-          plusOneName:   `Guest ${i}`,
+          plusOneName:   `${(req.user.name || 'Organiser').trim().split(/\s+/)[0]} + ${i}`,
           paymentStatus: 'pending',
           signedUpAt:    new Date(),
         });
@@ -975,7 +975,7 @@ exports.registerForGame = async (req, res) => {
       },
       ...guestInput.map((guest, idx) => ({
         player:            req.user._id,
-        plusOneName:       (guest?.name || '').trim() || `Guest ${idx + 1}`,
+        plusOneName:       (guest?.name || '').trim() || `${(req.user.name || 'Player').trim().split(/\s+/)[0]} + ${idx + 1}`,
         preferredPosition: POSITION_MAP[guest?.position] || 'any',
         teamPreference:    TEAM_MAP[guest?.teamPreference] || 'none',
         paymentStatus:     payStatus,

@@ -1510,6 +1510,15 @@
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.pdm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .pdm-avatar-p {
@@ -1522,6 +1531,159 @@
   color: #777;
   border: 1px solid #333;
   font-size: 12px;
+}
+
+/* ── Player Profile Panel (content inside side panel) ── */
+.pdm-profile-panel {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.pdm-profile-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pdm-profile-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.pdm-profile-panel-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid #333;
+  color: #aaa;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdm-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pdm-profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--coral, #ff5c3e), #ff8b5c);
+  color: #000;
+  font-size: 24px;
+  font-weight: 800;
+  flex-shrink: 0;
+  border: 2px solid #2a2a2a;
+}
+
+.pdm-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.pdm-profile-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdm-profile-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pdm-profile-skill {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  width: fit-content;
+}
+
+.pdm-profile-section {
+  border-top: 1px solid #1e1e1e;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pdm-profile-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+}
+
+.pdm-profile-contact-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdm-profile-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.pdm-profile-positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pdm-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.pdm-profile-stat {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid #1e1e1e;
+  border-radius: 8px;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.pdm-profile-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.pdm-profile-stat-key {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Card body */
@@ -1778,6 +1940,101 @@
   animation: op-spin 0.7s linear infinite;
 }
 @keyframes op-spin { to { transform: rotate(360deg); } }
+
+/* ── Organiser profile image lightbox ── */
+.op-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  animation: op-lb-in 0.18s ease;
+}
+@keyframes op-lb-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.op-lightbox-img {
+  max-width: min(520px, 90vw);
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.8);
+  cursor: default;
+}
+.op-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.op-lightbox-close:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* ── Player profile side panel (fixed, slides from right) ── */
+.pdm-profile-screen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+@keyframes pdm-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes pdm-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.pdm-profile-side-panel {
+  width: 360px;
+  max-width: 95vw;
+  background: #111;
+  border-left: 1px solid #222;
+  overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: pdm-slide-in 0.22s ease;
+}
+
+.pdm-profile-side-panel::-webkit-scrollbar { width: 4px; }
+.pdm-profile-side-panel::-webkit-scrollbar-track { background: transparent; }
+.pdm-profile-side-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+@media (max-width: 600px) {
+  .pdm-profile-screen-overlay {
+    align-items: flex-end;
+    justify-content: stretch;
+  }
+  .pdm-profile-side-panel {
+    width: 100%;
+    max-height: 88vh;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid #222;
+    border-radius: 18px 18px 0 0;
+    animation: pdm-slide-up 0.22s ease;
+  }
+}
 
 .op-photo-btn {
   background: transparent;

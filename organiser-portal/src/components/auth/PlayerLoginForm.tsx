@@ -50,7 +50,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       const { token, user } = data;
       localStorage.setItem("authToken", token); // ✅ consistent
       localStorage.setItem("userRole", user.role || "organiser");
-      localStorage.setItem("userId", user._id); // ✅ important
+      localStorage.setItem("userId", user._id || user.id); // API returns 'id' field
       localStorage.setItem("userName", user.name || "User");
       if (user.profileImage) {
         const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
@@ -86,13 +86,19 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
         }
       }
 
+      const hasImage = !!localStorage.getItem("userProfileImage");
+      if (!hasImage) localStorage.setItem("requirePhotoUpload", "true");
+
+      const orgId = user._id || user.id;
       const isNew = localStorage.getItem("newSignup") === "true";
       if (isNew) {
         localStorage.removeItem("newSignup");
         localStorage.setItem("showProfileBanner", "true");
-        router.replace(`/dashboard/organizer/${user._id}/profile`);
+        router.replace(`/dashboard/organizer/${orgId}/profile`);
+      } else if (!hasImage) {
+        router.replace(`/dashboard/organizer/${orgId}/profile`);
       } else {
-        router.replace(`/dashboard/organizer/${user._id}`);
+        router.replace(`/dashboard/organizer/${orgId}`);
       }
     } catch (err: any) {
       if (err instanceof TypeError && /fetch/i.test(err.message || "")) {

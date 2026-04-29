@@ -85,14 +85,18 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLog
         }
       }
 
+      const hasImage = !!localStorage.getItem("userProfileImage");
+      if (!hasImage) localStorage.setItem("requirePhotoUpload", "true");
+
       const isNew = localStorage.getItem("newSignup") === "true";
-      if (redirectAfterLogin) {
-        // Came from a waitlist email link — go directly there
-        router.replace(redirectAfterLogin);
-      } else if (isNew) {
+      if (isNew) {
         localStorage.removeItem("newSignup");
         localStorage.setItem("showProfileBanner", "true");
         router.replace(`/dashboard/player/${user.id}/profile`);
+      } else if (!hasImage) {
+        router.replace(`/dashboard/player/${user.id}/profile`);
+      } else if (redirectAfterLogin) {
+        router.replace(redirectAfterLogin);
       } else {
         router.replace(`/dashboard/player/${user.id}`);
       }

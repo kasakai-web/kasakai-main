@@ -53,7 +53,6 @@ const TEAM_OPTIONS = [
 ] as const;
 
 const MAX_GUESTS = 4;
-const DEFAULT_GUEST: Guest = { name: "Guest", position: "Any", teamPreference: "No Preference" };
 
 function GuestCard({
   index,
@@ -80,7 +79,7 @@ function GuestCard({
           aria-label={expanded ? "Collapse guest" : "Expand guest"}
         >
           <span className="bm-guest-label">
-            {guest.name || "Guest"} {index + 1}
+            {guest.name || `Guest ${index + 1}`}
           </span>
           {!expanded && (
             <span className="bm-guest-summary-pills">
@@ -191,6 +190,7 @@ export function BookingModal({
   const [success, setSuccess] = useState(false);
   const [notification, setNotification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
 
   if (!game || !game.venue) return null;
 
@@ -204,7 +204,10 @@ export function BookingModal({
 
   const addGuest = () => {
     if (!canAddGuest) return;
-    setGuests((previous) => [...previous, { ...DEFAULT_GUEST }]);
+    const rawName = typeof window !== "undefined" ? localStorage.getItem("userName") || "" : "";
+    const firstName = rawName.trim().split(/\s+/)[0] || "Guest";
+    const guestNumber = guests.length + 1;
+    setGuests((previous) => [...previous, { name: `${firstName} + ${guestNumber}`, position: "Any", teamPreference: "No Preference" }]);
   };
 
   const removeGuest = (index: number) => {
@@ -216,6 +219,9 @@ export function BookingModal({
   };
 
   const handleConfirm = async () => {
+    const hasPhoto = typeof window !== "undefined" && !!localStorage.getItem("userProfileImage");
+    if (!hasPhoto) { setPhotoError(true); return; }
+    setPhotoError(false);
     setIsLoading(true);
     try {
       onConfirm(game, guests, teamPreference, willingIfFormatChange);
@@ -437,6 +443,24 @@ export function BookingModal({
                     </div>
                   )}
                 </>
+              )}
+
+              {photoError && (
+                <div style={{
+                  background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.35)",
+                  borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#f87171",
+                  lineHeight: 1.5, textAlign: "center",
+                }}>
+                  📸 Please{" "}
+                  {playerId ? (
+                    <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}>
+                      upload your profile photo
+                    </Link>
+                  ) : (
+                    <strong>upload your profile photo</strong>
+                  )}{" "}
+                  first. A real photo is required to join games.
+                </div>
               )}
 
               <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
