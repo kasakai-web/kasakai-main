@@ -53,7 +53,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       localStorage.setItem("userId", user._id || user.id); // API returns 'id' field
       localStorage.setItem("userName", user.name || "User");
       if (user.profileImage) {
-        const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
+        const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1").replace(/\/api\/v1\/?$/, "");
         localStorage.setItem("userProfileImage", `${apiBase}${user.profileImage}`);
       } else {
         localStorage.removeItem("userProfileImage");
@@ -75,7 +75,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
           if (imgRes.ok) {
             const imgData = await imgRes.json();
             if (imgData.data?.profileImage) {
-              const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
+              const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1").replace(/\/api\/v1\/?$/, "");
               localStorage.setItem("userProfileImage", `${apiBase}${imgData.data.profileImage}`);
             }
           }

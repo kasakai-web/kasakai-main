@@ -6,7 +6,7 @@ import type { DashboardSection } from "./constants";
 import { getAdminToken } from "@/lib/admin-session";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/api/v1";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
