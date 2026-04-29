@@ -170,7 +170,7 @@ export function EventCard({
             className="card-btn signup-btn"
             onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
           >
-            <span>⚽ Sign Up Now!</span>
+            <span>⚽ Book Your Seat — Hurry!</span>
           </button>
         ) : isWaitlisted ? (
           <button className="card-btn waitlist-btn" disabled>
@@ -186,11 +186,11 @@ export function EventCard({
                 <span>📋 Join Waitlist</span>
               </button>
             ) : (
-              <button
+                <button
                 className="card-btn signup-btn"
                 onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
               >
-                <span>⚽ Sign Up</span>
+                <span>⚽ Book Your Seat</span>
               </button>
             )}
           </>

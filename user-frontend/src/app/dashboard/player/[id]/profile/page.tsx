@@ -58,7 +58,9 @@ export default function PlayerProfilePage() {
   const [imageUploading, setImageUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<PlayerProfile>({
     name: "",
     email: "",

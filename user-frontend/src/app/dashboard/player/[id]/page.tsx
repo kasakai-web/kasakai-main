@@ -1020,7 +1020,7 @@ export default function PlayerDashboard() {
                   onClick={() => { setDetailGame(null); handleBook(detailGame); }}
                   style={{ flex: "0 0 auto", minWidth: 180 }}
                 >
-                  <span>⚽ Sign Up Now!</span>
+                  <span>⚽ Book Your Seat — Hurry!</span>
                 </button>
               )}
               {detailIsWaitlisted && !detailIsCancelled && (

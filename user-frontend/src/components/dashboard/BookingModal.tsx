@@ -268,7 +268,7 @@ export function BookingModal({
           <div id="bookingForm">
             <div className="bm-header">
               <div className="bm-title-group">
-                <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : "Game Sign-up"}</div>
+                <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : "Book Your Seat"}</div>
                 <div className="bm-title">
                   {venueName}
                   {venueCity ? (
