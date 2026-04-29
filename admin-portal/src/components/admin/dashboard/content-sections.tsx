@@ -88,7 +88,7 @@ type GameDetail = {
   cancelReason?: string | null; cancelledAt?: string | null;
   completedAt?: string | null; attendanceMarked?: boolean;
   organiser?: { name?: string; phone?: string; email?: string } | null;
-  turf?: { name?: string; address?: { area?: string; city?: string } } | null;
+  turf?: { name?: string; address?: { area?: string; city?: string; state?: string } } | null;
   registrations: GameRegistration[];
   waitlist: GameWaitlistEntry[];
 };
@@ -1715,9 +1715,9 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
-            <thead><tr><th>Venue</th><th>Area</th><th>City</th><th>Surface</th><th>Pitches</th><th>Floodlights</th><th>Verified</th><th>Status</th><th>Games</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Venue</th><th>Area</th><th>City</th><th>State</th><th>Surface</th><th>Pitches</th><th>Floodlights</th><th>Verified</th><th>Status</th><th>Games</th><th>Actions</th></tr></thead>
             <tbody>
-              {turfs.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No venues yet.</td></tr>}
+              {turfs.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No venues yet.</td></tr>}
               {turfs.map((t) => {
                 const busy = actionLoading !== null;
                 return (
@@ -1725,6 +1725,7 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
                     <td>{t.name}</td>
                     <td>{t.address.area}</td>
                     <td>{t.address.city}</td>
+                    <td>{t.address.state}</td>
                     <td><span className={`${styles.badge} ${styles.badgeGray}`}>{surfaceLabel(t.surfaceType)}</span></td>
                     <td>{t.numberOfPitches}</td>
                     <td><span className={`${styles.badge} ${t.hasFloodlights ? styles.badgeGreen : styles.badgeGray}`}>{t.hasFloodlights ? "Yes" : "No"}</span></td>
