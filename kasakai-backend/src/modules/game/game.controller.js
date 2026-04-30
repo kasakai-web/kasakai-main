@@ -767,13 +767,12 @@ exports.organiserWithdraw = async (req, res) => {
 exports.getPublicGames = async (req, res) => {
   try {
     const games = await Game.find({
-      status: { $in: ['open', 'confirmed'] },
-      scheduledAt: { $gt: new Date() },
+      status: { $nin: ['cancelled', 'completed'] },
     })
       .populate('turf', 'name location.city')
       .populate('organiser', 'name')
       .select('title scheduledAt format maxPlayers registrations fee status turf organiser')
-      .sort('scheduledAt')
+      .sort({ scheduledAt: 1 })
       .limit(12)
       .lean();
 

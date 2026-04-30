@@ -30,6 +30,11 @@ function formatTime(iso: string) {
 function GameCard({ game, onSignUp }: { game: PublicGame; onSignUp: () => void }) {
   const isFull = game.spotsLeft <= 0;
   const isConfirmed = game.status === "confirmed";
+  const isOpen = game.status === "open";
+  const statusLabel = isConfirmed ? "Confirmed" : isOpen ? "Open" : "Coming Soon";
+  const statusColor = isConfirmed ? "var(--lime)" : isOpen ? "var(--electric)" : "var(--amber)";
+  const statusBg = isConfirmed ? "rgba(196,213,108,0.08)" : isOpen ? "rgba(111,200,218,0.08)" : "rgba(210,166,74,0.08)";
+  const statusBorder = isConfirmed ? "rgba(196,213,108,0.25)" : isOpen ? "rgba(111,200,218,0.25)" : "rgba(210,166,74,0.25)";
   const fillPct = Math.round(((game.maxPlayers - game.spotsLeft) / game.maxPlayers) * 100);
 
   return (
@@ -59,12 +64,12 @@ function GameCard({ game, onSignUp }: { game: PublicGame; onSignUp: () => void }
           fontSize: "9px",
           letterSpacing: ".16em",
           textTransform: "uppercase",
-          color: isConfirmed ? "var(--lime)" : "var(--electric)",
-          background: isConfirmed ? "rgba(196,213,108,0.08)" : "rgba(111,200,218,0.08)",
+          color: statusColor,
+          background: statusBg,
           padding: "3px 8px",
-          border: `1px solid ${isConfirmed ? "rgba(196,213,108,0.25)" : "rgba(111,200,218,0.25)"}`,
+          border: `1px solid ${statusBorder}`,
         }}>
-          {isConfirmed ? "Confirmed" : "Open"}
+          {statusLabel}
         </span>
         <span style={{
           fontFamily: "var(--mono)",
@@ -137,25 +142,24 @@ function GameCard({ game, onSignUp }: { game: PublicGame; onSignUp: () => void }
       {/* CTA */}
       <button
         onClick={onSignUp}
-        disabled={isFull}
         style={{
           margin: "0 18px 18px",
           padding: "12px",
-          background: isFull ? "transparent" : "var(--lime)",
-          color: isFull ? "var(--muted)" : "#000",
-          border: isFull ? "1px solid var(--border)" : "none",
+          background: "var(--lime)",
+          color: "#000",
+          border: "none",
           fontFamily: "var(--cond)",
           fontWeight: 800,
           fontSize: "13px",
           letterSpacing: ".12em",
           textTransform: "uppercase",
-          cursor: isFull ? "not-allowed" : "pointer",
+          cursor: "pointer",
           transition: "opacity 0.2s ease",
         }}
-        onMouseEnter={e => { if (!isFull) e.currentTarget.style.opacity = "0.85"; }}
+        onMouseEnter={e => { e.currentTarget.style.opacity = "0.85"; }}
         onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
       >
-        {isFull ? "Join Waitlist" : "Sign Up"}
+        Book Your Seat
       </button>
     </div>
   );
