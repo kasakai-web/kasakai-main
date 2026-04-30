@@ -392,33 +392,51 @@ body::after {
 }
 .search-box {
   flex: 1;
-  max-width: 260px;
+  max-width: 280px;
   position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+.search-box:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
 }
 .search-box input {
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--white);
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 8px 12px 8px 34px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.9));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  color: var(--black);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 16px 12px 48px;
   outline: none;
-  transition: border-color .15s;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
 }
 .search-box input::placeholder {
-  color: var(--muted);
+  color: #666;
+  font-weight: 400;
 }
 .search-box input:focus {
-  border-color: #444;
+  border-color: var(--lime);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 0 0 3px rgba(200, 255, 62, 0.1);
+  transform: scale(1.02);
 }
 .search-icon {
   position: absolute;
-  left: 10px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 16px;
+  color: var(--lime);
+  font-weight: bold;
+  z-index: 1;
 }
 
 /* ══════════════════ EVENTS GRID ══════════════════ */
@@ -2698,6 +2716,19 @@ body::after {
     max-width: 100%;
     width: 100%;
     flex: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+  .search-box:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    transform: none;
+  }
+  .search-box input {
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 14px 16px 14px 48px;
+  }
+  .search-box input:focus {
+    transform: none;
+    box-shadow: 0 0 0 2px rgba(200, 255, 62, 0.15);
   }
 
   .filter-chip {

@@ -112,15 +112,6 @@ export function EventCard({
           <span className="detail-label">Format</span>
           <span className="detail-value">{format}</span>
         </div>
-        <div className={`detail-item${spotsFlash ? " spots-flash" : ""}`}>
-          <span className="detail-label">Spots</span>
-          <span
-            className="detail-value"
-            style={spotsFlash === "down" ? { color: "#f87171" } : spotsFlash === "up" ? { color: "#4ade80" } : undefined}
-          >
-            {spotsLeft}/{spotsTotal}
-          </span>
-        </div>
       </div>
 
       {/* Players Capacity Bar */}

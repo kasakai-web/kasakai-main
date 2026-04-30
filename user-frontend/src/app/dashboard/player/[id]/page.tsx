@@ -641,15 +641,10 @@ export default function PlayerDashboard() {
             </span>
           </div>
           <div className="page-title">Your Football <span>World</span></div>
-          {lastUpdated && (
-            <div className="last-updated-hint">
-              Updated {formatRelativeTime(lastUpdated)}
-            </div>
-          )}
         </div>
         <div className="page-actions">
           <div className="search-box">
-            <span className="search-icon">⌕</span>
+            <span className="search-icon">🔍</span>
             <input
               type="text"
               placeholder="Search by venue or city..."
