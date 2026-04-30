@@ -437,7 +437,7 @@ export default function PlayerProfilePage() {
           <div className="pp-stat">
             <div className="pp-stat-val">{profile.totalGamesPlayed ?? 0}</div>
             <div className="pp-stat-key">Games</div>
-            <div className="pp-stat-sub">attended</div>
+            <div className="pp-stat-sub">played</div>
           </div>
           <div className="pp-stat-div" />
           <div className="pp-stat">

@@ -12,16 +12,20 @@ exports.getMyProfile = async (req, res) => {
 
     const pid = req.user._id;
 
-    // Calculate live attendance stats from game registrations (real player only, not guests)
-    const [attendedCount, noShowCount] = await Promise.all([
+    // Calculate live stats from game registrations (real player only, not guests)
+    const [attendedCount, noShowCount, completedCount] = await Promise.all([
+      // Attended: attendance was marked and player was present
       Game.countDocuments({
         attendanceMarked: true,
         registrations: { $elemMatch: { player: pid, attended: 'present', plusOneName: null } },
       }),
+      // No-show: attendance was marked and player didn't show
       Game.countDocuments({
         attendanceMarked: true,
         registrations: { $elemMatch: { player: pid, attended: 'no_show', plusOneName: null } },
       }),
+      // Fallback: any game the player has ever registered for
+      Game.countDocuments({ 'registrations.player': pid }),
     ]);
 
     const totalMarked = attendedCount + noShowCount;
@@ -31,7 +35,8 @@ exports.getMyProfile = async (req, res) => {
       : null;
 
     const data = player.toObject();
-    data.totalGamesPlayed = attendedCount;
+    // Use attendance-based count if available; fall back to completed+registered count
+    data.totalGamesPlayed = totalMarked > 0 ? attendedCount : completedCount;
     data.noShowCount      = noShowCount;
     data.attendanceRate   = attendanceRate;
 
