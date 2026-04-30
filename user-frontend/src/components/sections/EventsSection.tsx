@@ -168,13 +168,23 @@ function GameCard({ game, onSignUp }: { game: PublicGame; onSignUp: () => void }
 export function EventsSection() {
   const [games, setGames] = useState<PublicGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/games/public`)
+    const url = `${API_BASE}/games/public`;
+    console.log("[EventsSection] fetching:", url);
+    fetch(url)
       .then(r => r.json())
-      .then(d => { if (d.success) setGames(d.data); })
-      .catch(() => {})
+      .then(d => {
+        console.log("[EventsSection] response:", d);
+        if (d.success) setGames(d.data);
+        else setFetchError(d.message || "API returned success:false");
+      })
+      .catch(e => {
+        console.error("[EventsSection] fetch failed:", e);
+        setFetchError(e.message);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -276,12 +286,25 @@ export function EventsSection() {
             padding: "60px 24px",
             textAlign: "center",
           }}>
-            <p style={{ fontFamily: "var(--cond)", fontSize: "20px", color: "var(--muted)", letterSpacing: ".06em" }}>
-              No upcoming games right now
-            </p>
-            <p style={{ fontFamily: "var(--body)", fontSize: "13px", color: "#3a3a3a", marginTop: "8px" }}>
-              Check back soon or sign up to get notified.
-            </p>
+            {fetchError ? (
+              <>
+                <p style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "#ff6b6b", letterSpacing: ".1em", marginBottom: "8px" }}>
+                  Could not load games
+                </p>
+                <p style={{ fontFamily: "var(--mono)", fontSize: "11px", color: "#3a3a3a" }}>
+                  {fetchError} — check browser console for details
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ fontFamily: "var(--cond)", fontSize: "20px", color: "var(--muted)", letterSpacing: ".06em" }}>
+                  No games listed yet
+                </p>
+                <p style={{ fontFamily: "var(--body)", fontSize: "13px", color: "#3a3a3a", marginTop: "8px" }}>
+                  Organisers — create a game from your dashboard and it will appear here.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div
