@@ -1268,6 +1268,9 @@ exports.backoutFromGame = async (req, res) => {
       { runValidators: false }
     );
 
+    // Track backout on the player record
+    Player.findByIdAndUpdate(req.user._id, { $inc: { backoutCount: 1 } }).catch(() => {});
+
     if (refundAmountPaise > 0) {
       const scheduledDate = new Date(game.scheduledAt).toLocaleDateString('en-IN', {
         day: 'numeric', month: 'short',

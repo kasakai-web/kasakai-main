@@ -581,7 +581,7 @@ body::after {
 /* ─── Details Grid ─── */
 .card-details-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.03);

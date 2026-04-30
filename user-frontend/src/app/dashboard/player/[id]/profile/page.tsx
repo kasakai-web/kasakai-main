@@ -21,6 +21,7 @@ type PlayerProfile = {
   totalGamesPlayed?: number;
   noShowCount?: number;
   backoutCount?: number;
+  attendanceRate?: number | null;
   location?: {
     city?: string;
     state?: string;
@@ -123,6 +124,7 @@ export default function PlayerProfilePage() {
         totalGamesPlayed: p.totalGamesPlayed ?? 0,
         noShowCount: p.noShowCount ?? 0,
         backoutCount: p.backoutCount ?? 0,
+        attendanceRate: p.attendanceRate ?? null,
         location: { city: p.location?.city || "", state: p.location?.state || "" },
         preferences: {
           skillLevel: p.preferences?.skillLevel || "beginner",
@@ -435,19 +437,25 @@ export default function PlayerProfilePage() {
           <div className="pp-stat">
             <div className="pp-stat-val">{profile.totalGamesPlayed ?? 0}</div>
             <div className="pp-stat-key">Games</div>
-            <div className="pp-stat-sub">played</div>
+            <div className="pp-stat-sub">attended</div>
           </div>
           <div className="pp-stat-div" />
           <div className="pp-stat">
-            <div className={`pp-stat-val ${(profile.noShowCount ?? 0) > 0 ? "pp-warn" : "pp-ok"}`}>{profile.noShowCount ?? 0}</div>
-            <div className="pp-stat-key">No-Shows</div>
-            <div className="pp-stat-sub">missed</div>
+            {profile.attendanceRate === null || profile.attendanceRate === undefined ? (
+              <div className="pp-stat-val pp-ok">—</div>
+            ) : (
+              <div className={`pp-stat-val ${profile.attendanceRate < 70 ? "pp-warn" : ""}`}>
+                {profile.attendanceRate}%
+              </div>
+            )}
+            <div className="pp-stat-key">Attendance</div>
+            <div className="pp-stat-sub">{profile.attendanceRate === null || profile.attendanceRate === undefined ? "no data yet" : profile.attendanceRate >= 90 ? "excellent" : profile.attendanceRate >= 70 ? "good" : "needs work"}</div>
           </div>
           <div className="pp-stat-div" />
           <div className="pp-stat">
-            <div className={`pp-stat-val ${(profile.backoutCount ?? 0) > 0 ? "pp-warn" : "pp-ok"}`}>{profile.backoutCount ?? 0}</div>
-            <div className="pp-stat-key">Backouts</div>
-            <div className="pp-stat-sub">cancelled</div>
+            <div className={`pp-stat-val ${(profile.backoutCount ?? 0) > 3 ? "pp-warn" : "pp-ok"}`}>{profile.backoutCount ?? 0}</div>
+            <div className="pp-stat-key">Discipline</div>
+            <div className="pp-stat-sub">backouts</div>
           </div>
         </div>
 

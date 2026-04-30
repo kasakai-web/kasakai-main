@@ -1,18 +1,41 @@
 const path = require("path");
 const fs = require("fs");
 const Player = require("../../models/Player");
+const Game   = require("../../models/Game");
 
 const safePlayerSelect = "-password -otp -otpExpires";
 
 exports.getMyProfile = async (req, res) => {
   try {
     const player = await Player.findById(req.user._id).select(safePlayerSelect);
+    if (!player) return res.status(404).json({ success: false, message: "Player not found" });
 
-    if (!player) {
-      return res.status(404).json({ success: false, message: "Player not found" });
-    }
+    const pid = req.user._id;
 
-    return res.status(200).json({ success: true, data: player });
+    // Calculate live attendance stats from game registrations (real player only, not guests)
+    const [attendedCount, noShowCount] = await Promise.all([
+      Game.countDocuments({
+        attendanceMarked: true,
+        registrations: { $elemMatch: { player: pid, attended: 'present', plusOneName: null } },
+      }),
+      Game.countDocuments({
+        attendanceMarked: true,
+        registrations: { $elemMatch: { player: pid, attended: 'no_show', plusOneName: null } },
+      }),
+    ]);
+
+    const totalMarked = attendedCount + noShowCount;
+    // attendanceRate: null means no attendance data yet (show as "—")
+    const attendanceRate = totalMarked > 0
+      ? Math.round((attendedCount / totalMarked) * 100)
+      : null;
+
+    const data = player.toObject();
+    data.totalGamesPlayed = attendedCount;
+    data.noShowCount      = noShowCount;
+    data.attendanceRate   = attendanceRate;
+
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("getMyProfile error:", error);
     return res.status(500).json({ success: false, message: "Server error" });
