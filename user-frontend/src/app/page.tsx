@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { EventsSection } from "@/components/sections/EventsSection";
 import { FAQSection } from "@/components/sections/FAQSection";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { Footer } from "@/components/layout/Footer";
@@ -19,6 +20,7 @@ export default function Home() {
       <Header />
       <main>
         <HeroSection />
+        <EventsSection />
         <FAQSection />
       </main>
       <Footer />

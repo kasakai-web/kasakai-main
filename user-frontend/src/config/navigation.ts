@@ -2,9 +2,7 @@ import type { NavLink, LoginOption } from "@/types";
 
 export const NAV_LINKS: NavLink[] = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "#about" },
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Events", href: "#events" },
   { label: "Support", href: "#support" },
 ];
 

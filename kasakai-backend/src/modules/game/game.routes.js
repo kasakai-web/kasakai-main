@@ -14,6 +14,7 @@ const {
   removeRegistration,
   approveWaitlist,
   getAllGames,
+  getPublicGames,
   getGameById,
   getMyGames,
   getMyWaitlist,
@@ -212,6 +213,9 @@ router.route("/organisers/:id/waitlist/:waitlistId/approve")
 router.route("/organisers/:id")
   .delete(protect, authorize("organiser"), deleteGame)
   .patch(protect, authorize("organiser"), updateGame);
+
+// ── Public route (no auth) ───────────────────────────────────────────────────
+router.route("/public").get(getPublicGames);
 
 // ── Player-facing routes (more specific to less specific) ────────────────────
 router.route("/my-games")

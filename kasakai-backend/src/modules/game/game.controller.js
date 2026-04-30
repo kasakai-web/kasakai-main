@@ -761,6 +761,47 @@ exports.organiserWithdraw = async (req, res) => {
   }
 };
 
+// @desc    Get upcoming open/confirmed games — public, no auth required
+// @route   GET /api/v1/games/public
+// @access  Public
+exports.getPublicGames = async (req, res) => {
+  try {
+    const games = await Game.find({
+      status: { $in: ['open', 'confirmed'] },
+      scheduledAt: { $gt: new Date() },
+    })
+      .populate('turf', 'name location.city')
+      .populate('organiser', 'name')
+      .select('title scheduledAt format maxPlayers registrations fee status turf organiser')
+      .sort('scheduledAt')
+      .limit(12)
+      .lean();
+
+    const data = games.map(g => {
+      const active = (g.registrations || []).filter(
+        r => !['refunded', 'forfeited'].includes(r.paymentStatus)
+      ).length;
+      return {
+        _id:        g._id,
+        title:      g.title,
+        scheduledAt: g.scheduledAt,
+        format:     g.format,
+        maxPlayers: g.maxPlayers,
+        spotsLeft:  Math.max(0, g.maxPlayers - active),
+        fee:        g.fee,
+        status:     g.status,
+        venue:      g.turf?.name || 'TBA',
+        city:       g.turf?.location?.city || '',
+        organiser:  g.organiser?.name || '',
+      };
+    });
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error' });
+  }
+};
+
 // @desc    Get all available games for players
 // @route   GET /api/v1/games
 // @access  Private (Player)
