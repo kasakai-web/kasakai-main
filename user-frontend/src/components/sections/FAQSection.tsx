@@ -61,20 +61,9 @@ export function FAQSection() {
           letterSpacing: "-.01em",
           lineHeight: 0.9,
           color: "var(--white)",
-          marginBottom: "8px",
-        }}>
-          COMMON
-        </h2>
-        <h2 style={{
-          fontFamily: "var(--cond)",
-          fontWeight: 900,
-          fontSize: "clamp(52px, 10vw, 80px)",
-          letterSpacing: "-.01em",
-          lineHeight: 0.9,
-          color: "var(--lime)",
           marginBottom: "56px",
         }}>
-          QUESTIONS
+          FAQ
         </h2>
 
         {/* Accordion */}
@@ -109,9 +98,9 @@ export function FAQSection() {
                   <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
                     <span style={{
                       fontFamily: "var(--mono)",
-                      fontSize: "10px",
+                      fontSize: "clamp(15px, 3vw, 18px)",
                       color: isOpen ? "var(--lime)" : "#3a3a3a",
-                      letterSpacing: ".1em",
+                      letterSpacing: ".05em",
                       flexShrink: 0,
                       transition: "color 0.2s ease",
                     }}>
@@ -159,7 +148,7 @@ export function FAQSection() {
                 }}>
                   <p style={{
                     fontFamily: "var(--body)",
-                    fontSize: "14px",
+                    fontSize: "16px",
                     fontWeight: 400,
                     lineHeight: 1.85,
                     color: "var(--muted)",
