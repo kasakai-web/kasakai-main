@@ -771,7 +771,7 @@ exports.getPublicGames = async (req, res) => {
     })
       .populate('turf', 'name location.city')
       .populate('organiser', 'name')
-      .select('title scheduledAt format maxPlayers registrations fee status turf organiser')
+      .select('title scheduledAt format maxPlayers registrations feeInPaise status turf organiser')
       .sort({ scheduledAt: 1 })
       .limit(12)
       .lean();
@@ -787,7 +787,7 @@ exports.getPublicGames = async (req, res) => {
         format:     g.format,
         maxPlayers: g.maxPlayers,
         spotsLeft:  Math.max(0, g.maxPlayers - active),
-        fee:        g.fee,
+        fee:        (g.feeInPaise || 0) / 100,
         status:     g.status,
         venue:      g.turf?.name || 'TBA',
         city:       g.turf?.location?.city || '',

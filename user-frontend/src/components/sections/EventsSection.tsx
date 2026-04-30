@@ -8,7 +8,6 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000
 
 interface PublicGame {
   _id: string;
-  title?: string;
   scheduledAt: string;
   format: string;
   maxPlayers: number;
@@ -17,14 +16,6 @@ interface PublicGame {
   status: "open" | "confirmed" | "draft";
   venue: string;
   city: string;
-  organiser: string;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 function goToAuth() {
@@ -48,7 +39,18 @@ export function EventsSection() {
   useEffect(() => {
     fetch(`${API_BASE}/games/public`)
       .then(r => r.json())
-      .then(d => { if (d.success) setGames(d.data); else setError("Could not load games"); })
+      .then(d => {
+        if (d.success) {
+          // Sort ascending by scheduledAt — same order as player dashboard
+          const sorted = [...(d.data || [])].sort(
+            (a: PublicGame, b: PublicGame) =>
+              new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+          );
+          setGames(sorted);
+        } else {
+          setError("Could not load games");
+        }
+      })
       .catch(() => setError("Could not reach server"))
       .finally(() => setLoading(false));
   }, []);
@@ -66,11 +68,14 @@ export function EventsSection() {
     updateArrows();
     t.addEventListener("scroll", updateArrows, { passive: true });
     window.addEventListener("resize", updateArrows);
-    return () => { t.removeEventListener("scroll", updateArrows); window.removeEventListener("resize", updateArrows); };
+    return () => {
+      t.removeEventListener("scroll", updateArrows);
+      window.removeEventListener("resize", updateArrows);
+    };
   }, [games]);
 
   const scroll = (dir: "left" | "right") => {
-    trackRef.current?.scrollBy({ left: dir === "right" ? 360 : -360, behavior: "smooth" });
+    trackRef.current?.scrollBy({ left: dir === "right" ? 340 : -340, behavior: "smooth" });
   };
 
   return (
@@ -78,46 +83,51 @@ export function EventsSection() {
       <style>{`
         .events-track { scrollbar-width: none; }
         .events-track::-webkit-scrollbar { display: none; }
-        .events-arrow {
-          width: 44px; height: 44px;
+        .events-side-arrow {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 10;
+          width: 44px;
+          height: 44px;
           border: 1px solid var(--border);
-          background: transparent;
+          background: rgba(9,9,9,0.9);
           color: var(--muted);
           cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
-          transition: border-color 0.2s, color 0.2s, background 0.2s;
-          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: border-color 0.2s, color 0.2s;
+          backdrop-filter: blur(8px);
         }
-        .events-arrow:hover:not(:disabled) { border-color: var(--white); color: var(--white); background: rgba(255,255,255,0.04); }
-        .events-arrow:disabled { opacity: 0.2; cursor: default; }
+        .events-side-arrow:hover:not(:disabled) {
+          border-color: var(--lime);
+          color: var(--lime);
+        }
+        .events-side-arrow:disabled { opacity: 0.15; cursor: default; }
+        .events-side-arrow.left  { left: -22px; }
+        .events-side-arrow.right { right: -22px; }
+        @media (max-width: 600px) {
+          .events-side-arrow.left  { left: 4px; }
+          .events-side-arrow.right { right: 4px; }
+        }
       `}</style>
 
       <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "48px", flexWrap: "wrap", gap: "16px" }}>
-          <div>
-            <p style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "12px" }}>Live now</p>
-            <h2 style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "clamp(44px, 8vw, 68px)", letterSpacing: "-.01em", lineHeight: 0.92, color: "var(--white)" }}>
-              UPCOMING<br /><span style={{ color: "var(--lime)" }}>EVENTS</span>
-            </h2>
-          </div>
-
-          {games.length > 1 && (
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button className="events-arrow" disabled={!canLeft}  onClick={() => scroll("left")}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </button>
-              <button className="events-arrow" disabled={!canRight} onClick={() => scroll("right")}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </button>
-            </div>
-          )}
+        <div style={{ marginBottom: "48px" }}>
+          <p style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "12px" }}>
+            Live now
+          </p>
+          <h2 style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "clamp(44px, 8vw, 68px)", letterSpacing: "-.01em", lineHeight: 0.92, color: "var(--white)" }}>
+            UPCOMING<br /><span style={{ color: "var(--lime)" }}>EVENTS</span>
+          </h2>
         </div>
 
-        {/* Cards */}
+        {/* Carousel wrapper */}
         {loading ? (
-          <div style={{ display: "flex", gap: "20px" }}>
+          <div style={{ display: "flex", gap: "20px", overflow: "hidden" }}>
             {[1, 2, 3].map(i => (
               <div key={i} style={{ minWidth: "300px", height: "360px", border: "1px solid var(--border)", background: "#0d0d0d", borderRadius: "12px", flexShrink: 0, opacity: 0.25 }} />
             ))}
@@ -133,32 +143,59 @@ export function EventsSection() {
             }
           </div>
         ) : (
-          <div
-            ref={trackRef}
-            className="events-track"
-            style={{ display: "flex", gap: "20px", overflowX: "auto", alignItems: "flex-start", paddingBottom: "4px" }}
-          >
-            {games.map(game => (
-              <div key={game._id} style={{ flexShrink: 0, width: "300px" }}>
-                <EventCard
-                  id={game._id}
-                  venue={game.venue || "TBA"}
-                  city={game.city || ""}
-                  status={game.status === "draft" ? "tentative" : game.status}
-                  date={formatDate(game.scheduledAt)}
-                  time={formatTime(game.scheduledAt)}
-                  format={game.format}
-                  fee={game.fee}
-                  spotsTotal={game.maxPlayers}
-                  spotsLeft={game.spotsLeft}
-                  isRegistered={false}
-                  isWaitlisted={false}
-                  players={[]}
-                  onBook={goToAuth}
-                  onViewDetails={goToAuth}
-                />
-              </div>
-            ))}
+          <div style={{ position: "relative" }}>
+            {/* Left arrow */}
+            <button
+              className="events-side-arrow left"
+              disabled={!canLeft}
+              onClick={() => scroll("left")}
+              aria-label="Previous"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {/* Right arrow */}
+            <button
+              className="events-side-arrow right"
+              disabled={!canRight}
+              onClick={() => scroll("right")}
+              aria-label="Next"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {/* Cards track */}
+            <div
+              ref={trackRef}
+              className="events-track"
+              style={{ display: "flex", gap: "20px", overflowX: "auto", alignItems: "flex-start", paddingBottom: "4px" }}
+            >
+              {games.map(game => (
+                <div key={game._id} style={{ flexShrink: 0, width: "300px" }}>
+                  <EventCard
+                    id={game._id}
+                    venue={game.venue || "TBA"}
+                    city={game.city || ""}
+                    status={game.status === "draft" ? "tentative" : game.status}
+                    date={new Date(game.scheduledAt).toISOString().split("T")[0]}
+                    time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    format={game.format}
+                    fee={game.fee}
+                    spotsTotal={game.maxPlayers}
+                    spotsLeft={game.spotsLeft}
+                    isRegistered={false}
+                    isWaitlisted={false}
+                    players={[]}
+                    onBook={goToAuth}
+                    onViewDetails={goToAuth}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
