@@ -131,24 +131,57 @@ export function HeroSection() {
           auto-distribute teams · show up
         </p>
 
-        <div className="hero-ctas" style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-          <a className="btn-primary" href="#features"><span>Explore Features</span></a>
-          <a className="btn-ghost" href="#roles">Choose your role</a>
+        <style>{`
+          .hero-arrow-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            text-decoration: none;
+            border: 1.5px solid var(--lime);
+            background: transparent;
+            color: var(--lime);
+            font-family: var(--cond);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            padding: 0;
+            overflow: hidden;
+            transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+          }
+          .hero-arrow-btn:hover {
+            background: var(--lime);
+            color: #000;
+            box-shadow: 0 0 24px rgba(196,213,108,0.25);
+          }
+          .hero-arrow-btn .btn-label {
+            padding: 12px 24px;
+            border-right: 1.5px solid var(--lime);
+          }
+          .hero-arrow-btn .btn-arrow {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.22s ease;
+          }
+          .hero-arrow-btn:hover .btn-arrow {
+            transform: translateX(4px);
+          }
+        `}</style>
+
+        <div className="hero-ctas" style={{ display: "flex", justifyContent: "center" }}>
+          <a href="/login" className="hero-arrow-btn">
+            <span className="btn-label">Login</span>
+            <span className="btn-arrow">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </a>
         </div>
       </div>
 
-      <div
-        className="scroll-cue"
-        style={{
-          position: "absolute", bottom: "36px", left: "50%", transform: "translateX(-50%)", zIndex: 4,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
-          fontFamily: "var(--mono)", fontSize: "9.5px", letterSpacing: ".2em",
-          textTransform: "uppercase", color: "#2a2a2a",
-        }}
-      >
-        <div style={{ width: "1px", height: "40px", background: "linear-gradient(to bottom, transparent, #333)", animation: "scrollLine 2s infinite" }} />
-        <span>Scroll</span>
-      </div>
     </section>
   );
 }

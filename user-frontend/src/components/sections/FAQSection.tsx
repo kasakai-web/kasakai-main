@@ -5,23 +5,27 @@ import { useState } from "react";
 const FAQS = [
   {
     q: "How do I join a game?",
-    a: "Browse open games in your area, select one that fits your schedule, and pay the entry fee through your in-app wallet. Your spot is confirmed instantly.",
+    a: "Browse open games, select one that fits your schedule, and pay the entry fee from your in-app wallet. Your spot is confirmed instantly. If the game is full, you can join the waitlist and get in automatically when a spot opens.",
   },
   {
-    q: "What if I need to cancel?",
-    a: "You can cancel up to 24 hours before the game for a full refund to your wallet. Cancellations within 24 hours are non-refundable unless your spot is filled by someone from the waitlist.",
+    q: "What if I want to back out of a game?",
+    a: "You can withdraw before the game takes place. Your registration fee is refunded to your Kasa Kai wallet — not to your bank account. The exact refund amount depends on the organiser's backout policy for that game, which is shown clearly before you confirm your withdrawal.",
+  },
+  {
+    q: "What happens if the organiser cancels the game?",
+    a: "If the organiser cancels, all registered players receive a full refund to their Kasa Kai wallet within minutes of the cancellation. No action is needed from your side.",
+  },
+  {
+    q: "Can I withdraw money from my wallet to my bank?",
+    a: "No. Wallet balances cannot be withdrawn as cash or transferred to a bank account. All refunds — from backouts or cancellations — are credited to your in-app wallet only. If a top-up payment fails and money is deducted from your account, Razorpay will automatically reverse it to your bank within 5–7 business days.",
   },
   {
     q: "How does team balancing work?",
-    a: "The algorithm distributes players based on their skill level and preferred positions to create fair and competitive teams. Organisers can also manually adjust teams before the game starts.",
+    a: "Once the game is confirmed, the algorithm builds balanced sides using each player's skill rating, preferred position, and team preference. The organiser gets an edit window to adjust before the team sheet is published to all players.",
   },
   {
-    q: "Is KasaKai available in my city?",
-    a: "We are currently live in Mumbai, Delhi, Bangalore, and Pune, and expanding rapidly. Enter your location to see games near you.",
-  },
-  {
-    q: "How does the wallet work?",
-    a: "Top up via UPI, card, or net banking through Razorpay. When you join a game the fee is locked and released to the organiser after the game completes. Refunds land back in your wallet instantly.",
+    q: "Is my payment information safe?",
+    a: "Yes. Kasa Kai never stores your card number, UPI ID, or banking credentials. All payments are processed by Razorpay. We only store your wallet balance and transaction IDs for reconciliation. All traffic is HTTPS-encrypted and payment callbacks are verified via HMAC-SHA256.",
   },
 ];
 
@@ -94,7 +98,6 @@ export function FAQSection() {
                     cursor: "pointer",
                   }}
                 >
-                  {/* Number + Question */}
                   <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
                     <span style={{
                       fontFamily: "var(--mono)",
@@ -119,7 +122,6 @@ export function FAQSection() {
                     </span>
                   </div>
 
-                  {/* Toggle icon */}
                   <span style={{
                     width: "32px",
                     height: "32px",
@@ -140,7 +142,6 @@ export function FAQSection() {
                   </span>
                 </button>
 
-                {/* Answer */}
                 <div style={{
                   maxHeight: isOpen ? "500px" : "0",
                   overflow: "hidden",
