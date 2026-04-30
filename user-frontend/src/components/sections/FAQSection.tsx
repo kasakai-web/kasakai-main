@@ -1,47 +1,179 @@
+"use client";
+
+import { useState } from "react";
+
+const FAQS = [
+  {
+    q: "How do I join a game?",
+    a: "Browse open games in your area, select one that fits your schedule, and pay the entry fee through your in-app wallet. Your spot is confirmed instantly.",
+  },
+  {
+    q: "What if I need to cancel?",
+    a: "You can cancel up to 24 hours before the game for a full refund to your wallet. Cancellations within 24 hours are non-refundable unless your spot is filled by someone from the waitlist.",
+  },
+  {
+    q: "How does team balancing work?",
+    a: "The algorithm distributes players based on their skill level and preferred positions to create fair and competitive teams. Organisers can also manually adjust teams before the game starts.",
+  },
+  {
+    q: "Is KasaKai available in my city?",
+    a: "We are currently live in Mumbai, Delhi, Bangalore, and Pune, and expanding rapidly. Enter your location to see games near you.",
+  },
+  {
+    q: "How does the wallet work?",
+    a: "Top up via UPI, card, or net banking through Razorpay. When you join a game the fee is locked and released to the organiser after the game completes. Refunds land back in your wallet instantly.",
+  },
+];
+
 export function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const toggle = (i: number) => setOpenIndex(openIndex === i ? null : i);
+
   return (
-    <section id="support" style={{backgroundColor: 'black', padding: '96px 24px'}}>
-      <div className="container">
-        <p className="reveal" style={{fontFamily: 'var(--mono)', fontSize: '12px', letterSpacing: '.24em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '14px'}}>Got questions?</p>
-        <h2 className="reveal d1" style={{fontFamily: 'var(--cond)', fontWeight: 900, fontSize: 'clamp(48px, 7vw, 72px)', letterSpacing: '.01em', lineHeight: .92, color: 'white', marginBottom: '48px'}}>FAQ</h2>
-        <div className="reveal d2" style={{display: 'flex', flexDirection: 'column', border: '1px solid #1e1e1e'}}>
-          <div className="faq-item">
-            <button className="faq-question" style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '24px', textAlign: 'left', color: 'white', background: 'transparent', border: 'none', cursor: 'pointer'}}>
-              <h3 style={{fontFamily: 'var(--cond)', fontSize: '20px', fontWeight: 700, letterSpacing: '.03em'}}>How do I join a game?</h3>
-              <div className="faq-icon" style={{width: '28px', height: '28px', border: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s', fontFamily: 'var(--body)', fontSize: '16px', color: 'var(--muted)'}}>+</div>
-            </button>
-            <div className="faq-answer" style={{maxHeight: 0, overflow: 'hidden', transition: 'max-height .3s ease-out'}}>
-              <div style={{padding: '0 24px 24px', fontSize: '14px', color: 'var(--muted)', lineHeight: 'relaxed'}}>Simply browse for games in your area on the app, select one that fits your schedule, and pay the entry fee through our secure wallet. Your spot is confirmed instantly.</div>
-            </div>
-          </div>
-          <div className="faq-item">
-            <button className="faq-question" style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '24px', textAlign: 'left', color: 'white', background: 'transparent', border: 'none', cursor: 'pointer'}}>
-              <h3 style={{fontFamily: 'var(--cond)', fontSize: '20px', fontWeight: 700, letterSpacing: '.03em'}}>What if I need to cancel?</h3>
-              <div className="faq-icon" style={{width: '28px', height: '28px', border: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s', fontFamily: 'var(--body)', fontSize: '16px', color: 'var(--muted)'}}>+</div>
-            </button>
-            <div className="faq-answer" style={{maxHeight: 0, overflow: 'hidden', transition: 'max-height .3s ease-out'}}>
-              <div style={{padding: '0 24px 24px', fontSize: '14px', color: 'var(--muted)', lineHeight: 'relaxed'}}>Our cancellation policy is flexible. You can cancel up to 24 hours before the game for a full refund to your in-app wallet. Cancellations within 24 hours are non-refundable unless your spot is filled by someone from the waitlist.</div>
-            </div>
-          </div>
-          <div className="faq-item">
-            <button className="faq-question" style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '24px', textAlign: 'left', color: 'white', background: 'transparent', border: 'none', cursor: 'pointer'}}>
-              <h3 style={{fontFamily: 'var(--cond)', fontSize: '20px', fontWeight: 700, letterSpacing: '.03em'}}>How does team balancing work?</h3>
-              <div className="faq-icon" style={{width: '28px', height: '28px', border: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s', fontFamily: 'var(--body)', fontSize: '16px', color: 'var(--muted)'}}>+</div>
-            </button>
-            <div className="faq-answer" style={{maxHeight: 0, overflow: 'hidden', transition: 'max-height .3s ease-out'}}>
-              <div style={{padding: '0 24px 24px', fontSize: '14px', color: 'var(--muted)', lineHeight: 'relaxed'}}>Organisers can use our auto-balance feature which distributes players based on their self-assessed skill level and preferred positions to create fair and competitive teams. They can also manually adjust teams before the game starts.</div>
-            </div>
-          </div>
-          <div className="faq-item">
-            <button className="faq-question" style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '24px', textAlign: 'left', color: 'white', background: 'transparent', border: 'none', cursor: 'pointer'}}>
-              <h3 style={{fontFamily: 'var(--cond)', fontSize: '20px', fontWeight: 700, letterSpacing: '.03em'}}>Is KasaKai available in my city?</h3>
-              <div className="faq-icon" style={{width: '28px', height: '28px', border: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s', fontFamily: 'var(--body)', fontSize: '16px', color: 'var(--muted)'}}>+</div>
-            </button>
-            <div className="faq-answer" style={{maxHeight: 0, overflow: 'hidden', transition: 'max-height .3s ease-out'}}>
-              <div style={{padding: '0 24px 24px', fontSize: '14px', color: 'var(--muted)', lineHeight: 'relaxed'}}>We are rapidly expanding! Currently, we are live in Mumbai, Delhi, Bangalore, and Pune. Download the app and enter your location to see games near you or to be notified when we launch in your city.</div>
-            </div>
-          </div>
+    <section
+      id="support"
+      style={{
+        background: "var(--black)",
+        padding: "100px 0 80px",
+        borderTop: "1px solid var(--border)",
+      }}
+    >
+      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "0 24px" }}>
+
+        {/* Label */}
+        <p style={{
+          fontFamily: "var(--mono)",
+          fontSize: "10px",
+          letterSpacing: ".22em",
+          textTransform: "uppercase",
+          color: "var(--muted)",
+          marginBottom: "16px",
+        }}>
+          Support
+        </p>
+
+        {/* Heading */}
+        <h2 style={{
+          fontFamily: "var(--cond)",
+          fontWeight: 900,
+          fontSize: "clamp(52px, 10vw, 80px)",
+          letterSpacing: "-.01em",
+          lineHeight: 0.9,
+          color: "var(--white)",
+          marginBottom: "8px",
+        }}>
+          COMMON
+        </h2>
+        <h2 style={{
+          fontFamily: "var(--cond)",
+          fontWeight: 900,
+          fontSize: "clamp(52px, 10vw, 80px)",
+          letterSpacing: "-.01em",
+          lineHeight: 0.9,
+          color: "var(--lime)",
+          marginBottom: "56px",
+        }}>
+          QUESTIONS
+        </h2>
+
+        {/* Accordion */}
+        <div>
+          {FAQS.map((item, i) => {
+            const isOpen = openIndex === i;
+            return (
+              <div
+                key={i}
+                style={{
+                  borderBottom: "1px solid var(--border)",
+                  background: isOpen ? "rgba(196,213,108,0.04)" : "transparent",
+                  transition: "background 0.2s ease",
+                }}
+              >
+                <button
+                  onClick={() => toggle(i)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "20px",
+                    padding: "24px 20px",
+                    textAlign: "left",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {/* Number + Question */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
+                    <span style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: "10px",
+                      color: isOpen ? "var(--lime)" : "#3a3a3a",
+                      letterSpacing: ".1em",
+                      flexShrink: 0,
+                      transition: "color 0.2s ease",
+                    }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span style={{
+                      fontFamily: "var(--cond)",
+                      fontWeight: 700,
+                      fontSize: "clamp(18px, 3.5vw, 22px)",
+                      letterSpacing: ".02em",
+                      lineHeight: 1.2,
+                      color: isOpen ? "var(--white)" : "#c0bdb8",
+                      transition: "color 0.2s ease",
+                    }}>
+                      {item.q}
+                    </span>
+                  </div>
+
+                  {/* Toggle icon */}
+                  <span style={{
+                    width: "32px",
+                    height: "32px",
+                    minWidth: "32px",
+                    border: `1px solid ${isOpen ? "var(--lime)" : "var(--border)"}`,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: isOpen ? "var(--lime)" : "var(--muted)",
+                    fontSize: "20px",
+                    lineHeight: 1,
+                    transform: isOpen ? "rotate(45deg)" : "none",
+                    transition: "transform 0.25s ease, border-color 0.2s ease, color 0.2s ease",
+                    flexShrink: 0,
+                  }}>
+                    +
+                  </span>
+                </button>
+
+                {/* Answer */}
+                <div style={{
+                  maxHeight: isOpen ? "500px" : "0",
+                  overflow: "hidden",
+                  transition: "max-height 0.35s ease",
+                }}>
+                  <p style={{
+                    fontFamily: "var(--body)",
+                    fontSize: "14px",
+                    fontWeight: 400,
+                    lineHeight: 1.85,
+                    color: "var(--muted)",
+                    padding: "0 20px 26px 62px",
+                    margin: 0,
+                  }}>
+                    {item.a}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
       </div>
     </section>
   );

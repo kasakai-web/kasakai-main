@@ -1,39 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface BallConfig {
-  id: number;
-  top: string;
-  left: string;
-  size: number;
-  opacity: number;
-  duration: number;
-  delay: number;
-  animIndex: number;
-}
-
-const BALL_COUNT = 26;
-
-function generateBalls(): BallConfig[] {
-  return Array.from({ length: BALL_COUNT }, (_, i) => ({
-    id: i,
-    top:       `${Math.random() * 96}%`,
-    left:      `${Math.random() * 96}%`,
-    size:      i < 4 ? 48 + Math.random() * 18 : i < 12 ? 26 + Math.random() * 16 : 11 + Math.random() * 12,
-    opacity:   i < 4 ? 0.35 + Math.random() * 0.15 : i < 12 ? 0.45 + Math.random() * 0.2 : 0.55 + Math.random() * 0.2,
-    duration:  i < 4 ? 22 + Math.random() * 14 : i < 12 ? 14 + Math.random() * 10 : 8 + Math.random() * 8,
-    delay:     -(Math.random() * 20),
-    animIndex: i % 6,
-  }));
-}
-
 export function HeroSection() {
-  const [balls, setBalls] = useState<BallConfig[]>([]);
-
-  useEffect(() => {
-    setBalls(generateBalls());
-  }, []);
 
   return (
     <section
@@ -51,54 +18,6 @@ export function HeroSection() {
       }}
     >
       <style>{`
-        @keyframes ball-a {
-          0%   { transform: translate(0px, 0px)      rotate(0deg);   }
-          20%  { transform: translate(140px, -90px)  rotate(72deg);  }
-          40%  { transform: translate(260px, 60px)   rotate(144deg); }
-          60%  { transform: translate(180px, 180px)  rotate(216deg); }
-          80%  { transform: translate(-80px, 120px)  rotate(288deg); }
-          100% { transform: translate(0px, 0px)      rotate(360deg); }
-        }
-        @keyframes ball-b {
-          0%   { transform: translate(0px, 0px)       rotate(0deg);   }
-          25%  { transform: translate(-160px, 80px)   rotate(90deg);  }
-          50%  { transform: translate(-240px, -60px)  rotate(180deg); }
-          75%  { transform: translate(-100px, -180px) rotate(270deg); }
-          100% { transform: translate(0px, 0px)       rotate(360deg); }
-        }
-        @keyframes ball-c {
-          0%   { transform: translate(0px, 0px)      rotate(0deg);   }
-          33%  { transform: translate(80px, 200px)   rotate(120deg); }
-          66%  { transform: translate(-120px, 280px) rotate(240deg); }
-          100% { transform: translate(0px, 0px)      rotate(360deg); }
-        }
-        @keyframes ball-d {
-          0%   { transform: translate(0px, 0px)       rotate(0deg);   }
-          20%  { transform: translate(-180px, -120px) rotate(72deg);  }
-          50%  { transform: translate(60px, -200px)   rotate(180deg); }
-          80%  { transform: translate(200px, -80px)   rotate(288deg); }
-          100% { transform: translate(0px, 0px)       rotate(360deg); }
-        }
-        @keyframes ball-e {
-          0%   { transform: translate(0px, 0px)      rotate(0deg);   }
-          30%  { transform: translate(220px, 140px)  rotate(108deg); }
-          60%  { transform: translate(100px, -160px) rotate(216deg); }
-          100% { transform: translate(0px, 0px)      rotate(360deg); }
-        }
-        @keyframes ball-f {
-          0%   { transform: translate(0px, 0px)       rotate(0deg);   }
-          25%  { transform: translate(-120px, 160px)  rotate(90deg);  }
-          50%  { transform: translate(80px, 240px)    rotate(180deg); }
-          75%  { transform: translate(160px, -100px)  rotate(270deg); }
-          100% { transform: translate(0px, 0px)       rotate(360deg); }
-        }
-        .fb-ball {
-          position: absolute;
-          pointer-events: none;
-          line-height: 1;
-          user-select: none;
-          filter: blur(0.5px);
-        }
         @keyframes hero-fade-in {
           from { opacity: 0; transform: translateY(28px); }
           to   { opacity: 1; transform: none; }
@@ -107,27 +26,6 @@ export function HeroSection() {
           animation: hero-fade-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
         }
       `}</style>
-
-      {/* Animated balls — zIndex 2 so they sit above the SVG but below text */}
-      {balls.map((b) => {
-        const animNames = ["ball-a","ball-b","ball-c","ball-d","ball-e","ball-f"];
-        return (
-          <span
-            key={b.id}
-            className="fb-ball"
-            style={{
-              top: b.top,
-              left: b.left,
-              fontSize: b.size,
-              opacity: b.opacity,
-              animation: `${animNames[b.animIndex]} ${b.duration}s ${b.delay}s linear infinite`,
-              zIndex: 2,
-            }}
-          >
-            ⚽
-          </span>
-        );
-      })}
 
       {/* Subtle pitch lines via SVG */}
       <svg
