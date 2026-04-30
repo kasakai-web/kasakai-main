@@ -794,7 +794,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .player-dashboard-container { padding: 16px 16px 60px; }
+  .player-dashboard-container { padding: 16px 12px 60px; }
   .profile-hero { padding: 28px 20px 24px; }
   .profile-title { font-size: 36px; }
   .pd-stats-grid { grid-template-columns: 1fr 1fr; }
@@ -808,7 +808,16 @@
   .pd-grid-2 { grid-template-columns: 1fr; }
   .pd-account-grid { grid-template-columns: 1fr; }
   .pd-referral-wrap { flex-direction: column; align-items: flex-start; }
-  .card-details-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Cancel reason — don't overflow card */
+  .cancel-reason-section { padding: 8px 10px; }
+  .cancel-reason-text { font-size: 11px; line-height: 1.5; word-break: break-word; }
+
+  /* Inline notice — full width */
+  .pd-inline-notice { font-size: 11px; padding: 9px 12px; }
+
+  /* Page title on mobile */
+  .page-title { font-size: 28px !important; line-height: 1.1; }
 }
 
 /* ─────────────────────────────────────────────

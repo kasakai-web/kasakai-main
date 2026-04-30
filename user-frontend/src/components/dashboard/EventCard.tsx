@@ -79,7 +79,7 @@ export function EventCard({
               ? '✓ Confirmed'
               : effectiveStatus === 'completed'
               ? '✅ Completed'
-              : 'Tentative'}
+              : '📅 Incoming'}
           </span>
           {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
           {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
@@ -162,7 +162,7 @@ export function EventCard({
           </button>
         ) : isRegistered ? (
           <button className="card-btn registered-btn" disabled>
-            <span>✓ You&apos;re Registered</span>
+            <span>✓ Registered</span>
           </button>
         ) : isWaitlisted && spotsLeft > 0 ? (
           // Waitlisted player + spot just opened → active "Sign Up Now!" button
@@ -190,7 +190,7 @@ export function EventCard({
                 className="card-btn signup-btn"
                 onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
               >
-                <span>⚽ Book Your Seat</span>
+                <span>⚽ Book</span>
               </button>
             )}
           </>

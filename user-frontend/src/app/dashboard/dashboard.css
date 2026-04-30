@@ -200,6 +200,9 @@ body::after {
   padding-top: 62px;
 }
 
+/* Hide hamburger on desktop/tablet — only shown via mobile media query */
+.mobile-sidebar-toggle { display: none; }
+
 /* sidebar */
 .sidebar {
   width: 220px;
@@ -935,7 +938,6 @@ body::after {
   .card-details-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-
   .players-grid {
     grid-template-columns: 1fr;
   }
@@ -2603,8 +2605,16 @@ body::after {
 
   .nav-center { display: none; }
 
+  /* Push bell + hamburger to far right */
+  .nav-right {
+    margin-left: auto;
+    border-left: none !important;
+    padding-right: 0 !important;
+  }
+
+
   .mobile-sidebar-toggle {
-    display: flex !important;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 50px;
@@ -2695,12 +2705,91 @@ body::after {
     flex-shrink: 0;
   }
 
-  .event-card { border-radius: 10px; }
+  /* ── Event cards on mobile ── */
+  .event-card {
+    border-radius: 10px;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  /* Header: let badges wrap under price if needed */
+  .card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .header-top {
+    flex-wrap: wrap;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+  }
+  .status-badge {
+    font-size: 10px;
+    padding: 5px 9px;
+    white-space: nowrap;
+  }
+  .registered-badge {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
+  /* Price — compact pill in top-right */
+  .card-price {
+    padding: 5px 10px;
+    flex-shrink: 0;
+  }
+  .price-rupee { font-size: 12px; }
+  .price-amount { font-size: 18px; }
+
+  /* Venue */
+  .card-venue { font-size: 15px; }
+  .card-city { font-size: 11px; }
+
+  /* Detail grid: 2 equal columns, readable labels */
+  .card-details-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 10px;
+  }
+  .detail-label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  .detail-value {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* Capacity bar */
+  .capacity-section { gap: 8px; }
+  .capacity-text { font-size: 10px; }
+  .players-count { font-size: 12px; }
+
+  /* Action buttons: full-width stack */
+  .card-actions { flex-direction: column; gap: 6px; }
+  .card-btn {
+    padding: 12px 10px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
 
   .dashboard-nav .logo-name { display: none; }
 
   /* Hide wallet pill in navbar — sidebar shows wallet balance */
   .wallet-pill { display: none; }
+
+  /* Comfortable empty state on mobile */
+  .empty-state { padding: 48px 24px; }
+  .empty-title { font-size: 20px; }
+
+  /* Sidebar bottom section — compact on mobile */
+  .sidebar-bottom { padding: 12px; }
+  .swc-amount { font-size: 22px; }
+  .swc-topup { padding: 10px; font-size: 12px; }
 
   /* Tab navigation — horizontal scroll on small phones */
   .player-tab-navigation {
@@ -2731,6 +2820,36 @@ body::after {
     border-radius: 16px 16px 0 0;
     max-height: 92vh;
   }
+}
+
+/* ── Very small phones (≤ 400px) ── */
+@media (max-width: 400px) {
+  .event-card { padding: 12px; gap: 8px; }
+
+  /* Stack header completely: badges first, price second */
+  .card-header { flex-direction: column; gap: 6px; }
+  .card-price {
+    align-self: flex-start;
+    padding: 4px 8px;
+  }
+  .price-amount { font-size: 16px; }
+
+  /* Detail grid still 2-col but even tighter */
+  .card-details-grid { padding: 8px; gap: 5px; }
+  .detail-label { font-size: 9.5px; }
+  .detail-value { font-size: 12px; }
+
+  /* Tighter venue text */
+  .card-venue { font-size: 14px; }
+
+  /* Buttons slim */
+  .card-btn { padding: 11px 8px; font-size: 11.5px; }
+
+  /* Tab bar — smaller labels on tiny phones */
+  .player-tab-btn { padding: 9px 10px; }
+  .player-tab-btn .tab-text { display: none; }
+  .player-tab-btn .tab-icon { font-size: 16px; }
+  .player-tab-btn .tab-badge { font-size: 8px; }
 }
 
 /* ═══════════════════════════════════════════════

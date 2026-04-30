@@ -104,7 +104,23 @@ export default function PlayerNotificationsPage() {
       const data = await res.json();
       if (!res.ok || !data.success) { setInboxError(data.message || "Failed to load notifications"); return; }
       const list: Notification[] = data.data?.notifications ?? [];
-      setNotifications((prev) => append ? [...prev, ...list] : list);
+      let normalizedList = list;
+
+      // Auto-mark everything as read when opening notifications inbox.
+      if (!append && skip === 0 && list.some((n) => !n.isRead)) {
+        try {
+          await fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          normalizedList = list.map((n) => ({ ...n, isRead: true }));
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("player-notifications-read-all"));
+          }
+        } catch {}
+      }
+
+      setNotifications((prev) => append ? [...prev, ...normalizedList] : normalizedList);
       setHasMore(list.length === PAGE_SIZE);
     } catch (e) {
       setInboxError((e as Error).message || "Failed to load notifications");
@@ -215,7 +231,6 @@ export default function PlayerNotificationsPage() {
       {/* Page header */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <div className="page-title-group">
-          <div className="page-eyebrow">Player Dashboard</div>
           <div className="page-title">Notifications</div>
         </div>
       </div>

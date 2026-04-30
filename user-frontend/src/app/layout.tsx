@@ -3,7 +3,7 @@ import "./globals.css";
 import SocketClient from "./SocketClient";
 
 export const metadata: Metadata = {
-  title: "Kasa Kai — Organised Football",
+  title: "Kasakai",
   description: "List games · manage payments · auto-distribute teams · show up",
   keywords: ["football", "games", "teams", "payments"],
 };

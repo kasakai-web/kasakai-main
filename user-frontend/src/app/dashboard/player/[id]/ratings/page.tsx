@@ -126,7 +126,6 @@ export default function MyRatingsPage() {
 
       <div className="page-header">
         <div className="page-title-group">
-          <div className="page-eyebrow">Player Dashboard</div>
           <div className="page-title">My <span>Feedback</span></div>
         </div>
       </div>

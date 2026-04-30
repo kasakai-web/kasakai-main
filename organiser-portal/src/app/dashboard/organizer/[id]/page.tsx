@@ -362,48 +362,6 @@ export default function OrganizerDashboard() {
         </div>
       )}
 
-      {/* Stats Overview */}
-      <div className="stats-overview">
-        <div className="stat-card stat-active">
-          <div className="stat-icon">⚽</div>
-          <div className="stat-details">
-            <div className="stat-value">{upcomingGames.length}</div>
-            <div className="stat-title">Active Games</div>
-            <div className="stat-desc">Currently scheduled</div>
-          </div>
-        </div>
-
-        <div className="stat-card stat-completed">
-          <div className="stat-icon">🏆</div>
-          <div className="stat-details">
-            <div className="stat-value">{pastGames.length}</div>
-            <div className="stat-title">Completed</div>
-            <div className="stat-desc">Finished games</div>
-          </div>
-        </div>
-
-        <div className="stat-card stat-revenue">
-          <div className="stat-icon">💰</div>
-          <div className="stat-details">
-            <div className="stat-value">₹{games.reduce((total, game) => {
-              const collected = (game.totalSlots - (game.spotsRemaining || (game.totalSlots - (game.registrations?.length || 0)))) * (game.feeInPaise ? game.feeInPaise / 100 : 0);
-              return total + collected;
-            }, 0)}</div>
-            <div className="stat-title">Total Revenue</div>
-            <div className="stat-desc">From all events</div>
-          </div>
-        </div>
-
-        <div className="stat-card stat-players">
-          <div className="stat-icon">👥</div>
-          <div className="stat-details">
-            <div className="stat-value">{games.reduce((total, game) => total + getTotalPlayers(game), 0)}</div>
-            <div className="stat-title">Total Players</div>
-            <div className="stat-desc">Including organisers who are playing</div>
-          </div>
-        </div>
-      </div>
-
       {/* Tab Navigation */}
       <div className="tabs-section">
         <div className="tab-navigation">
@@ -451,7 +409,6 @@ export default function OrganizerDashboard() {
                 <div className="col col-format">Format</div>
                 <div className="col col-fee">Fee</div>
                 <div className="col col-players">Players</div>
-                <div className="col col-revenue">Collected</div>
                 <div className="col col-actions">Actions</div>
               </div>
               <div className="table-body">
@@ -500,27 +457,12 @@ export default function OrganizerDashboard() {
                         const regs = game.registrations || [];
                         const organiserCount = getOrganiserCount(game);
                         const total = regs.length + organiserCount;
-                        const guests = regs.filter((r: any) => r.plusOneName).length;
-                        const realPlayers = total - guests;
                         return (
                           <div className="players-info">
                             <div className="players-count">{total}/{game.totalSlots}</div>
-                            {guests > 0 && (
-                              <div className="players-breakdown">
-                                {realPlayers}P + {guests}G
-                              </div>
-                            )}
-                            {total > 0 && (
-                              <div className="players-bar">
-                                <div className="players-bar-fill" style={{ width: `${Math.min(100, (total / game.totalSlots) * 100)}%` }} />
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
-                    </div>
-                    <div className="col col-revenue">
-                      <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>
                     </div>
                     <div className="col col-actions">
                       <div className="action-buttons">
@@ -584,7 +526,6 @@ export default function OrganizerDashboard() {
                 <div className="col col-format">Format</div>
                 <div className="col col-fee">Fee</div>
                 <div className="col col-players">Attended</div>
-                <div className="col col-revenue">Revenue</div>
                 <div className="col col-actions">Actions</div>
               </div>
               <div className="table-body">
@@ -618,9 +559,6 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-players">
                       <div className="players-count">{getTotalPlayers(game)}</div>
-                    </div>
-                    <div className="col col-revenue">
-                      <div className="revenue-value">₹{(game.registrations?.length || 0) * (game.feeInPaise ? game.feeInPaise / 100 : 0)}</div>
                     </div>
                     <div className="col col-actions">
                       <button

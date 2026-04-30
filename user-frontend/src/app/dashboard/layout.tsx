@@ -130,6 +130,18 @@ export default function DashboardLayout({
     enabled:   authenticated,
   });
 
+  useEffect(() => {
+    const handleReadAll = () => {
+      setSidebarUnread(0);
+      refreshUnreadCount();
+    };
+
+    window.addEventListener("player-notifications-read-all", handleReadAll);
+    return () => {
+      window.removeEventListener("player-notifications-read-all", handleReadAll);
+    };
+  }, [refreshUnreadCount]);
+
   useAutoRefresh(authenticated ? refreshWalletBalance : null, {
     interval:  30_000,
     onFocus:   true,
@@ -305,14 +317,16 @@ export default function DashboardLayout({
         </Link>
 
         <div className="nav-center">
-          <div className="role-tab active player" style={{ cursor: "default" }}>Player Dashboard</div>
         </div>
 
         <div className="nav-right" style={{ borderLeft: "1px solid var(--border)", paddingRight: "8px" }}>
-          <NotificationBell onViewAll={() => {
-            const resolvedId = resolvePlayerId();
-            if (resolvedId) router.push(`/dashboard/player/${resolvedId}/notifications`);
-          }} />
+          <NotificationBell
+            unreadCount={sidebarUnread}
+            onViewAll={() => {
+              const resolvedId = resolvePlayerId();
+              if (resolvedId) router.push(`/dashboard/player/${resolvedId}/notifications`);
+            }}
+          />
         </div>
 
         {/* Mobile sidebar toggle */}
@@ -343,7 +357,6 @@ export default function DashboardLayout({
         {/* SIDEBAR */}
         <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} id="sidebar">
           <div className="sidebar-section">
-            <div className="sidebar-label">Player</div>
             <button
               className={`sidebar-link ${activeSection === 'browse' ? 'active' : ''}`}
               onClick={() => { setActiveSection("browse"); setSidebarOpen(false); navigateToPlayer("browse"); }}
@@ -427,9 +440,6 @@ export default function DashboardLayout({
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <span className="user-name" style={{ color: "var(--white)", fontWeight: 600, fontSize: "14px" }}>{userName}</span>
-                <span style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Player
-                </span>
               </div>
             </div>
 

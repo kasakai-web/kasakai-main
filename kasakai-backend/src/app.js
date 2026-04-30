@@ -69,9 +69,15 @@ app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+const isLocalhost = (req) => {
+  const ip = req.ip || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+};
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 400,
+  max: 1000,
+  skip: isLocalhost,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -83,6 +89,7 @@ const apiLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,
+  skip: isLocalhost,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

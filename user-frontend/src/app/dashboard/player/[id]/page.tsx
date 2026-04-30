@@ -85,24 +85,16 @@ export default function PlayerDashboard() {
           router.replace("/login?role=player");
           return;
         }
-        console.error("API error:", res.status, res.statusText);
         setGames([]);
         return;
       }
 
       const data = await res.json();
-      console.log("[DEBUG] All games:", data);
-      
       if (data.success) {
         setGames(data.data || []);
-      } else {
-        console.error("API failed:", data.message);
-        alert(`Error: ${data.message}`);
       }
-    } catch (error) {
-      console.error("Failed to fetch all games", error);
-      const message = error instanceof Error ? error.message : "Unknown connection error";
-      alert(`Connection error: ${message}`);
+    } catch {
+      // non-critical — games will stay as-is on network error
     }
   };
 
@@ -124,18 +116,13 @@ export default function PlayerDashboard() {
           router.replace("/login?role=player");
           return;
         }
-        console.error("getMyGames API error:", res.status, res.statusText);
         setMyGames([]);
         return;
       }
 
       const data = await res.json();
-      console.log("[DEBUG] My games:", data);
-
       if (data.success) {
         setMyGames(data.data || []);
-      } else {
-        console.error("getMyGames API failed:", data.message);
       }
     } catch (error) {
       console.error("Failed to fetch my games", error);
@@ -502,13 +489,12 @@ export default function PlayerDashboard() {
             setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
           }
         } else {
-          alert(isWaitlist ? `Waitlist failed: ${data.message}` : `Registration failed: ${data.message}`);
+          showNotification("error", data.message || (isWaitlist ? "Waitlist failed." : "Registration failed."));
           setSelectedGame(null);
         }
       }
-    } catch (error) {
-      console.error("Failed to book", error);
-      alert("An error occurred. Please try again.");
+    } catch {
+      showNotification("error", "An error occurred. Please try again.");
       setSelectedGame(null);
     }
   };
@@ -649,7 +635,6 @@ export default function PlayerDashboard() {
       <div className="page-header">
         <div className="page-title-group">
           <div className="page-eyebrow">
-            Player Dashboard
             <span className="live-badge">
               <span className="live-dot" />
               Live
@@ -1052,7 +1037,7 @@ export default function PlayerDashboard() {
                   onClick={() => { setDetailGame(null); handleBook(detailGame); }}
                   style={{ flex: "0 0 auto", minWidth: 180 }}
                 >
-                  <span>⚽ Book Your Seat — Hurry!</span>
+                  <span>⚽ Book</span>
                 </button>
               )}
               {detailIsWaitlisted && !detailIsCancelled && (

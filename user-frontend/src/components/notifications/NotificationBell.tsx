@@ -19,6 +19,8 @@ interface Notification {
 interface NotificationBellProps {
   /** Navigates to the full notifications page */
   onViewAll?: () => void;
+  /** When provided by a parent that already polls, the bell won't poll independently */
+  unreadCount?: number;
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -51,10 +53,10 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-export function NotificationBell({ onViewAll }: NotificationBellProps) {
+export function NotificationBell({ onViewAll, unreadCount }: NotificationBellProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+  const [unread, setUnread] = useState(unreadCount ?? 0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);
@@ -77,11 +79,18 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
     }
   }, []);
 
+  // Sync badge when parent passes a controlled count
   useEffect(() => {
+    if (unreadCount !== undefined) setUnread(unreadCount);
+  }, [unreadCount]);
+
+  // Only poll independently when no parent is managing the count
+  useEffect(() => {
+    if (unreadCount !== undefined) return;
     fetchUnreadCount();
     const id = setInterval(fetchUnreadCount, 15_000);
     return () => clearInterval(id);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, unreadCount]);
 
   // ── Fetch notification list when panel opens ───────────────────────────
   const fetchNotifications = useCallback(async () => {
