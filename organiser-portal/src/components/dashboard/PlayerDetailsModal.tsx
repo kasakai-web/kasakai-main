@@ -538,7 +538,7 @@ export function PlayerDetailsModal({
                   </div>
                   {onToggleOrganiserPlaying && (
                     <button className="pdm-organiser-edit-btn" onClick={onToggleOrganiserPlaying} title="Withdraw from game">
-                      ✎ Edit
+                      ➖ Withdraw
                     </button>
                   )}
                 </div>
