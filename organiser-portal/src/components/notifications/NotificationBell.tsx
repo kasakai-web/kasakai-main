@@ -56,7 +56,6 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
   const [unread, setUnread] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
-  const [marking, setMarking] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -90,18 +89,35 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
       if (!res.ok) return;
       const data = await res.json();
       if (data?.success) {
-        setNotifications(data.data?.notifications ?? []);
-        setUnread(data.data?.unread ?? 0);
+        // Mark all items as read in local state (panel open = seen)
+        const list = (data.data?.notifications ?? []).map((n: Notification) => ({ ...n, isRead: true }));
+        setNotifications(list);
+        setUnread(0);
       }
     } catch {}
     finally { setLoading(false); }
   }, []);
 
+  const silentMarkAllRead = useCallback(() => {
+    const { token } = getSession();
+    if (!token) return;
+    fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  }, []);
+
   const handleOpen = () => {
-    setOpen((v) => {
-      if (!v) fetchNotifications();
-      return !v;
-    });
+    const opening = !open;
+    setOpen(opening);
+    if (opening) {
+      fetchNotifications();
+      // Auto-mark all read when panel opens — clear badge immediately
+      if (unread > 0) {
+        setUnread(0);
+        silentMarkAllRead();
+      }
+    }
   };
 
   useEffect(() => {
@@ -150,22 +166,6 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
 
   useNotificationSocket(handleSocketNotification);
 
-  const markAllRead = async () => {
-    if (marking || unread === 0) return;
-    setMarking(true);
-    const { token } = getSession();
-    if (!token) { setMarking(false); return; }
-    try {
-      await fetch(buildApiUrl("/api/v1/notifications/read-all"), {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNotifications((prev) => prev.map((x) => ({ ...x, isRead: true })));
-      setUnread(0);
-    } catch {}
-    finally { setMarking(false); }
-  };
-
   return (
     <div className="nb-wrap">
       <button
@@ -188,13 +188,6 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
         <div className="nb-panel" ref={panelRef}>
           <div className="nb-header">
             <span className="nb-header-title">Notifications</span>
-            <button
-              className="nb-mark-all"
-              onClick={markAllRead}
-              disabled={marking || unread === 0}
-            >
-              {marking ? "Marking…" : "Mark all read"}
-            </button>
           </div>
 
           {loading ? (

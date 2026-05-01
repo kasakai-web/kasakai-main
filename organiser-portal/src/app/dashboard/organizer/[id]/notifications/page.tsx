@@ -65,7 +65,6 @@ export default function OrganizerNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [marking, setMarking] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
@@ -99,6 +98,14 @@ export default function OrganizerNotificationsPage() {
   useEffect(() => {
     if (!isAuthorized) return;
     fetchNotifications(0);
+    // Auto-mark all read when page is opened
+    const { token } = getSession();
+    if (token) {
+      fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
   }, [isAuthorized, fetchNotifications]);
 
   const markRead = async (n: Notification) => {
@@ -116,30 +123,11 @@ export default function OrganizerNotificationsPage() {
     if (n.actionUrl) router.push(n.actionUrl);
   };
 
-  const markAllRead = async () => {
-    if (marking) return;
-    const unreadCount = notifications.filter((n) => !n.isRead).length;
-    if (unreadCount === 0) return;
-    setMarking(true);
-    const { token } = getSession();
-    if (!token) { setMarking(false); return; }
-    try {
-      await fetch(buildApiUrl("/api/v1/notifications/read-all"), {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNotifications((prev) => prev.map((x) => ({ ...x, isRead: true })));
-    } catch {}
-    finally { setMarking(false); }
-  };
-
   const loadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchNotifications(nextPage * PAGE_SIZE, true);
   };
-
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <div className="organizer-dashboard-container">
@@ -156,15 +144,8 @@ export default function OrganizerNotificationsPage() {
         <span className="pn-toolbar-count">
           {loading
             ? "Loading…"
-            : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+            : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
         </span>
-        <button
-          className="pn-mark-all-btn"
-          onClick={markAllRead}
-          disabled={marking || unreadCount === 0}
-        >
-          {marking ? "Marking…" : "Mark all read"}
-        </button>
       </div>
 
       {/* Error */}
