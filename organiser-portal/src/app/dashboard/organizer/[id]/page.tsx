@@ -573,6 +573,7 @@ export default function OrganizerDashboard() {
                 <div className="col col-format">Format</div>
                 <div className="col col-fee">Fee</div>
                 <div className="col col-players">Attended</div>
+                <div className="col col-postgame">Post-Game</div>
                 <div className="col col-actions">Actions</div>
               </div>
               <div className="table-body">
@@ -606,6 +607,38 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-players">
                       <div className="players-count">{getTotalPlayers(game)}</div>
+                    </div>
+                    <div className="col col-postgame">
+                      {game.status === 'completed' ? (
+                        <div className="postgame-stats">
+                          <div className="postgame-stat">
+                            <span className="postgame-label">Present:</span>
+                            <span className="postgame-value">
+                              {game.registrations?.filter(r => r.attended === 'present').length || 0}
+                            </span>
+                          </div>
+                          <div className="postgame-stat">
+                            <span className="postgame-label">Ratings:</span>
+                            <span className="postgame-value">
+                              {game.playerRatingsCount || 0}
+                            </span>
+                          </div>
+                          <div className="postgame-stat">
+                            <span className="postgame-label">Feedback:</span>
+                            <span className="postgame-value">
+                              {game.feedbackCount || 0}
+                            </span>
+                          </div>
+                        </div>
+                      ) : game.status === 'cancelled' ? (
+                        <div className="postgame-cancelled">
+                          <span>Cancelled</span>
+                        </div>
+                      ) : (
+                        <div className="postgame-pending">
+                          <span>Pending</span>
+                        </div>
+                      )}
                     </div>
                     <div className="col col-actions">
                       <div className="action-buttons">
