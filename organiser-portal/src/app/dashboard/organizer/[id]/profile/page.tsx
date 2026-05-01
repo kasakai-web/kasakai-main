@@ -56,6 +56,7 @@ export default function OrganiserProfilePage() {
   const [showLightbox, setShowLightbox] = useState(false);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,14 +68,8 @@ export default function OrganiserProfilePage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showPhotoPicker]);
 
-  const handleTakePhoto = () => {
-    setShowPhotoPicker(false);
-    if (imageInputRef.current) { imageInputRef.current.setAttribute("capture", "user"); imageInputRef.current.click(); }
-  };
-  const handleChooseGallery = () => {
-    setShowPhotoPicker(false);
-    if (imageInputRef.current) { imageInputRef.current.removeAttribute("capture"); imageInputRef.current.click(); }
-  };
+  const handleTakePhoto = () => { setShowPhotoPicker(false); cameraInputRef.current?.click(); };
+  const handleChooseGallery = () => { setShowPhotoPicker(false); imageInputRef.current?.click(); };
   const [profile, setProfile] = useState<OrganiserProfile>({
     name: "",
     email: "",
@@ -261,6 +256,7 @@ export default function OrganiserProfilePage() {
     } finally {
       setImageUploading(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
   };
 
@@ -504,6 +500,7 @@ export default function OrganiserProfilePage() {
               )}
             </div>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" style={{ position: "fixed", top: "-200vh", left: 0, opacity: 0, pointerEvents: "none" }} onChange={handleImageUpload} />
             {!imagePreview && (
               <p style={{ margin: "6px 0 0", fontSize: 11, color: "#888", textAlign: "center", lineHeight: 1.4, maxWidth: 140 }}>
                 📸 A real photo is required to host games

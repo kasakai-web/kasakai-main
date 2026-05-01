@@ -16,6 +16,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,14 +28,8 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     return () => document.removeEventListener("mousedown", handler);
   }, [showPhotoPicker]);
 
-  const handleTakePhoto = () => {
-    setShowPhotoPicker(false);
-    if (fileInputRef.current) { fileInputRef.current.setAttribute("capture", "user"); fileInputRef.current.click(); }
-  };
-  const handleChooseGallery = () => {
-    setShowPhotoPicker(false);
-    if (fileInputRef.current) { fileInputRef.current.removeAttribute("capture"); fileInputRef.current.click(); }
-  };
+  const handleTakePhoto = () => { setShowPhotoPicker(false); cameraInputRef.current?.click(); };
+  const handleChooseGallery = () => { setShowPhotoPicker(false); fileInputRef.current?.click(); };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -156,6 +151,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
 
         {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageChange} />
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="user" style={{ position: "fixed", top: "-200vh", left: 0, opacity: 0, pointerEvents: "none" }} onChange={handleImageChange} />
       </div>
 
       <form onSubmit={handleContinue}>
