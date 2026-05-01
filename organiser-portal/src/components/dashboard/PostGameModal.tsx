@@ -388,13 +388,33 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
               </span>
             </div>
 
-            {/* Player feedback section - Removed for privacy */}
+            {/* Post-Game Summary */}
             <div style={{ padding: "16px 24px 0" }}>
               <div className="pgm-section-head" style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
                 Post-Game Summary
               </div>
-              <div className="pgm-empty" style={{ padding: "20px 0" }}>
-                Game completed successfully. Player ratings have been recorded privately.
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "12px 16px", minWidth: 100, textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Total Players</div>
+                    <div style={{ fontSize: 24, color: "#888", fontWeight: 800 }}>{game.registrations.length}</div>
+                  </div>
+                  <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "12px 16px", minWidth: 100, textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Attended</div>
+                    <div style={{ fontSize: 24, color: "#4ade80", fontWeight: 800 }}>{presentCount}</div>
+                  </div>
+                  <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "12px 16px", minWidth: 100, textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Absent</div>
+                    <div style={{ fontSize: 24, color: "#ef4444", fontWeight: 800 }}>{absentCount}</div>
+                  </div>
+                  <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "12px 16px", minWidth: 100, textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Rated</div>
+                    <div style={{ fontSize: 24, color: "#fbbf24", fontWeight: 800 }}>{Object.keys(ratings).length}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#666", textAlign: "center", padding: "8px 0" }}>
+                  Game completed successfully. All data has been recorded.
+                </div>
               </div>
             </div>
 
