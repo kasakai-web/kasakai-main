@@ -14,7 +14,9 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const [email, setEmail] = useState("");
   const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,10 +83,37 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 2: Enter your details</p>
 
+      {/* Photo Picker Bottom Sheet */}
+      {showPhotoPicker && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          onClick={() => setShowPhotoPicker(false)}
+        >
+          <div
+            style={{ background: "#12122a", borderRadius: "16px 16px 0 0", padding: "20px 20px 36px", width: "100%", maxWidth: 480 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p style={{ textAlign: "center", color: "#888", fontSize: 12, marginBottom: 18, textTransform: "uppercase", letterSpacing: 1 }}>Profile Photo</p>
+            <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}
+              onClick={() => { setShowPhotoPicker(false); cameraInputRef.current?.click(); }}>
+              <span style={{ fontSize: 24 }}>📷</span> Take Photo
+            </button>
+            <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}
+              onClick={() => { setShowPhotoPicker(false); fileInputRef.current?.click(); }}>
+              <span style={{ fontSize: 24 }}>🖼️</span> Choose from Gallery
+            </button>
+            <button type="button" style={{ width: "100%", background: "transparent", border: "1px solid #333", color: "#888", padding: "14px", borderRadius: 12, fontSize: 15, cursor: "pointer" }}
+              onClick={() => setShowPhotoPicker(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Profile Image Picker */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "28px" }}>
         <div
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => setShowPhotoPicker(true)}
           style={{
             width: "90px",
             height: "90px",
@@ -111,7 +140,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
         </div>
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => setShowPhotoPicker(true)}
           style={{
             background: "transparent",
             border: "none",
@@ -124,13 +153,8 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
           {profileImageDataUrl ? "Change photo" : "Upload profile photo"} (optional)
         </button>
         {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          style={{ display: "none" }}
-          onChange={handleImageChange}
-        />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageChange} />
+        <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" style={{ display: "none" }} onChange={handleImageChange} />
       </div>
 
       <form onSubmit={handleContinue}>

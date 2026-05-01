@@ -62,6 +62,8 @@ export default function PlayerProfilePage() {
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const openPhotoPicker = () => { if (!imageUploading) setShowPhotoPicker(true); };
   const [profile, setProfile] = useState<PlayerProfile>({
     name: "",
     email: "",
@@ -199,6 +201,7 @@ export default function PlayerProfilePage() {
     } finally {
       setImageUploading(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
   };
 
@@ -337,6 +340,33 @@ export default function PlayerProfilePage() {
 
         {/* ── HERO ── */}
         <div className="pp-hero">
+          {/* Photo Picker Bottom Sheet */}
+          {showPhotoPicker && (
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+              onClick={() => setShowPhotoPicker(false)}
+            >
+              <div
+                style={{ background: "#12122a", borderRadius: "16px 16px 0 0", padding: "20px 20px 36px", width: "100%", maxWidth: 480 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p style={{ textAlign: "center", color: "#888", fontSize: 12, marginBottom: 18, textTransform: "uppercase", letterSpacing: 1 }}>Profile Photo</p>
+                <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", gap: 14, fontFamily: "inherit" }}
+                  onClick={() => { setShowPhotoPicker(false); cameraInputRef.current?.click(); }}>
+                  <span style={{ fontSize: 24 }}>📷</span> Take Photo
+                </button>
+                <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 18, display: "flex", alignItems: "center", gap: 14, fontFamily: "inherit" }}
+                  onClick={() => { setShowPhotoPicker(false); imageInputRef.current?.click(); }}>
+                  <span style={{ fontSize: 24 }}>🖼️</span> Choose from Gallery
+                </button>
+                <button type="button" style={{ width: "100%", background: "transparent", border: "1px solid #333", color: "#888", padding: "14px", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}
+                  onClick={() => setShowPhotoPicker(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Avatar */}
           <div className="pp-avatar-wrap">
             <div
@@ -344,7 +374,7 @@ export default function PlayerProfilePage() {
               onClick={() => {
                 if (imageUploading) return;
                 if (imagePreview) setLightboxOpen(true);
-                else imageInputRef.current?.click();
+                else openPhotoPicker();
               }}
               style={{ cursor: imagePreview ? "zoom-in" : "pointer" }}
             >
@@ -354,7 +384,7 @@ export default function PlayerProfilePage() {
               }
               <div
                 className="pp-avatar-overlay"
-                onClick={(e) => { e.stopPropagation(); if (!imageUploading) imageInputRef.current?.click(); }}
+                onClick={(e) => { e.stopPropagation(); openPhotoPicker(); }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -367,10 +397,11 @@ export default function PlayerProfilePage() {
                 </div>
               )}
             </div>
-            <button type="button" className="pp-photo-btn" onClick={() => imageInputRef.current?.click()} disabled={imageUploading}>
+            <button type="button" className="pp-photo-btn" onClick={openPhotoPicker} disabled={imageUploading}>
               {imageUploading ? "Uploading…" : imagePreview ? "Change photo" : "Upload photo"}
             </button>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
+            <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" style={{ display: "none" }} onChange={handleImageUpload} />
           </div>
 
           {/* ── Lightbox ── */}
