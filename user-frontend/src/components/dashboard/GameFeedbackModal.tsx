@@ -110,7 +110,7 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
   };
 
   const turfName = game.turf?.name || "the venue";
-  const city     = game.turf?.location?.city ? `, ${game.turf.location.city}` : "";
+  const city     = (game.turf as any)?.address?.city ? `, ${(game.turf as any).address.city}` : "";
   const dateStr  = new Date(game.scheduledAt).toLocaleDateString("en-IN", {
     day: "numeric", month: "long", year: "numeric",
   });

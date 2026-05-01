@@ -355,7 +355,7 @@ export default function PlayerDashboard() {
     const formattedGame = {
       id: game._id,
       _id: game._id,
-      venue: `${game.turf?.name || 'TBC'},${game.turf?.location?.city || 'TBC'}`,
+      venue: `${game.turf?.name || 'TBC'},${game.turf?.address?.city || 'TBC'}`,
       date: new Date(game.scheduledAt).toISOString().split('T')[0],
       time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       format: game.format,
@@ -576,7 +576,7 @@ export default function PlayerDashboard() {
 
   const detailRows = detailGame ? [
     { label: "Venue", value: detailGame.turf?.name || "TBC" },
-    { label: "City", value: detailGame.turf?.location?.city || "TBC" },
+    { label: "City", value: detailGame.turf?.address?.city || "TBC" },
     { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
     { label: "Game Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
     {
@@ -708,7 +708,7 @@ export default function PlayerDashboard() {
                   id={game._id}
                   status={game.status as EventStatus}
                   venue={game.turf?.name || 'TBC'}
-                  city={game.turf?.location?.city || 'TBC'}
+                  city={game.turf?.address?.city || 'TBC'}
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}
                   time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
