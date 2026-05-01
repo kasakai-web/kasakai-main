@@ -56,9 +56,25 @@ export default function OrganiserProfilePage() {
   const [showLightbox, setShowLightbox] = useState(false);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const pickerWrapRef = useRef<HTMLDivElement>(null);
 
-  const openPhotoPicker = () => { if (!imageUploading) setShowPhotoPicker(true); };
+  useEffect(() => {
+    if (!showPhotoPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerWrapRef.current && !pickerWrapRef.current.contains(e.target as Node)) setShowPhotoPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPhotoPicker]);
+
+  const handleTakePhoto = () => {
+    setShowPhotoPicker(false);
+    if (imageInputRef.current) { imageInputRef.current.setAttribute("capture", "user"); imageInputRef.current.click(); }
+  };
+  const handleChooseGallery = () => {
+    setShowPhotoPicker(false);
+    if (imageInputRef.current) { imageInputRef.current.removeAttribute("capture"); imageInputRef.current.click(); }
+  };
   const [profile, setProfile] = useState<OrganiserProfile>({
     name: "",
     email: "",
@@ -245,7 +261,6 @@ export default function OrganiserProfilePage() {
     } finally {
       setImageUploading(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
-      if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
   };
 
@@ -368,32 +383,6 @@ export default function OrganiserProfilePage() {
         </div>
       )}
 
-      {/* ── Photo Picker Bottom Sheet ── */}
-      {showPhotoPicker && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}
-          onClick={() => setShowPhotoPicker(false)}
-        >
-          <div
-            style={{ background: "#12122a", borderRadius: "16px 16px 0 0", padding: "20px 20px 36px", width: "100%", maxWidth: 480 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p style={{ textAlign: "center", color: "#888", fontSize: 12, marginBottom: 18, textTransform: "uppercase", letterSpacing: 1 }}>Profile Photo</p>
-            <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", gap: 14, fontFamily: "inherit" }}
-              onClick={() => { setShowPhotoPicker(false); cameraInputRef.current?.click(); }}>
-              <span style={{ fontSize: 24 }}>📷</span> Take Photo
-            </button>
-            <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 18, display: "flex", alignItems: "center", gap: 14, fontFamily: "inherit" }}
-              onClick={() => { setShowPhotoPicker(false); imageInputRef.current?.click(); }}>
-              <span style={{ fontSize: 24 }}>🖼️</span> Choose from Gallery
-            </button>
-            <button type="button" style={{ width: "100%", background: "transparent", border: "1px solid #333", color: "#888", padding: "14px", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}
-              onClick={() => setShowPhotoPicker(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Delete Modal ── */}
       {deleteStep > 0 && (
@@ -462,7 +451,7 @@ export default function OrganiserProfilePage() {
               onClick={() => {
                 if (imageUploading) return;
                 if (imagePreview) setShowLightbox(true);
-                else openPhotoPicker();
+                else setShowPhotoPicker(true);
               }}
             >
               {imagePreview
@@ -471,7 +460,7 @@ export default function OrganiserProfilePage() {
                     {profile.name ? profile.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() : "?"}
                   </span>
               }
-              <div className="op-avatar-overlay" onClick={(e) => { e.stopPropagation(); openPhotoPicker(); }}>
+              <div className="op-avatar-overlay" onClick={(e) => { e.stopPropagation(); if (!imageUploading) setShowPhotoPicker(true); }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                   <circle cx="12" cy="13" r="4"/>
@@ -483,11 +472,38 @@ export default function OrganiserProfilePage() {
                 </div>
               )}
             </div>
-            <button type="button" className="op-photo-btn" onClick={openPhotoPicker} disabled={imageUploading}>
-              {imageUploading ? "Uploading…" : imagePreview ? "Change photo" : "Upload photo"}
-            </button>
+
+            {/* Photo button + inline dropdown */}
+            <div ref={pickerWrapRef} style={{ position: "relative" }}>
+              <button type="button" className="op-photo-btn"
+                onClick={() => { if (!imageUploading) setShowPhotoPicker((v) => !v); }}
+                disabled={imageUploading}
+              >
+                {imageUploading ? "Uploading…" : imagePreview ? "Change photo" : "Upload photo"}
+              </button>
+              {showPhotoPicker && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+                  background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10,
+                  overflow: "hidden", zIndex: 200, minWidth: 190,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                }}>
+                  <button type="button"
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "13px 16px", background: "none", border: "none", borderBottom: "1px solid #2a2a4a", color: "#fff", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
+                    onClick={handleTakePhoto}
+                  >
+                    <span style={{ fontSize: 18 }}>📷</span> Take Photo
+                  </button>
+                  <button type="button"
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "13px 16px", background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
+                    onClick={handleChooseGallery}
+                  >
+                    <span style={{ fontSize: 18 }}>🖼️</span> Choose from Gallery
+                  </button>
+                </div>
+              )}
+            </div>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
-            <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" style={{ display: "none" }} onChange={handleImageUpload} />
             {!imagePreview && (
               <p style={{ margin: "6px 0 0", fontSize: 11, color: "#888", textAlign: "center", lineHeight: 1.4, maxWidth: 140 }}>
                 📸 A real photo is required to host games

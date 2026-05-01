@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { validatePhone, validateEmail } from "@/utils/auth";
 
 interface PlayerSignUpStep1Props {
@@ -16,7 +16,25 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const pickerWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPhotoPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerWrapRef.current && !pickerWrapRef.current.contains(e.target as Node)) setShowPhotoPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPhotoPicker]);
+
+  const handleTakePhoto = () => {
+    setShowPhotoPicker(false);
+    if (fileInputRef.current) { fileInputRef.current.setAttribute("capture", "user"); fileInputRef.current.click(); }
+  };
+  const handleChooseGallery = () => {
+    setShowPhotoPicker(false);
+    if (fileInputRef.current) { fileInputRef.current.removeAttribute("capture"); fileInputRef.current.click(); }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,50 +101,16 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 2: Enter your details</p>
 
-      {/* Photo Picker Bottom Sheet */}
-      {showPhotoPicker && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}
-          onClick={() => setShowPhotoPicker(false)}
-        >
-          <div
-            style={{ background: "#12122a", borderRadius: "16px 16px 0 0", padding: "20px 20px 36px", width: "100%", maxWidth: 480 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p style={{ textAlign: "center", color: "#888", fontSize: 12, marginBottom: 18, textTransform: "uppercase", letterSpacing: 1 }}>Profile Photo</p>
-            <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", gap: 14 }}
-              onClick={() => { setShowPhotoPicker(false); cameraInputRef.current?.click(); }}>
-              <span style={{ fontSize: 24 }}>📷</span> Take Photo
-            </button>
-            <button type="button" style={{ width: "100%", background: "#1e1e3a", border: "none", color: "#fff", padding: "16px 20px", borderRadius: 12, fontSize: 16, cursor: "pointer", marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}
-              onClick={() => { setShowPhotoPicker(false); fileInputRef.current?.click(); }}>
-              <span style={{ fontSize: 24 }}>🖼️</span> Choose from Gallery
-            </button>
-            <button type="button" style={{ width: "100%", background: "transparent", border: "1px solid #333", color: "#888", padding: "14px", borderRadius: 12, fontSize: 15, cursor: "pointer" }}
-              onClick={() => setShowPhotoPicker(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Profile Image Picker */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "28px" }}>
         <div
           onClick={() => setShowPhotoPicker(true)}
           style={{
-            width: "90px",
-            height: "90px",
-            borderRadius: "50%",
+            width: "90px", height: "90px", borderRadius: "50%",
             background: profileImageDataUrl ? "transparent" : "#1a1a2e",
             border: `2px dashed ${profileImageDataUrl ? "var(--yellow)" : "#555"}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            overflow: "hidden",
-            marginBottom: "10px",
-            transition: "border-color 0.2s",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", overflow: "hidden", marginBottom: "10px", transition: "border-color 0.2s",
           }}
         >
           {profileImageDataUrl ? (
@@ -138,23 +122,40 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowPhotoPicker(true)}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "var(--yellow)",
-            fontSize: "13px",
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          {profileImageDataUrl ? "Change photo" : "Upload profile photo"} (optional)
-        </button>
+
+        {/* Photo button + inline dropdown */}
+        <div ref={pickerWrapRef} style={{ position: "relative" }}>
+          <button type="button"
+            onClick={() => setShowPhotoPicker((v) => !v)}
+            style={{ background: "transparent", border: "none", color: "var(--yellow)", fontSize: "13px", cursor: "pointer", padding: 0 }}
+          >
+            {profileImageDataUrl ? "Change photo" : "Upload profile photo"} (optional)
+          </button>
+          {showPhotoPicker && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+              background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10,
+              overflow: "hidden", zIndex: 200, minWidth: 190,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            }}>
+              <button type="button"
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "13px 16px", background: "none", border: "none", borderBottom: "1px solid #2a2a4a", color: "#fff", cursor: "pointer", fontSize: 14 }}
+                onClick={handleTakePhoto}
+              >
+                <span style={{ fontSize: 18 }}>📷</span> Take Photo
+              </button>
+              <button type="button"
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "13px 16px", background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 14 }}
+                onClick={handleChooseGallery}
+              >
+                <span style={{ fontSize: 18 }}>🖼️</span> Choose from Gallery
+              </button>
+            </div>
+          )}
+        </div>
+
         {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageChange} />
-        <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" style={{ display: "none" }} onChange={handleImageChange} />
       </div>
 
       <form onSubmit={handleContinue}>
