@@ -126,9 +126,6 @@ export function HeroSection() {
             lineHeight: 1.9, maxWidth: "320px",
           }}
         >
-          List games · manage payments
-          <br />
-          auto-distribute teams · show up
         </p>
 
         <style>{`
