@@ -16,8 +16,12 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
 
   useEffect(() => {
     if (!showPhotoPicker) return;
@@ -28,8 +32,41 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     return () => document.removeEventListener("mousedown", handler);
   }, [showPhotoPicker]);
 
-  const handleTakePhoto = () => { setShowPhotoPicker(false); cameraInputRef.current?.click(); };
+  useEffect(() => {
+    if (!cameraOpen) return;
+    let cancelled = false;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing } })
+      .then((stream) => {
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
+      })
+      .catch(() => { if (!cancelled) { setCameraOpen(false); fileInputRef.current?.click(); } });
+    return () => { cancelled = true; };
+  }, [cameraOpen, cameraFacing]);
+
+  const stopStream = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
+  const closeCamera = () => { stopStream(); setCameraOpen(false); };
+  const flipCamera = () => setCameraFacing((f) => f === "user" ? "environment" : "user");
+
+  const handleTakePhoto = () => { setShowPhotoPicker(false); setCameraOpen(true); };
   const handleChooseGallery = () => { setShowPhotoPicker(false); fileInputRef.current?.click(); };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current; const c = canvasRef.current;
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext("2d")?.drawImage(v, 0, 0);
+    c.toBlob((blob) => {
+      if (!blob) return;
+      closeCamera();
+      const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
+      setErrors((prev) => ({ ...prev, image: "" }));
+      const reader = new FileReader();
+      reader.onload = () => setProfileImageDataUrl(reader.result as string);
+      reader.readAsDataURL(file);
+    }, "image/jpeg", 0.9);
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,6 +115,18 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   };
 
   return (
+    <>
+    {cameraOpen && (
+      <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "#000", display: "flex", flexDirection: "column" }}>
+        <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", flex: 1, objectFit: "cover" }} />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 32px 48px", background: "linear-gradient(transparent,rgba(0,0,0,0.85))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button type="button" onClick={closeCamera} style={{ color: "#fff", background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: "8px 12px", fontFamily: "inherit" }}>Cancel</button>
+          <button type="button" onClick={capturePhoto} style={{ width: 70, height: 70, borderRadius: "50%", background: "#fff", border: "5px solid rgba(255,255,255,0.4)", cursor: "pointer", boxShadow: "0 0 0 3px rgba(255,255,255,0.2)" }} aria-label="Capture" />
+          <button type="button" onClick={flipCamera} style={{ color: "#fff", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Flip camera">🔄</button>
+        </div>
+      </div>
+    )}
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
       <button
         onClick={onBack}
@@ -155,7 +204,6 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
           Adding a photo is important to ensure quality of the game.
         </p>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageChange} />
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="user" style={{ position: "fixed", top: "-200vh", left: 0, opacity: 0, pointerEvents: "none" }} onChange={handleImageChange} />
       </div>
 
       <form onSubmit={handleContinue}>
@@ -253,5 +301,6 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
         </button>
       </form>
     </div>
+    </>
   );
 }

@@ -56,8 +56,12 @@ export default function OrganiserProfilePage() {
   const [showLightbox, setShowLightbox] = useState(false);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
 
   useEffect(() => {
     if (!showPhotoPicker) return;
@@ -68,8 +72,37 @@ export default function OrganiserProfilePage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showPhotoPicker]);
 
-  const handleTakePhoto = () => { setShowPhotoPicker(false); cameraInputRef.current?.click(); };
+  useEffect(() => {
+    if (!cameraOpen) return;
+    let cancelled = false;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing } })
+      .then((stream) => {
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
+      })
+      .catch(() => { if (!cancelled) { setCameraOpen(false); imageInputRef.current?.click(); } });
+    return () => { cancelled = true; };
+  }, [cameraOpen, cameraFacing]);
+
+  const stopStream = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
+  const closeCamera = () => { stopStream(); setCameraOpen(false); };
+  const flipCamera = () => setCameraFacing((f) => f === "user" ? "environment" : "user");
+
+  const handleTakePhoto = () => { setShowPhotoPicker(false); setCameraOpen(true); };
   const handleChooseGallery = () => { setShowPhotoPicker(false); imageInputRef.current?.click(); };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current; const c = canvasRef.current;
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext("2d")?.drawImage(v, 0, 0);
+    c.toBlob((blob) => {
+      if (!blob) return;
+      closeCamera();
+      uploadFile(new File([blob], "photo.jpg", { type: "image/jpeg" }));
+    }, "image/jpeg", 0.9);
+  };
   const [profile, setProfile] = useState<OrganiserProfile>({
     name: "",
     email: "",
@@ -202,19 +235,12 @@ export default function OrganiserProfilePage() {
   const silentFetchProfile = useCallback(() => fetchProfile(true), [fetchProfile]);
   useAutoRefresh(isAuthorized ? silentFetchProfile : null, { interval: 30_000 });
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadFile = async (file: File) => {
     const { token } = getSession();
     if (!token) { clearSessionAndExit(); return; }
-
     setImageUploading(true);
     setError("");
-
-    const preview = URL.createObjectURL(file);
-    setImagePreview(preview);
-
+    setImagePreview(URL.createObjectURL(file));
     try {
       const formData = new FormData();
       formData.append("profileImage", file);
@@ -223,16 +249,13 @@ export default function OrganiserProfilePage() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-
       if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
-
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) {
         setError(data.message || "Failed to upload image");
         setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
         return;
       }
-
       const newImagePath = data.data?.profileImage;
       const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
       setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
@@ -244,20 +267,20 @@ export default function OrganiserProfilePage() {
           setRequirePhoto(false);
           setTimeout(() => router.replace(`/dashboard/organizer/${organiserId}`), 1000);
         }
-      } else {
-        localStorage.removeItem("userProfileImage");
-      }
-      window.dispatchEvent(new CustomEvent("organiser-profile-updated", {
-        detail: { profileImage: newImageUrl || "" },
-      }));
+      } else { localStorage.removeItem("userProfileImage"); }
+      window.dispatchEvent(new CustomEvent("organiser-profile-updated", { detail: { profileImage: newImageUrl || "" } }));
     } catch {
       setError("Failed to upload image");
       setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
     } finally {
       setImageUploading(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
-      if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -370,6 +393,19 @@ export default function OrganiserProfilePage() {
 
   return (
     <div className="organizer-dashboard-container">
+
+      {/* ── In-app Camera ── */}
+      {cameraOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "#000", display: "flex", flexDirection: "column" }}>
+          <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", flex: 1, objectFit: "cover" }} />
+          <canvas ref={canvasRef} style={{ display: "none" }} />
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 32px 48px", background: "linear-gradient(transparent,rgba(0,0,0,0.85))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button type="button" onClick={closeCamera} style={{ color: "#fff", background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: "8px 12px", fontFamily: "inherit" }}>Cancel</button>
+            <button type="button" onClick={capturePhoto} style={{ width: 70, height: 70, borderRadius: "50%", background: "#fff", border: "5px solid rgba(255,255,255,0.4)", cursor: "pointer", boxShadow: "0 0 0 3px rgba(255,255,255,0.2)" }} aria-label="Capture" />
+            <button type="button" onClick={flipCamera} style={{ color: "#fff", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Flip camera">🔄</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Image Lightbox ── */}
       {showLightbox && imagePreview && (
@@ -500,7 +536,6 @@ export default function OrganiserProfilePage() {
               )}
             </div>
             <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageUpload} />
-            <input ref={cameraInputRef} type="file" accept="image/*" capture="user" style={{ position: "fixed", top: "-200vh", left: 0, opacity: 0, pointerEvents: "none" }} onChange={handleImageUpload} />
             {!imagePreview && (
               <p style={{ margin: "6px 0 0", fontSize: 11, color: "#888", textAlign: "center", lineHeight: 1.4, maxWidth: 140 }}>
                 📸 A real photo is required to host games
