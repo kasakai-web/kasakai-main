@@ -106,6 +106,65 @@ export function PlayerDetailsModal({
 
   const [teams, setTeams] = useState<any>(null);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingPlayerId, setAddingPlayerId] = useState<string | null>(null);
+
+  const searchPlayers = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/organisers/search-players?q=${encodeURIComponent(query)}`), {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Filter out players already registered
+        const registeredPlayerIds = new Set(
+          players.filter(p => p.player?._id).map(p => p.player!._id)
+        );
+        const filtered = (data.data || []).filter((p: any) => !registeredPlayerIds.has(p._id));
+        setSearchResults(filtered);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Search failed:", error);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const addPlayer = async (playerId: string, preferredPosition?: string) => {
+    setAddingPlayerId(playerId);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-player`), {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ playerId, preferredPosition: preferredPosition || "any" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to add player");
+        return;
+      }
+      setShowAddPlayer(false);
+      setSearchQuery("");
+      setSearchResults([]);
+      onRefresh?.();
+    } catch (error) {
+      console.error("Add player failed:", error);
+      alert("Failed to add player");
+    } finally {
+      setAddingPlayerId(null);
+    }
+  };
 
   const handleUploadPlayerImage = async (playerId: string, file: File) => {
     setUploadingImageId(playerId);
@@ -274,6 +333,22 @@ export function PlayerDetailsModal({
             title="Auto distribute teams">
               ⚽ Distribute Teams
               </button>
+            <button
+              onClick={() => setShowAddPlayer(!showAddPlayer)}
+              style={{
+                background: showAddPlayer ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${showAddPlayer ? "rgba(34,197,94,0.4)" : "#333"}`,
+                color: showAddPlayer ? "#22c55e" : "#ccc",
+                padding: "6px 12px",
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: "pointer",
+                fontWeight: 600,
+                transition: "all 0.2s",
+              }}
+              title="Add a player to this game">
+                ➕ Add Player
+              </button>
             <button className="close-btn" onClick={onClose}>✕</button>
           </div>
         </div>
@@ -330,6 +405,110 @@ export function PlayerDetailsModal({
             </>
           )}
         </div>
+
+        {/* Add Player Search */}
+        {showAddPlayer && (
+          <div style={{ margin: "16px 0", padding: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid #333", borderRadius: "8px" }}>
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6, color: "#ccc" }}>
+                Search Players
+              </label>
+              <input
+                type="text"
+                placeholder="Search by name, phone, or email..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  searchPlayers(e.target.value);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid #444",
+                  borderRadius: 6,
+                  color: "#fff",
+                  fontSize: 14,
+                }}
+              />
+            </div>
+
+            {searching && (
+              <div style={{ textAlign: "center", padding: "20px", color: "#888" }}>
+                Searching...
+              </div>
+            )}
+
+            {!searching && searchResults.length > 0 && (
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                {searchResults.map((player) => (
+                  <div
+                    key={player._id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 12px",
+                      marginBottom: "4px",
+                      background: "rgba(255,255,255,0.03)",
+                      borderRadius: 6,
+                      border: "1px solid #333",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: "rgba(200,255,62,0.1)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#c8ff3e",
+                        }}
+                      >
+                        {initials(player.name)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>
+                          {player.name}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#888" }}>
+                          {player.phone} • Rating: {player.rating || 5}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => addPlayer(player._id)}
+                      disabled={addingPlayerId === player._id}
+                      style={{
+                        background: addingPlayerId === player._id ? "rgba(200,255,62,0.2)" : "rgba(200,255,62,0.1)",
+                        border: "1px solid rgba(200,255,62,0.3)",
+                        color: "#c8ff3e",
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        fontSize: 12,
+                        cursor: addingPlayerId === player._id ? "not-allowed" : "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {addingPlayerId === player._id ? "Adding..." : "Add"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!searching && searchQuery && searchResults.length === 0 && (
+              <div style={{ textAlign: "center", padding: "20px", color: "#888" }}>
+                No players found
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Registered Players ── */}
         <div className="pdm-cards-scroll">

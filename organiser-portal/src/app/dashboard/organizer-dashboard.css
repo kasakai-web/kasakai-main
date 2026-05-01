@@ -487,7 +487,7 @@
 
 .table-header {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1fr 1.2fr;
+  grid-template-columns: 1.5fr 1.5fr 0.9fr 0.8fr 0.8fr 1.8fr;
   gap: 16px;
   padding: 16px 24px;
   background: linear-gradient(135deg, rgba(255, 107, 71, 0.15) 0%, rgba(96, 165, 250, 0.08) 50%, rgba(162, 155, 254, 0.05) 100%);
@@ -511,7 +511,7 @@
 
 .table-row {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1fr 1.2fr;
+  grid-template-columns: 1.5fr 1.5fr 0.9fr 0.8fr 0.8fr 1.8fr;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid rgba(255, 107, 71, 0.08);
@@ -742,75 +742,141 @@
 
 /* Actions Column */
 .col-actions {
-  justify-content: center;
+  justify-content: flex-end;
   gap: 4px;
   overflow: visible;
 }
 
 .action-buttons {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
-  justify-content: center;
-  flex-wrap: nowrap;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .btn-action {
-  width: 36px;
-  height: 36px;
-  border: none;
+  padding: 4px 10px;
+  height: 28px;
   border-radius: 6px;
-  background: var(--mid);
-  color: var(--white);
-  font-size: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 5px;
+  white-space: nowrap;
+  transition: all 0.18s ease;
 }
 
 .btn-action:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  opacity: 0.9;
 }
 
-.btn-players:hover {
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(167, 139, 250, 0.15));
-  border: 1px solid rgba(167, 139, 250, 0.4);
+.btn-action.btn-players {
   color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.25);
+}
+.btn-action.btn-players:hover {
+  background: rgba(167, 139, 250, 0.2);
+  border-color: rgba(167, 139, 250, 0.45);
 }
 
-.btn-edit:hover {
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.3), rgba(96, 165, 250, 0.15));
-  border: 1px solid rgba(96, 165, 250, 0.4);
+.btn-action.btn-edit {
   color: #93c5fd;
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.25);
+}
+.btn-action.btn-edit:hover {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.45);
 }
 
-.btn-cancel:hover {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.15));
-  border: 1px solid rgba(239, 68, 68, 0.4);
+.btn-action.btn-confirm {
+  color: #c8ff3e;
+  background: rgba(200, 255, 62, 0.08);
+  border-color: rgba(200, 255, 62, 0.25);
+}
+.btn-action.btn-confirm:hover {
+  background: rgba(200, 255, 62, 0.18);
+  border-color: rgba(200, 255, 62, 0.45);
+}
+
+.btn-action.btn-withdraw {
+  color: #ffb347;
+  background: rgba(255, 179, 71, 0.08);
+  border-color: rgba(255, 179, 71, 0.25);
+}
+.btn-action.btn-withdraw:hover {
+  background: rgba(255, 179, 71, 0.18);
+  border-color: rgba(255, 179, 71, 0.45);
+}
+
+.btn-action.btn-complete {
+  color: #c4d56c;
+  background: rgba(196, 213, 108, 0.08);
+  border-color: rgba(196, 213, 108, 0.25);
+}
+.btn-action.btn-complete:hover {
+  background: rgba(196, 213, 108, 0.18);
+  border-color: rgba(196, 213, 108, 0.45);
+}
+
+.btn-action.btn-cancel {
   color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.btn-action.btn-cancel:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
 }
 
-/* Text-label post-game action buttons (Complete / Attendance / Ratings) */
-.btn-postgame {
-  width: auto;
-  height: auto;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  transition: opacity 0.15s, transform 0.15s;
+.btn-action.btn-attendance {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.25);
 }
-.btn-postgame:hover { opacity: 0.85; transform: scale(1.04); }
+.btn-action.btn-attendance:hover {
+  background: rgba(251, 191, 36, 0.18);
+  border-color: rgba(251, 191, 36, 0.45);
+}
 
-.btn-postgame-complete   { background: rgba(196,213,108,0.14); color: #c4d56c; border: 1px solid rgba(196,213,108,0.3); }
-.btn-postgame-attendance { background: rgba(251,191,36,0.12);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);  }
-.btn-postgame-ratings    { background: rgba(74,222,128,0.10);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+.btn-action.btn-ratings {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+.btn-action.btn-ratings:hover {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+/* Icon-only mode: hide text labels, square buttons */
+@media (max-width: 1150px) {
+  .btn-action .btn-label {
+    display: none;
+  }
+  .btn-action {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .action-buttons {
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
 
 /* Modal Styles */
 .modal-overlay {
