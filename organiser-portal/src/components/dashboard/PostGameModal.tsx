@@ -24,23 +24,6 @@ interface Game {
 
 type AttendanceStatus = "present" | "absent";
 
-interface FeedbackSummary {
-  count: number;
-  avgGame: number | null;
-  avgOrganiser: number | null;
-  avgVenue: number | null;
-  tagCounts: Record<string, number>;
-}
-interface FeedbackEntry {
-  _id: string;
-  submittedBy: { name: string };
-  gameRating: number;
-  organiserRating?: number;
-  venueRating?: number;
-  tags: string[];
-  comment?: string;
-}
-
 interface PlayerRatingDraft {
   playerId: string;
   name: string;
@@ -102,8 +85,6 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
   const [savingRatings, setSavingRatings] = useState(false);
   const [error, setError] = useState("");
   const [ratings, setRatings] = useState<Record<string, PlayerRatingDraft>>({});
-  const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummary | null>(null);
-  const [feedbackEntries, setFeedbackEntries] = useState<FeedbackEntry[]>([]);
 
   // Pre-load existing attendance marks — map legacy no_show → absent
   useEffect(() => {
@@ -217,23 +198,6 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
     }
   };
 
-  // ── Load player feedback for organiser ──────────────────────────────────
-  const loadGameFeedback = useCallback(async () => {
-    const { token } = getSession();
-    if (!token) return;
-    try {
-      const res = await fetch(
-        buildApiUrl(`/api/v1/games/organisers/${game._id}/game-feedback`),
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await res.json();
-      if (data.success) {
-        setFeedbackSummary(data.data.summary);
-        setFeedbackEntries(data.data.feedback || []);
-      }
-    } catch {}
-  }, [game._id]);
-
   // ── Step 2: save ratings ─────────────────────────────────────────────────
   const handleSaveRatings = async () => {
     setSavingRatings(true);
@@ -268,8 +232,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
           return;
         }
       }
-      // Go to summary step and load player feedback
-      await loadGameFeedback();
+      // Go to summary step
       setStep("summary");
     } catch (e) {
       setError((e as Error).message || "An error occurred");
@@ -425,91 +388,14 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
               </span>
             </div>
 
-            {/* Player feedback section */}
+            {/* Player feedback section - Removed for privacy */}
             <div style={{ padding: "16px 24px 0" }}>
               <div className="pgm-section-head" style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
-                Player Feedback Received
+                Post-Game Summary
               </div>
-
-              {!feedbackSummary || feedbackSummary.count === 0 ? (
-                <div className="pgm-empty" style={{ padding: "20px 0" }}>
-                  No player feedback submitted yet. Players will be prompted to rate after the game.
-                </div>
-              ) : (
-                <>
-                  {/* Aggregate averages */}
-                  <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-                    {feedbackSummary.avgGame != null && (
-                      <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "10px 14px", minWidth: 90, textAlign: "center" }}>
-                        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Game</div>
-                        <div style={{ fontSize: 22, color: "#fbbf24", fontWeight: 800 }}>{feedbackSummary.avgGame}</div>
-                        <div style={{ fontSize: 9, color: "#444" }}>/ 5 avg</div>
-                      </div>
-                    )}
-                    {feedbackSummary.avgOrganiser != null && (
-                      <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "10px 14px", minWidth: 90, textAlign: "center" }}>
-                        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Organiser</div>
-                        <div style={{ fontSize: 22, color: "#c4d56c", fontWeight: 800 }}>{feedbackSummary.avgOrganiser}</div>
-                        <div style={{ fontSize: 9, color: "#444" }}>/ 5 avg</div>
-                      </div>
-                    )}
-                    {feedbackSummary.avgVenue != null && (
-                      <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "10px 14px", minWidth: 90, textAlign: "center" }}>
-                        <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Venue</div>
-                        <div style={{ fontSize: 22, color: "#4ade80", fontWeight: 800 }}>{feedbackSummary.avgVenue}</div>
-                        <div style={{ fontSize: 9, color: "#444" }}>/ 5 avg</div>
-                      </div>
-                    )}
-                    <div style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "10px 14px", minWidth: 90, textAlign: "center" }}>
-                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Responses</div>
-                      <div style={{ fontSize: 22, color: "#888", fontWeight: 800 }}>{feedbackSummary.count}</div>
-                    </div>
-                  </div>
-
-                  {/* Top tags */}
-                  {Object.keys(feedbackSummary.tagCounts).length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Common Tags</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {Object.entries(feedbackSummary.tagCounts)
-                          .sort(([, a], [, b]) => b - a)
-                          .slice(0, 6)
-                          .map(([tag, count]) => (
-                            <span key={tag} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, background: "rgba(196,213,108,0.1)", color: "#c4d56c", border: "1px solid rgba(196,213,108,0.2)" }}>
-                              {tag} <span style={{ opacity: 0.6 }}>×{count}</span>
-                            </span>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Individual feedback cards */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {feedbackEntries.map((fb) => (
-                      <div key={fb._id} style={{ background: "#111114", border: "1px solid #1e1e22", borderRadius: 8, padding: "12px 14px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#ccc" }}>{fb.submittedBy?.name || "Player"}</span>
-                          <div style={{ display: "flex", gap: 2 }}>
-                            {[1,2,3,4,5].map(n => (
-                              <span key={n} style={{ fontSize: 14, color: n <= fb.gameRating ? "#fbbf24" : "#2a2a2a" }}>★</span>
-                            ))}
-                          </div>
-                        </div>
-                        {fb.tags?.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: fb.comment ? 6 : 0 }}>
-                            {fb.tags.map(tag => (
-                              <span key={tag} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "rgba(255,255,255,0.05)", color: "#666", border: "1px solid #222" }}>{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                        {fb.comment && (
-                          <div style={{ fontSize: 12, color: "#777", fontStyle: "italic", marginTop: 4 }}>"{fb.comment}"</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="pgm-empty" style={{ padding: "20px 0" }}>
+                Game completed successfully. Player ratings have been recorded privately.
+              </div>
             </div>
 
             <div className="pgm-footer">
@@ -657,7 +543,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
               </button>
               <button
                 className="pgm-btn-ghost"
-                onClick={async () => { await loadGameFeedback(); setStep("summary"); }}
+                onClick={() => setStep("summary")}
                 disabled={savingRatings}
               >
                 Skip Ratings

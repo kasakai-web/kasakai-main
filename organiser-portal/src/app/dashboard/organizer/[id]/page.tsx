@@ -614,7 +614,7 @@ export default function OrganizerDashboard() {
                           <div className="postgame-stat">
                             <span className="postgame-label">Present:</span>
                             <span className="postgame-value">
-                              {game.registrations?.filter(r => r.attended === 'present').length || 0}
+                              {game.registrations?.filter((r: any) => r.attended === 'present').length || 0}
                             </span>
                           </div>
                           <div className="postgame-stat">
