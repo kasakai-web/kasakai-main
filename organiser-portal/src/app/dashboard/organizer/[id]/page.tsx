@@ -437,7 +437,7 @@ export default function OrganizerDashboard() {
                     <div className="col col-details">
                       <div className="venue-info">
                         <div className="venue-name">{game.turf?.name || 'Unknown'}</div>
-                        <div className="venue-location">{game.turf?.location?.city || ''}</div>
+                        <div className="venue-location">{(game.turf as any)?.address?.city || ''}</div>
                         <div className="date-time">
                           {new Date(game.scheduledAt).toLocaleDateString()} · {new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
@@ -590,7 +590,7 @@ export default function OrganizerDashboard() {
                     <div className="col col-details">
                       <div className="venue-info">
                         <div className="venue-name">{game.turf?.name || 'Unknown'}</div>
-                        <div className="venue-location">{game.turf?.location?.city || ''}</div>
+                        <div className="venue-location">{(game.turf as any)?.address?.city || ''}</div>
                         <div className="date-time">
                           {new Date(game.scheduledAt).toLocaleDateString()}
                         </div>
