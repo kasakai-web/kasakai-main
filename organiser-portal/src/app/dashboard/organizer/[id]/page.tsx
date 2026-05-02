@@ -42,6 +42,12 @@ export default function OrganizerDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [relativeTime, setRelativeTime] = useState("");
   const isFetchingGamesRef = useRef(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterFormat, setFilterFormat] = useState('all');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [sortBy, setSortBy] = useState('date-asc');
 
   const fetchWithLocalFallback = useCallback(
     async (url: string, init?: RequestInit): Promise<Response> => {
@@ -299,6 +305,49 @@ export default function OrganizerDashboard() {
 
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
   const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
+
+  const allFormats = [...new Set(games.map((g: any) => g.format).filter(Boolean))] as string[];
+
+  const applyFilters = (list: any[]) => {
+    let result = [...list];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(g =>
+        g.title?.toLowerCase().includes(q) ||
+        g.turf?.name?.toLowerCase().includes(q) ||
+        g.turf?.address?.city?.toLowerCase().includes(q) ||
+        g.format?.toLowerCase().includes(q)
+      );
+    }
+    if (filterStatus !== 'all') result = result.filter(g => g.status === filterStatus);
+    if (filterFormat !== 'all') result = result.filter(g => g.format === filterFormat);
+    if (filterDateFrom) {
+      const from = new Date(filterDateFrom);
+      result = result.filter(g => new Date(g.scheduledAt) >= from);
+    }
+    if (filterDateTo) {
+      const to = new Date(filterDateTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter(g => new Date(g.scheduledAt) <= to);
+    }
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-asc':   return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+        case 'date-desc':  return new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime();
+        case 'players-desc': return getTotalPlayers(b) - getTotalPlayers(a);
+        case 'fee-asc':    return (a.feeInPaise || 0) - (b.feeInPaise || 0);
+        case 'fee-desc':   return (b.feeInPaise || 0) - (a.feeInPaise || 0);
+        default: return 0;
+      }
+    });
+    return result;
+  };
+
+  const filteredUpcoming = applyFilters(upcomingGames);
+  const filteredPast     = applyFilters(pastGames);
+  const hasActiveFilters = !!(searchQuery || filterStatus !== 'all' || filterFormat !== 'all' || filterDateFrom || filterDateTo || sortBy !== 'date-asc');
+  const clearFilters = () => { setSearchQuery(''); setFilterStatus('all'); setFilterFormat('all'); setFilterDateFrom(''); setFilterDateTo(''); setSortBy('date-asc'); };
+
   const handleLogout = () => {
   clearSession(); // ✅ better than localStorage.clear()
   router.replace("/login?role=organiser");
@@ -392,6 +441,77 @@ export default function OrganizerDashboard() {
         </div>
       </div>
 
+      {/* Filter / Search Bar */}
+      {!loading && games.length > 0 && (
+        <div className="filter-bar">
+          <div className="filter-search-wrap">
+            <svg className="filter-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              className="filter-search-input"
+              type="text"
+              placeholder="Search by title, venue, city, format…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="filter-search-clear" onClick={() => setSearchQuery('')} title="Clear search">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="open">Open</option>
+            <option value="tentative">Tentative</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+
+          <select className="filter-select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+            <option value="all">All Formats</option>
+            {allFormats.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+
+          <div className="filter-date-wrap">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <input className="filter-date-input" type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} title="From date" />
+            <span className="filter-date-sep">–</span>
+            <input className="filter-date-input" type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} title="To date" />
+          </div>
+
+          <select className="filter-select filter-sort" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+            <option value="date-asc">Date ↑</option>
+            <option value="date-desc">Date ↓</option>
+            <option value="players-desc">Most Players</option>
+            <option value="fee-asc">Fee ↑</option>
+            <option value="fee-desc">Fee ↓</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button className="filter-clear-btn" onClick={clearFilters} title="Clear all filters">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              Clear
+            </button>
+          )}
+
+          <span className="filter-result-count">
+            {activeTab === 'upcoming' ? filteredUpcoming.length : filteredPast.length}
+            {' '}/{' '}
+            {activeTab === 'upcoming' ? upcomingGames.length : pastGames.length} events
+          </span>
+        </div>
+      )}
+
       {/* Table Section */}
       <div className="table-section">
         {loading ? (
@@ -400,18 +520,28 @@ export default function OrganizerDashboard() {
             <p>Loading events...</p>
           </div>
         ) : activeTab === 'upcoming' ? (
-          upcomingGames.length === 0 ? (
+          filteredUpcoming.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
                   <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
               </div>
-              <h3>No upcoming events</h3>
-              <p>Create your first event to get started</p>
-              <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-                <span>+ </span>Create Event
-              </button>
+              {hasActiveFilters ? (
+                <>
+                  <h3>No events match your filters</h3>
+                  <p>Try adjusting your search or filters</p>
+                  <button className="btn-primary" onClick={clearFilters}>Clear Filters</button>
+                </>
+              ) : (
+                <>
+                  <h3>No upcoming events</h3>
+                  <p>Create your first event to get started</p>
+                  <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+                    <span>+ </span>Create Event
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="games-table">
@@ -424,7 +554,7 @@ export default function OrganizerDashboard() {
                 <div className="col col-actions">Actions</div>
               </div>
               <div className="table-body">
-                {upcomingGames.map(game => (
+                {filteredUpcoming.map(game => (
                   <div key={game._id} className="table-row">
                     <div className="col col-title">
                       <div className="game-title-col">
@@ -555,15 +685,25 @@ export default function OrganizerDashboard() {
             </div>
           )
         ) : (
-          pastGames.length === 0 ? (
+          filteredPast.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
                   <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
               </div>
-              <h3>No past events yet</h3>
-              <p>Completed events will appear here</p>
+              {hasActiveFilters ? (
+                <>
+                  <h3>No events match your filters</h3>
+                  <p>Try adjusting your search or filters</p>
+                  <button className="btn-primary" onClick={clearFilters}>Clear Filters</button>
+                </>
+              ) : (
+                <>
+                  <h3>No past events yet</h3>
+                  <p>Completed events will appear here</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="games-table">
@@ -577,7 +717,7 @@ export default function OrganizerDashboard() {
                 <div className="col col-actions">Actions</div>
               </div>
               <div className="table-body">
-                {pastGames.map(game => (
+                {filteredPast.map(game => (
                   <div key={game._id} className="table-row">
                     <div className="col col-title">
                       <div className="game-title-col">
