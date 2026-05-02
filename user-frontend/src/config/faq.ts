@@ -9,9 +9,9 @@ export const FAQ_ITEMS: FAQItem[] = [
   },
   {
     id: "backout",
-    question: "What happens if I back out of a game?",
+    question: "What happens if I cancel my registration?",
     answer:
-      "Back out before the cut-off time set by the organiser — no penalty. Back out after cut-off — you'll receive a warning for your first two offences. After that, a fee is automatically deducted from your wallet. This keeps the community fair for everyone.",
+      "Cancel before the cut-off time set by the organiser — no penalty. Cancel after cut-off — you'll receive a warning for your first two offences. After that, a fee is automatically deducted from your wallet. This keeps the community fair for everyone.",
   },
   {
     id: "teams",

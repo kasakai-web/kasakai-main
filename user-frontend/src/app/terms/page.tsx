@@ -171,7 +171,7 @@ export default function TermsPage() {
               <Section id="games" num="04" title="Game Registrations">
                 <Bullets items={[
                   "When you register for a game, the applicable fee is debited from your wallet immediately.",
-                  "If you back out, a refund will be credited to your wallet — not your bank account — per our Refund Policy.",
+                  "If you cancel your registration, a refund will be credited to your wallet — not your bank account — per our Refund Policy.",
                   "If a game is cancelled by the organiser, the full registration fee will be refunded to your wallet within minutes.",
                 ]} />
               </Section>

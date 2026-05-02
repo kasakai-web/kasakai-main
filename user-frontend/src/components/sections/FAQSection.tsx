@@ -8,8 +8,8 @@ const FAQS = [
     a: "Browse open games, select one that fits your schedule, and pay the entry fee from your in-app wallet. Your spot is confirmed instantly. If the game is full, you can join the waitlist and get in automatically when a spot opens.",
   },
   {
-    q: "What if I want to back out of a game?",
-    a: "You can withdraw before the game takes place. Your registration fee is refunded to your Kasa Kai wallet — not to your bank account. The exact refund amount depends on the organiser's backout policy for that game, which is shown clearly before you confirm your withdrawal.",
+    q: "What if I want to cancel my registration?",
+    a: "You can cancel before the game takes place. Your registration fee is refunded to your Kasa Kai wallet — not to your bank account. The exact refund amount depends on the organiser's cancellation policy for that game, which is shown clearly before you confirm your cancellation.",
   },
   {
     q: "What happens if the organiser cancels the game?",
@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: "Can I withdraw money from my wallet to my bank?",
-    a: "No. Wallet balances cannot be withdrawn as cash or transferred to a bank account. All refunds — from backouts or cancellations — are credited to your in-app wallet only. If a top-up payment fails and money is deducted from your account, Razorpay will automatically reverse it to your bank within 5–7 business days.",
+    a: "No. Wallet balances cannot be withdrawn as cash or transferred to a bank account. All refunds — from registration cancellations or game cancellations — are credited to your in-app wallet only. If a top-up payment fails and money is deducted from your account, Razorpay will automatically reverse it to your bank within 5–7 business days.",
   },
   {
     q: "How does team balancing work?",

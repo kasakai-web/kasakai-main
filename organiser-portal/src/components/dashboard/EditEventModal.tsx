@@ -147,6 +147,8 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
     if (!title.trim()) newErrors.title = "Title is required";
     if (!turf)         newErrors.turf  = "Venue is required";
     if (!date)         newErrors.date  = "Date is required";
+    if (Number(minPlayers) > Number(totalSlots))
+      newErrors.minMax = "Min players cannot exceed total slots";
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     setLoading(true);
@@ -285,16 +287,37 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
                 </select>
               </Field>
               <Field label="Fee per Player (₹)">
-                <input type="number" className="form-input" min="0" step="10" value={feeInRs} onChange={(e) => setFeeInRs(Number(e.target.value))} required />
+                <input type="number" className="form-input" min="0" step="1" value={feeInRs} onChange={(e) => setFeeInRs(Number(e.target.value))} required />
               </Field>
             </div>
 
             <div className="form-row">
               <Field label="Total Slots (cap)">
-                <input type="number" className="form-input" min="2" value={totalSlots} onChange={(e) => setTotalSlots(Number(e.target.value))} />
+                <input
+                  type="number"
+                  className="form-input"
+                  min={minPlayers || 2}
+                  value={totalSlots}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val < minPlayers) setMinPlayers(val);
+                    setTotalSlots(val);
+                  }}
+                />
               </Field>
-              <Field label="Min Players to Confirm">
-                <input type="number" className="form-input" min="2" value={minPlayers} onChange={(e) => setMinPlayers(Number(e.target.value))} />
+              <Field label="Min Players to Confirm" error={errors.minMax}>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="2"
+                  max={totalSlots}
+                  value={minPlayers}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val > totalSlots) setMinPlayers(totalSlots);
+                    else setMinPlayers(val);
+                  }}
+                />
               </Field>
             </div>
           </Section>

@@ -61,7 +61,7 @@ const TX_CONFIG: Record<string, { label: string; sign: string; color: string; ic
   bonus:       { label: "Bonus",       sign: "+", color: "#4ade80", icon: "🎁" },
   refund:      { label: "Refund",      sign: "+", color: "#60a5fa", icon: "↩" },
   debit:       { label: "Game signup", sign: "−", color: "#f87171", icon: "⬇" },
-  backout_fee: { label: "Backout fee", sign: "−", color: "#f87171", icon: "⚠" },
+  backout_fee: { label: "Cancellation fee", sign: "−", color: "#f87171", icon: "⚠" },
   withdrawal:  { label: "Withdrawal",  sign: "−", color: "#f59e0b", icon: "💸" },
   lock:        { label: "Locked",      sign: "−", color: "#a78bfa", icon: "🔒" },
   unlock:      { label: "Unlocked",    sign: "+", color: "#a78bfa", icon: "🔓" },

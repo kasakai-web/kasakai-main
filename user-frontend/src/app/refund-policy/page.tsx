@@ -9,7 +9,7 @@ const sections = [
   { id: "key-point",    title: "Key Point" },
   { id: "topup",        title: "Wallet Top-Up Refunds" },
   { id: "cancellation", title: "Game Cancellation" },
-  { id: "backout",      title: "Player Backout" },
+  { id: "backout",      title: "Player Cancellation" },
   { id: "no-cash",      title: "No Cash Withdrawals" },
   { id: "disputes",     title: "Dispute Resolution" },
 ];
@@ -118,7 +118,7 @@ export default function RefundPolicyPage() {
                 <div style={{ border: "1px solid rgba(111,200,218,0.3)", background: "rgba(111,200,218,0.05)", padding: "24px 28px" }}>
                   <p style={{ fontFamily: "var(--cond)", fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--electric)", marginBottom: 10 }}>Most Important</p>
                   <p style={{ fontSize: 16, color: "var(--white)", lineHeight: 1.65, fontWeight: 500 }}>
-                    All refunds on Kasa Kai — whether from game cancellations, player backouts, or failed payments — are credited to your{" "}
+                    All refunds on Kasa Kai — whether from game cancellations, player withdrawals, or failed payments — are credited to your{" "}
                     <strong style={{ color: "var(--electric)" }}>in-app wallet</strong>, not to your original payment method or bank account.
                   </p>
                 </div>
@@ -143,9 +143,9 @@ export default function RefundPolicyPage() {
                 </div>
               </Section>
 
-              <Section id="backout" num="03" title="Player Backout Refunds" accent="electric">
-                <P>If you withdraw from a game before it takes place, your registration fee is refunded to your wallet. The refund amount is subject to the organiser&apos;s backout policy for that specific game.</P>
-                <P>Backout fees (if any) will be clearly communicated before you confirm your withdrawal. The net amount is credited to your wallet immediately.</P>
+              <Section id="backout" num="03" title="Player Cancellation Refunds" accent="electric">
+                <P>If you cancel your registration before the game takes place, your registration fee is refunded to your wallet. The refund amount is subject to the organiser&apos;s cancellation policy for that specific game.</P>
+                <P>Cancellation fees (if any) will be clearly communicated before you confirm your withdrawal. The net amount is credited to your wallet immediately.</P>
               </Section>
 
               <Section id="no-cash" num="04" title="No Cash Withdrawals" accent="electric">

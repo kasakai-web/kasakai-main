@@ -106,6 +106,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       newErrors.date = "Game must be scheduled in the future";
     if (!feeInRs || isNaN(Number(feeInRs)) || Number(feeInRs) < 0)
       newErrors.feeInRs = "Valid fee is required";
+    if (minPlayers && maxPlayers && Number(minPlayers) > Number(maxPlayers))
+      newErrors.minMax = "Min players cannot exceed max players";
     // Capacity check: organiser + guests must not exceed totalSlots
     const cap = Number(maxPlayers) || slotsFromFormat(format);
     const orgSlot = organiserIsPlaying ? 1 : 0;
@@ -312,9 +314,9 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                   <span className="input-prefix">₹</span>
                   <input
                     type="number"
-                    placeholder="350"
+                    placeholder="e.g. 350"
                     min="0"
-                    step="10"
+                    step="1"
                     value={feeInRs}
                     onChange={(e) => setFeeInRs(e.target.value)}
                     className={`form-input ${errors.feeInRs ? "error" : ""}`}
@@ -330,10 +332,16 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <input
                   type="number"
                   min="2"
+                  max={maxPlayers || undefined}
                   value={minPlayers}
-                  onChange={(e) => setMinPlayers(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const max = Number(maxPlayers);
+                    if (max && Number(val) > max) setMinPlayers(String(max));
+                    else setMinPlayers(val);
+                  }}
                   placeholder={String(Math.floor(slotsFromFormat(format) * 0.7))}
-                  className="form-input"
+                  className={`form-input ${errors.minMax ? "error" : ""}`}
                 />
                 <div className="field-hint">Minimum to confirm the game</div>
               </div>
@@ -342,12 +350,18 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <label className="form-label"><span className="label-text">Max Players Allowed</span></label>
                 <input
                   type="number"
-                  min="2"
+                  min={minPlayers || "2"}
                   value={maxPlayers}
-                  onChange={(e) => setMaxPlayers(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const min = Number(minPlayers);
+                    if (min && Number(val) < min) setMaxPlayers(String(min));
+                    else setMaxPlayers(val);
+                  }}
                   placeholder={String(slotsFromFormat(format))}
-                  className="form-input"
+                  className={`form-input ${errors.minMax ? "error" : ""}`}
                 />
+                {errors.minMax && <div className="field-error">{errors.minMax}</div>}
                 <div className="field-hint">Total slots available</div>
               </div>
             </div>
