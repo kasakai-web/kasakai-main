@@ -531,12 +531,6 @@ export default function PlayerProfilePage() {
             <div className="pp-stat-key">Attendance</div>
             <div className="pp-stat-sub">{profile.attendanceRate === null || profile.attendanceRate === undefined ? "no data yet" : profile.attendanceRate >= 90 ? "excellent" : profile.attendanceRate >= 70 ? "good" : "needs work"}</div>
           </div>
-          <div className="pp-stat-div" />
-          <div className="pp-stat">
-            <div className={`pp-stat-val ${(profile.backoutCount ?? 0) > 3 ? "pp-warn" : "pp-ok"}`}>{profile.backoutCount ?? 0}</div>
-            <div className="pp-stat-key">Discipline</div>
-            <div className="pp-stat-sub">backouts</div>
-          </div>
         </div>
 
         {/* ── FORM ── */}
