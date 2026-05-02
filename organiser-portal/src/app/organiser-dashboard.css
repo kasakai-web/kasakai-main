@@ -171,7 +171,7 @@
   background: linear-gradient(135deg, #1a1a1a, #0f0f0f);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   transition: all 0.2s;
 }
 
@@ -184,8 +184,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  gap: 20px;
+  margin-bottom: 12px;
+  gap: 16px;
 }
 
 .game-info {
@@ -402,15 +402,20 @@
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
   .organiser-dashboard {
-    padding: 20px;
+    padding: 16px;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .game-item {
+    padding: 12px;
+  }
+
   .game-header {
     flex-direction: column;
+    gap: 12px;
   }
 
   .table-header,
