@@ -215,7 +215,6 @@ export function PlayerDetailsModal({
     );
 
     const data = await res.json();
-    console.log("DISTRIBUTE RESPONSE:", data);
 
     if (!res.ok || !data.success) {
       alert(data.message || "Team generation failed");

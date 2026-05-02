@@ -33,7 +33,7 @@
 }
 
 .organizer-dashboard-container {
-  padding: 24px;
+  padding: 16px 0;
   background: var(--grey);
   min-height: 100vh;
   color: var(--white);
@@ -44,8 +44,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 32px;
-  gap: 24px;
+  margin-bottom: 20px;
+  gap: 16px;
 }
 
 .header-left {
@@ -629,8 +629,8 @@
 .table-header {
   display: grid;
   grid-template-columns: 1.5fr 1.5fr 0.9fr 0.8fr 0.8fr 1.8fr;
-  gap: 16px;
-  padding: 16px 24px;
+  gap: 12px;
+  padding: 10px 14px;
   background: linear-gradient(135deg, rgba(255, 107, 71, 0.15) 0%, rgba(96, 165, 250, 0.08) 50%, rgba(162, 155, 254, 0.05) 100%);
   border-bottom: 2px solid var(--coral);
   font-size: 10px;
@@ -653,8 +653,8 @@
 .table-row {
   display: grid;
   grid-template-columns: 1.5fr 1.5fr 0.9fr 0.8fr 0.8fr 1.8fr;
-  gap: 16px;
-  padding: 16px 24px;
+  gap: 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 107, 71, 0.08);
   align-items: center;
   transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1582,7 +1582,7 @@
 
 @media (max-width: 768px) {
   .organizer-dashboard-container {
-    padding: 16px;
+    padding: 12px 0;
   }
 
   .dashboard-title {
@@ -2608,4 +2608,199 @@
   .op-actions { flex-direction: column-reverse; }
   .op-save-btn, .op-delete-btn { width: 100%; text-align: center; }
   .op-card { padding: 16px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE — Card layout for upcoming & past events (≤ 640px)
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .organizer-dashboard-container { padding: 8px 0; }
+  .dashboard-title { font-size: 20px !important; margin-bottom: 4px; white-space: nowrap; }
+  .dashboard-subtitle { font-size: 12px; color: #a0a0a0 !important; }
+  .live-badge { font-size: 10px; padding: 2px 7px; }
+  .dashboard-header-section { gap: 8px; flex-direction: column; margin-bottom: 12px; }
+  .btn-primary.btn-lg { width: 100%; justify-content: center; padding: 10px 16px; font-size: 13px; }
+
+  /* Tab navigation — underline style */
+  .tabs-section { margin-bottom: 10px; }
+  .tab-navigation {
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 6px;
+    font-size: 11px;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    border-radius: 0;
+    color: rgba(255,255,255,0.35);
+    gap: 4px;
+    background: none;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .tab-btn .tab-icon { font-size: 13px; }
+  .tab-btn.active {
+    color: var(--coral) !important;
+    border-bottom: 3px solid var(--coral) !important;
+    background: none;
+  }
+  .tab-badge { font-size: 10px; padding: 1px 5px; }
+  .tab-btn.active .tab-badge { background: rgba(255,107,71,0.18); color: var(--coral); }
+
+  /* Filter bar — compact single-row dropdowns on mobile */
+  .filter-bar { padding: 8px 0; gap: 5px; }
+  .filter-search-wrap { min-width: 100%; order: -1; }
+  .filter-select {
+    flex: 1;
+    height: 28px;
+    padding: 0 4px;
+    font-size: 11px;
+    min-width: 0;
+  }
+  .filter-clear-btn { height: 28px; padding: 0 8px; font-size: 11px; flex-shrink: 0; }
+  .filter-result-count { margin-left: auto; width: auto; font-size: 11px; }
+
+  /* Remove clipping so cards show rounded corners */
+  .table-section { overflow: visible; border-radius: 8px; }
+
+  /* ── Hide the grid header — card layout replaces it ── */
+  .games-table .table-header { display: none !important; }
+
+  .games-table .table-body {
+    max-height: none;
+    padding: 6px 0;
+    background: none;
+  }
+
+  /* ── Each row becomes a wrapped-flex card ── */
+  .games-table .table-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 0 !important;
+    padding: 14px !important;
+    margin-bottom: 8px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 107, 71, 0.2) !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+    transform: none !important;
+  }
+  .games-table .table-row:hover {
+    border-left: 3px solid var(--coral) !important;
+    padding-left: 11px !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Re-show columns that are hidden at 768px */
+  .games-table .col-details,
+  .games-table .col-fee { display: flex !important; }
+
+  /* ── Title: full width ── */
+  .games-table .col.col-title {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 8px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+    overflow: visible !important;
+  }
+  .games-table .col.col-title .title-main { max-width: none !important; }
+
+  /* ── Venue & date: full width ── */
+  .games-table .col.col-details {
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 8px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+    overflow: visible !important;
+  }
+  .games-table .col.col-details .venue-name { overflow: visible !important; }
+
+  /* ── Format | Fee | Players: share one row (flex: 1 each) ── */
+  .games-table .col.col-format,
+  .games-table .col.col-fee,
+  .games-table .col.col-players {
+    flex: 1 !important;
+    min-width: 0 !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 6px 4px !important;
+    overflow: visible !important;
+  }
+
+  /* Mini labels above each value */
+  .games-table .col.col-format::before {
+    content: "FORMAT";
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    color: rgba(255,255,255,.3);
+    margin-bottom: 4px;
+  }
+  .games-table .col.col-fee::before {
+    content: "FEE";
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    color: rgba(255,255,255,.3);
+    margin-bottom: 4px;
+  }
+  .games-table .col.col-players::before {
+    content: "PLAYERS";
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    color: rgba(255,255,255,.3);
+    margin-bottom: 4px;
+  }
+
+  /* ── Post-game stats: full width row ── */
+  .games-table .col.col-postgame {
+    width: 100% !important;
+    min-width: 100% !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    padding: 8px 0 0 !important;
+    border-top: 1px solid rgba(255,255,255,.04) !important;
+    margin-top: 4px !important;
+    overflow: visible !important;
+  }
+
+  /* ── Actions: full width, left-aligned, easier to tap ── */
+  .games-table .col.col-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    padding-top: 10px !important;
+    border-top: 1px solid rgba(255,255,255,.07) !important;
+    margin-top: 6px !important;
+    overflow: visible !important;
+  }
+  .games-table .action-buttons {
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .games-table .btn-action {
+    width: auto !important;
+    height: 32px !important;
+    padding: 0 10px !important;
+  }
+  .games-table .btn-action .btn-label {
+    display: inline !important;
+    font-size: 11px !important;
+  }
 }

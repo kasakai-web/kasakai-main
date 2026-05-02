@@ -8,16 +8,12 @@ export default function SocketClient() {
     const serverBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
     const socket = io(serverBase, {
       auth: {
-        token: localStorage.getItem("token"),
+        token: localStorage.getItem("authToken"),
       },
     });
 
-    socket.on("connect", () => {
-      console.log("✅ Connected:", socket.id);
-    });
-
-    socket.on("new-notification", (data: any) => {
-      console.log("[SOCKET] new-notification:", data);
+    socket.on("new-notification", (_data: any) => {
+      // handled by useNotificationSocket / bell
     });
 
     return () => { socket.disconnect(); };

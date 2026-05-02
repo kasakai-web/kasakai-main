@@ -294,7 +294,6 @@ export default function DashboardLayout({
             alignItems: "center",
             height: "66px",
             padding: "0 28px",
-            borderRight: "1px solid var(--border)",
             textDecoration: "none",
             flexShrink: 0,
             gap: "12px",
@@ -319,7 +318,25 @@ export default function DashboardLayout({
         <div className="nav-center">
         </div>
 
-        <div className="nav-right" style={{ borderLeft: "1px solid var(--border)", paddingRight: "8px" }}>
+        {/* Mobile wallet display */}
+        <div className="mobile-wallet-display">
+          {walletBalancePaise !== null && (
+            <div 
+              className="mobile-wallet-pill"
+              onClick={() => {
+                const resolvedId = resolvePlayerId();
+                if (resolvedId) router.push(`/dashboard/player/${resolvedId}/wallet`);
+              }}
+            >
+              <span className="mobile-wallet-icon">💰</span>
+              <span className="mobile-wallet-amount">
+                ₹{(walletBalancePaise / 100).toLocaleString("en-IN")}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="nav-right" style={{ paddingRight: "8px" }}>
           <NotificationBell
             unreadCount={sidebarUnread}
             onViewAll={() => {

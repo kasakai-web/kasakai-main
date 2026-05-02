@@ -406,37 +406,94 @@
   background: var(--coral);
 }
 
-/* Responsive */
+/* Responsive — bottom sheet on mobile */
 @media (max-width: 600px) {
+  .create-event-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
   .create-event-modal {
-    width: 95%;
-    max-height: 95vh;
-    border-radius: 12px;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+  }
+
+  /* Drag handle */
+  .create-event-modal::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
   }
 
   .create-event-header {
-    padding: 16px;
-  }
-
-  .create-event-form {
-    padding: 16px;
-    gap: 20px;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
+    padding: 10px 16px 12px;
   }
 
   .header-title {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .header-subtitle {
     font-size: 12px;
   }
 
+  .header-badge {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  .create-event-form {
+    padding: 12px 16px 20px;
+    gap: 16px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-section {
+    gap: 12px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    padding-bottom: 6px;
+  }
+
+  .form-input,
+  .form-select {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+
+  .form-label {
+    font-size: 12px;
+  }
+
   .form-actions {
     flex-direction: column;
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  .btn {
+    padding: 11px 16px;
+    font-size: 13px;
+    justify-content: center;
   }
 }
 

@@ -48,6 +48,7 @@ export default function PlayerDashboard() {
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
   const [myWaitlist, setMyWaitlist] = useState<any[]>([]);
@@ -341,8 +342,44 @@ export default function PlayerDashboard() {
       window.dispatchEvent(new CustomEvent("player-tab-change", { detail: sidebarSection }));
     }
 
+    // Auto-scroll to center the active tab
+    setTimeout(() => {
+      if (tabsRef.current) {
+        const activeTabElement = tabsRef.current.querySelector(`[data-tab="${tab}"]`) as HTMLElement;
+        if (activeTabElement) {
+          const container = tabsRef.current;
+          const containerWidth = container.offsetWidth;
+          const tabWidth = activeTabElement.offsetWidth;
+          const tabLeft = activeTabElement.offsetLeft;
+          const tabCenter = tabLeft + tabWidth / 2;
+          const containerCenter = containerWidth / 2;
+          const scrollLeft = tabCenter - containerCenter;
+
+          container.scrollTo({
+            left: Math.max(0, scrollLeft),
+            behavior: 'smooth'
+          });
+        }
+      }
+    }, 50);
+
     if (playerId) {
       router.replace(`/dashboard/player/${playerId}?tab=${tab}`);
+    }
+  };
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsRef.current) {
+      const scrollAmount = 200;
+      const currentScroll = tabsRef.current.scrollLeft;
+      const newScroll = direction === 'left' 
+        ? currentScroll - scrollAmount 
+        : currentScroll + scrollAmount;
+      
+      tabsRef.current.scrollTo({
+        left: newScroll,
+        behavior: 'smooth'
+      });
     }
   };
 
@@ -656,38 +693,50 @@ export default function PlayerDashboard() {
       </div>
 
       <div className="tabs-section">
-        <div className="tab-navigation player-tab-navigation">
-          <button
-            className={`tab-btn player-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => changeTab('all')}
-          >
-            <span className="tab-icon">🏟️</span>
-            <span className="tab-text">All Games</span>
-            <span className="tab-badge">{games.length}</span>
+        <div className="tab-navigation-container">
+          <button className="tab-scroll-btn left" onClick={() => scrollTabs('left')}>
+            ‹
           </button>
-          <button
-            className={`tab-btn player-tab-btn ${activeTab === 'my-games' ? 'active' : ''}`}
-            onClick={() => changeTab('my-games')}
-          >
-            <span className="tab-icon">🎟️</span>
-            <span className="tab-text">My Games</span>
-            <span className="tab-badge">{myGamesWithWaitlist.length}</span>
-          </button>
-          <button
-            className={`tab-btn player-tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
-            onClick={() => changeTab('cancelled')}
-          >
-            <span className="tab-icon">⛔</span>
-            <span className="tab-text">Cancelled</span>
-            <span className="tab-badge">{cancelledGames.length}</span>
-          </button>
-          <button
-            className={`tab-btn player-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
-            onClick={() => changeTab('completed')}
-          >
-            <span className="tab-icon">✅</span>
-            <span className="tab-text">Completed</span>
-            <span className="tab-badge">{completedGames.length}</span>
+          <div className="tab-navigation player-tab-navigation" ref={tabsRef}>
+            <button
+              className={`tab-btn player-tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+              onClick={() => changeTab('all')}
+              data-tab="all"
+            >
+              <span className="tab-icon">⚽</span>
+              <span className="tab-text">All Games</span>
+              <span className="tab-badge">{games.length}</span>
+            </button>
+            <button
+              className={`tab-btn player-tab-btn ${activeTab === 'my-games' ? 'active' : ''}`}
+              onClick={() => changeTab('my-games')}
+              data-tab="my-games"
+            >
+              <span className="tab-icon">🎫</span>
+              <span className="tab-text">My Games</span>
+              <span className="tab-badge">{myGamesWithWaitlist.length}</span>
+            </button>
+            <button
+              className={`tab-btn player-tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
+              onClick={() => changeTab('cancelled')}
+              data-tab="cancelled"
+            >
+              <span className="tab-icon">🚫</span>
+              <span className="tab-text">Cancelled</span>
+              <span className="tab-badge">{cancelledGames.length}</span>
+            </button>
+            <button
+              className={`tab-btn player-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
+              onClick={() => changeTab('completed')}
+              data-tab="completed"
+            >
+              <span className="tab-icon">🏆</span>
+              <span className="tab-text">Completed</span>
+              <span className="tab-badge">{completedGames.length}</span>
+            </button>
+          </div>
+          <button className="tab-scroll-btn right" onClick={() => scrollTabs('right')}>
+            ›
           </button>
         </div>
       </div>

@@ -25,6 +25,7 @@ export default function DashboardLayout({
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const resolveProfileImageUrl = useCallback((img?: string | null) => {
     if (!img) return "";
@@ -202,7 +203,6 @@ export default function DashboardLayout({
             alignItems: "center",
             height: "66px",
             padding: "0 26px",
-            borderRight: "1px solid var(--border)",
             textDecoration: "none",
             flexShrink: 0,
             gap: "12px",
@@ -228,7 +228,7 @@ export default function DashboardLayout({
           <div className="role-tab active organiser" style={{ cursor: "default" }}>Organiser Dashboard</div>
         </div>
 
-        <div className="nav-right" style={{ borderLeft: "1px solid var(--border)", paddingRight: "8px", gap: "4px" }}>
+        <div className="nav-right" style={{ paddingRight: "8px", gap: "4px" }}>
           <NotificationBell onViewAll={() => {
             if (userId) router.push(`/dashboard/organizer/${userId}/notifications`);
           }} />
@@ -236,17 +236,41 @@ export default function DashboardLayout({
             <span className="sidebar-icon">🚪</span>Log Out
           </button>
         </div>
+
+        {/* Mobile sidebar toggle */}
+        <button
+          className="mobile-sidebar-toggle"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+        >
+          {sidebarOpen ? (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+              <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
       </nav>
 
       <div className="dashboard-app">
+        {/* Sidebar overlay (mobile) */}
+        <div
+          className={`sidebar-overlay ${sidebarOpen ? "sidebar-open" : ""}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+
         {/* SIDEBAR */}
-        <aside className="sidebar" id="sidebar">
+        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} id="sidebar">
           <div className="sidebar-section">
             <div className="sidebar-label">Organiser</div>
             <button
               className={`sidebar-link ${activeSection === 'games' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("games");
+                setSidebarOpen(false);
                 if (userId) {
                   router.push(`/dashboard/organizer/${userId}`);
                 }
@@ -258,6 +282,7 @@ export default function DashboardLayout({
               className={`sidebar-link ${activeSection === 'performance' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("performance");
+                setSidebarOpen(false);
                 if (userId) router.push(`/dashboard/organizer/${userId}/performance`);
               }}
             >
@@ -267,6 +292,7 @@ export default function DashboardLayout({
               className={`sidebar-link ${activeSection === 'finance' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("finance");
+                setSidebarOpen(false);
                 if (userId) router.push(`/dashboard/organizer/${userId}/finance`);
               }}
             >
@@ -276,6 +302,7 @@ export default function DashboardLayout({
               className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("notifications");
+                setSidebarOpen(false);
                 if (userId) router.push(`/dashboard/organizer/${userId}/notifications`);
               }}
             >
@@ -290,6 +317,7 @@ export default function DashboardLayout({
               className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}
               onClick={() => {
                 setActiveSection("profile");
+                setSidebarOpen(false);
                 if (userId) {
                   router.push(`/dashboard/organizer/${userId}/profile`);
                 }
@@ -300,26 +328,29 @@ export default function DashboardLayout({
           </div>
 
           <div className="sidebar-bottom">
-            <div className="sidebar-user-block" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", marginBottom: "8px", background: "rgba(255,255,255,0.03)", borderRadius: "8px" }}>
-              <div className="user-avatar" style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--lime)", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "12px", overflow: "hidden", flexShrink: 0 }}>
+            <button
+              className="sidebar-link sidebar-profile-btn"
+              onClick={() => {
+                setSidebarOpen(false);
+                if (userId) router.push(`/dashboard/organizer/${userId}/profile`);
+              }}
+            >
+              <div className="user-avatar" style={{ overflow: "hidden" }}>
                 {userProfileImage ? (
                   <img src={userProfileImage} alt={userName} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => { setUserProfileImage(""); localStorage.removeItem("userProfileImage"); }} />
                 ) : (
                   userName.substring(0, 2).toUpperCase()
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span className="user-name" style={{ color: "var(--white)", fontWeight: 600, fontSize: "14px" }}>{userName}</span>
-                <span style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Organiser
-                </span>
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span className="user-name" style={{ fontWeight: 600, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</span>
+                <span style={{ color: "var(--muted)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Organiser</span>
               </div>
-            </div>
+            </button>
 
-            <button 
-              className="sidebar-link" 
+            <button
+              className="sidebar-link sidebar-logout-btn"
               onClick={handleLogout}
-              style={{ color: "#ff4444", marginTop: "auto", borderTop: "1px solid var(--border)", paddingTop: "16px", width: "100%", justifyContent: "flex-start", opacity: 0.8 }}
             >
               <span className="sidebar-icon">🚪</span>Log Out
             </button>

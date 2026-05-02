@@ -137,6 +137,23 @@ body::after {
   height: 100%;
   margin-left: auto;
 }
+.mobile-sidebar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  color: var(--white);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.18s;
+  margin-left: 8px;
+}
+.mobile-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
 .wallet-pill {
   display: flex;
   align-items: center;
@@ -205,7 +222,6 @@ body::after {
   width: 220px;
   flex-shrink: 0;
   background: var(--grey);
-  border-right: 1px solid var(--border);
   position: sticky;
   top: 62px;
   height: calc(100vh - 62px);
@@ -270,8 +286,31 @@ body::after {
 }
 .sidebar-bottom {
   margin-top: auto;
-  padding: 16px;
+  padding: 8px 0;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-profile-btn {
+  color: var(--white);
+  gap: 10px;
+  border-radius: 6px;
+  margin: 0 8px;
+  width: calc(100% - 16px);
+}
+.sidebar-profile-btn:hover {
+  background: rgba(255,255,255,0.06);
+}
+.sidebar-logout-btn {
+  color: #ff4444;
+  border-radius: 6px;
+  margin: 0 8px;
+  width: calc(100% - 16px);
+}
+.sidebar-logout-btn:hover {
+  background: rgba(255, 68, 68, 0.08);
+  color: #ff6666;
 }
 .sidebar-wallet-card {
   background: var(--surface);
@@ -319,7 +358,7 @@ body::after {
 /* main */
 .dashboard-main {
   flex: 1;
-  padding: 32px 36px;
+  padding: 24px 16px;
   min-width: 0;
 }
 
@@ -1267,11 +1306,43 @@ body::after {
 /* responsive */
 @media(max-width:900px) {
   .sidebar { display: none; }
+  .sidebar.sidebar-open { display: block; }
   .dashboard-main { padding: 20px; }
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 62px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 400;
+  }
+  .sidebar-overlay.sidebar-open { display: block; }
+  .mobile-sidebar-toggle {
+    display: flex;
+  }
+  .sidebar.sidebar-open {
+    position: fixed;
+    top: 62px;
+    left: 0;
+    width: 280px;
+    height: calc(100vh - 62px);
+    z-index: 500;
+    background: var(--surface);
+    overflow-y: auto;
+  }
+  /* Logout button in navbar is redundant on mobile — sidebar has one */
+  .nav-right .sidebar-link { display: none; }
+}
+@media(max-width:760px) {
+  /* Hide "Organiser Dashboard" label on small screens to prevent nav overflow */
+  .nav-center { display: none; }
 }
 @media(max-width:600px) {
   .events-grid { grid-template-columns: 1fr; }
   .bm-game-info { grid-template-columns: 1fr; }
+  .dashboard-main { padding: 8px; }
 }
 
 /* ══════════════════ ORGANISER DASHBOARD ══════════════════ */

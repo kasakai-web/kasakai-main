@@ -45,8 +45,6 @@ export default function OrganizerDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterFormat, setFilterFormat] = useState('all');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
   const [sortBy, setSortBy] = useState('date-asc');
 
   const fetchWithLocalFallback = useCallback(
@@ -166,8 +164,8 @@ export default function OrganizerDashboard() {
     fetchGames();
   }, [isAuthorized, fetchGames]);
 
-  const handleCreateEvent = (data: any) => {
-    console.log("Event Created", data);
+  const handleCreateEvent = (_data: any) => {
+    fetchGames();
   };
 
   const handleConfirmGame = async (gameId: string) => {
@@ -321,15 +319,6 @@ export default function OrganizerDashboard() {
     }
     if (filterStatus !== 'all') result = result.filter(g => g.status === filterStatus);
     if (filterFormat !== 'all') result = result.filter(g => g.format === filterFormat);
-    if (filterDateFrom) {
-      const from = new Date(filterDateFrom);
-      result = result.filter(g => new Date(g.scheduledAt) >= from);
-    }
-    if (filterDateTo) {
-      const to = new Date(filterDateTo);
-      to.setHours(23, 59, 59, 999);
-      result = result.filter(g => new Date(g.scheduledAt) <= to);
-    }
     result.sort((a, b) => {
       switch (sortBy) {
         case 'date-asc':   return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
@@ -345,8 +334,8 @@ export default function OrganizerDashboard() {
 
   const filteredUpcoming = applyFilters(upcomingGames);
   const filteredPast     = applyFilters(pastGames);
-  const hasActiveFilters = !!(searchQuery || filterStatus !== 'all' || filterFormat !== 'all' || filterDateFrom || filterDateTo || sortBy !== 'date-asc');
-  const clearFilters = () => { setSearchQuery(''); setFilterStatus('all'); setFilterFormat('all'); setFilterDateFrom(''); setFilterDateTo(''); setSortBy('date-asc'); };
+  const hasActiveFilters = !!(searchQuery || filterStatus !== 'all' || filterFormat !== 'all' || sortBy !== 'date-asc');
+  const clearFilters = () => { setSearchQuery(''); setFilterStatus('all'); setFilterFormat('all'); setSortBy('date-asc'); };
 
   const handleLogout = () => {
   clearSession(); // ✅ better than localStorage.clear()
@@ -364,9 +353,6 @@ export default function OrganizerDashboard() {
           </div>
           <p className="dashboard-subtitle">
             Manage your events, track players, and monitor revenue
-            {relativeTime && (
-              <span className="last-updated-hint" style={{ marginLeft: 10 }}>· Updated {relativeTime}</span>
-            )}
           </p>
         </div>
         <button className="btn-primary btn-lg" onClick={() => setShowCreateModal(true)}>
@@ -477,15 +463,6 @@ export default function OrganizerDashboard() {
             <option value="all">All Formats</option>
             {allFormats.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
-
-          <div className="filter-date-wrap">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.5 }}>
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            <input className="filter-date-input" type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} title="From date" />
-            <span className="filter-date-sep">–</span>
-            <input className="filter-date-input" type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} title="To date" />
-          </div>
 
           <select className="filter-select filter-sort" value={sortBy} onChange={e => setSortBy(e.target.value)}>
             <option value="date-asc">Date ↑</option>
