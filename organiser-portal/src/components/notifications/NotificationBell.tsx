@@ -18,6 +18,7 @@ interface Notification {
 
 interface NotificationBellProps {
   onViewAll?: () => void;
+  unreadCount?: number;
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -50,20 +51,19 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-export function NotificationBell({ onViewAll }: NotificationBellProps) {
+export function NotificationBell({ onViewAll, unreadCount }: NotificationBellProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+  const [unread, setUnread] = useState(unreadCount ?? 0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const handleClick = () => {
-    if (onViewAll) {
-      onViewAll();
-    }
-  };
+  // Sync badge when parent passes a controlled count
+  useEffect(() => {
+    if (unreadCount !== undefined) setUnread(unreadCount);
+  }, [unreadCount]);
 
   const fetchUnreadCount = useCallback(async () => {
     const { token } = getSession();
@@ -78,11 +78,13 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
     } catch {}
   }, []);
 
+  // Only poll independently when no parent is managing the count
   useEffect(() => {
+    if (unreadCount !== undefined) return;
     fetchUnreadCount();
     const id = setInterval(fetchUnreadCount, 15_000);
     return () => clearInterval(id);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, unreadCount]);
 
   const fetchNotifications = useCallback(async () => {
     const { token } = getSession();
@@ -95,23 +97,24 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
       if (!res.ok) return;
       const data = await res.json();
       if (data?.success) {
-        // Mark all items as read in local state (panel open = seen)
-        const list = (data.data?.notifications ?? []).map((n: Notification) => ({ ...n, isRead: true }));
-        setNotifications(list);
+        setNotifications(data.data?.notifications ?? []);
         setUnread(0);
+        // Silently mark all read on the server
+        fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
       }
     } catch {}
     finally { setLoading(false); }
   }, []);
 
-  const silentMarkAllRead = useCallback(() => {
-    const { token } = getSession();
-    if (!token) return;
-    fetch(buildApiUrl("/api/v1/notifications/read-all"), {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
-  }, []);
+  const togglePanel = () => {
+    setOpen((v) => {
+      if (!v) fetchNotifications();
+      return !v;
+    });
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -127,19 +130,8 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const markRead = async (n: Notification) => {
-    if (!n.isRead) {
-      const { token } = getSession();
-      if (!token) return;
-      try {
-        await fetch(buildApiUrl(`/api/v1/notifications/${n._id}/read`), {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setNotifications((prev) => prev.map((x) => x._id === n._id ? { ...x, isRead: true } : x));
-        setUnread((c) => Math.max(0, c - 1));
-      } catch {}
-    }
+  const markRead = (n: Notification) => {
+    setNotifications((prev) => prev.map((x) => x._id === n._id ? { ...x, isRead: true } : x));
     if (n.actionUrl) {
       setOpen(false);
       router.push(n.actionUrl);
@@ -148,11 +140,9 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
 
   // Real-time: receive pushed notifications via Socket.io
   const handleSocketNotification = useCallback((n: IncomingNotification) => {
-    // Always bump unread badge immediately
     setUnread((c) => c + 1);
-    // If the panel is open, prepend the new item so it appears at the top
     setNotifications((prev) => {
-      if (prev.some((x) => x._id === n._id)) return prev; // dedupe
+      if (prev.some((x) => x._id === n._id)) return prev;
       return [n, ...prev];
     });
   }, []);
@@ -160,11 +150,60 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
   useNotificationSocket(handleSocketNotification);
 
   return (
-    <div className="notification-bell">
-      <button ref={btnRef} className="nb-button" onClick={handleClick}>
-        <span className="nb-icon">🔔</span>
+    <div className="nb-wrap">
+      <button
+        ref={btnRef}
+        className={`nb-btn${open ? " nb-active" : ""}`}
+        onClick={togglePanel}
+        aria-label="Notifications"
+      >
+        🔔
         {unread > 0 && <span className="nb-badge">{unread > 9 ? "9+" : unread}</span>}
       </button>
+
+      {open && (
+        <div ref={panelRef} className="nb-panel">
+          <div className="nb-header">
+            <span className="nb-header-title">Notifications</span>
+            <button className="nb-mark-all" onClick={onViewAll}>
+              View all
+            </button>
+          </div>
+
+          <div className="nb-list">
+            {loading && (
+              <div className="nb-loading"><div className="nb-spinner" /></div>
+            )}
+            {!loading && notifications.length === 0 && (
+              <div className="nb-empty">
+                <div className="nb-empty-icon">🔔</div>
+                <div className="nb-empty-text">No notifications yet</div>
+              </div>
+            )}
+            {!loading && notifications.map((n) => (
+              <button
+                key={n._id}
+                className={`nb-item${n.isRead ? "" : " nb-unread"}`}
+                onClick={() => markRead(n)}
+              >
+                <div className="nb-icon">{TYPE_ICON[n.type] ?? "🔔"}</div>
+                <div className="nb-content">
+                  <div className="nb-title">{n.title}</div>
+                  <div className="nb-body">{n.body}</div>
+                  <div className="nb-time">{timeAgo(n.createdAt)}</div>
+                </div>
+                {!n.isRead && <div className="nb-dot" />}
+              </button>
+            ))}
+          </div>
+
+          <div className="nb-footer">
+            <button className="nb-footer-link" onClick={onViewAll}>
+              View all notifications
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
