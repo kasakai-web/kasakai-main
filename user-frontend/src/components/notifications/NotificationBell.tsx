@@ -179,12 +179,18 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
     }
   };
 
+  const handleClick = () => {
+    if (onViewAll) {
+      onViewAll();
+    }
+  };
+
   return (
     <div className="nb-wrap">
       <button
         ref={btnRef}
         className={`nb-btn${open ? " nb-active" : ""}`}
-        onClick={togglePanel}
+        onClick={handleClick}
         aria-label="Notifications"
       >
         🔔
