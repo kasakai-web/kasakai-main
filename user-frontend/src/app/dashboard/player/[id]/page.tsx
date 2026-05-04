@@ -61,6 +61,7 @@ export default function PlayerDashboard() {
   // Per-game feedback I already submitted — loaded when opening a completed game detail
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [detailGameRating, setDetailGameRating] = useState<any>(null); // organiser rating for this game
+  const [addingGuest, setAddingGuest] = useState(false);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -564,6 +565,35 @@ export default function PlayerDashboard() {
     setConfirmVisible(true);
   };
 
+  const handleAddGuest = async (game: any) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+    setAddingGuest(true);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/add-guest`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (data.code === "INSUFFICIENT_BALANCE") {
+          showNotification("error", "Insufficient wallet balance.");
+          if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+        } else {
+          showNotification("error", data.message || "Failed to add guest.");
+        }
+        return;
+      }
+      setDetailGame(data.data);
+      fetchWalletBalance();
+      showNotification("success", data.message || "Guest added.");
+    } catch {
+      showNotification("error", "Failed to add guest. Please try again.");
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
   const cancelledGames = myGames.filter((game) => {
     const normalizedStatus = String(game.status || "").trim().toLowerCase();
     return normalizedStatus.startsWith("cancel");
@@ -653,13 +683,19 @@ export default function PlayerDashboard() {
     - (detailGame.registrations?.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus)).length || 0)
     - (detailGame.organiserIsPlaying ? 1 : 0)
   ) : 0;
-  const detailPlayers = detailGame?.registrations?.map((reg: any, index: number) => ({
-    key: `${reg._id || "reg"}-${index}`,
-    name: reg.plusOneName || reg.player?.name || "Player",
-    position: reg.preferredPosition || "any",
-    team: reg.teamPreference || "none",
-    isGuest: Boolean(reg.plusOneName),
-  })) || [];
+  const organiserEntry = detailGame?.organiserIsPlaying
+    ? [{ key: "organiser", name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false }]
+    : [];
+  const detailPlayers = [
+    ...organiserEntry,
+    ...(detailGame?.registrations?.map((reg: any, index: number) => ({
+      key: `${reg._id || "reg"}-${index}`,
+      name: reg.plusOneName || reg.player?.name || "Player",
+      position: reg.preferredPosition || "any",
+      team: reg.teamPreference || "none",
+      isGuest: Boolean(reg.plusOneName),
+    })) || []),
+  ];
 
   return (
     <div className="player-dashboard-container">
@@ -960,7 +996,7 @@ export default function PlayerDashboard() {
                   {detailPlayers.map((player: any) => (
                     <div key={player.key} className="pd-event-player-row">
                       <div className="pd-event-player-name">
-                        {player.name} {player.isGuest ? "(Guest)" : ""}
+                        {player.name}
                       </div>
                     </div>
                   ))}
@@ -1092,6 +1128,17 @@ export default function PlayerDashboard() {
                   style={{ flex: "0 0 auto", minWidth: 180 }}
                 >
                   <span>Leave Waitlist</span>
+                </button>
+              )}
+              {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && detailSpotsLeft > 0 && (
+                <button
+                  className="card-btn"
+                  type="button"
+                  onClick={() => handleAddGuest(detailGame)}
+                  disabled={addingGuest}
+                  style={{ background: "rgba(200,255,62,0.08)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.25)", flex: "0 0 auto" }}
+                >
+                  <span>{addingGuest ? "Adding…" : "+ Add Guest"}</span>
                 </button>
               )}
               {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
