@@ -63,12 +63,6 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-    const handleClick = () => {
-    if (onViewAll) {
-      onViewAll();
-    }
-  };
-
   // ── Fetch unread count (runs on mount + every 15s) ─────────────────────
   const fetchUnreadCount = useCallback(async () => {
     const { token } = getSession();
@@ -111,7 +105,7 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
       const data = await res.json();
       if (data?.success) {
         setNotifications(data.data?.notifications ?? []);
-        setUnread(0); // Clear badge when panel opens
+        setUnread(0);
       }
     } catch {
       // non-critical
@@ -145,7 +139,6 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
 
   // ── Mark single notification as read ──────────────────────────────────
   const markRead = async (n: Notification) => {
-    // Optimistic update
     setNotifications((prev) =>
       prev.map((p) => (p._id === n._id ? { ...p, isRead: true } : p))
     );
@@ -157,7 +150,6 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
         headers: { Authorization: `Bearer ${getSession().token}` },
       });
     } catch {
-      // Revert on failure
       setNotifications((prev) =>
         prev.map((p) => (p._id === n._id ? { ...p, isRead: false } : p))
       );
@@ -188,47 +180,70 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
   };
 
   return (
-    <div className="notification-bell">
-      <button ref={btnRef} className="nb-button" onClick={handleClick}>
-        <span className="nb-icon">🔔</span>
-        {unread > 0 && <span className="nb-badge">{unread > 9 ? "9+" : unread}</span>}
+    <div className="nb-wrap">
+      <button
+        ref={btnRef}
+        className={`nb-btn${open ? " nb-active" : ""}`}
+        onClick={togglePanel}
+        aria-label="Notifications"
+      >
+        🔔
+        {unread > 0 && (
+          <span className="nb-badge">{unread > 9 ? "9+" : unread}</span>
+        )}
       </button>
+
       {open && (
         <div ref={panelRef} className="nb-panel">
           <div className="nb-header">
-            <h3>Notifications</h3>
-            <button className="nb-mark-read" onClick={onViewAll}>
-              View All
+            <span className="nb-header-title">Notifications</span>
+            <button
+              className="nb-mark-all"
+              onClick={markAllRead}
+              disabled={marking || notifications.every(n => n.isRead)}
+            >
+              {marking ? "Marking…" : "Mark all read"}
             </button>
           </div>
+
           <div className="nb-list">
-            {loading && <div className="nb-item nb-loading">Loading...</div>}
-            {!loading && notifications.length === 0 && (
-              <div className="nb-item nb-empty">No new notifications.</div>
+            {loading && (
+              <div className="nb-loading">
+                <div className="nb-spinner" />
+              </div>
             )}
-            {notifications.map((n) => (
-              <div
+
+            {!loading && notifications.length === 0 && (
+              <div className="nb-empty">
+                <div className="nb-empty-icon">🔔</div>
+                <div className="nb-empty-text">No notifications yet</div>
+              </div>
+            )}
+
+            {!loading && notifications.map((n) => (
+              <button
                 key={n._id}
-                className={`nb-item ${n.actionUrl ? "nb-clickable" : ""}`}
+                className={`nb-item${n.isRead ? "" : " nb-unread"}`}
                 onClick={() => markRead(n)}
               >
-                {!n.isRead && <div className="nb-item-unread-dot" />}
-                <div className="nb-item-icon">{TYPE_ICON[n.type] ?? "🔔"}</div>
-                <div className="nb-item-content">
-                  <div className="nb-item-title">{n.title}</div>
-                  <div className="nb-item-body">{n.body}</div>
-                  <div className="nb-item-time">{timeAgo(n.createdAt)}</div>
+                <div className="nb-icon">
+                  {TYPE_ICON[n.type] ?? "🔔"}
                 </div>
-              </div>
+                <div className="nb-content">
+                  <div className="nb-title">{n.title}</div>
+                  <div className="nb-body">{n.body}</div>
+                  <div className="nb-time">{timeAgo(n.createdAt)}</div>
+                </div>
+                {!n.isRead && <div className="nb-dot" />}
+              </button>
             ))}
           </div>
-          {notifications.some(n => !n.isRead) && (
-            <div className="nb-footer">
-              <button onClick={markAllRead} disabled={marking}>
-                {marking ? "Marking..." : "Mark all as read"}
-              </button>
-            </div>
-          )}
+
+          <div className="nb-footer">
+            <button className="nb-footer-link" onClick={onViewAll}>
+              View all notifications
+            </button>
+          </div>
         </div>
       )}
     </div>
