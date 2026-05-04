@@ -41,11 +41,11 @@ interface EditEventModalProps {
 
 export function EditEventModal({ gameId, initialData, onClose, onSuccess }: EditEventModalProps) {
   // Derive organiser's existing guest registrations from initialData
-  const { userId } = getSession();
   const [guests, setGuests] = useState<GuestReg[]>(() =>
     (initialData.registrations || []).filter(
-      (r: any) => r.plusOneName && r.player && (r.player._id || r.player).toString() === userId
-    ).map((r: any) => ({ _id: r._id, plusOneName: r.plusOneName }))
+      // player is null after population = organiser's guest (organiser ID doesn't exist in Player collection)
+      (r: any) => r.plusOneName && !r.player
+    ).map((r: any) => ({ _id: r._id?.toString?.() ?? r._id, plusOneName: r.plusOneName }))
   );
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError]     = useState("");
