@@ -28,13 +28,13 @@
 
 .nb-btn:hover {
   color: var(--white, #f4efe8);
-  background: rgba(255, 255, 255, 0.06);
+  background: transparent;
   border-color: rgba(255, 255, 255, 0.08);
 }
 
 .nb-btn.nb-active {
   color: var(--white, #f4efe8);
-  background: rgba(255, 255, 255, 0.08);
+  background: transparent;
   border-color: rgba(255, 255, 255, 0.1);
 }
 

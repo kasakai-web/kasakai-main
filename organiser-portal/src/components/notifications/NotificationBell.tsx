@@ -59,6 +59,12 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
+  const handleClick = () => {
+    if (onViewAll) {
+      onViewAll();
+    }
+  };
+
   const fetchUnreadCount = useCallback(async () => {
     const { token } = getSession();
     if (!token) return;
@@ -107,19 +113,6 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
     }).catch(() => {});
   }, []);
 
-  const handleOpen = () => {
-    const opening = !open;
-    setOpen(opening);
-    if (opening) {
-      fetchNotifications();
-      // Auto-mark all read when panel opens — clear badge immediately
-      if (unread > 0) {
-        setUnread(0);
-        silentMarkAllRead();
-      }
-    }
-  };
-
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -167,69 +160,11 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
   useNotificationSocket(handleSocketNotification);
 
   return (
-    <div className="nb-wrap">
-      <button
-        ref={btnRef}
-        className={`nb-btn${open ? " nb-active" : ""}`}
-        onClick={handleOpen}
-        aria-label="Notifications"
-        title="Notifications"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-        {unread > 0 && (
-          <span className="nb-badge">{unread > 99 ? "99+" : unread}</span>
-        )}
+    <div className="notification-bell">
+      <button ref={btnRef} className="nb-button" onClick={handleClick}>
+        <span className="nb-icon">🔔</span>
+        {unread > 0 && <span className="nb-badge">{unread > 9 ? "9+" : unread}</span>}
       </button>
-
-      {open && (
-        <div className="nb-panel" ref={panelRef}>
-          <div className="nb-header">
-            <span className="nb-header-title">Notifications</span>
-          </div>
-
-          {loading ? (
-            <div className="nb-loading"><div className="nb-spinner" /></div>
-          ) : notifications.length === 0 ? (
-            <div className="nb-empty">
-              <span className="nb-empty-icon">🔔</span>
-              <span className="nb-empty-text">All caught up! No notifications yet.</span>
-            </div>
-          ) : (
-            <div className="nb-list">
-              {notifications.map((n) => (
-                <button
-                  key={n._id}
-                  className={`nb-item${!n.isRead ? " nb-unread" : ""}`}
-                  onClick={() => markRead(n)}
-                >
-                  <span className="nb-icon">{TYPE_ICON[n.type] ?? "ℹ️"}</span>
-                  <span className="nb-content">
-                    <span className="nb-title">{n.title}</span>
-                    <span className="nb-body">{n.body}</span>
-                    <span className="nb-time">{timeAgo(n.createdAt)}</span>
-                  </span>
-                  {!n.isRead && <span className="nb-dot" />}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="nb-footer">
-            <button
-              className="nb-footer-link"
-              onClick={() => {
-                setOpen(false);
-                if (onViewAll) onViewAll();
-              }}
-            >
-              View all notifications →
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
