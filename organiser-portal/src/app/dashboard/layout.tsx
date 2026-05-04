@@ -229,7 +229,7 @@ export default function DashboardLayout({
         </div>
 
         <div className="nav-right" style={{ paddingRight: "8px", gap: "4px" }}>
-          <NotificationBell onViewAll={() => {
+          <NotificationBell unreadCount={sidebarUnread} onViewAll={() => {
             if (userId) router.push(`/dashboard/organizer/${userId}/notifications`);
           }} />
           <button className="sidebar-link" onClick={handleLogout} style={{ color: "#ff4444", opacity: 0.9 }}>
