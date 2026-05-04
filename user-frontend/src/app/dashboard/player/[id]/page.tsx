@@ -62,6 +62,7 @@ export default function PlayerDashboard() {
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [detailGameRating, setDetailGameRating] = useState<any>(null); // organiser rating for this game
   const [addingGuest, setAddingGuest] = useState(false);
+  const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -594,6 +595,30 @@ export default function PlayerDashboard() {
     }
   };
 
+  const handleRemoveGuest = async (game: any, regId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+    setRemovingGuestId(regId);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/remove-guest/${regId}`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showNotification("error", data.message || "Failed to remove guest.");
+        return;
+      }
+      setDetailGame(data.data);
+      fetchWalletBalance();
+      showNotification("success", data.message || "Guest removed.");
+    } catch {
+      showNotification("error", "Failed to remove guest. Please try again.");
+    } finally {
+      setRemovingGuestId(null);
+    }
+  };
+
   const cancelledGames = myGames.filter((game) => {
     const normalizedStatus = String(game.status || "").trim().toLowerCase();
     return normalizedStatus.startsWith("cancel");
@@ -684,17 +709,22 @@ export default function PlayerDashboard() {
     - (detailGame.organiserIsPlaying ? 1 : 0)
   ) : 0;
   const organiserEntry = detailGame?.organiserIsPlaying
-    ? [{ key: "organiser", name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false }]
+    ? [{ key: "organiser", regId: null, name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false, canRemove: false }]
     : [];
   const detailPlayers = [
     ...organiserEntry,
-    ...(detailGame?.registrations?.map((reg: any, index: number) => ({
-      key: `${reg._id || "reg"}-${index}`,
-      name: reg.plusOneName || reg.player?.name || "Player",
-      position: reg.preferredPosition || "any",
-      team: reg.teamPreference || "none",
-      isGuest: Boolean(reg.plusOneName),
-    })) || []),
+    ...(detailGame?.registrations?.map((reg: any, index: number) => {
+      const regPlayerId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
+      return {
+        key: `${reg._id || "reg"}-${index}`,
+        regId: reg._id,
+        name: reg.plusOneName || reg.player?.name || "Player",
+        position: reg.preferredPosition || "any",
+        team: reg.teamPreference || "none",
+        isGuest: Boolean(reg.plusOneName),
+        canRemove: Boolean(reg.plusOneName) && regPlayerId === playerId,
+      };
+    }) || []),
   ];
 
   return (
@@ -994,10 +1024,29 @@ export default function PlayerDashboard() {
               ) : (
                 <div className="pd-event-player-list">
                   {detailPlayers.map((player: any) => (
-                    <div key={player.key} className="pd-event-player-row">
+                    <div key={player.key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <div className="pd-event-player-name">
                         {player.name}
                       </div>
+                      {player.canRemove && !detailIsCancelled && detailGame.status !== "completed" && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGuest(detailGame, player.regId)}
+                          disabled={removingGuestId === player.regId}
+                          style={{
+                            background: "rgba(220,38,38,0.10)",
+                            border: "1px solid rgba(220,38,38,0.25)",
+                            color: "#f87171",
+                            borderRadius: 6,
+                            padding: "3px 10px",
+                            fontSize: 11,
+                            cursor: removingGuestId === player.regId ? "not-allowed" : "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {removingGuestId === player.regId ? "…" : "Remove"}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1130,16 +1179,22 @@ export default function PlayerDashboard() {
                   <span>Leave Waitlist</span>
                 </button>
               )}
-              {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && detailSpotsLeft > 0 && (
-                <button
-                  className="card-btn"
-                  type="button"
-                  onClick={() => handleAddGuest(detailGame)}
-                  disabled={addingGuest}
-                  style={{ background: "rgba(200,255,62,0.08)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.25)", flex: "0 0 auto" }}
-                >
-                  <span>{addingGuest ? "Adding…" : "+ Add Guest"}</span>
-                </button>
+              {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
+                detailSpotsLeft > 0 ? (
+                  <button
+                    className="card-btn"
+                    type="button"
+                    onClick={() => handleAddGuest(detailGame)}
+                    disabled={addingGuest}
+                    style={{ background: "rgba(200,255,62,0.08)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.25)", flex: "0 0 auto" }}
+                  >
+                    <span>{addingGuest ? "Adding…" : "+ Add Guest"}</span>
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 12, color: "#f87171", padding: "6px 12px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8 }}>
+                    Game is full — no spots left
+                  </span>
+                )
               )}
               {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
                 <button
