@@ -49,6 +49,16 @@ export function EventCard({
   const isFull = !isCancelled && spotsLeft <= 0;
   const effectiveStatus = isCancelled ? "cancelled" : isFull ? "full" : status;
 
+  const getDateLabel = () => {
+    const now = new Date();
+    const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const tomorrow = today + 86_400_000;
+    const gameDay  = new Date(new Date(date).getFullYear(), new Date(date).getMonth(), new Date(date).getDate()).getTime();
+    if (gameDay === today)    return "Today";
+    if (gameDay === tomorrow) return "Tomorrow";
+    return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  };
+
   const fillPercentage = spotsTotal > 0 ? ((spotsTotal - spotsLeft) / spotsTotal) * 100 : 0;
   let fillClass = "mid";
   if (fillPercentage > 80) fillClass = "low";
@@ -79,7 +89,7 @@ export function EventCard({
               ? '✓ Confirmed'
               : effectiveStatus === 'completed'
               ? '✅ Completed'
-              : '📅 Incoming'}
+              : `📅 ${getDateLabel()}`}
           </span>
           {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
           {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
