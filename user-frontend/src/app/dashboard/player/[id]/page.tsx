@@ -56,11 +56,9 @@ export default function PlayerDashboard() {
   const [pendingFeedback, setPendingFeedback] = useState<any[]>([]);
   const [feedbackTargetGame, setFeedbackTargetGame] = useState<any>(null);
   const [popupFeedbackGame, setPopupFeedbackGame] = useState<any>(null);
-  const [myRatings, setMyRatings] = useState<any[]>([]);
   const [selectedGamePlayers, setSelectedGamePlayers] = useState<{ name: string; id?: string }[]>([]);
   // Per-game feedback I already submitted — loaded when opening a completed game detail
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
-  const [detailGameRating, setDetailGameRating] = useState<any>(null); // organiser rating for this game
   const [addingGuest, setAddingGuest] = useState(false);
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
@@ -182,21 +180,6 @@ export default function PlayerDashboard() {
     }
   };
 
-  const fetchMyRatings = async () => {
-    try {
-      const { token } = getSession();
-      if (!token) return;
-      const res = await fetch(buildApiUrl("/api/v1/games/my-ratings"), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.success) setMyRatings(data.data || []);
-    } catch {
-      // non-critical
-    }
-  };
-
   const fetchPendingFeedback = async () => {
     try {
       const { token } = getSession();
@@ -225,7 +208,6 @@ export default function PlayerDashboard() {
       await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance()]);
       setLastUpdated(new Date());
       fetchPendingFeedback();
-      fetchMyRatings();
     } finally {
       setLoading(false);
     }
@@ -302,34 +284,16 @@ export default function PlayerDashboard() {
   const openGameDetail = async (game: any) => {
     setDetailGame(game);
     setDetailGameFeedback(null);
-    setDetailGameRating(null);
     if (game.status !== "completed") return;
     const { token } = getSession();
     if (!token) return;
-    // Fetch submitted feedback + received organiser rating in parallel (always fresh)
     try {
-      const [fbRes, ratingsRes] = await Promise.allSettled([
-        fetch(buildApiUrl(`/api/v1/games/${game._id}/feedback`), {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(buildApiUrl("/api/v1/games/my-ratings"), {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-      if (fbRes.status === "fulfilled" && fbRes.value.ok) {
-        const d = await fbRes.value.json();
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/feedback`), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
         if (d.success) setDetailGameFeedback(d.data);
-      }
-      if (ratingsRes.status === "fulfilled" && ratingsRes.value.ok) {
-        const d = await ratingsRes.value.json();
-        if (d.success) {
-          const all: any[] = d.data || [];
-          setMyRatings(all); // keep cache fresh
-          const match = all.find(
-            (r: any) => r.game?._id === game._id || r.game === game._id
-          );
-          setDetailGameRating(match ?? null);
-        }
       }
     } catch {
       // non-critical
@@ -926,7 +890,7 @@ export default function PlayerDashboard() {
       />
 
       {detailGame && (
-        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setDetailGameRating(null); }}>
+        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -1052,52 +1016,6 @@ export default function PlayerDashboard() {
                 </div>
               )}
             </div>
-
-            {/* ── Organiser Rating Received ── */}
-            {detailGame.status === "completed" && detailGameRating && (
-              <div style={{ margin: "0 0 16px", padding: "14px 16px", background: "rgba(196,213,108,0.06)", border: "1px solid rgba(196,213,108,0.18)", borderRadius: 10 }}>
-                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#c4d56c", marginBottom: 10, fontWeight: 700 }}>
-                  ⭐ Your Performance Rating
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Conduct</div>
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {[1,2,3,4,5].map(n => (
-                        <span key={n} style={{ fontSize: 16, color: n <= detailGameRating.conductRating ? "#fbbf24" : "#333" }}>★</span>
-                      ))}
-                      <span style={{ fontSize: 11, color: "#666", marginLeft: 4 }}>{detailGameRating.conductRating}/5</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Gameplay</div>
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {[1,2,3,4,5].map(n => (
-                        <span key={n} style={{ fontSize: 16, color: n <= detailGameRating.gameplayRating ? "#fbbf24" : "#333" }}>★</span>
-                      ))}
-                      <span style={{ fontSize: 11, color: "#666", marginLeft: 4 }}>{detailGameRating.gameplayRating}/5</span>
-                    </div>
-                  </div>
-                  {detailGameRating.preferredPosition && detailGameRating.preferredPosition !== "any" && (
-                    <div>
-                      <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Position</div>
-                      <div style={{ fontSize: 13, color: "#c4d56c", fontWeight: 600, textTransform: "capitalize" }}>{detailGameRating.preferredPosition}</div>
-                    </div>
-                  )}
-                  {detailGameRating.gkAffinity != null && (
-                    <div>
-                      <div style={{ fontSize: 10, color: "#555", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>GK Affinity</div>
-                      <div style={{ fontSize: 13, color: "#c4d56c", fontWeight: 600 }}>{detailGameRating.gkAffinity}%</div>
-                    </div>
-                  )}
-                </div>
-                {detailGameRating.notes && (
-                  <div style={{ marginTop: 10, fontSize: 12, color: "#888", fontStyle: "italic", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
-                    "{detailGameRating.notes}"
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* ── My Submitted Feedback ── */}
             {detailGame.status === "completed" && detailGameFeedback && (
