@@ -239,19 +239,31 @@ export function PlayerDetailsModal({
   const organiserCount = organiserIsPlaying ? 1 : 0;
 
   const handleCopyList = () => {
-    const lines: string[] = [`${gameName} — Player List`, `${"─".repeat(40)}`];
-    let num = 1;
-    players.forEach((r) => {
+    const organiserName = typeof window !== "undefined" ? localStorage.getItem("userName") : "N/A";
+
+    const header = `*${gameName}*`;
+    const organiserLine = `*Organiser:* ${organiserName}`;
+
+    const playerLines = players.map((r, index) => {
       const name = r.plusOneName
         ? `${r.plusOneName} (Guest)`
         : (r.player?.name || "Unknown");
       const pos = posLabel(r.preferredPosition);
-      lines.push(`${num}. ${name}${pos ? ` [${pos}]` : ""}`);
-      num++;
+      return `${index + 1}. ${name}${pos ? ` [${pos}]` : ""}`;
     });
-    lines.push(`${"─".repeat(40)}`);
-    lines.push(`Total: ${players.length} / ${totalSlots}`);
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+
+    const footer = `*Total:* ${players.length} / ${totalSlots}`;
+
+    const fullMessage = [
+      header,
+      organiserLine,
+      "─".repeat(20),
+      ...playerLines,
+      "─".repeat(20),
+      footer,
+    ].join("\n");
+
+    navigator.clipboard.writeText(fullMessage).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

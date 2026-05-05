@@ -6,6 +6,7 @@ import "../../../player-dashboard.css";
 import "./notifications.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { NavBtn } from "@/components/ui/NavBtn";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type NotificationSettings = {
@@ -107,6 +108,12 @@ export default function PlayerNotificationsPage() {
     routeUserId,
     redirectTo: "/login?role=player",
   });
+
+  const handleNav = () => {
+    if (routeUserId) {
+      router.push(`/dashboard/player/${routeUserId}`);
+    }
+  };
 
   // ── Tab state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"inbox" | "settings">("inbox");
@@ -269,172 +276,169 @@ export default function PlayerNotificationsPage() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="player-dashboard-container">
-      {/* Page header */}
-      <div className="page-header" style={{ marginBottom: 24 }}>
+    <div className="notifications-page-container">
+      <div className="page-header">
         <div className="page-title-group">
-          <div className="pn-header-row">
-            <div className="page-title">Notifications</div>
-            {unreadCount > 0 && (
-              <span className="pn-header-badge">{unreadCount > 99 ? "99+" : unreadCount} unread</span>
+          <h1 className="page-title">Notifications</h1>
+          <p className="page-subtitle">Updates on your games, payments, and account activity.</p>
+        </div>
+        <NavBtn text="All Games" onClick={handleNav} />
+      </div>
+
+      <div className="tabs-section">
+        <div className="tab-navigation">
+          <button
+            className={`pn-tab${activeTab === "inbox" ? " pn-tab-active" : ""}`}
+            onClick={() => setActiveTab("inbox")}
+          >
+            Inbox
+            {unreadCount > 0 && <span className="pn-tab-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+          </button>
+          <button
+            className={`pn-tab${activeTab === "settings" ? " pn-tab-active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            Settings
+          </button>
+        </div>
+
+        {/* ── INBOX TAB ── */}
+        {activeTab === "inbox" && (
+          <div className="pn-inbox">
+            {/* Toolbar */}
+            <div className="pn-toolbar">
+              <span className="pn-toolbar-count">
+                {loadingInbox ? "Loading…" : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+              </span>
+              <button
+                className="pn-mark-all-btn"
+                onClick={markAllRead}
+                disabled={marking || unreadCount === 0}
+              >
+                {marking ? "Marking…" : "Mark all read"}
+              </button>
+            </div>
+
+            {/* Error */}
+            {inboxError && <div className="pp-error" style={{ marginBottom: 16 }}>{inboxError}</div>}
+
+            {/* Loading skeleton */}
+            {loadingInbox && (
+              <div className="pn-skeleton-list">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="pn-skeleton-item">
+                    <div className="pn-skeleton-icon" />
+                    <div className="pn-skeleton-content">
+                      <div className="pn-skeleton-title" />
+                      <div className="pn-skeleton-body" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loadingInbox && notifications.length === 0 && (
+              <div className="pn-empty">
+                <div className="pn-empty-icon">🔔</div>
+                <div className="pn-empty-title">All caught up!</div>
+                <div className="pn-empty-desc">You have no notifications yet. Game updates and alerts will appear here.</div>
+              </div>
+            )}
+
+            {/* Notification list */}
+            {!loadingInbox && notifications.length > 0 && (
+              <div className="pn-list">
+                {groups.map((group) => (
+                  <React.Fragment key={group.label}>
+                    <div className="pn-date-label">{group.label}</div>
+                    {group.items.map((n) => (
+                      <button
+                        key={n._id}
+                        className={`pn-item${!n.isRead ? " pn-item-unread" : ""}`}
+                        onClick={() => markRead(n)}
+                      >
+                        <span
+                          className="pn-item-icon"
+                          style={{ background: TYPE_COLOR[n.type] ?? "rgba(255,255,255,0.06)" }}
+                        >
+                          {TYPE_ICON[n.type] ?? "ℹ️"}
+                        </span>
+                        <span className="pn-item-content">
+                          <span className="pn-item-title">{n.title}</span>
+                          <span className="pn-item-body">{n.body}</span>
+                          <span className="pn-item-time">{timeAgo(n.createdAt)}</span>
+                        </span>
+                        {!n.isRead && <span className="pn-item-dot" />}
+                        {n.actionUrl && <span className="pn-item-arrow">→</span>}
+                      </button>
+                    ))}
+                  </React.Fragment>
+                ))}
+
+                {hasMore && (
+                  <div style={{ textAlign: "center", padding: "20px 0" }}>
+                    <button className="pn-load-more" onClick={loadMore}>
+                      Load more
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Tab bar */}
-      <div className="pn-tabs">
-        <button
-          className={`pn-tab${activeTab === "inbox" ? " pn-tab-active" : ""}`}
-          onClick={() => setActiveTab("inbox")}
-        >
-          Inbox
-          {unreadCount > 0 && <span className="pn-tab-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
-        </button>
-        <button
-          className={`pn-tab${activeTab === "settings" ? " pn-tab-active" : ""}`}
-          onClick={() => setActiveTab("settings")}
-        >
-          Settings
-        </button>
-      </div>
-
-      {/* ── INBOX TAB ── */}
-      {activeTab === "inbox" && (
-        <div className="pn-inbox">
-          {/* Toolbar */}
-          <div className="pn-toolbar">
-            <span className="pn-toolbar-count">
-              {loadingInbox ? "Loading…" : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
-            </span>
-            <button
-              className="pn-mark-all-btn"
-              onClick={markAllRead}
-              disabled={marking || unreadCount === 0}
-            >
-              {marking ? "Marking…" : "Mark all read"}
-            </button>
-          </div>
-
-          {/* Error */}
-          {inboxError && <div className="pp-error" style={{ marginBottom: 16 }}>{inboxError}</div>}
-
-          {/* Loading skeleton */}
-          {loadingInbox && (
-            <div className="pn-skeleton-list">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="pn-skeleton-item">
-                  <div className="pn-skeleton-icon" />
-                  <div className="pn-skeleton-content">
-                    <div className="pn-skeleton-title" />
-                    <div className="pn-skeleton-body" />
-                  </div>
-                </div>
-              ))}
+        {/* ── SETTINGS TAB ── */}
+        {activeTab === "settings" && (
+          <div className="pp-card" style={{ maxWidth: 840 }}>
+            <div className="pp-card-header">
+              <div className="pp-card-icon">🔔</div>
+              <div>
+                <h3 className="pp-card-title">Notification Channels</h3>
+                <p className="pp-card-desc">Choose where you receive game updates</p>
+              </div>
             </div>
-          )}
 
-          {/* Empty state */}
-          {!loadingInbox && notifications.length === 0 && (
-            <div className="pn-empty">
-              <div className="pn-empty-icon">🔔</div>
-              <div className="pn-empty-title">All caught up!</div>
-              <div className="pn-empty-desc">You have no notifications yet. Game updates and alerts will appear here.</div>
-            </div>
-          )}
-
-          {/* Notification list */}
-          {!loadingInbox && notifications.length > 0 && (
-            <div className="pn-list">
-              {groups.map((group) => (
-                <React.Fragment key={group.label}>
-                  <div className="pn-date-label">{group.label}</div>
-                  {group.items.map((n) => (
-                    <button
-                      key={n._id}
-                      className={`pn-item${!n.isRead ? " pn-item-unread" : ""}`}
-                      onClick={() => markRead(n)}
-                    >
-                      <span
-                        className="pn-item-icon"
-                        style={{ background: TYPE_COLOR[n.type] ?? "rgba(255,255,255,0.06)" }}
+            {loadingSettings ? (
+              <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)" }}>Loading settings…</div>
+            ) : (
+              <>
+                {([
+                  { key: "whatsapp", label: "WhatsApp",          desc: "Game alerts and booking confirmations on WhatsApp" },
+                  { key: "sms",      label: "SMS",               desc: "Important reminders via text message" },
+                  { key: "push",     label: "Push Notifications", desc: "In-app alerts for game activity" },
+                ] as { key: keyof NotificationSettings; label: string; desc: string }[]).map(({ key, label, desc }) => {
+                  const enabled = settings[key] ?? true;
+                  return (
+                    <div key={key} className="pp-notif-row">
+                      <div>
+                        <div className="pp-notif-label">{label}</div>
+                        <div className="pp-notif-desc">{desc}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`pp-toggle ${enabled ? "on" : "off"}`}
+                        onClick={() => setSettings((prev) => ({ ...prev, [key]: !enabled }))}
                       >
-                        {TYPE_ICON[n.type] ?? "ℹ️"}
-                      </span>
-                      <span className="pn-item-content">
-                        <span className="pn-item-title">{n.title}</span>
-                        <span className="pn-item-body">{n.body}</span>
-                        <span className="pn-item-time">{timeAgo(n.createdAt)}</span>
-                      </span>
-                      {!n.isRead && <span className="pn-item-dot" />}
-                      {n.actionUrl && <span className="pn-item-arrow">→</span>}
-                    </button>
-                  ))}
-                </React.Fragment>
-              ))}
+                        <span className="pp-toggle-knob" />
+                      </button>
+                    </div>
+                  );
+                })}
 
-              {hasMore && (
-                <div style={{ textAlign: "center", padding: "20px 0" }}>
-                  <button className="pn-load-more" onClick={loadMore}>
-                    Load more
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+                  <button className="pp-hero-save" type="button" onClick={handleSaveSettings} disabled={saving}>
+                    {saving ? "Saving…" : "Save Settings"}
                   </button>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ── SETTINGS TAB ── */}
-      {activeTab === "settings" && (
-        <div className="pp-card" style={{ maxWidth: 840 }}>
-          <div className="pp-card-header">
-            <div className="pp-card-icon">🔔</div>
-            <div>
-              <h3 className="pp-card-title">Notification Channels</h3>
-              <p className="pp-card-desc">Choose where you receive game updates</p>
-            </div>
+                {saveSuccess && <div className="pp-success" style={{ marginTop: 14 }}>Notification settings updated successfully.</div>}
+                {settingsError && <div className="pp-error" style={{ marginTop: 14 }}>{settingsError}</div>}
+              </>
+            )}
           </div>
-
-          {loadingSettings ? (
-            <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted)" }}>Loading settings…</div>
-          ) : (
-            <>
-              {([
-                { key: "whatsapp", label: "WhatsApp",          desc: "Game alerts and booking confirmations on WhatsApp" },
-                { key: "sms",      label: "SMS",               desc: "Important reminders via text message" },
-                { key: "push",     label: "Push Notifications", desc: "In-app alerts for game activity" },
-              ] as { key: keyof NotificationSettings; label: string; desc: string }[]).map(({ key, label, desc }) => {
-                const enabled = settings[key] ?? true;
-                return (
-                  <div key={key} className="pp-notif-row">
-                    <div>
-                      <div className="pp-notif-label">{label}</div>
-                      <div className="pp-notif-desc">{desc}</div>
-                    </div>
-                    <button
-                      type="button"
-                      className={`pp-toggle ${enabled ? "on" : "off"}`}
-                      onClick={() => setSettings((prev) => ({ ...prev, [key]: !enabled }))}
-                    >
-                      <span className="pp-toggle-knob" />
-                    </button>
-                  </div>
-                );
-              })}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-                <button className="pp-hero-save" type="button" onClick={handleSaveSettings} disabled={saving}>
-                  {saving ? "Saving…" : "Save Settings"}
-                </button>
-              </div>
-
-              {saveSuccess && <div className="pp-success" style={{ marginTop: 14 }}>Notification settings updated successfully.</div>}
-              {settingsError && <div className="pp-error" style={{ marginTop: 14 }}>{settingsError}</div>}
-            </>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

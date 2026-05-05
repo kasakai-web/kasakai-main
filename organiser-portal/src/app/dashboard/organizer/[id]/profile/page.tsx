@@ -6,6 +6,7 @@ import "../../../organizer-dashboard.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { NavBtn } from "@/components/ui/NavBtn";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
 
@@ -42,6 +43,12 @@ export default function OrganiserProfilePage() {
     routeUserId: organiserId,
     redirectTo: "/login?role=organiser",
   });
+
+  const handleNav = () => {
+    if (organiserId) {
+      router.push(`/dashboard/organizer/${organiserId}`);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -392,85 +399,23 @@ export default function OrganiserProfilePage() {
   };
 
   return (
-    <div className="organizer-dashboard-container">
+    <div className="organiser-dashboard-container">
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1 className="page-title">Your Organiser Profile</h1>
+          <p className="page-subtitle">Manage your public profile, game defaults, and settings.</p>
+        </div>
+        <NavBtn text="My Games" onClick={handleNav} />
+      </div>
 
-      {/* ── In-app Camera ── */}
-      {cameraOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "#000", display: "flex", flexDirection: "column" }}>
-          <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", flex: 1, objectFit: "cover" }} />
-          <canvas ref={canvasRef} style={{ display: "none" }} />
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 32px 48px", background: "linear-gradient(transparent,rgba(0,0,0,0.85))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <button type="button" onClick={closeCamera} style={{ color: "#fff", background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: "8px 12px", fontFamily: "inherit" }}>Cancel</button>
-            <button type="button" onClick={capturePhoto} style={{ width: 70, height: 70, borderRadius: "50%", background: "#fff", border: "5px solid rgba(255,255,255,0.4)", cursor: "pointer", boxShadow: "0 0 0 3px rgba(255,255,255,0.2)" }} aria-label="Capture" />
-            <button type="button" onClick={flipCamera} style={{ color: "#fff", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Flip camera">🔄</button>
-          </div>
+      {loading && (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading profile...</p>
         </div>
       )}
 
-      {/* ── Image Lightbox ── */}
-      {showLightbox && imagePreview && (
-        <div className="op-lightbox" onClick={() => setShowLightbox(false)}>
-          <img className="op-lightbox-img" src={imagePreview} alt="Profile" onClick={(e) => e.stopPropagation()} />
-          <button className="op-lightbox-close" onClick={() => setShowLightbox(false)} aria-label="Close">✕</button>
-        </div>
-      )}
-
-
-      {/* ── Delete Modal ── */}
-      {deleteStep > 0 && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
-          <div className="modal-content" style={{ maxWidth: 480, width: "92%" }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header" style={{ marginBottom: 16 }}>
-              <div className="modal-title-section">
-                <h2 style={{ margin: 0 }}>Delete Account</h2>
-                <p className="modal-subtitle" style={{ marginTop: 8 }}>
-                  {deleteStep === 1 ? "Are you sure you want to delete your account?" : "This will permanently remove your organiser profile and all related access."}
-                </p>
-              </div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button className="btn-close" type="button" onClick={() => setDeleteStep(0)} disabled={deleting}>Cancel</button>
-              {deleteStep === 1 ? (
-                <button className="btn-primary" type="button" onClick={() => setDeleteStep(2)} disabled={deleting}><span>Continue</span></button>
-              ) : (
-                <button className="op-delete-btn" type="button" onClick={async () => { setDeleteStep(0); await handleDeleteProfile(); }} disabled={deleting}>
-                  {deleting ? "Deleting..." : "Delete Now"}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Require Photo Banner ── */}
-      {requirePhoto && (
-        <div style={{
-          background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.4)",
-          borderRadius: 10, padding: "16px 20px", marginBottom: 16,
-          display: "flex", gap: 14, alignItems: "flex-start",
-        }}>
-          <span style={{ fontSize: 22, flexShrink: 0 }}>📸</span>
-          <div>
-            <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#f87171", fontSize: 14 }}>
-              Profile photo required before you can host games
-            </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#aaa", lineHeight: 1.5 }}>
-              A real photo helps players trust the organiser and ensures game quality. Please upload or take a photo below to continue.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Welcome Banner ── */}
-      {showWelcomeBanner && (
-        <div className="op-welcome-banner">
-          <div>
-            <p className="op-banner-title">Welcome! Complete your profile to start hosting games</p>
-            <p className="op-banner-body">Add your city, WhatsApp number, and default game settings to get started.</p>
-          </div>
-          <button className="op-banner-close" onClick={() => setShowWelcomeBanner(false)} aria-label="Dismiss">×</button>
-        </div>
-      )}
+      {error && <div className="op-error">{error}</div>}
 
       <div className="op-shell">
 
@@ -705,8 +650,6 @@ export default function OrganiserProfilePage() {
               </div>
             </div>
           </div>
-
-          {error && <div className="op-error">{error}</div>}
 
           <div className="op-actions">
             <button type="submit" className="op-save-btn" disabled={saving || deleting}>

@@ -331,6 +331,7 @@ export default function DashboardLayout({
             <button
               className="sidebar-link sidebar-profile-btn"
               onClick={() => {
+                setActiveSection("profile");
                 setSidebarOpen(false);
                 if (userId) router.push(`/dashboard/organizer/${userId}/profile`);
               }}

@@ -6,6 +6,7 @@ import "../../../organizer-dashboard.css";
 import "./notifications.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { NavBtn } from "@/components/ui/NavBtn";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Notification {
@@ -104,6 +105,12 @@ export default function OrganizerNotificationsPage() {
     redirectTo: "/login",
   });
 
+  const handleNav = () => {
+    if (routeUserId) {
+      router.push(`/dashboard/organizer/${routeUserId}`);
+    }
+  };
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -190,40 +197,17 @@ export default function OrganizerNotificationsPage() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="organizer-dashboard-container">
-      {/* Page header */}
-      <div className="dashboard-header-section" style={{ marginBottom: 24 }}>
-        <div className="header-left">
-          <div className="pn-header-row">
-            <h1 className="dashboard-title">Notifications</h1>
-            {unreadCount > 0 && (
-              <span className="pn-header-badge">{unreadCount > 99 ? "99+" : unreadCount} unread</span>
-            )}
-          </div>
-          <p className="dashboard-subtitle">Game events and player activity</p>
+    <div className="notifications-page-container">
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1 className="page-title">Notifications</h1>
+          <p className="page-subtitle">Updates on your games, players, and account activity.</p>
         </div>
+        <NavBtn text="My Games" onClick={handleNav} />
       </div>
 
-      {/* Toolbar */}
-      <div className="pn-toolbar" style={{ marginBottom: 16, maxWidth: 840 }}>
-        <span className="pn-toolbar-count">
-          {loading ? "Loading…" : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
-        </span>
-        <button
-          className="pn-mark-all-btn"
-          onClick={markAllRead}
-          disabled={marking || unreadCount === 0}
-        >
-          {marking ? "Marking…" : "Mark all read"}
-        </button>
-      </div>
-
-      {/* Error */}
-      {error && <div className="op-error" style={{ marginBottom: 16, maxWidth: 840 }}>{error}</div>}
-
-      {/* Loading skeleton */}
       {loading && (
-        <div className="pn-skeleton-list" style={{ maxWidth: 840 }}>
+        <div className="loading-container">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="pn-skeleton-item">
               <div className="pn-skeleton-icon" />
@@ -236,7 +220,6 @@ export default function OrganizerNotificationsPage() {
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && notifications.length === 0 && (
         <div className="pn-empty" style={{ maxWidth: 840 }}>
           <div className="pn-empty-icon">🔔</div>
@@ -245,7 +228,6 @@ export default function OrganizerNotificationsPage() {
         </div>
       )}
 
-      {/* Notification list */}
       {!loading && notifications.length > 0 && (
         <div className="pn-list" style={{ maxWidth: 840 }}>
           {groups.map((group) => (

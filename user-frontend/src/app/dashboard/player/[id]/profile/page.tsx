@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { NavBtn } from "@/components/ui/NavBtn";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 
@@ -50,6 +51,12 @@ export default function PlayerProfilePage() {
     routeUserId,
     redirectTo: "/login?role=player",
   });
+
+  const handleNav = () => {
+    if (routeUserId) {
+      router.push(`/dashboard/player/${routeUserId}`);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -339,8 +346,21 @@ export default function PlayerProfilePage() {
 
   return (
     <div className="player-dashboard-container">
+      <div className="page-header">
+        <div className="page-title-group">
+          <h1 className="page-title">Your Profile</h1>
+          <p className="page-subtitle">Manage your personal details, preferences, and settings.</p>
+        </div>
+        <NavBtn text="All Games" onClick={handleNav} />
+      </div>
 
-      {/* ── Delete Modal ── */}
+      {loading && (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading profile...</p>
+        </div>
+      )}
+
       {deleteStep > 0 && (
         <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
           <div className="modal-content" style={{ maxWidth: 480, width: "92%" }} onClick={(e) => e.stopPropagation()}>

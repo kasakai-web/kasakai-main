@@ -48,6 +48,7 @@ export default function PlayerDashboard() {
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [popupNotif, setPopupNotif] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
@@ -377,9 +378,14 @@ export default function PlayerDashboard() {
     setSelectedGame(formattedGame);
   };
 
-  const showNotification = (type: "success" | "error", message: string) => {
+  const showNotification = (type: "success" | "error", message: string, duration: number = 3500) => {
     setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3500);
+    setTimeout(() => setNotification(null), duration);
+  };
+
+  const showPopupNotification = (type: "success" | "error", message: string, duration: number = 2000) => {
+    setPopupNotif({ type, message });
+    setTimeout(() => setPopupNotif(null), duration);
   };
 
   const handleCancelRegistration = async (game: any) => {
@@ -476,6 +482,8 @@ export default function PlayerDashboard() {
           showNotification("success", "You've joined the waitlist! We'll notify you when a spot opens.");
           setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
         } else {
+          // Show 2 second booking confirmation popup message
+          showPopupNotification("success", "✓ Event booking confirmed!", 2000);
           setActiveTab("my-games");
           if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
           setTimeout(() => { fetchDashboardData(); }, 500);
@@ -597,11 +605,21 @@ export default function PlayerDashboard() {
   });
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
   const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
-  // In "My Games" tab, merge registered + waitlisted games; exclude cancelled (they belong in the Cancelled tab)
+  // In "My Games" tab, merge registered + waitlisted games; exclude cancelled and completed games
   const myGamesWithWaitlist = [
-    ...myGames.filter((g) => !String(g.status || "").trim().toLowerCase().startsWith("cancel")),
+    ...myGames.filter((g) => {
+      const status = String(g.status || "").trim().toLowerCase();
+      const isCancelled = status.startsWith("cancel");
+      const isCompleted = status.startsWith("complete") || new Date(g.scheduledAt).getTime() < Date.now();
+      return !isCancelled && !isCompleted;
+    }),
     ...myWaitlist
-      .filter((wg) => !myGames.some((mg) => mg._id === wg._id))
+      .filter((wg) => {
+        const status = String(wg.status || "").trim().toLowerCase();
+        const isCancelled = status.startsWith("cancel");
+        const isCompleted = new Date(wg.scheduledAt).getTime() < Date.now();
+        return !isCancelled && !isCompleted && !myGames.some((mg) => mg._id === wg._id);
+      })
       .map((wg) => ({ ...wg, _isWaitlisted: true, _waitlistStatus: wg._myWaitlistStatus || 'waiting' })),
   ];
 
@@ -698,6 +716,72 @@ export default function PlayerDashboard() {
           {notification.message}
         </div>
       )}
+
+      {/* Pop-up Notification Overlay */}
+      {popupNotif && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 10000,
+            animation: "popupFadeIn 0.3s ease-out",
+          }}
+        >
+          <div
+            style={{
+              background: popupNotif.type === "success" 
+                ? "linear-gradient(135deg, rgba(74,222,128,0.95), rgba(59,200,100,0.95))"
+                : "linear-gradient(135deg, rgba(248,113,113,0.95), rgba(220,38,38,0.95))",
+              color: "#fff",
+              padding: "24px 48px",
+              borderRadius: 16,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+              textAlign: "center",
+              backdropFilter: "blur(10px)",
+              border: popupNotif.type === "success"
+                ? "1px solid rgba(74,222,128,0.3)"
+                : "1px solid rgba(248,113,113,0.3)",
+              minWidth: "300px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                letterSpacing: "-0.5px",
+                lineHeight: 1.2,
+              }}
+            >
+              {popupNotif.message}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes popupFadeIn {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        @keyframes popupFadeOut {
+          from {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+          }
+        }
+      `}</style>
 
       <div className="page-header">
         <div className="page-title-group">
@@ -1078,70 +1162,250 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            <div className="pd-event-modal-actions">
-              {/* Rate Game button — show only if game is completed and feedback not yet submitted */}
-              {detailGame.status === "completed" &&
-                detailIsRegistered &&
-                !detailGameFeedback &&
-                pendingFeedback.some((g) => g._id === detailGame._id) && (
+            {/* ── Modal Footer: Action Buttons ── */}
+            <div className="modal-footer pd-event-modal-footer" style={{ 
+              display: "flex", 
+              gap: "16px", 
+              justifyContent: "space-between", 
+              alignItems: "center", 
+              paddingTop: "24px", 
+              paddingBottom: "8px",
+              borderTop: "1px solid rgba(255,255,255,0.08)",
+              flexWrap: "wrap-reverse"
+            }}>
+              {/* Close Button (Left) */}
+              <button 
+                className="btn-close" 
+                type="button" 
+                onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}
+                style={{
+                  padding: "11px 24px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#e5e7eb",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  transition: "all 0.2s ease",
+                  minWidth: "100px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+                }}
+              >
+                Close
+              </button>
+
+              {/* Action Buttons Container (Right) */}
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: "1 1 auto", justifyContent: "flex-end", minWidth: "fit-content" }}>
+                {/* Rate Game Button - Only show if game is completed */}
+                {detailGame.status === "completed" &&
+                  detailIsRegistered &&
+                  !detailGameFeedback &&
+                  pendingFeedback.some((g) => g._id === detailGame._id) && (
+                    <button
+                      className="pd-modal-btn"
+                      type="button"
+                      onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setFeedbackTargetGame(detailGame); }}
+                      style={{ 
+                        background: "rgba(196,213,108,0.12)", 
+                        color: "#c4d56c", 
+                        border: "1px solid rgba(196,213,108,0.3)",
+                        padding: "11px 18px", 
+                        borderRadius: 8, 
+                        fontSize: 13, 
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(196,213,108,0.18)";
+                        e.currentTarget.style.borderColor = "rgba(196,213,108,0.4)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(196,213,108,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(196,213,108,0.3)";
+                      }}
+                    >
+                      ⭐ Rate Game
+                    </button>
+                  )}
+
+                {/* Registered User Actions */}
+                {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" ? (
+                  <>
+                    {detailSpotsLeft > 0 && (
+                      <button
+                        className="pd-modal-btn"
+                        type="button"
+                        onClick={() => handleAddGuest(detailGame)}
+                        disabled={addingGuest}
+                        style={{ 
+                          background: addingGuest ? "rgba(200,255,62,0.05)" : "rgba(200,255,62,0.12)", 
+                          color: addingGuest ? "rgba(200,255,62,0.6)" : "#c8ff3e", 
+                          border: "1px solid rgba(200,255,62,0.3)",
+                          padding: "11px 18px", 
+                          borderRadius: 8, 
+                          fontSize: 13, 
+                          fontWeight: 600,
+                          cursor: addingGuest ? "not-allowed" : "pointer",
+                          transition: "all 0.2s ease",
+                          whiteSpace: "nowrap"
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!addingGuest) {
+                            e.currentTarget.style.background = "rgba(200,255,62,0.18)";
+                            e.currentTarget.style.borderColor = "rgba(200,255,62,0.4)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!addingGuest) {
+                            e.currentTarget.style.background = "rgba(200,255,62,0.12)";
+                            e.currentTarget.style.borderColor = "rgba(200,255,62,0.3)";
+                          }
+                        }}
+                      >
+                        {addingGuest ? "Adding…" : "+ Add Guest"}
+                      </button>
+                    )}
+                    <button
+                      className="pd-modal-btn secondary"
+                      type="button"
+                      onClick={() => handleCancelRegistration(detailGame)}
+                      disabled={!!cancellingGameId}
+                      style={{ 
+                        background: cancellingGameId ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.12)", 
+                        color: cancellingGameId ? "rgba(248,113,113,0.6)" : "#f87171", 
+                        border: "1px solid rgba(220,38,38,0.3)",
+                        padding: "11px 18px", 
+                        borderRadius: 8, 
+                        fontSize: 13, 
+                        fontWeight: 600,
+                        cursor: cancellingGameId ? "not-allowed" : "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!cancellingGameId) {
+                          e.currentTarget.style.background = "rgba(220,38,38,0.18)";
+                          e.currentTarget.style.borderColor = "rgba(220,38,38,0.4)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!cancellingGameId) {
+                          e.currentTarget.style.background = "rgba(220,38,38,0.12)";
+                          e.currentTarget.style.borderColor = "rgba(220,38,38,0.3)";
+                        }
+                      }}
+                    >
+                      {cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel"}
+                    </button>
+                  </>
+                ) : null}
+
+                {/* Waitlisted User Actions */}
+                {detailIsWaitlisted && !detailIsCancelled ? (
+                  <>
+                    {detailSpotsLeft > 0 && (
+                      <button
+                        className="pd-modal-btn"
+                        type="button"
+                        onClick={() => { setDetailGame(null); handleBook(detailGame); }}
+                        style={{ 
+                          background: "#c8ff3e", 
+                          color: "#000", 
+                          border: "none",
+                          padding: "11px 24px", 
+                          borderRadius: 8, 
+                          fontSize: 13, 
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          whiteSpace: "nowrap"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#d4ff6d";
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#c8ff3e";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
+                      >
+                        ⚽ Book
+                      </button>
+                    )}
+                    <button
+                      className="pd-modal-btn secondary"
+                      type="button"
+                      onClick={() => handleLeaveWaitlist(detailGame)}
+                      style={{ 
+                        background: "rgba(220,38,38,0.12)", 
+                        color: "#f87171", 
+                        border: "1px solid rgba(220,38,38,0.3)",
+                        padding: "11px 18px", 
+                        borderRadius: 8, 
+                        fontSize: 13, 
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(220,38,38,0.18)";
+                        e.currentTarget.style.borderColor = "rgba(220,38,38,0.4)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(220,38,38,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(220,38,38,0.3)";
+                      }}
+                    >
+                      Leave Waitlist
+                    </button>
+                  </>
+                ) : null}
+
+                {/* Not Registered - Book Now Button */}
+                {!detailIsRegistered && !detailIsWaitlisted && !detailIsCancelled && (
                   <button
-                    className="card-btn"
+                    className="pd-modal-btn"
                     type="button"
-                    onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setFeedbackTargetGame(detailGame); }}
-                    style={{ background: "rgba(196,213,108,0.14)", color: "#c4d56c", border: "1px solid rgba(196,213,108,0.3)", flex: "0 0 auto", minWidth: 140 }}
+                    onClick={() => {
+                      setDetailGame(null);
+                      handleBook(detailGame);
+                    }}
+                    style={{ 
+                      background: "#c8ff3e", 
+                      color: "#000", 
+                      border: "none",
+                      padding: "11px 24px", 
+                      borderRadius: 8, 
+                      fontSize: 13, 
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      whiteSpace: "nowrap"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#d4ff6d";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#c8ff3e";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
                   >
-                    ⭐ Rate Game
+                    ⚽ Book Now
                   </button>
                 )}
-              {detailIsWaitlisted && detailSpotsLeft > 0 && !detailIsCancelled && (
-                <button
-                  className="card-btn signup-btn"
-                  type="button"
-                  onClick={() => { setDetailGame(null); handleBook(detailGame); }}
-                  style={{ flex: "0 0 auto", minWidth: 180 }}
-                >
-                  <span>⚽ Book</span>
-                </button>
-              )}
-              {detailIsWaitlisted && !detailIsCancelled && (
-                <button
-                  className="card-btn cancel-btn"
-                  type="button"
-                  onClick={() => handleLeaveWaitlist(detailGame)}
-                  style={{ flex: "0 0 auto", minWidth: 180 }}
-                >
-                  <span>Leave Waitlist</span>
-                </button>
-              )}
-              {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
-                detailSpotsLeft > 0 ? (
-                  <button
-                    className="card-btn"
-                    type="button"
-                    onClick={() => handleAddGuest(detailGame)}
-                    disabled={addingGuest}
-                    style={{ background: "rgba(200,255,62,0.08)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.25)", flex: "0 0 auto" }}
-                  >
-                    <span>{addingGuest ? "Adding…" : "+ Add Guest"}</span>
-                  </button>
-                ) : (
-                  <span style={{ fontSize: 12, color: "#f87171", padding: "6px 12px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8 }}>
-                    Game is full — no spots left
-                  </span>
-                )
-              )}
-              {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
-                <button
-                  className="card-btn cancel-btn"
-                  type="button"
-                  onClick={() => handleCancelRegistration(detailGame)}
-                  disabled={cancellingGameId === detailGame._id}
-                  style={{ flex: "0 0 auto", minWidth: 180 }}
-                >
-                  <span>{cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}</span>
-                </button>
-              )}
-              <button className="btn-close" type="button" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}>Close</button>
+              </div>
             </div>
           </div>
         </div>
