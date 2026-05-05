@@ -1125,7 +1125,7 @@ export default function PlayerDashboard() {
                   <span>{cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}</span>
                 </button>
               )}
-              <button className="btn-close" type="button" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setDetailGameRating(null); }}>Close</button>
+              <button className="btn-close" type="button" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}>Close</button>
             </div>
           </div>
         </div>
