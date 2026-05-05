@@ -22,6 +22,8 @@ type PlayerProfile = {
   noShowCount?: number;
   backoutCount?: number;
   attendanceRate?: number | null;
+  disciplineScore?: number | null;
+  disciplineRatingCount?: number;
   location?: {
     city?: string;
     state?: string;
@@ -119,6 +121,8 @@ export default function PlayerProfilePage() {
     totalGamesPlayed: 0,
     noShowCount: 0,
     backoutCount: 0,
+    disciplineScore: null,
+    disciplineRatingCount: 0,
     location: { city: "", state: "" },
     preferences: { skillLevel: "beginner", preferredFormat: "5v5", positions: [], preferredLocations: [] },
     notificationSettings: { whatsapp: true, sms: true, push: true },
@@ -171,6 +175,8 @@ export default function PlayerProfilePage() {
         noShowCount: p.noShowCount ?? 0,
         backoutCount: p.backoutCount ?? 0,
         attendanceRate: p.attendanceRate ?? null,
+        disciplineScore: p.disciplineScore ?? null,
+        disciplineRatingCount: p.disciplineRatingCount ?? 0,
         location: { city: p.location?.city || "", state: p.location?.state || "" },
         preferences: {
           skillLevel: p.preferences?.skillLevel || "beginner",
@@ -530,6 +536,25 @@ export default function PlayerProfilePage() {
             )}
             <div className="pp-stat-key">Attendance</div>
             <div className="pp-stat-sub">{profile.attendanceRate === null || profile.attendanceRate === undefined ? "no data yet" : profile.attendanceRate >= 90 ? "excellent" : profile.attendanceRate >= 70 ? "good" : "needs work"}</div>
+          </div>
+          <div className="pp-stat-div" />
+          <div className="pp-stat">
+            {profile.disciplineScore === null || profile.disciplineScore === undefined ? (
+              <div className="pp-stat-val pp-ok">—</div>
+            ) : (
+              <div className={`pp-stat-val ${profile.disciplineScore < 2.5 ? "pp-warn" : ""}`}>
+                {profile.disciplineScore.toFixed(1)}
+              </div>
+            )}
+            <div className="pp-stat-key">Discipline</div>
+            <div className="pp-stat-sub">
+              {profile.disciplineScore === null || profile.disciplineScore === undefined
+                ? "no ratings yet"
+                : profile.disciplineScore >= 4.5 ? "excellent"
+                : profile.disciplineScore >= 3.5 ? "good"
+                : profile.disciplineScore >= 2.5 ? "fair"
+                : "needs work"}
+            </div>
           </div>
         </div>
 
