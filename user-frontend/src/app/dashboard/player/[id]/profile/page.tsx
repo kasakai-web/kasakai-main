@@ -544,16 +544,19 @@ export default function PlayerProfilePage() {
             ) : (
               <div className={`pp-stat-val ${profile.disciplineScore < 2.5 ? "pp-warn" : ""}`}>
                 {profile.disciplineScore.toFixed(1)}
+                <span style={{ fontSize: 13, opacity: 0.45, fontWeight: 400, marginLeft: 1 }}>/5</span>
               </div>
             )}
             <div className="pp-stat-key">Discipline</div>
             <div className="pp-stat-sub">
               {profile.disciplineScore === null || profile.disciplineScore === undefined
                 ? "no ratings yet"
-                : profile.disciplineScore >= 4.5 ? "excellent"
-                : profile.disciplineScore >= 3.5 ? "good"
-                : profile.disciplineScore >= 2.5 ? "fair"
-                : "needs work"}
+                : `${
+                    profile.disciplineScore >= 4.5 ? "excellent"
+                    : profile.disciplineScore >= 3.5 ? "good"
+                    : profile.disciplineScore >= 2.5 ? "fair"
+                    : "needs work"
+                  } · ${profile.disciplineRatingCount ?? 0} ${(profile.disciplineRatingCount ?? 0) === 1 ? "game" : "games"}`}
             </div>
           </div>
         </div>
