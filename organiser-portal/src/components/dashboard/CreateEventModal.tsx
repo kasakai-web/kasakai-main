@@ -4,9 +4,9 @@ import React, { useState, useEffect } from "react";
 import "./CreateEventModal.css";
 import { buildApiUrl, getSession } from "@/utils/api";
 
-const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, idx) => {
-  const hours   = Math.floor(idx / 2);
-  const minutes = idx % 2 === 0 ? "00" : "30";
+const TIME_SLOT_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
+  const hours   = Math.floor(idx / 4);
+  const minutes = String((idx % 4) * 15).padStart(2, "0");
   const value   = `${String(hours).padStart(2, "0")}:${minutes}`;
   const displayHour = hours % 12 === 0 ? 12 : hours % 12;
   const period  = hours < 12 ? "AM" : "PM";
