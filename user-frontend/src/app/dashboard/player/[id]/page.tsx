@@ -673,7 +673,7 @@ export default function PlayerDashboard() {
     - (detailGame.organiserIsPlaying ? 1 : 0)
   ) : 0;
   const organiserEntry = detailGame?.organiserIsPlaying
-    ? [{ key: "organiser", regId: null, name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false, canRemove: false }]
+    ? [{ key: "organiser", regId: null, name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false, isOrganiser: true, canRemove: false }]
     : [];
   const detailPlayers = [
     ...organiserEntry,
@@ -989,8 +989,24 @@ export default function PlayerDashboard() {
                 <div className="pd-event-player-list">
                   {detailPlayers.map((player: any) => (
                     <div key={player.key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div className="pd-event-player-name">
+                      <div className="pd-event-player-name" style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                         {player.name}
+                        {player.isOrganiser && (
+                          <span style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                            color: "#c4d56c",
+                            background: "rgba(196,213,108,0.12)",
+                            border: "1px solid rgba(196,213,108,0.25)",
+                            borderRadius: 4,
+                            padding: "2px 6px",
+                            fontFamily: "var(--mono, monospace)",
+                          }}>
+                            Organiser
+                          </span>
+                        )}
                       </div>
                       {player.canRemove && !detailIsCancelled && detailGame.status !== "completed" && (
                         <button
