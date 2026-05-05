@@ -2,6 +2,28 @@
    PLAYER NOTIFICATIONS PAGE
 ══════════════════════════════════════════════════════ */
 
+/* ── Page header extras ── */
+.pn-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pn-header-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 68, 68, 0.12);
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+
 /* ── Tab bar ── */
 .pn-tabs {
   display: flex;
@@ -98,6 +120,20 @@
   overflow: hidden;
 }
 
+/* ── Date group label ── */
+.pn-date-label {
+  font-family: var(--mono, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #3a3a3a;
+  padding: 9px 18px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* ── Single notification row ── */
 .pn-item {
   display: flex;
   align-items: flex-start;
@@ -115,12 +151,12 @@
 }
 
 .pn-item:last-child { border-bottom: none; }
-.pn-item:hover { background: rgba(255, 255, 255, 0.03); }
+.pn-item:hover { background: rgba(255, 255, 255, 0.025); }
 
 .pn-item.pn-item-unread { background: rgba(196, 213, 108, 0.03); }
-.pn-item.pn-item-unread:hover { background: rgba(196, 213, 108, 0.06); }
+.pn-item.pn-item-unread:hover { background: rgba(196, 213, 108, 0.07); }
 
-/* Unread left accent */
+/* Glowing unread left accent */
 .pn-item.pn-item-unread::before {
   content: '';
   position: absolute;
@@ -129,6 +165,7 @@
   bottom: 0;
   width: 3px;
   background: var(--lime, #c4d56c);
+  box-shadow: 0 0 10px rgba(196, 213, 108, 0.4);
 }
 
 /* ── Item icon ── */
@@ -163,14 +200,14 @@
 
 .pn-item-body {
   font-size: 12.5px;
-  color: #888;
+  color: #777;
   line-height: 1.5;
 }
 
 .pn-item-time {
   font-family: var(--mono, monospace);
   font-size: 10px;
-  color: #555;
+  color: #444;
   margin-top: 4px;
   letter-spacing: 0.05em;
 }
@@ -183,12 +220,13 @@
   background: var(--lime, #c4d56c);
   flex-shrink: 0;
   margin-top: 6px;
+  box-shadow: 0 0 6px rgba(196, 213, 108, 0.5);
 }
 
 /* ── Action arrow ── */
 .pn-item-arrow {
   font-size: 14px;
-  color: var(--muted, #666);
+  color: #3a3a3a;
   flex-shrink: 0;
   margin-top: 4px;
   transition: color 0.15s;
@@ -228,7 +266,8 @@
   border-radius: 12px;
 }
 
-.pn-empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.pn-empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+
 .pn-empty-title {
   font-family: var(--cond, sans-serif);
   font-size: 22px;
@@ -238,7 +277,8 @@
   text-transform: uppercase;
   margin-bottom: 8px;
 }
-.pn-empty-desc { font-size: 13px; color: #555; max-width: 320px; line-height: 1.6; }
+
+.pn-empty-desc { font-size: 13px; color: #444; max-width: 320px; line-height: 1.6; }
 
 /* ── Skeleton loading ── */
 .pn-skeleton-list {
@@ -295,7 +335,7 @@
   50%       { opacity: 0.4; }
 }
 
-/* ── Mobile responsive ── */
+/* ── Mobile ── */
 @media (max-width: 640px) {
   .pn-tab {
     font-size: 12px;

@@ -35,6 +35,22 @@ const TYPE_ICON: Record<string, string> = {
   system:                 "ℹ️",
 };
 
+const TYPE_COLOR: Record<string, string> = {
+  game_created:           "rgba(200,255,62,0.14)",
+  game_registered:        "rgba(74,222,128,0.14)",
+  game_cancelled:         "rgba(255,68,68,0.14)",
+  game_backout_player:    "rgba(249,115,22,0.14)",
+  game_backout_organiser: "rgba(245,158,11,0.14)",
+  waitlist_joined:        "rgba(96,165,250,0.14)",
+  waitlist_spot:          "rgba(34,211,238,0.14)",
+  waitlist_approved:      "rgba(167,139,250,0.14)",
+  player_removed:         "rgba(239,68,68,0.14)",
+  wallet_topup:           "rgba(74,222,128,0.14)",
+  wallet_debit:           "rgba(248,113,113,0.14)",
+  wallet_refund:          "rgba(74,222,128,0.14)",
+  system:                 "rgba(148,163,184,0.14)",
+};
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
@@ -46,6 +62,32 @@ function timeAgo(iso: string): string {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d ago`;
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function groupByDate(list: Notification[]): { label: string; items: Notification[] }[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterday = today - 86_400_000;
+  const thisWeek  = today - 7 * 86_400_000;
+  const groups: Record<string, Notification[]> = {};
+  for (const n of list) {
+    const d = new Date(n.createdAt);
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    let label: string;
+    if (day >= today)     label = "Today";
+    else if (day >= yesterday) label = "Yesterday";
+    else if (day >= thisWeek)  label = "This week";
+    else label = d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(n);
+  }
+  const ORDER = ["Today", "Yesterday", "This week"];
+  const result: { label: string; items: Notification[] }[] = [];
+  for (const lbl of ORDER) {
+    if (groups[lbl]) { result.push({ label: lbl, items: groups[lbl] }); delete groups[lbl]; }
+  }
+  for (const lbl of Object.keys(groups)) result.push({ label: lbl, items: groups[lbl] });
+  return result;
 }
 
 const PAGE_SIZE = 30;
@@ -67,6 +109,7 @@ export default function OrganizerNotificationsPage() {
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [marking, setMarking] = useState(false);
 
   const clearSessionAndExit = () => {
     clearSession();
@@ -98,7 +141,6 @@ export default function OrganizerNotificationsPage() {
   useEffect(() => {
     if (!isAuthorized) return;
     fetchNotifications(0);
-    // Auto-mark all read when page is opened
     const { token } = getSession();
     if (token) {
       fetch(buildApiUrl("/api/v1/notifications/read-all"), {
@@ -123,18 +165,41 @@ export default function OrganizerNotificationsPage() {
     if (n.actionUrl) router.push(n.actionUrl);
   };
 
+  const markAllRead = async () => {
+    if (marking) return;
+    setMarking(true);
+    const { token } = getSession();
+    if (!token) { setMarking(false); return; }
+    try {
+      await fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications((prev) => prev.map((x) => ({ ...x, isRead: true })));
+    } catch {}
+    finally { setMarking(false); }
+  };
+
   const loadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchNotifications(nextPage * PAGE_SIZE, true);
   };
 
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const groups = groupByDate(notifications);
+
   return (
     <div className="organizer-dashboard-container">
       {/* Page header */}
       <div className="dashboard-header-section" style={{ marginBottom: 24 }}>
         <div className="header-left">
-          <h1 className="dashboard-title">Notifications</h1>
+          <div className="pn-header-row">
+            <h1 className="dashboard-title">Notifications</h1>
+            {unreadCount > 0 && (
+              <span className="pn-header-badge">{unreadCount > 99 ? "99+" : unreadCount} unread</span>
+            )}
+          </div>
           <p className="dashboard-subtitle">Game events and player activity</p>
         </div>
       </div>
@@ -142,10 +207,15 @@ export default function OrganizerNotificationsPage() {
       {/* Toolbar */}
       <div className="pn-toolbar" style={{ marginBottom: 16, maxWidth: 840 }}>
         <span className="pn-toolbar-count">
-          {loading
-            ? "Loading…"
-            : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
+          {loading ? "Loading…" : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
         </span>
+        <button
+          className="pn-mark-all-btn"
+          onClick={markAllRead}
+          disabled={marking || unreadCount === 0}
+        >
+          {marking ? "Marking…" : "Mark all read"}
+        </button>
       </div>
 
       {/* Error */}
@@ -178,21 +248,31 @@ export default function OrganizerNotificationsPage() {
       {/* Notification list */}
       {!loading && notifications.length > 0 && (
         <div className="pn-list" style={{ maxWidth: 840 }}>
-          {notifications.map((n) => (
-            <button
-              key={n._id}
-              className={`pn-item${!n.isRead ? " pn-item-unread" : ""}`}
-              onClick={() => markRead(n)}
-            >
-              <span className="pn-item-icon">{TYPE_ICON[n.type] ?? "ℹ️"}</span>
-              <span className="pn-item-content">
-                <span className="pn-item-title">{n.title}</span>
-                <span className="pn-item-body">{n.body}</span>
-                <span className="pn-item-time">{timeAgo(n.createdAt)}</span>
-              </span>
-              {!n.isRead && <span className="pn-item-dot" />}
-              {n.actionUrl && <span className="pn-item-arrow">→</span>}
-            </button>
+          {groups.map((group) => (
+            <React.Fragment key={group.label}>
+              <div className="pn-date-label">{group.label}</div>
+              {group.items.map((n) => (
+                <button
+                  key={n._id}
+                  className={`pn-item${!n.isRead ? " pn-item-unread" : ""}`}
+                  onClick={() => markRead(n)}
+                >
+                  <span
+                    className="pn-item-icon"
+                    style={{ background: TYPE_COLOR[n.type] ?? "rgba(255,255,255,0.06)" }}
+                  >
+                    {TYPE_ICON[n.type] ?? "ℹ️"}
+                  </span>
+                  <span className="pn-item-content">
+                    <span className="pn-item-title">{n.title}</span>
+                    <span className="pn-item-body">{n.body}</span>
+                    <span className="pn-item-time">{timeAgo(n.createdAt)}</span>
+                  </span>
+                  {!n.isRead && <span className="pn-item-dot" />}
+                  {n.actionUrl && <span className="pn-item-arrow">→</span>}
+                </button>
+              ))}
+            </React.Fragment>
           ))}
 
           {hasMore && (
