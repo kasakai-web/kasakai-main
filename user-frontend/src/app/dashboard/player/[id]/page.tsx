@@ -507,10 +507,12 @@ export default function PlayerDashboard() {
             "error",
             "Insufficient wallet balance. Please recharge your wallet to sign up."
           );
-          // Navigate to wallet page so the player can top up immediately
           if (playerId) {
             setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
           }
+        } else if (data.code === "RACE_REFUND_FAILED") {
+          setSelectedGame(null);
+          showNotification("error", "The spot was taken and we couldn't auto-refund. Please contact support.");
         } else {
           showNotification("error", data.message || (isWaitlist ? "Waitlist failed." : "Registration failed."));
           setSelectedGame(null);
@@ -564,6 +566,8 @@ export default function PlayerDashboard() {
         if (data.code === "INSUFFICIENT_BALANCE") {
           showNotification("error", "Insufficient wallet balance.");
           if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+        } else if (data.code === "RACE_REFUND_FAILED") {
+          showNotification("error", "The spot was taken and we couldn't auto-refund. Please contact support.");
         } else {
           showNotification("error", data.message || "Failed to add guest.");
         }
