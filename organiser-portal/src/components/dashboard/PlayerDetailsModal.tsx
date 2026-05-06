@@ -112,6 +112,12 @@ export function PlayerDetailsModal({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [addingPlayerId, setAddingPlayerId] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const showStatus = (type: "success" | "error", text: string) => {
+    setStatusMsg({ type, text });
+    setTimeout(() => setStatusMsg(null), 3500);
+  };
 
   const searchPlayers = async (query: string) => {
     if (!query.trim()) {
@@ -125,7 +131,6 @@ export function PlayerDetailsModal({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        // Filter out players already registered
         const registeredPlayerIds = new Set(
           players.filter(p => p.player?._id).map(p => p.player!._id)
         );
@@ -152,16 +157,17 @@ export function PlayerDetailsModal({
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        alert(data.message || "Failed to add player");
+        showStatus("error", data.message || "Failed to add player");
         return;
       }
       setShowAddPlayer(false);
       setSearchQuery("");
       setSearchResults([]);
+      showStatus("success", "Player added successfully");
       onRefresh?.();
     } catch (error) {
       console.error("Add player failed:", error);
-      alert("Failed to add player");
+      showStatus("error", "Failed to add player");
     } finally {
       setAddingPlayerId(null);
     }
@@ -180,12 +186,12 @@ export function PlayerDetailsModal({
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        alert(data.message || "Image upload failed");
+        showStatus("error", data.message || "Image upload failed");
         return;
       }
       onRefresh?.();
     } catch {
-      alert("Image upload failed");
+      showStatus("error", "Image upload failed");
     } finally {
       setUploadingImageId(null);
     }
@@ -202,12 +208,13 @@ export function PlayerDetailsModal({
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        alert(data.message || "Failed to add guest");
+        showStatus("error", data.message || "Failed to add guest");
         return;
       }
+      showStatus("success", "Guest slot added");
       onRefresh?.();
     } catch {
-      alert("Failed to add guest");
+      showStatus("error", "Failed to add guest");
     } finally {
       setAddingGuest(false);
     }
@@ -240,21 +247,17 @@ export function PlayerDetailsModal({
     const data = await res.json();
 
     if (!res.ok || !data.success) {
-      alert(data.message || "Team generation failed");
+      showStatus("error", data.message || "Team generation failed");
       return;
     }
 
-    const teamsData = data.data;
-
-    setTeams(teamsData);
-
-    alert("Teams created! ✅");
-
+    setTeams(data.data);
+    showStatus("success", "Teams distributed successfully ⚽");
     onRefresh?.();
 
   } catch (err) {
     console.error("Error distributing teams:", err);
-    alert("Something went wrong");
+    showStatus("error", "Something went wrong");
   }
 };
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -423,6 +426,26 @@ export function PlayerDetailsModal({
             </>
           )}
         </div>
+
+        {/* Inline status message — replaces alert() dialogs */}
+        {statusMsg && (
+          <div style={{
+            margin: "0",
+            padding: "10px 20px",
+            background: statusMsg.type === "success" ? "rgba(74,222,128,0.12)" : "rgba(239,68,68,0.12)",
+            borderBottom: `1px solid ${statusMsg.type === "success" ? "rgba(74,222,128,0.25)" : "rgba(239,68,68,0.25)"}`,
+            color: statusMsg.type === "success" ? "#4ade80" : "#f87171",
+            fontSize: 13,
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <span>{statusMsg.type === "success" ? "✓" : "✕"}</span>
+            <span>{statusMsg.text}</span>
+          </div>
+        )}
 
         {/* Add Player Search */}
         {showAddPlayer && (
@@ -614,53 +637,58 @@ export function PlayerDetailsModal({
 
             </div>
           )}
+
+          {/* Waitlist Section — inside scroll area so it doesn't overflow */}
+          {waitlist.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 0 10px 0", borderTop: "1px solid #222",
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
+                  📋 Waitlist ({waitlist.length})
+                </span>
+                <span style={{ fontSize: 11, color: "#666", fontStyle: "italic" }}>
+                  — notified by email &amp; app when a slot opens
+                </span>
+              </div>
+              <div className="pdm-cards-list">
+                {waitlist.map((entry, idx) => (
+                  <WaitlistCard key={entry._id || idx} entry={entry} position={idx + 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Teams — inside scroll area */}
+          {teams && (
+            <div style={{ marginTop: 20, paddingBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                ⚽ Teams
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div style={{ flex: 1, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#f87171", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Red Team</div>
+                  {(teams?.teamA || []).map((p: any, i: number) => (
+                    <div key={i} style={{ fontSize: 13, color: "#e5e5e5", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      {p.name || p}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ flex: 1, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Blue Team</div>
+                  {(teams?.teamB || []).map((p: any, i: number) => (
+                    <div key={i} style={{ fontSize: 13, color: "#e5e5e5", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      {p.name || p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
-        {/* Waitlist Section */}
-        {waitlist.length > 0 && (
-          <div style={{ margin: "0 0 16px 0" }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 0 10px 0", borderTop: "1px solid #222", marginTop: 8,
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
-                📋 Waitlist ({waitlist.length})
-              </span>
-              <span style={{ fontSize: 11, color: "#666", fontStyle: "italic" }}>
-                — notified by email &amp; app when a slot opens
-              </span>
-            </div>
-            <div className="pdm-cards-list">
-              {waitlist.map((entry, idx) => (
-                <WaitlistCard key={entry._id || idx} entry={entry} position={idx + 1} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {teams && (
-  <div style={{ marginTop: 20 }}>
-    <h3 style={{ color: "#fff" }}>⚽ Teams</h3>
-
-    <div style={{ display: "flex", gap: 40 }}>
-
-      <div>
-        <h4 style={{ color: "#ef4444" }}>Red Team</h4>
-        {teams?.teamA?.map((p: any, i: number) => (
-  <div key={i} style={{ color: "#ccc" }}>{p.name || p}</div>
-))}
-      </div>
-
-      <div>
-        <h4 style={{ color: "#3b82f6" }}>Blue Team</h4>
-        {teams?.teamB?.map((p: any, i: number) => (
-  <div key={i} style={{ color: "#ccc" }}>{p.name || p}</div>
-))}
-      </div>
-
-    </div>
-  </div>
-)}
         <div className="modal-footer">
           <button className="btn-close" onClick={onClose}>
             Close
@@ -711,7 +739,7 @@ function WaitlistCard({ entry, position }: { entry: WaitlistEntry; position: num
   return (
     <div
       className="pdm-card pdm-card-player"
-      style={{ borderLeft: `3px solid ${cfg.leftBorder}`, background: cfg.bg, border: `1px solid ${cfg.border}` }}
+      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderLeft: `3px solid ${cfg.leftBorder}` }}
     >
       <div className="pdm-slot-num" style={{ color: cfg.color }}>#{position}</div>
       <div
