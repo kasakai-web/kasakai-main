@@ -49,6 +49,7 @@ const POSITION_LABELS: Record<string, string> = {
   DEF: "Defender",
   MID: "Midfielder",
   FWD: "Forward",
+  ANY: "Any Position",
 };
 
 const TEAM_OPTIONS = [
@@ -304,57 +305,49 @@ export function BookingModal({
             </div>
 
             <div className="bm-body">
-              <div>
-                <div className="bm-section-title">Your Position</div>
-                {hasPositions ? (
-                  <>
-                    <div className="position-grid">
-                      {playerPositions.map((position) => (
-                        <button key={position} className="pos-opt selected" disabled style={{ cursor: "default", opacity: 1 }}>
-                          {position}
-                          {POSITION_LABELS[position] && (
-                            <span style={{ display: "block", fontSize: "10px", opacity: 0.7, marginTop: "2px" }}>
-                              {POSITION_LABELS[position]}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <p style={{ margin: "8px 0 0", fontSize: "11px", color: "var(--muted,#666)", display: "flex", alignItems: "center", gap: "4px" }}>
-                      <span style={{ color: "var(--lime,#c4d56c)" }}>ⓘ</span>
-                      {playerId ? (
-                        <>
-                          To change, {" "}
+              <div className="bm-pos-team-row">
+                <div className="bm-pos-col">
+                  <div className="bm-section-title">Your Position</div>
+                  {hasPositions ? (
+                    <>
+                      <div className="bm-pos-badge">
+                        <span className="bm-pos-badge-code">{playerPositions[0]}</span>
+                        {POSITION_LABELS[playerPositions[0]] && playerPositions[0] !== "ANY" && (
+                          <span className="bm-pos-badge-label">{POSITION_LABELS[playerPositions[0]]}</span>
+                        )}
+                      </div>
+                      <p className="bm-pos-hint">
+                        <span style={{ color: "var(--lime,#c4d56c)" }}>ⓘ</span>{" "}
+                        {playerId ? (
                           <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
-                            update your profile
+                            Update profile
                           </Link>
-                          .
-                        </>
-                      ) : (
-                        "Update your profile to change position."
+                        ) : "Update profile"} to change.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="bm-pos-hint">
+                      No position.{" "}
+                      {playerId && (
+                        <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
+                          Add in profile
+                        </Link>
                       )}
                     </p>
-                  </>
-                ) : (
-                  <p style={{ fontSize: "12px", color: "var(--muted,#666)", margin: "4px 0 0" }}>
-                    No position set. {" "}
-                    {playerId && (
-                      <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
-                        Add one in your profile
-                      </Link>
-                    )}
-                  </p>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <div>
-                <div className="bm-section-title">Your Team Preference</div>
-                <div className="pref-row">
-                  {TEAM_OPTIONS.map(({ label, cls }) => (
-                    <button key={label} type="button" className={`pref-opt ${cls} ${teamPreference === label ? "selected" : ""}`} onClick={() => setTeamPreference(label)}>
-                      {label}
-                    </button>
-                  ))}
+                <div className="bm-team-col">
+                  <div className="bm-section-title">Your Team Preference</div>
+                  <select
+                    value={teamPreference}
+                    onChange={(e) => setTeamPreference(e.target.value)}
+                    className="bm-team-select"
+                  >
+                    <option value="No Preference">No Preference</option>
+                    <option value="Red Team">Red Team</option>
+                    <option value="Blue Team">Blue Team</option>
+                  </select>
                 </div>
               </div>
 

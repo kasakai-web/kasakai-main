@@ -1169,7 +1169,82 @@ body::after {
 .pos-opt.selected { border-color: var(--lime); color: var(--lime); background: rgba(200, 255, 62, .06); }
 .pos-opt:disabled.selected { opacity: 1; cursor: default; }
 
-/* preference */
+/* Position + Team preference — compact one-row layout */
+.bm-pos-team-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.bm-pos-col {
+  flex: 0 0 auto;
+}
+.bm-team-col {
+  flex: 1;
+  min-width: 0;
+}
+.bm-pos-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 18px;
+  margin-top: 8px;
+  border: 1px solid var(--lime, #c4d56c);
+  border-radius: 6px;
+  background: rgba(196, 213, 108, 0.06);
+}
+.bm-pos-badge-code {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--lime, #c4d56c);
+  line-height: 1;
+}
+.bm-pos-badge-label {
+  font-size: 9px;
+  color: var(--lime, #c4d56c);
+  opacity: 0.65;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+.bm-pos-hint {
+  margin: 6px 0 0;
+  font-size: 10px;
+  color: var(--muted, #666);
+  line-height: 1.45;
+}
+
+/* Team preference dropdown */
+.bm-team-select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 34px 10px 12px;
+  background: #0f0f0f;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.bm-team-select:focus {
+  outline: none;
+  border-color: var(--lime, #c4d56c);
+}
+.bm-team-select option {
+  background: #111;
+  color: var(--white);
+}
+
+/* preference (legacy — kept for backwards compat) */
 .pref-row { display: flex; gap: 8px; }
 .pref-opt {
   flex: 1;
@@ -1184,15 +1259,9 @@ body::after {
   text-align: center;
 }
 .pref-opt:hover { border-color: #444; color: var(--white); }
-
-/* No Preference — default teal */
 .pref-opt.selected { border-color: var(--electric); color: var(--electric); background: rgba(62, 240, 255, .06); }
-
-/* Red Team */
 .pref-opt.pref-red:hover  { border-color: #c0392b; color: #ff6b6b; }
 .pref-opt.pref-red.selected { border-color: #e74c3c; color: #ff6b6b; background: rgba(231, 76, 60, .10); }
-
-/* Blue Team */
 .pref-opt.pref-blue:hover  { border-color: #2980b9; color: #74b9ff; }
 .pref-opt.pref-blue.selected { border-color: #3498db; color: #74b9ff; background: rgba(52, 152, 219, .10); }
 
