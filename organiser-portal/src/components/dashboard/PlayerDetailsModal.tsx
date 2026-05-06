@@ -297,6 +297,18 @@ export function PlayerDetailsModal({
 
   const mainRegs  = players.filter((r) => !r.plusOneName);
   const guestRegs = players.filter((r) => !!r.plusOneName);
+
+  // Organiser's own guests (plusOneName set, player null — organiser is not in Player collection)
+  const organiserGuests = players.filter((r) => !!r.plusOneName && !r.player);
+  // Player guests grouped by their owner's player ID
+  const guestsByPlayer = new Map<string, Registration[]>();
+  players.filter((r) => !!r.plusOneName && !!r.player).forEach((r) => {
+    const k = (r.player as any)?._id?.toString() ?? (r.player as any)?.toString() ?? "";
+    if (k) {
+      if (!guestsByPlayer.has(k)) guestsByPlayer.set(k, []);
+      guestsByPlayer.get(k)!.push(r);
+    }
+  });
   const spotsLeft = Math.max(0, totalSlots - players.length - organiserCount);
   const totalCollectedPaise = players.reduce(
     (sum, r) => sum + (r.paymentStatus === "paid" || r.paymentStatus === "wallet_locked" ? (r.amountPaidPaise || 0) : 0),
@@ -561,79 +573,126 @@ export function PlayerDetailsModal({
           ) : (
             <div className="pdm-cards-list">
 
-              {/* Organiser card (if playing) */}
-              {organiserIsPlaying && (
-                <div className="pdm-card pdm-card-organiser">
-                  <div className="pdm-slot-num">#1</div>
-                  <div className="pdm-avatar pdm-avatar-o">YOU</div>
-                  <div className="pdm-card-body">
-                    <div className="pdm-card-top">
-                      <div className="pdm-card-name">You (Organiser)</div>
-                      <span className="pdm-type-chip pdm-chip-organiser">Organiser</span>
+              {/* Organiser group: card (if playing) + organiser's guests */}
+              {(organiserIsPlaying || organiserGuests.length > 0) && (
+                <div className="pdm-group">
+                  {organiserIsPlaying && (
+                    <div className="pdm-card pdm-card-organiser">
+                      <div className="pdm-slot-num">#1</div>
+                      <div className="pdm-avatar pdm-avatar-o">YOU</div>
+                      <div className="pdm-card-body">
+                        <div className="pdm-card-top">
+                          <div className="pdm-card-name">You (Organiser)</div>
+                          <span className="pdm-type-chip pdm-chip-organiser">Organiser</span>
+                        </div>
+                        <div className="pdm-card-tags">
+                          <span className="pdm-pos-tag" style={{ background: "rgba(200,255,62,0.12)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.3)" }}>
+                            ⚽ Playing
+                          </span>
+                        </div>
+                      </div>
+                      {onToggleOrganiserPlaying && (
+                        <button
+                          onClick={onToggleOrganiserPlaying}
+                          title="Withdraw from game"
+                          style={{
+                            flexShrink: 0,
+                            alignSelf: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            background: "rgba(220,38,38,0.1)",
+                            border: "1px solid rgba(220,38,38,0.3)",
+                            color: "#f87171",
+                            fontSize: 14,
+                            lineHeight: 1,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
-                    <div className="pdm-card-tags">
-                      <span className="pdm-pos-tag" style={{ background: "rgba(200,255,62,0.12)", color: "#c8ff3e", border: "1px solid rgba(200,255,62,0.3)" }}>
-                        ⚽ Playing
-                      </span>
+                  )}
+                  {organiserGuests.length > 0 && (
+                    <div className="pdm-guest-group">
+                      {organiserGuests.map((reg, i) => {
+                        const regId = reg._id || "";
+                        const slotNum = organiserCount + i + 1;
+                        return (
+                          <PlayerCard
+                            key={regId || `og-${i}`}
+                            reg={reg}
+                            slotNum={slotNum}
+                            type="guest"
+                            isProcessing={processingId === regId}
+                            onRemove={
+                              onRemoveRegistration && regId
+                                ? async () => {
+                                    const doRemove = async () => {
+                                      setProcessingId(regId);
+                                      await onRemoveRegistration(regId);
+                                      setProcessingId(null);
+                                    };
+                                    setConfirmMessage(`Remove ${reg.plusOneName} from your guest list?`);
+                                    confirmActionRef.current = doRemove;
+                                    setConfirmVisible(true);
+                                  }
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
                     </div>
-                  </div>
-                  {onToggleOrganiserPlaying && (
-                    <button
-                      onClick={onToggleOrganiserPlaying}
-                      title="Withdraw from game"
-                      style={{
-                        flexShrink: 0,
-                        alignSelf: "center",
-                        width: 28,
-                        height: 28,
-                        borderRadius: 6,
-                        background: "rgba(220,38,38,0.1)",
-                        border: "1px solid rgba(220,38,38,0.3)",
-                        color: "#f87171",
-                        fontSize: 14,
-                        lineHeight: 1,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      ✕
-                    </button>
                   )}
                 </div>
               )}
 
-              {/* All registrations — flat numbered list */}
-              {players.map((reg, idx) => {
-                const slotNum = organiserCount + idx + 1;
-                const regId   = reg._id || "";
-                // Only organiser's own guests can be removed here (plusOneName set, player null = organiser guest)
-                const isOrgGuest = !!reg.plusOneName && !reg.player;
-                return (
-                  <PlayerCard
-                    key={regId || idx}
-                    reg={reg}
-                    slotNum={slotNum}
-                    type={reg.plusOneName ? "guest" : "player"}
-                    isProcessing={processingId === regId}
-                    onRemove={
-                      isOrgGuest && onRemoveRegistration && regId
-                        ? async () => {
-                            const doRemove = async () => {
-                              setProcessingId(regId);
-                              await onRemoveRegistration(regId);
-                              setProcessingId(null);
-                            };
-                            setConfirmMessage(`Remove ${reg.plusOneName} from your guest list?`);
-                            confirmActionRef.current = doRemove;
-                            setConfirmVisible(true);
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
+              {/* Main players + their guests — grouped */}
+              {(() => {
+                let slot = organiserCount + organiserGuests.length;
+                return mainRegs.map((reg) => {
+                  slot++;
+                  const regId   = reg._id || "";
+                  const playerId = (reg.player as any)?._id?.toString()
+                    ?? (reg.player as any)?.toString()
+                    ?? "";
+                  const myGuests = guestsByPlayer.get(playerId) ?? [];
+
+                  return (
+                    <div className="pdm-group" key={regId || `mp-${slot}`}>
+                      <PlayerCard
+                        reg={reg}
+                        slotNum={slot}
+                        type="player"
+                        isProcessing={processingId === regId}
+                        onRemove={undefined}
+                      />
+                      {myGuests.length > 0 && (
+                        <div className="pdm-guest-group">
+                          {myGuests.map((gReg) => {
+                            slot++;
+                            const gId = gReg._id || "";
+                            return (
+                              <PlayerCard
+                                key={gId || `pg-${slot}`}
+                                reg={gReg}
+                                slotNum={slot}
+                                type="guest"
+                                isProcessing={processingId === gId}
+                                onRemove={undefined}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
 
             </div>
           )}

@@ -658,11 +658,30 @@
 }
 
 .pd-event-player-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   max-height: 38vh;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+/* Group = one player/organiser + their guests */
+.pd-player-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Guests indented under their owner */
+.pd-player-guest-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 16px;
+  padding-top: 4px;
+  border-left: 2px solid rgba(255,255,255,0.07);
+  margin-left: 20px;
 }
 
 .pd-event-player-row {

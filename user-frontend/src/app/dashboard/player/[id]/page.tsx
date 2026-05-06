@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
@@ -46,9 +47,16 @@ export default function PlayerDashboard() {
   const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState<string>("Are you sure?");
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [popupNotif, setPopupNotif] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [popupNotif, setPopupNotif] = useState<{ type: "success" | "error"; message: string; subtitle?: string } | null>(null);
+  const removingGuestIds = useRef<Set<string>>(new Set());
+  // Local set of reg IDs removed this session — prevents any background refresh re-showing a removed guest
+  const [removedGuestIds, setRemovedGuestIds] = useState<Set<string>>(new Set());
+  // Inline banner shown inside the Event Details modal
+  const [detailNotif, setDetailNotif] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const detailNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
@@ -295,7 +303,9 @@ export default function PlayerDashboard() {
 
 
   const openGameDetail = async (game: any) => {
-    setDetailGame(game);
+    // Prefer the annotated version from myGames (has _isMyReg flags) when available
+    const annotated = myGames.find((g: any) => g._id === game._id);
+    setDetailGame(annotated || game);
     setDetailGameFeedback(null);
     if (game.status !== "completed") return;
     const { token } = getSession();
@@ -395,9 +405,15 @@ export default function PlayerDashboard() {
     setTimeout(() => setNotification(null), duration);
   };
 
-  const showPopupNotification = (type: "success" | "error", message: string, duration: number = 2000) => {
-    setPopupNotif({ type, message });
+  const showPopupNotification = (type: "success" | "error", message: string, duration: number = 2000, subtitle?: string) => {
+    setPopupNotif({ type, message, subtitle });
     setTimeout(() => setPopupNotif(null), duration);
+  };
+
+  const showDetailNotif = (type: "success" | "error", message: string, duration = 2000) => {
+    if (detailNotifTimer.current) clearTimeout(detailNotifTimer.current);
+    setDetailNotif({ type, message });
+    detailNotifTimer.current = setTimeout(() => setDetailNotif(null), duration);
   };
 
   const handleCancelRegistration = async (game: any) => {
@@ -577,9 +593,9 @@ export default function PlayerDashboard() {
       fetchWalletBalance();
       fetchMyGames();
       if (data.waitlisted) {
-        showNotification("success", data.message || "Game is full — guest added to waitlist.");
+        showPopupNotification("success", "Added to Waitlist", 1000, "You'll be notified when a spot opens.");
       } else {
-        showNotification("success", data.message || "Guest added.");
+        showPopupNotification("success", data.message || "Guest Added!", 1000);
       }
     } catch {
       showNotification("error", "Failed to add guest. Please try again.");
@@ -645,8 +661,15 @@ export default function PlayerDashboard() {
   };
 
   const handleRemoveGuest = async (game: any, regId: string) => {
+    if (removingGuestIds.current.has(regId)) return;
+    removingGuestIds.current.add(regId);
     const { token } = getSession();
-    if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+    if (!token) {
+      removingGuestIds.current.delete(regId);
+      // Rollback local removal
+      setRemovedGuestIds((prev) => { const s = new Set(prev); s.delete(regId); return s; });
+      clearSession(); router.replace("/login?role=player"); return;
+    }
     setRemovingGuestId(regId);
     try {
       const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/remove-guest/${regId}`), {
@@ -655,23 +678,34 @@ export default function PlayerDashboard() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        showNotification("error", data.message || "Failed to remove guest.");
+        // Rollback: make the guest reappear
+        setRemovedGuestIds((prev) => { const s = new Set(prev); s.delete(regId); return s; });
+        showDetailNotif("error", data.message || "Failed to remove guest.");
         return;
       }
+      // Confirm server state
       setDetailGame(data.data);
       fetchWalletBalance();
       fetchMyGames();
-      showNotification("success", data.message || "Guest removed.");
+      const refundAmt = data.refundAmountPaise || 0;
+      showPopupNotification("success", "Guest removed.", 2000, refundAmt > 0 ? `₹${Math.round(refundAmt / 100)} will be refunded shortly.` : undefined);
     } catch {
-      showNotification("error", "Failed to remove guest. Please try again.");
+      setRemovedGuestIds((prev) => { const s = new Set(prev); s.delete(regId); return s; });
+      showDetailNotif("error", "Failed to remove guest. Please try again.");
     } finally {
       setRemovingGuestId(null);
+      removingGuestIds.current.delete(regId);
     }
   };
 
   const promptRemoveGuest = (game: any, regId: string, guestName: string) => {
-    setConfirmMessage(`Remove ${guestName} from this game? Their fee will be refunded to your wallet.`);
-    confirmActionRef.current = async () => handleRemoveGuest(game, regId);
+    setConfirmTitle("Remove Guest");
+    setConfirmMessage(`Remove ${guestName} from this game?`);
+    confirmActionRef.current = async () => {
+      // Immediately mark as removed — no background refresh can bring it back
+      setRemovedGuestIds((prev) => new Set(prev).add(regId));
+      await handleRemoveGuest(game, regId);
+    };
     setConfirmVisible(true);
   };
 
@@ -768,10 +802,15 @@ export default function PlayerDashboard() {
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
   const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
+  // Live registrations excluding locally-removed guests (so UI is instant, no re-flash on any refresh)
+  const liveRegistrations = (detailGame?.registrations || []).filter(
+    (r: any) => !removedGuestIds.has(String(r._id))
+  );
+
   // Compute live spots remaining for the detail game
   const detailSpotsLeft = detailGame ? Math.max(0,
     detailGame.totalSlots
-    - (detailGame.registrations?.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus)).length || 0)
+    - (liveRegistrations.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus)).length)
     - (detailGame.organiserIsPlaying ? 1 : 0)
   ) : 0;
   const organiserEntry = detailGame?.organiserIsPlaying
@@ -779,24 +818,28 @@ export default function PlayerDashboard() {
     : [];
   const detailPlayers = [
     ...organiserEntry,
-    ...(detailGame?.registrations?.map((reg: any, index: number) => {
-      const regPlayerId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
-      return {
-        key: `${reg._id || "reg"}-${index}`,
-        regId: reg._id,
-        name: reg.plusOneName || reg.player?.name || "Player",
-        position: reg.preferredPosition || "any",
-        team: reg.teamPreference || "none",
-        isGuest: Boolean(reg.plusOneName),
-        canRemove: Boolean(reg.plusOneName) && Boolean(reg._isMyReg),
-      };
-    }) || []),
+    ...liveRegistrations.map((reg: any, index: number) => ({
+      key: `${reg._id || "reg"}-${index}`,
+      regId: reg._id,
+      name: reg.plusOneName || reg.player?.name || "Player",
+      position: reg.preferredPosition || "any",
+      team: reg.teamPreference || "none",
+      isGuest: Boolean(reg.plusOneName),
+      canRemove: Boolean(reg.plusOneName) && Boolean(reg._isMyReg),
+    })),
   ];
 
-  // Current player's guest registrations — use backend-stamped _isMyReg flag
-  // so we don't rely on fragile client-side ObjectId string comparison.
+  // Current player's guest registrations.
+  // _isMyReg is set by backend when game comes from myGames/add/remove responses.
+  // Fall back to playerId comparison for games opened from the browse tab.
   const myGuests = (detailIsRegistered && detailGame)
-    ? (detailGame?.registrations || []).filter((reg: any) => reg._isMyReg && reg.plusOneName)
+    ? (detailGame?.registrations || []).filter((reg: any) => {
+        if (removedGuestIds.has(String(reg._id))) return false;
+        const isMine = reg._isMyReg
+          || reg.player?._id?.toString() === playerId
+          || reg.player?.toString() === playerId;
+        return isMine && reg.plusOneName;
+      })
     : [];
   const myGuestCount = myGuests.length;
 
@@ -818,47 +861,59 @@ export default function PlayerDashboard() {
         </div>
       )}
 
-      {/* Pop-up Notification Overlay */}
-      {popupNotif && (
-        <div
-          style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: 10000,
-            animation: "popupFadeIn 0.3s ease-out",
-          }}
-        >
-          <div
-            style={{
-              background: popupNotif.type === "success" 
-                ? "linear-gradient(135deg, rgba(74,222,128,0.95), rgba(59,200,100,0.95))"
-                : "linear-gradient(135deg, rgba(248,113,113,0.95), rgba(220,38,38,0.95))",
-              color: "#fff",
-              padding: "24px 48px",
-              borderRadius: 16,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
-              textAlign: "center",
-              backdropFilter: "blur(10px)",
-              border: popupNotif.type === "success"
-                ? "1px solid rgba(74,222,128,0.3)"
-                : "1px solid rgba(248,113,113,0.3)",
-              minWidth: "300px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 28,
-                fontWeight: 700,
-                letterSpacing: "-0.5px",
-                lineHeight: 1.2,
-              }}
-            >
-              {popupNotif.message}
+      {/* Pop-up Notification — rendered via portal so it always floats above every modal */}
+      {popupNotif && typeof document !== "undefined" && createPortal(
+        <div style={{
+          position: "fixed",
+          top: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 99999,
+          animation: "popupFadeIn 0.25s ease-out",
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            background: "#1a1a1a",
+            color: "#fff",
+            padding: "14px 20px",
+            borderRadius: 12,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.07)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            minWidth: 240,
+            maxWidth: 340,
+            border: popupNotif.type === "success"
+              ? "1px solid rgba(74,222,128,0.25)"
+              : "1px solid rgba(248,113,113,0.25)",
+          }}>
+            {/* Icon circle */}
+            <div style={{
+              flexShrink: 0,
+              width: 32, height: 32,
+              borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: popupNotif.type === "success" ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)",
+              border: popupNotif.type === "success" ? "1px solid rgba(74,222,128,0.4)" : "1px solid rgba(248,113,113,0.4)",
+              fontSize: 14, fontWeight: 700,
+              color: popupNotif.type === "success" ? "#4ade80" : "#f87171",
+            }}>
+              {popupNotif.type === "success" ? "✓" : "✕"}
+            </div>
+            {/* Text */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: popupNotif.type === "success" ? "#4ade80" : "#f87171", lineHeight: 1.3 }}>
+                {popupNotif.message}
+              </div>
+              {popupNotif.subtitle && (
+                <div style={{ fontSize: 12, color: "#aaa", marginTop: 2, lineHeight: 1.4 }}>
+                  {popupNotif.subtitle}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`
@@ -1053,7 +1108,7 @@ export default function PlayerDashboard() {
 
       <ConfirmationModal
         open={confirmVisible}
-        title="Confirm cancellation"
+        title={confirmTitle}
         message={confirmMessage || "Do you want to continue?"}
         confirmLabel="Confirm"
         cancelLabel="Cancel"
@@ -1062,12 +1117,14 @@ export default function PlayerDashboard() {
           setConfirmVisible(false);
           confirmActionRef.current = null;
           setConfirmMessage(null);
+          setConfirmTitle("Are you sure?");
         }}
         onConfirm={async () => {
           setConfirmVisible(false);
           const action = confirmActionRef.current;
           confirmActionRef.current = null;
           setConfirmMessage(null);
+          setConfirmTitle("Are you sure?");
           if (action) {
             await action();
           }
@@ -1075,7 +1132,7 @@ export default function PlayerDashboard() {
       />
 
       {detailGame && (
-        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}>
+        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setDetailNotif(null); }}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -1088,6 +1145,32 @@ export default function PlayerDashboard() {
                 </p>
               </div>
             </div>
+
+            {/* Inline banner — top of modal, auto-dismisses */}
+            {detailNotif && (
+              <div style={{
+                padding: "10px 20px",
+                background: detailNotif.type === "success" ? "rgba(74,222,128,0.1)" : "rgba(239,68,68,0.1)",
+                borderBottom: `1px solid ${detailNotif.type === "success" ? "rgba(74,222,128,0.2)" : "rgba(239,68,68,0.2)"}`,
+                color: detailNotif.type === "success" ? "#4ade80" : "#f87171",
+                fontSize: 13,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexShrink: 0,
+              }}>
+                <span style={{
+                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: detailNotif.type === "success" ? "rgba(74,222,128,0.15)" : "rgba(239,68,68,0.15)",
+                  fontSize: 11,
+                }}>
+                  {detailNotif.type === "success" ? "✓" : "✕"}
+                </span>
+                {detailNotif.message}
+              </div>
+            )}
 
             <div className="pd-event-detail-grid">
               {detailRows.map((row) => (
@@ -1172,29 +1255,84 @@ export default function PlayerDashboard() {
                 <div style={{ color: "#888", fontSize: 13 }}>No players registered yet.</div>
               ) : (
                 <div className="pd-event-player-list">
-                  {detailPlayers.map((player: any) => (
-                    <div key={player.key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div className="pd-event-player-name" style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                        {player.name}
-                        {player.isOrganiser && (
-                          <span style={{
-                            fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
-                            textTransform: "uppercase", color: "#c4d56c",
-                            background: "rgba(196,213,108,0.12)", border: "1px solid rgba(196,213,108,0.25)",
-                            borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
-                          }}>Organiser</span>
-                        )}
-                        {player.isGuest && !player.isOrganiser && (
-                          <span style={{
-                            fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
-                            textTransform: "uppercase", color: "#94a3b8",
-                            background: "rgba(148,163,184,0.10)", border: "1px solid rgba(148,163,184,0.2)",
-                            borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
-                          }}>Guest</span>
-                        )}
+                  {(() => {
+                    // Use liveRegistrations so removed guests never re-flash here either
+                    const regs = liveRegistrations;
+                    const orgGuests = regs.filter((r: any) => r.plusOneName && !r.player);
+                    const guestsByPlayerId = new Map<string, any[]>();
+                    regs.filter((r: any) => r.plusOneName && r.player).forEach((r: any) => {
+                      const k = r.player?._id?.toString() ?? r.player?.toString() ?? "";
+                      if (k) {
+                        if (!guestsByPlayerId.has(k)) guestsByPlayerId.set(k, []);
+                        guestsByPlayerId.get(k)!.push(r);
+                      }
+                    });
+                    const mainRegs = regs.filter((r: any) => !r.plusOneName);
+
+                    const orgChip = (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                        textTransform: "uppercase" as const, color: "#c4d56c",
+                        background: "rgba(196,213,108,0.12)", border: "1px solid rgba(196,213,108,0.25)",
+                        borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
+                      }}>Organiser</span>
+                    );
+                    const guestChip = (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                        textTransform: "uppercase" as const, color: "#94a3b8",
+                        background: "rgba(148,163,184,0.10)", border: "1px solid rgba(148,163,184,0.2)",
+                        borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
+                      }}>Guest</span>
+                    );
+
+                    const renderRow = (name: string, chip: React.ReactNode, key: string) => (
+                      <div key={key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div className="pd-event-player-name" style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                          {name}{chip}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+
+                    return (
+                      <>
+                        {/* Organiser group */}
+                        {detailGame.organiserIsPlaying && (
+                          <div className="pd-player-group">
+                            {renderRow(detailGame.organiser?.name || "Organiser", orgChip, "organiser")}
+                            {orgGuests.length > 0 && (
+                              <div className="pd-player-guest-group">
+                                {orgGuests.map((r: any, i: number) =>
+                                  renderRow(r.plusOneName, guestChip, `og-${r._id || i}`)
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {/* Organiser guests when organiser not playing */}
+                        {!detailGame.organiserIsPlaying && orgGuests.map((r: any, i: number) =>
+                          renderRow(r.plusOneName, guestChip, `og-${r._id || i}`)
+                        )}
+                        {/* Each player + their guests */}
+                        {mainRegs.map((reg: any, idx: number) => {
+                          const pId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
+                          const myGsts = guestsByPlayerId.get(pId) ?? [];
+                          return (
+                            <div className="pd-player-group" key={reg._id || idx}>
+                              {renderRow(reg.player?.name || "Player", null, `p-${reg._id || idx}`)}
+                              {myGsts.length > 0 && (
+                                <div className="pd-player-guest-group">
+                                  {myGsts.map((gr: any, gi: number) =>
+                                    renderRow(gr.plusOneName, guestChip, `pg-${gr._id || gi}`)
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
