@@ -19,11 +19,8 @@ export default function SocketClient() {
     const setup = () => {
       const token = localStorage.getItem("authToken");
       if (!token) return;
-
-      // Already have a live authenticated socket — nothing to do
       if (socketRef.current?.connected) return;
 
-      // Close any stale / unauthenticated socket first
       teardown();
 
       const socket = io(SERVER_BASE, {
@@ -33,15 +30,7 @@ export default function SocketClient() {
         reconnectionDelay: 1000,
       });
 
-      // Wallet balance changed → broadcast as DOM event so any page can react
-      socket.on(
-        "wallet-update",
-        (data: { balancePaise: number; lockedPaise: number; availablePaise: number }) => {
-          window.dispatchEvent(new CustomEvent("kk-wallet-update", { detail: data }));
-        },
-      );
-
-      // New notification → broadcast as DOM event so layouts can bump the badge
+      // Relay new-notification so organiser dashboard can update the bell badge instantly
       socket.on("new-notification", (data: unknown) => {
         window.dispatchEvent(new CustomEvent("kk-new-notification", { detail: data }));
       });
@@ -49,17 +38,14 @@ export default function SocketClient() {
       socketRef.current = socket;
     };
 
-    // Connect immediately if the user is already logged in
     setup();
 
-    // Cross-tab: `storage` fires when another tab writes to localStorage
     const onStorage = (e: StorageEvent) => {
       if (e.key !== "authToken") return;
       if (e.newValue) setup();
       else teardown();
     };
 
-    // Same-tab: login / logout flows dispatch this event after updating localStorage
     const onAuthChanged = () => {
       const token = localStorage.getItem("authToken");
       if (token) setup();

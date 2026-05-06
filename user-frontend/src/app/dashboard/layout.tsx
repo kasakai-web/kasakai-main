@@ -151,6 +151,23 @@ export default function DashboardLayout({
     enabled:   authenticated,
   });
 
+  // Real-time updates via Socket.io events relayed as DOM events by SocketClient
+  useEffect(() => {
+    const onWalletUpdate = (e: Event) => {
+      const { availablePaise } = (e as CustomEvent<{ availablePaise: number }>).detail;
+      setWalletBalancePaise(availablePaise);
+    };
+    const onNewNotification = () => {
+      if (authenticated) refreshUnreadCount();
+    };
+    window.addEventListener("kk-wallet-update", onWalletUpdate);
+    window.addEventListener("kk-new-notification", onNewNotification);
+    return () => {
+      window.removeEventListener("kk-wallet-update", onWalletUpdate);
+      window.removeEventListener("kk-new-notification", onNewNotification);
+    };
+  }, [authenticated, refreshUnreadCount]);
+
   useEffect(() => {
     const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
 

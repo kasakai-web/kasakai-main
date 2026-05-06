@@ -138,6 +138,15 @@ export default function DashboardLayout({
   useEffect(() => { if (authenticated) refreshUnreadCount(); }, [authenticated, refreshUnreadCount, pathname]);
   useAutoRefresh(authenticated ? refreshUnreadCount : null, { interval: 15_000 });
 
+  // Real-time notification badge via Socket.io event relayed by SocketClient
+  useEffect(() => {
+    const onNewNotification = () => {
+      if (authenticated) refreshUnreadCount();
+    };
+    window.addEventListener("kk-new-notification", onNewNotification);
+    return () => window.removeEventListener("kk-new-notification", onNewNotification);
+  }, [authenticated, refreshUnreadCount]);
+
   // Storage events keep sidebar in sync when profile is updated in another tab
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

@@ -49,6 +49,8 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
       const { token, user } = data;
       localStorage.setItem("authToken", token); // ✅ consistent
       localStorage.setItem("userRole", user.role || "organiser");
+      // Signal SocketClient to connect now that we have a token (same-tab login)
+      window.dispatchEvent(new CustomEvent("kk-auth-changed"));
       localStorage.setItem("userId", user._id || user.id); // API returns 'id' field
       localStorage.setItem("userName", user.name || "User");
       if (user.profileImage) {
