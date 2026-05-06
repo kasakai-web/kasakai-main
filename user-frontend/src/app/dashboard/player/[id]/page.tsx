@@ -62,6 +62,8 @@ export default function PlayerDashboard() {
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [addingGuest, setAddingGuest] = useState(false);
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
+  const [confirmingGwId, setConfirmingGwId] = useState<string | null>(null);
+  const [cancellingGwId, setCancellingGwId] = useState<string | null>(null);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -570,12 +572,72 @@ export default function PlayerDashboard() {
       setDetailGame(data.data);
       fetchWalletBalance();
       fetchMyGames();
-      showNotification("success", data.message || "Guest added.");
+      if (data.waitlisted) {
+        showNotification("success", data.message || "Game is full — guest added to waitlist.");
+      } else {
+        showNotification("success", data.message || "Guest added.");
+      }
     } catch {
       showNotification("error", "Failed to add guest. Please try again.");
     } finally {
       setAddingGuest(false);
     }
+  };
+
+  const handleConfirmGuestWaitlist = async (game: any, gwId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+    setConfirmingGwId(gwId);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/confirm-guest-waitlist/${gwId}`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (data.code === "INSUFFICIENT_BALANCE") {
+          showNotification("error", "Insufficient wallet balance.");
+          if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+        } else {
+          showNotification("error", data.message || "Could not confirm guest.");
+        }
+        return;
+      }
+      setDetailGame(data.data);
+      fetchWalletBalance();
+      fetchMyGames();
+      showNotification("success", data.message || "Guest confirmed!");
+    } catch {
+      showNotification("error", "Failed to confirm guest. Please try again.");
+    } finally {
+      setConfirmingGwId(null);
+    }
+  };
+
+  const handleCancelGuestWaitlist = async (game: any, gwId: string, guestName: string) => {
+    const doCancel = async () => {
+      const { token } = getSession();
+      if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+      setCancellingGwId(gwId);
+      try {
+        const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/cancel-guest-waitlist/${gwId}`), {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) { showNotification("error", data.message || "Failed to remove from waitlist."); return; }
+        setDetailGame(data.data);
+        fetchMyGames();
+        showNotification("success", `${guestName} removed from waitlist.`);
+      } catch {
+        showNotification("error", "Failed to remove from waitlist.");
+      } finally {
+        setCancellingGwId(null);
+      }
+    };
+    setConfirmMessage(`Remove ${guestName} from the waitlist?`);
+    confirmActionRef.current = doCancel;
+    setConfirmVisible(true);
   };
 
   const handleRemoveGuest = async (game: any, regId: string) => {
@@ -733,6 +795,16 @@ export default function PlayerDashboard() {
     ? (detailGame?.registrations || []).filter((reg: any) => reg._isMyReg && reg.plusOneName)
     : [];
   const myGuestCount = myGuests.length;
+
+  // Guest waitlist entries belonging to current player.
+  // Uses _isMine (set by getMyGames) with a fallback to direct playerId comparison
+  // so the section stays visible immediately after add/confirm/cancel without waiting for fetchMyGames.
+  const myGuestWaitlist = (detailIsRegistered && detailGame)
+    ? (detailGame?.guestWaitlist || []).filter((g: any) => {
+        const isMine = g._isMine || g.player?.toString() === playerId || g.player?._id?.toString() === playerId;
+        return isMine && ['waiting', 'notified'].includes(g.status);
+      })
+    : [];
 
   return (
     <div className="player-dashboard-container">
@@ -1136,22 +1208,20 @@ export default function PlayerDashboard() {
                   <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c8ff3e" }}>
                     My Guests ({myGuestCount})
                   </span>
-                  {detailSpotsLeft > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handleAddGuest(detailGame)}
-                      disabled={addingGuest}
-                      style={{
-                        background: addingGuest ? "rgba(200,255,62,0.05)" : "rgba(200,255,62,0.12)",
-                        color: addingGuest ? "rgba(200,255,62,0.5)" : "#c8ff3e",
-                        border: "1px solid rgba(200,255,62,0.3)",
-                        borderRadius: 6, padding: "4px 12px", fontSize: 12,
-                        fontWeight: 600, cursor: addingGuest ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {addingGuest ? "Adding…" : "+ Add Guest"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleAddGuest(detailGame)}
+                    disabled={addingGuest}
+                    style={{
+                      background: addingGuest ? "rgba(200,255,62,0.05)" : "rgba(200,255,62,0.12)",
+                      color: addingGuest ? "rgba(200,255,62,0.5)" : "#c8ff3e",
+                      border: "1px solid rgba(200,255,62,0.3)",
+                      borderRadius: 6, padding: "4px 12px", fontSize: 12,
+                      fontWeight: 600, cursor: addingGuest ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {addingGuest ? "Adding…" : detailSpotsLeft === 0 ? "+ Join Waitlist" : "+ Add Guest"}
+                  </button>
                 </div>
 
                 {myGuestCount === 0 ? (
@@ -1183,8 +1253,83 @@ export default function PlayerDashboard() {
                 )}
 
                 {detailSpotsLeft === 0 && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: "#666" }}>Game is full — no open slots to add more guests.</div>
+                  <div style={{ marginTop: 8, fontSize: 11, color: "#888" }}>
+                    Game is full — tap + Add Guest to join the waitlist. You pay only when a slot opens and you confirm.
+                  </div>
                 )}
+              </div>
+            )}
+
+            {/* ── Guest Waitlist ── */}
+            {detailIsRegistered && myGuestWaitlist.length > 0 && (
+              <div style={{
+                margin: "0 0 16px",
+                padding: "14px 16px",
+                background: "rgba(245,158,11,0.05)",
+                border: "1px solid rgba(245,158,11,0.2)",
+                borderRadius: 10,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
+                    Guests on Waitlist ({myGuestWaitlist.length})
+                  </span>
+                  <span style={{ fontSize: 11, color: "#888" }}>First to confirm gets the seat</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {myGuestWaitlist.map((gw: any) => {
+                    const isNotified = gw.status === "notified";
+                    const isConfirming = confirmingGwId === gw._id;
+                    const isCancelling = cancellingGwId === gw._id;
+                    return (
+                      <div key={gw._id} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 12px",
+                        background: isNotified ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.02)",
+                        borderRadius: 7,
+                        border: `1px solid ${isNotified ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.07)"}`,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 600 }}>{gw.plusOneName}</div>
+                          <div style={{ fontSize: 11, marginTop: 2, color: isNotified ? "#f59e0b" : "#666" }}>
+                            {isNotified ? "Seat available — confirm now!" : "Waiting for a slot to open"}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {isNotified && (
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmGuestWaitlist(detailGame, gw._id)}
+                              disabled={isConfirming}
+                              style={{
+                                background: isConfirming ? "rgba(74,222,128,0.05)" : "rgba(74,222,128,0.15)",
+                                border: "1px solid rgba(74,222,128,0.4)",
+                                color: isConfirming ? "rgba(74,222,128,0.4)" : "#4ade80",
+                                borderRadius: 6, padding: "4px 10px", fontSize: 11,
+                                fontWeight: 700, cursor: isConfirming ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {isConfirming ? "Confirming…" : `Confirm${detailGame?.feeInPaise > 0 ? ` (${String.fromCharCode(8377)}${detailGame.feeInPaise / 100})` : ""}`}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleCancelGuestWaitlist(detailGame, gw._id, gw.plusOneName)}
+                            disabled={isCancelling}
+                            style={{
+                              background: "rgba(220,38,38,0.08)",
+                              border: "1px solid rgba(220,38,38,0.2)",
+                              color: isCancelling ? "rgba(248,113,113,0.4)" : "#f87171",
+                              borderRadius: 6, padding: "4px 10px", fontSize: 11,
+                              fontWeight: 600, cursor: isCancelling ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {isCancelling ? "…" : "Remove"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

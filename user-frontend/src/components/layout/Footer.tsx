@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const quickLinks = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/#about" },
@@ -131,12 +133,12 @@ export function Footer() {
             © {year} Kasa Kai. All rights reserved.
           </p>
           <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            <a href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
+            <Link href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
               Company
-            </a>
-            <a href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
+            </Link>
+            <Link href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
               Support
-            </a>
+            </Link>
             <a href="mailto:contact@kasakai.in" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
               Contact
             </a>

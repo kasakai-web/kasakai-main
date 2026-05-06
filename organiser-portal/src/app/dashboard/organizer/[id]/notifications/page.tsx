@@ -33,6 +33,10 @@ const TYPE_ICON: Record<string, string> = {
   wallet_topup:           "💰",
   wallet_debit:           "💸",
   wallet_refund:          "💚",
+  refund_credited:        "💚",
+  guest_waitlisted:       "📋",
+  guest_waitlist_spot:    "🔔",
+  guest_confirmed:        "✅",
   system:                 "ℹ️",
 };
 
@@ -49,6 +53,10 @@ const TYPE_COLOR: Record<string, string> = {
   wallet_topup:           "rgba(74,222,128,0.14)",
   wallet_debit:           "rgba(248,113,113,0.14)",
   wallet_refund:          "rgba(74,222,128,0.14)",
+  refund_credited:        "rgba(74,222,128,0.14)",
+  guest_waitlisted:       "rgba(96,165,250,0.14)",
+  guest_waitlist_spot:    "rgba(34,211,238,0.14)",
+  guest_confirmed:        "rgba(74,222,128,0.14)",
   system:                 "rgba(148,163,184,0.14)",
 };
 

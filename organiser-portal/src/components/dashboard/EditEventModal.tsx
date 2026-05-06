@@ -47,8 +47,10 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       (r: any) => r.plusOneName && !r.player
     ).map((r: any) => ({ _id: r._id?.toString?.() ?? r._id, plusOneName: r.plusOneName }))
   );
-  const [guestLoading, setGuestLoading] = useState(false);
-  const [guestError, setGuestError]     = useState("");
+  const [guestLoading, setGuestLoading]       = useState(false);
+  const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
+  const [guestError, setGuestError]           = useState("");
+  const [guestSuccess, setGuestSuccess]       = useState("");
 
   const initialDateTime = useMemo(() => {
     const scheduled = initialData.scheduledAt ? new Date(initialData.scheduledAt) : null;
@@ -88,12 +90,24 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
   const deriveGuests = (game: any): GuestReg[] => {
     const organiserIdStr = String(game.organiser?._id ?? game.organiser ?? "");
     return (game.registrations || [])
-      .filter((r: any) => r.plusOneName && String(r.player?._id ?? r.player ?? "") === organiserIdStr)
+      .filter((r: any) => {
+        if (!r.plusOneName) return false;
+        // After populate, organiser guests have r.player = null (organiser ID isn't in Player collection)
+        // Before populate, r.player is the raw organiser ObjectId string
+        if (!r.player) return true;
+        return String(r.player?._id ?? r.player ?? "") === organiserIdStr;
+      })
       .map((r: any) => ({ _id: String(r._id), plusOneName: r.plusOneName }));
+  };
+
+  const showGuestSuccess = (msg: string) => {
+    setGuestSuccess(msg);
+    setTimeout(() => setGuestSuccess(""), 3000);
   };
 
   const addGuest = async () => {
     setGuestError("");
+    setGuestSuccess("");
     const { token } = getSession();
     if (!token) return;
     setGuestLoading(true);
@@ -105,6 +119,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       const data = await res.json();
       if (!res.ok || !data.success) { setGuestError(data.message || "Failed to add guest"); return; }
       setGuests(deriveGuests(data.data));
+      showGuestSuccess("Guest added");
     } catch (err: any) {
       setGuestError(err.message || "Failed to add guest");
     } finally {
@@ -114,9 +129,10 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
 
   const removeGuest = async (regId: string) => {
     setGuestError("");
+    setGuestSuccess("");
     const { token } = getSession();
     if (!token) return;
-    setGuestLoading(true);
+    setRemovingGuestId(regId);
     try {
       const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/registrations/${regId}`), {
         method: "DELETE",
@@ -125,10 +141,11 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       const data = await res.json();
       if (!res.ok || !data.success) { setGuestError(data.message || "Failed to remove guest"); return; }
       setGuests(deriveGuests(data.data));
+      showGuestSuccess("Guest removed");
     } catch (err: any) {
       setGuestError(err.message || "Failed to remove guest");
     } finally {
-      setGuestLoading(false);
+      setRemovingGuestId(null);
     }
   };
 
@@ -356,51 +373,72 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
           {/* ── Your Guests ── */}
           <Section title="Your Guests">
             {guestError && (
-              <div style={{ fontSize: 12, color: "#f87171", marginBottom: 8 }}>⚠️ {guestError}</div>
+              <div style={{
+                fontSize: 12, color: "#f87171", background: "rgba(220,38,38,0.08)",
+                border: "1px solid rgba(220,38,38,0.25)", borderRadius: 6, padding: "8px 12px",
+              }}>
+                ⚠️ {guestError}
+              </div>
+            )}
+
+            {guestSuccess && (
+              <div style={{
+                fontSize: 12, color: "#4ade80", background: "rgba(74,222,128,0.08)",
+                border: "1px solid rgba(74,222,128,0.25)", borderRadius: 6, padding: "8px 12px",
+                fontWeight: 600,
+              }}>
+                ✓ {guestSuccess}
+              </div>
             )}
 
             {guests.length === 0 && (
               <p style={{ fontSize: 12, color: "#666", margin: 0 }}>No guests added yet.</p>
             )}
 
-            {guests.map((g, idx) => (
-              <div key={g._id} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: "rgba(200,255,62,0.04)", border: "1px solid #2a2a2a",
-                borderRadius: 8, padding: "8px 12px",
-              }}>
-                <span style={{ fontSize: 13, color: "#ddd" }}>
-                  <span style={{ color: "#c8ff3e", fontWeight: 600, marginRight: 8 }}>#{idx + 1}</span>
-                  {g.plusOneName}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeGuest(g._id)}
-                  disabled={guestLoading}
-                  style={{
-                    background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)",
-                    color: "#f87171", borderRadius: 6, padding: "4px 10px", fontSize: 12,
-                    cursor: guestLoading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+            {guests.map((g, idx) => {
+              const isRemoving = removingGuestId === g._id;
+              return (
+                <div key={g._id} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: "rgba(200,255,62,0.04)", border: "1px solid #2a2a2a",
+                  borderRadius: 8, padding: "8px 12px",
+                  opacity: isRemoving ? 0.5 : 1,
+                  transition: "opacity 0.15s",
+                }}>
+                  <span style={{ fontSize: 13, color: "#ddd" }}>
+                    <span style={{ color: "#c8ff3e", fontWeight: 600, marginRight: 8 }}>#{idx + 1}</span>
+                    {g.plusOneName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeGuest(g._id)}
+                    disabled={isRemoving || !!removingGuestId || guestLoading}
+                    style={{
+                      background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)",
+                      color: "#f87171", borderRadius: 6, padding: "4px 10px", fontSize: 12,
+                      cursor: (isRemoving || !!removingGuestId || guestLoading) ? "not-allowed" : "pointer",
+                      minWidth: 64,
+                    }}
+                  >
+                    {isRemoving ? "…" : "Remove"}
+                  </button>
+                </div>
+              );
+            })}
 
             <button
               type="button"
               onClick={addGuest}
-              disabled={guestLoading}
+              disabled={guestLoading || !!removingGuestId}
               style={{
                 marginTop: 4, width: "100%", padding: "9px 0",
                 background: "rgba(200,255,62,0.06)", border: "1px dashed rgba(200,255,62,0.3)",
                 borderRadius: 8, color: "#c8ff3e", fontSize: 13, fontWeight: 600,
-                cursor: guestLoading ? "not-allowed" : "pointer",
-                opacity: guestLoading ? 0.5 : 1,
+                cursor: (guestLoading || !!removingGuestId) ? "not-allowed" : "pointer",
+                opacity: (guestLoading || !!removingGuestId) ? 0.5 : 1,
               }}
             >
-              {guestLoading ? "…" : "+ Add Guest"}
+              {guestLoading ? "Adding…" : "+ Add Guest"}
             </button>
           </Section>
 

@@ -58,7 +58,7 @@ const TEAM_OPTIONS = [
   { label: "Blue Team", cls: "pref-blue" },
 ] as const;
 
-const MAX_GUESTS = 4;
+const MAX_GUESTS_HARD_CAP = 9; // absolute upper bound regardless of slot count
 
 function GuestCard({
   index,
@@ -206,7 +206,9 @@ export function BookingModal({
   const totalFee = game.fee * (1 + guests.length);
   const isWaitlist = game.waitlist;
   const canAfford = isWaitlist || walletBalance >= totalFee;
-  const canAddGuest = guests.length < MAX_GUESTS;
+  // Player occupies 1 slot, so max guests = spotsRemaining - 1
+  const maxGuests = isWaitlist ? MAX_GUESTS_HARD_CAP : Math.min(MAX_GUESTS_HARD_CAP, Math.max(0, (game.spots ?? 0) - 1));
+  const canAddGuest = guests.length < maxGuests;
 
   const [venueName, venueCity] = game.venue.split(",").map((value) => value.trim());
   const hasPositions = playerPositions.length > 0;
@@ -409,8 +411,10 @@ export function BookingModal({
                     <div className="bm-section-title" style={{ marginBottom: "2px" }}>Bring Friends</div>
                     <div className="bm-guests-sub">
                       {guests.length === 0
-                        ? "Add up to 4 friends — each adds ₹" + game.fee
-                        : `${guests.length} of ${MAX_GUESTS} guests added · +₹${game.fee * guests.length} total`}
+                        ? maxGuests > 0
+                          ? `Add up to ${maxGuests} friend${maxGuests !== 1 ? "s" : ""} — each adds ₹${game.fee}`
+                          : "No guest slots available"
+                        : `${guests.length} of ${maxGuests} guests added · +₹${game.fee * guests.length} total`}
                     </div>
                   </div>
                   <button
