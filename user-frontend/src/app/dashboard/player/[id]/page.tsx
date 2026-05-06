@@ -569,6 +569,7 @@ export default function PlayerDashboard() {
       }
       setDetailGame(data.data);
       fetchWalletBalance();
+      fetchMyGames();
       showNotification("success", data.message || "Guest added.");
     } catch {
       showNotification("error", "Failed to add guest. Please try again.");
@@ -593,12 +594,19 @@ export default function PlayerDashboard() {
       }
       setDetailGame(data.data);
       fetchWalletBalance();
+      fetchMyGames();
       showNotification("success", data.message || "Guest removed.");
     } catch {
       showNotification("error", "Failed to remove guest. Please try again.");
     } finally {
       setRemovingGuestId(null);
     }
+  };
+
+  const promptRemoveGuest = (game: any, regId: string, guestName: string) => {
+    setConfirmMessage(`Remove ${guestName} from this game? Their fee will be refunded to your wallet.`);
+    confirmActionRef.current = async () => handleRemoveGuest(game, regId);
+    setConfirmVisible(true);
   };
 
   const cancelledGames = myGames.filter((game) => {
@@ -718,6 +726,15 @@ export default function PlayerDashboard() {
       };
     }) || []),
   ];
+
+  // Current player's guest registrations (for the dedicated My Guests section)
+  const myGuests = (detailIsRegistered && detailGame)
+    ? (detailGame?.registrations || []).filter((reg: any) => {
+        const rPid = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
+        return Boolean(reg.plusOneName) && rPid === playerId;
+      })
+    : [];
+  const myGuestCount = myGuests.length;
 
   return (
     <div className="player-dashboard-container">
@@ -1087,45 +1104,94 @@ export default function PlayerDashboard() {
                         {player.name}
                         {player.isOrganiser && (
                           <span style={{
-                            fontSize: 9,
-                            fontWeight: 700,
-                            letterSpacing: "0.1em",
-                            textTransform: "uppercase",
-                            color: "#c4d56c",
-                            background: "rgba(196,213,108,0.12)",
-                            border: "1px solid rgba(196,213,108,0.25)",
-                            borderRadius: 4,
-                            padding: "2px 6px",
-                            fontFamily: "var(--mono, monospace)",
-                          }}>
-                            Organiser
-                          </span>
+                            fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                            textTransform: "uppercase", color: "#c4d56c",
+                            background: "rgba(196,213,108,0.12)", border: "1px solid rgba(196,213,108,0.25)",
+                            borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
+                          }}>Organiser</span>
+                        )}
+                        {player.isGuest && !player.isOrganiser && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
+                            textTransform: "uppercase", color: "#94a3b8",
+                            background: "rgba(148,163,184,0.10)", border: "1px solid rgba(148,163,184,0.2)",
+                            borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
+                          }}>Guest</span>
                         )}
                       </div>
-                      {player.canRemove && !detailIsCancelled && detailGame.status !== "completed" && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveGuest(detailGame, player.regId)}
-                          disabled={removingGuestId === player.regId}
-                          style={{
-                            background: "rgba(220,38,38,0.10)",
-                            border: "1px solid rgba(220,38,38,0.25)",
-                            color: "#f87171",
-                            borderRadius: 6,
-                            padding: "3px 10px",
-                            fontSize: 11,
-                            cursor: removingGuestId === player.regId ? "not-allowed" : "pointer",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {removingGuestId === player.regId ? "…" : "Remove"}
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            {/* ── My Guests (CRUD section — only when registered and game active) ── */}
+            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
+              <div style={{
+                margin: "0 0 16px",
+                padding: "14px 16px",
+                background: "rgba(200,255,62,0.04)",
+                border: "1px solid rgba(200,255,62,0.15)",
+                borderRadius: 10,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c8ff3e" }}>
+                    My Guests ({myGuestCount}/4)
+                  </span>
+                  {myGuestCount < 4 && detailSpotsLeft > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleAddGuest(detailGame)}
+                      disabled={addingGuest}
+                      style={{
+                        background: addingGuest ? "rgba(200,255,62,0.05)" : "rgba(200,255,62,0.12)",
+                        color: addingGuest ? "rgba(200,255,62,0.5)" : "#c8ff3e",
+                        border: "1px solid rgba(200,255,62,0.3)",
+                        borderRadius: 6, padding: "4px 12px", fontSize: 12,
+                        fontWeight: 600, cursor: addingGuest ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {addingGuest ? "Adding…" : "+ Add Guest"}
+                    </button>
+                  )}
+                </div>
+
+                {myGuestCount === 0 ? (
+                  <div style={{ color: "#555", fontSize: 13 }}>
+                    No guests added yet.{detailSpotsLeft === 0 ? " (Game is full)" : " Tap "+ Add Guest" to bring a friend."}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {myGuests.map((reg: any) => (
+                      <div key={reg._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 7, border: "1px solid rgba(255,255,255,0.07)" }}>
+                        <span style={{ fontSize: 13, color: "#e5e7eb" }}>{reg.plusOneName}</span>
+                        <button
+                          type="button"
+                          onClick={() => promptRemoveGuest(detailGame, reg._id, reg.plusOneName)}
+                          disabled={removingGuestId === reg._id}
+                          style={{
+                            background: "rgba(220,38,38,0.10)",
+                            border: "1px solid rgba(220,38,38,0.25)",
+                            color: removingGuestId === reg._id ? "rgba(248,113,113,0.4)" : "#f87171",
+                            borderRadius: 6, padding: "3px 10px", fontSize: 11,
+                            fontWeight: 600, cursor: removingGuestId === reg._id ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {removingGuestId === reg._id ? "…" : "Remove"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {myGuestCount >= 4 && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: "#666" }}>Maximum 4 guests per player reached.</div>
+                )}
+                {myGuestCount < 4 && detailSpotsLeft === 0 && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: "#666" }}>Game is full — no open slots to add more guests.</div>
+                )}
+              </div>
+            )}
 
             {/* ── My Submitted Feedback ── */}
             {detailGame.status === "completed" && detailGameFeedback && (
@@ -1248,76 +1314,40 @@ export default function PlayerDashboard() {
                     </button>
                   )}
 
-                {/* Registered User Actions */}
+                {/* Registered User Actions — guest CRUD moved to My Guests section above */}
                 {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" ? (
-                  <>
-                    {detailSpotsLeft > 0 && (
-                      <button
-                        className="pd-modal-btn"
-                        type="button"
-                        onClick={() => handleAddGuest(detailGame)}
-                        disabled={addingGuest}
-                        style={{ 
-                          background: addingGuest ? "rgba(200,255,62,0.05)" : "rgba(200,255,62,0.12)", 
-                          color: addingGuest ? "rgba(200,255,62,0.6)" : "#c8ff3e", 
-                          border: "1px solid rgba(200,255,62,0.3)",
-                          padding: "11px 18px", 
-                          borderRadius: 8, 
-                          fontSize: 13, 
-                          fontWeight: 600,
-                          cursor: addingGuest ? "not-allowed" : "pointer",
-                          transition: "all 0.2s ease",
-                          whiteSpace: "nowrap"
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!addingGuest) {
-                            e.currentTarget.style.background = "rgba(200,255,62,0.18)";
-                            e.currentTarget.style.borderColor = "rgba(200,255,62,0.4)";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!addingGuest) {
-                            e.currentTarget.style.background = "rgba(200,255,62,0.12)";
-                            e.currentTarget.style.borderColor = "rgba(200,255,62,0.3)";
-                          }
-                        }}
-                      >
-                        {addingGuest ? "Adding…" : "+ Add Guest"}
-                      </button>
-                    )}
-                    <button
-                      className="pd-modal-btn secondary"
-                      type="button"
-                      onClick={() => handleCancelRegistration(detailGame)}
-                      disabled={!!cancellingGameId}
-                      style={{ 
-                        background: cancellingGameId ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.12)", 
-                        color: cancellingGameId ? "rgba(248,113,113,0.6)" : "#f87171", 
-                        border: "1px solid rgba(220,38,38,0.3)",
-                        padding: "11px 18px", 
-                        borderRadius: 8, 
-                        fontSize: 13, 
-                        fontWeight: 600,
-                        cursor: cancellingGameId ? "not-allowed" : "pointer",
-                        transition: "all 0.2s ease",
-                        whiteSpace: "nowrap"
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!cancellingGameId) {
-                          e.currentTarget.style.background = "rgba(220,38,38,0.18)";
-                          e.currentTarget.style.borderColor = "rgba(220,38,38,0.4)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!cancellingGameId) {
-                          e.currentTarget.style.background = "rgba(220,38,38,0.12)";
-                          e.currentTarget.style.borderColor = "rgba(220,38,38,0.3)";
-                        }
-                      }}
-                    >
-                      {cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel"}
-                    </button>
-                  </>
+                  <button
+                    className="pd-modal-btn secondary"
+                    type="button"
+                    onClick={() => handleCancelRegistration(detailGame)}
+                    disabled={!!cancellingGameId}
+                    style={{
+                      background: cancellingGameId ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.12)",
+                      color: cancellingGameId ? "rgba(248,113,113,0.6)" : "#f87171",
+                      border: "1px solid rgba(220,38,38,0.3)",
+                      padding: "11px 18px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: cancellingGameId ? "not-allowed" : "pointer",
+                      transition: "all 0.2s ease",
+                      whiteSpace: "nowrap"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!cancellingGameId) {
+                        e.currentTarget.style.background = "rgba(220,38,38,0.18)";
+                        e.currentTarget.style.borderColor = "rgba(220,38,38,0.4)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!cancellingGameId) {
+                        e.currentTarget.style.background = "rgba(220,38,38,0.12)";
+                        e.currentTarget.style.borderColor = "rgba(220,38,38,0.3)";
+                      }
+                    }}
+                  >
+                    {cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}
+                  </button>
                 ) : null}
 
                 {/* Waitlisted User Actions */}
