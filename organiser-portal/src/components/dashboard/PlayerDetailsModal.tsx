@@ -22,6 +22,7 @@ interface WaitlistEntry {
   _id?: string;
   player?: { _id?: string; name?: string; phone?: string; email?: string };
   joinedAt?: string;
+  notifiedAt?: string;
   status?: string;
   preferredPosition?: string;
   teamPreference?: string;
@@ -615,56 +616,24 @@ export function PlayerDetailsModal({
           )}
         </div>
 
-        {/* Waitlist Section — informational only, auto-notified when a slot opens */}
+        {/* Waitlist Section */}
         {waitlist.length > 0 && (
           <div style={{ margin: "0 0 16px 0" }}>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 0 8px 0", borderTop: "1px solid #222", marginTop: 8,
+              padding: "10px 0 10px 0", borderTop: "1px solid #222", marginTop: 8,
             }}>
               <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
                 📋 Waitlist ({waitlist.length})
               </span>
-              <span style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>
-                — auto-notified by email when a slot opens
+              <span style={{ fontSize: 11, color: "#666", fontStyle: "italic" }}>
+                — notified by email &amp; app when a slot opens
               </span>
             </div>
             <div className="pdm-cards-list">
-              {waitlist.map((entry, idx) => {
-                const wId = entry._id || "";
-                return (
-                  <div key={wId || idx} className="pdm-card pdm-card-player" style={{ borderLeft: "3px solid #f59e0b", opacity: 0.9 }}>
-                    <div className="pdm-slot-num" style={{ color: "#f59e0b" }}>#{idx + 1}</div>
-                    <div className="pdm-avatar pdm-avatar-p" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)" }}>
-                      {initials(entry.player?.name)}
-                    </div>
-                    <div className="pdm-card-body">
-                      <div className="pdm-card-top">
-                        <div className="pdm-card-name">{entry.player?.name || "Unknown"}</div>
-                        <span className="pdm-type-chip" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}>
-                          Waiting
-                        </span>
-                      </div>
-                      {(entry.player?.phone || entry.player?.email) && (
-                        <div className="pdm-card-contact">
-                          {entry.player?.phone && (
-                            <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
-                          )}
-                          {entry.player?.email && (
-                            <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
-                          )}
-                        </div>
-                      )}
-                      <div className="pdm-card-tags">
-                        {entry.preferredPosition && entry.preferredPosition !== "any" && (
-                          <span className="pdm-pos-tag">{posLabel(entry.preferredPosition)}</span>
-                        )}
-                        {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {waitlist.map((entry, idx) => (
+                <WaitlistCard key={entry._id || idx} entry={entry} position={idx + 1} />
+              ))}
             </div>
           </div>
         )}
@@ -722,6 +691,70 @@ export function PlayerDetailsModal({
       }}
     />
     </>
+  );
+}
+
+const WAITLIST_STATUS_CFG: Record<string, { label: string; bg: string; color: string; border: string; leftBorder: string }> = {
+  waiting:  { label: "Waiting",    bg: "rgba(245,158,11,0.08)",  color: "#f59e0b", border: "rgba(245,158,11,0.18)", leftBorder: "#f59e0b" },
+  notified: { label: "Slot Open",  bg: "rgba(34,197,94,0.08)",   color: "#4ade80", border: "rgba(74,222,128,0.25)", leftBorder: "#4ade80" },
+  expired:  { label: "Expired",    bg: "rgba(239,68,68,0.06)",   color: "#f87171", border: "rgba(239,68,68,0.2)",  leftBorder: "#f87171" },
+  registered:{ label: "Registered",bg: "rgba(96,165,250,0.08)", color: "#60a5fa", border: "rgba(96,165,250,0.2)", leftBorder: "#60a5fa" },
+};
+
+function WaitlistCard({ entry, position }: { entry: WaitlistEntry; position: number }) {
+  const status  = entry.status || "waiting";
+  const cfg     = WAITLIST_STATUS_CFG[status] ?? WAITLIST_STATUS_CFG.waiting;
+  const name    = entry.player?.name || "Unknown";
+  const pos     = posLabel(entry.preferredPosition);
+  const isNotified = status === "notified";
+
+  return (
+    <div
+      className="pdm-card pdm-card-player"
+      style={{ borderLeft: `3px solid ${cfg.leftBorder}`, background: cfg.bg, border: `1px solid ${cfg.border}` }}
+    >
+      <div className="pdm-slot-num" style={{ color: cfg.color }}>#{position}</div>
+      <div
+        className="pdm-avatar pdm-avatar-p"
+        style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
+      >
+        {initials(name)}
+      </div>
+      <div className="pdm-card-body">
+        <div className="pdm-card-top">
+          <div className="pdm-card-name">{name}</div>
+          <span
+            className="pdm-type-chip"
+            style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
+          >
+            {cfg.label}
+          </span>
+        </div>
+
+        {isNotified && (
+          <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>🔔</span>
+            <span>Slot available — awaiting player confirmation</span>
+          </div>
+        )}
+
+        {(entry.player?.phone || entry.player?.email) && (
+          <div className="pdm-card-contact">
+            {entry.player?.phone && (
+              <span className="pdm-contact-item"><span className="pdm-contact-icon">📞</span>{entry.player.phone}</span>
+            )}
+            {entry.player?.email && (
+              <span className="pdm-contact-item pdm-email-item"><span className="pdm-contact-icon">✉</span>{entry.player.email}</span>
+            )}
+          </div>
+        )}
+
+        <div className="pdm-card-tags">
+          {pos && <span className="pdm-pos-tag">{pos}</span>}
+          {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
+        </div>
+      </div>
+    </div>
   );
 }
 
