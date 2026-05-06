@@ -1158,7 +1158,7 @@ export default function PlayerDashboard() {
 
                 {myGuestCount === 0 ? (
                   <div style={{ color: "#555", fontSize: 13 }}>
-                    No guests added yet.{detailSpotsLeft === 0 ? " (Game is full)" : " Tap "+ Add Guest" to bring a friend."}
+                    No guests added yet.{detailSpotsLeft === 0 ? " (Game is full)" : ' Tap "+ Add Guest" to bring a friend.'}
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
