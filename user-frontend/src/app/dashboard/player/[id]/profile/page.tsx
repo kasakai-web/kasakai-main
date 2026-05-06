@@ -6,6 +6,8 @@ import "../../../player-dashboard.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { NavBtn } from "@/components/ui/NavBtn";
+import { SuccessPopup } from "@/components/ui/SuccessPopup";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 
@@ -54,7 +56,7 @@ export default function PlayerProfilePage() {
 
   const handleNav = () => {
     if (routeUserId) {
-      router.push(`/dashboard/player/${routeUserId}`);
+      router.push(`/dashboard/player/${routeUserId}?tab=all`);
     }
   };
 
@@ -64,6 +66,7 @@ export default function PlayerProfilePage() {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -254,12 +257,11 @@ export default function PlayerProfilePage() {
   };
 
   const togglePosition = (pos: string) => {
-    const current = profile.preferences?.positions || [];
     setProfile((prev) => ({
       ...prev,
       preferences: {
         ...prev.preferences,
-        positions: current.includes(pos) ? current.filter((p) => p !== pos) : [...current, pos],
+        positions: prev.preferences?.positions?.[0] === pos ? [] : [pos],
       },
     }));
   };
@@ -302,7 +304,6 @@ export default function PlayerProfilePage() {
       localStorage.setItem("userName", data.data?.name || profile.name);
       setSaveSuccess(true);
       fetchProfile();
-      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
       setError((e as Error).message || "Failed to update profile");
     } finally {
@@ -360,6 +361,21 @@ export default function PlayerProfilePage() {
           <p>Loading profile...</p>
         </div>
       )}
+
+      <SuccessPopup
+        show={saveSuccess}
+        message="Profile updated successfully!"
+        onClose={() => setSaveSuccess(false)}
+      />
+
+      <ConfirmationModal
+        open={showLogoutConfirm}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={clearSessionAndExit}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
 
       {deleteStep > 0 && (
         <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
@@ -648,10 +664,10 @@ export default function PlayerProfilePage() {
             </div>
 
             <div className="pp-field" style={{ marginBottom: 20 }}>
-              <label className="pp-label">Preferred Positions</label>
+              <label className="pp-label">Preferred Position <span style={{ fontWeight: 400, opacity: 0.55 }}>(pick one)</span></label>
               <div className="pp-chips">
-                {[{ id: "GK", label: "Goalkeeper" }, { id: "DEF", label: "Defender" }, { id: "MID", label: "Midfielder" }, { id: "FWD", label: "Forward" }].map(({ id, label }) => {
-                  const selected = (profile.preferences?.positions || []).includes(id);
+                {[{ id: "GK", label: "Goalkeeper" }, { id: "DEF", label: "Defender" }, { id: "MID", label: "Midfielder" }, { id: "FWD", label: "Forward" }, { id: "ANY", label: "" }].map(({ id, label }) => {
+                  const selected = profile.preferences?.positions?.[0] === id;
                   return (
                     <button key={id} type="button" onClick={() => togglePosition(id)} className={`pp-chip${selected ? " pp-chip-on" : ""}`}>
                       <span className="pp-chip-code">{id}</span>
@@ -716,6 +732,14 @@ export default function PlayerProfilePage() {
           <div className="pp-actions">
             <button type="submit" className="pp-save-btn" disabled={saving || deleting}>
               {saving ? "Saving…" : "Save Changes"}
+            </button>
+            <button
+              type="button"
+              className="pp-logout-btn"
+              onClick={() => setShowLogoutConfirm(true)}
+              disabled={saving || deleting}
+            >
+              Logout
             </button>
             <button type="button" className="pp-delete-btn" onClick={() => setDeleteStep(1)} disabled={saving || deleting}>
               Delete Account

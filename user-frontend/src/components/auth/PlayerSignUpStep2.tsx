@@ -89,7 +89,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
     boxSizing: "border-box" as const,
   };
 
-  const positionLabels: Record<string, string> = { GK: "Goalkeeper", DEF: "Defender", MID: "Midfielder", FWD: "Forward" };
+  const positionLabels: Record<string, string> = { GK: "Goalkeeper", DEF: "Defender", MID: "Midfielder", FWD: "Forward", ANY: "Any Position" };
 
   return (
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>

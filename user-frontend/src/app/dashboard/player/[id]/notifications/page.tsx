@@ -111,7 +111,7 @@ export default function PlayerNotificationsPage() {
 
   const handleNav = () => {
     if (routeUserId) {
-      router.push(`/dashboard/player/${routeUserId}`);
+      router.push(`/dashboard/player/${routeUserId}?tab=all`);
     }
   };
 
@@ -276,7 +276,7 @@ export default function PlayerNotificationsPage() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="notifications-page-container">
+    <div className="player-dashboard-container">
       <div className="page-header">
         <div className="page-title-group">
           <h1 className="page-title">Notifications</h1>

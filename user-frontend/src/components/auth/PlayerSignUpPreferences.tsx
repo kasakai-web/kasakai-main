@@ -3,10 +3,11 @@
 import { useState } from "react";
 
 const POSITIONS = [
-  { id: "GK", label: "Goalkeeper", short: "GK" },
-  { id: "DEF", label: "Defender", short: "DEF" },
-  { id: "MID", label: "Midfielder", short: "MID" },
-  { id: "FWD", label: "Forward", short: "FWD" },
+  { id: "GK",  label: "Goalkeeper",    short: "GK"  },
+  { id: "DEF", label: "Defender",      short: "DEF" },
+  { id: "MID", label: "Midfielder",    short: "MID" },
+  { id: "FWD", label: "Forward",       short: "FWD" },
+  { id: "ANY", label: "Any Position",  short: "ANY" },
 ];
 
 interface PlayerSignUpPreferencesProps {
@@ -15,30 +16,21 @@ interface PlayerSignUpPreferencesProps {
 }
 
 export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPreferencesProps) {
-  const [positions, setPositions] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const togglePosition = (id: string) => {
+  const selectPosition = (id: string) => {
     setErrors({ ...errors, positions: "" });
-    if (positions.includes(id)) {
-      setPositions(positions.filter((p) => p !== id));
-    } else if (positions.length < 2) {
-      setPositions([...positions, id]);
-    }
+    setSelected((prev) => (prev === id ? "" : id));
   };
 
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    if (positions.length === 0) newErrors.positions = "Select at least one position";
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    if (!selected) {
+      setErrors({ positions: "Select your preferred position" });
       return;
     }
-
-    onContinue({ positions, preferredLocations: [] });
+    onContinue({ positions: [selected], preferredLocations: [] });
   };
 
   return (
@@ -64,29 +56,28 @@ export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPref
       <form onSubmit={handleContinue}>
         <div style={{ marginBottom: "28px" }}>
           <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "6px" }}>
-            Preferred Position * <span style={{ color: "#666", fontWeight: 400 }}>(pick up to 2)</span>
+            Preferred Position * <span style={{ color: "#666", fontWeight: 400 }}>(pick one)</span>
           </label>
           <p style={{ color: "#666", fontSize: "12px", marginBottom: "12px" }}>
             Football — where do you like to play?
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {POSITIONS.map((pos) => {
-              const selected = positions.includes(pos.id);
-              const disabled = !selected && positions.length >= 2;
+            {POSITIONS.slice(0, 4).map((pos) => {
+              const isSelected = selected === pos.id;
               return (
                 <button
                   key={pos.id}
                   type="button"
-                  onClick={() => !disabled && togglePosition(pos.id)}
+                  onClick={() => selectPosition(pos.id)}
                   style={{
-                    background: selected ? "var(--yellow)" : "#1a1a2e",
-                    color: selected ? "black" : disabled ? "#555" : "#ccc",
-                    border: selected ? "1px solid var(--yellow)" : "1px solid #444",
+                    background: isSelected ? "var(--yellow)" : "#1a1a2e",
+                    color: isSelected ? "black" : "#ccc",
+                    border: isSelected ? "1px solid var(--yellow)" : "1px solid #444",
                     borderRadius: "8px",
                     padding: "14px 10px",
                     fontSize: "14px",
-                    fontWeight: selected ? "700" : "400",
-                    cursor: disabled ? "not-allowed" : "pointer",
+                    fontWeight: isSelected ? "700" : "400",
+                    cursor: "pointer",
                     transition: "all 0.2s ease",
                     textAlign: "center",
                   }}
@@ -97,6 +88,27 @@ export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPref
               );
             })}
           </div>
+          {/* ANY option — full width */}
+          <button
+            type="button"
+            onClick={() => selectPosition("ANY")}
+            style={{
+              width: "100%",
+              marginTop: "10px",
+              background: selected === "ANY" ? "var(--yellow)" : "#1a1a2e",
+              color: selected === "ANY" ? "black" : "#ccc",
+              border: selected === "ANY" ? "1px solid var(--yellow)" : "1px solid #444",
+              borderRadius: "8px",
+              padding: "14px 10px",
+              fontSize: "14px",
+              fontWeight: selected === "ANY" ? "700" : "400",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "18px", fontWeight: "700" }}>ANY</div>
+          </button>
           {errors.positions && (
             <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "8px" }}>{errors.positions}</small>
           )}

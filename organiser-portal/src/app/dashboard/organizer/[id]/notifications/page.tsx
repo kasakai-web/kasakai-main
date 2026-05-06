@@ -197,14 +197,31 @@ export default function OrganizerNotificationsPage() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="notifications-page-container">
-      <div className="page-header">
+    <div className="organizer-dashboard-container">
+      <div className="page-header" style={{ marginBottom: 24 }}>
         <div className="page-title-group">
-          <h1 className="page-title">Notifications</h1>
-          <p className="page-subtitle">Updates on your games, players, and account activity.</p>
+          <h1 className="dashboard-title">Notifications</h1>
+          <p className="dashboard-subtitle">Game events and player activity</p>
         </div>
         <NavBtn text="My Games" onClick={handleNav} />
       </div>
+
+      {/* Toolbar */}
+      <div className="pn-toolbar" style={{ marginBottom: 16, maxWidth: 840 }}>
+        <span className="pn-toolbar-count">
+          {loading ? "Loading…" : `${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
+        </span>
+        <button
+          className="pn-mark-all-btn"
+          onClick={markAllRead}
+          disabled={marking || unreadCount === 0}
+        >
+          {marking ? "Marking…" : "Mark all read"}
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && <div className="op-error" style={{ marginBottom: 16, maxWidth: 840 }}>{error}</div>}
 
       {loading && (
         <div className="loading-container">

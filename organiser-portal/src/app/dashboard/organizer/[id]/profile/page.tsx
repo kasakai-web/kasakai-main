@@ -7,6 +7,8 @@ import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NavBtn } from "@/components/ui/NavBtn";
+import { SuccessPopup } from "@/components/ui/SuccessPopup";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
 
@@ -56,6 +58,8 @@ export default function OrganiserProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const [requirePhoto, setRequirePhoto] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
@@ -338,7 +342,7 @@ export default function OrganiserProfilePage() {
       window.dispatchEvent(new CustomEvent("organiser-profile-updated", {
         detail: { name: latestName },
       }));
-      alert("Profile updated successfully");
+      setSaveSuccess(true);
       fetchProfile();
     } catch (e) {
       setError((e as Error).message || "Failed to update profile");
@@ -399,14 +403,29 @@ export default function OrganiserProfilePage() {
   };
 
   return (
-    <div className="organiser-dashboard-container">
-      <div className="page-header">
+    <div className="organizer-dashboard-container">
+      <div className="page-header" style={{ marginBottom: 24 }}>
         <div className="page-title-group">
           <h1 className="page-title">Your Organiser Profile</h1>
           <p className="page-subtitle">Manage your public profile, game defaults, and settings.</p>
         </div>
         <NavBtn text="My Games" onClick={handleNav} />
       </div>
+
+      <SuccessPopup
+        show={saveSuccess}
+        message="Profile updated successfully!"
+        onClose={() => setSaveSuccess(false)}
+      />
+
+      <ConfirmationModal
+        open={showLogoutConfirm}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={clearSessionAndExit}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
 
       {loading && (
         <div className="loading-container">
@@ -654,6 +673,14 @@ export default function OrganiserProfilePage() {
           <div className="op-actions">
             <button type="submit" className="op-save-btn" disabled={saving || deleting}>
               {saving ? "Saving…" : "Save Changes"}
+            </button>
+            <button
+              type="button"
+              className="op-logout-btn"
+              onClick={() => setShowLogoutConfirm(true)}
+              disabled={saving || deleting}
+            >
+              Logout
             </button>
             <button type="button" className="op-delete-btn" onClick={() => setDeleteStep(1)} disabled={saving || deleting}>
               Delete Account
