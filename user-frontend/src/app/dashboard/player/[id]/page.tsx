@@ -722,17 +722,15 @@ export default function PlayerDashboard() {
         position: reg.preferredPosition || "any",
         team: reg.teamPreference || "none",
         isGuest: Boolean(reg.plusOneName),
-        canRemove: Boolean(reg.plusOneName) && regPlayerId === playerId,
+        canRemove: Boolean(reg.plusOneName) && Boolean(reg._isMyReg),
       };
     }) || []),
   ];
 
-  // Current player's guest registrations (for the dedicated My Guests section)
+  // Current player's guest registrations — use backend-stamped _isMyReg flag
+  // so we don't rely on fragile client-side ObjectId string comparison.
   const myGuests = (detailIsRegistered && detailGame)
-    ? (detailGame?.registrations || []).filter((reg: any) => {
-        const rPid = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
-        return Boolean(reg.plusOneName) && rPid === playerId;
-      })
+    ? (detailGame?.registrations || []).filter((reg: any) => reg._isMyReg && reg.plusOneName)
     : [];
   const myGuestCount = myGuests.length;
 
