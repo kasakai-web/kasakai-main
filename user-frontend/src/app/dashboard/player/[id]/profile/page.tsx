@@ -67,6 +67,7 @@ export default function PlayerProfilePage() {
   const [error, setError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -368,12 +369,18 @@ export default function PlayerProfilePage() {
         onClose={() => setSaveSuccess(false)}
       />
 
+      <SuccessPopup
+        show={showLogoutSuccess}
+        message="Logged out. See you on the pitch! 👋"
+        onClose={clearSessionAndExit}
+      />
+
       <ConfirmationModal
         open={showLogoutConfirm}
-        title="Confirm Logout"
-        message="Are you sure you want to log out?"
-        confirmLabel="Logout"
-        onConfirm={clearSessionAndExit}
+        title="Log Out"
+        message="Are you sure you want to log out of Kasakai?"
+        confirmLabel="Yes, Log Out"
+        onConfirm={() => { setShowLogoutConfirm(false); setShowLogoutSuccess(true); }}
         onCancel={() => setShowLogoutConfirm(false)}
       />
 
