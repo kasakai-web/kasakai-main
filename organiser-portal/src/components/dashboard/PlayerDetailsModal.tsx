@@ -190,6 +190,28 @@ export function PlayerDetailsModal({
     }
   };
 
+  const [addingGuest, setAddingGuest] = useState(false);
+
+  const addOrganiserGuest = async () => {
+    setAddingGuest(true);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-guest`), {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to add guest");
+        return;
+      }
+      onRefresh?.();
+    } catch {
+      alert("Failed to add guest");
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
   const [copied, setCopied] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
@@ -343,22 +365,6 @@ export function PlayerDetailsModal({
             }}
             title="Auto distribute teams">
               ⚽ Distribute Teams
-              </button>
-            <button
-              onClick={() => setShowAddPlayer(!showAddPlayer)}
-              style={{
-                background: showAddPlayer ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.06)",
-                border: `1px solid ${showAddPlayer ? "rgba(34,197,94,0.4)" : "#333"}`,
-                color: showAddPlayer ? "#22c55e" : "#ccc",
-                padding: "6px 12px",
-                borderRadius: 6,
-                fontSize: 12,
-                cursor: "pointer",
-                fontWeight: 600,
-                transition: "all 0.2s",
-              }}
-              title="Add a player to this game">
-                ➕ Add Player
               </button>
             <button className="close-btn" onClick={onClose}>✕</button>
           </div>
@@ -578,6 +584,8 @@ export function PlayerDetailsModal({
               {players.map((reg, idx) => {
                 const slotNum = organiserCount + idx + 1;
                 const regId   = reg._id || "";
+                // Only organiser's own guests can be removed here (plusOneName set, player null = organiser guest)
+                const isOrgGuest = !!reg.plusOneName && !reg.player;
                 return (
                   <PlayerCard
                     key={regId || idx}
@@ -586,14 +594,14 @@ export function PlayerDetailsModal({
                     type={reg.plusOneName ? "guest" : "player"}
                     isProcessing={processingId === regId}
                     onRemove={
-                      onRemoveRegistration && regId
+                      isOrgGuest && onRemoveRegistration && regId
                         ? async () => {
                             const doRemove = async () => {
                               setProcessingId(regId);
                               await onRemoveRegistration(regId);
                               setProcessingId(null);
                             };
-                            setConfirmMessage(`Remove ${reg.plusOneName || reg.player?.name || "this player"} from the game?`);
+                            setConfirmMessage(`Remove ${reg.plusOneName} from your guest list?`);
                             confirmActionRef.current = doRemove;
                             setConfirmVisible(true);
                           }

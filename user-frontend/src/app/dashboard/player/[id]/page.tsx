@@ -1134,9 +1134,9 @@ export default function PlayerDashboard() {
               }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#c8ff3e" }}>
-                    My Guests ({myGuestCount}/4)
+                    My Guests ({myGuestCount})
                   </span>
-                  {myGuestCount < 4 && detailSpotsLeft > 0 && (
+                  {detailSpotsLeft > 0 && (
                     <button
                       type="button"
                       onClick={() => handleAddGuest(detailGame)}
@@ -1182,10 +1182,7 @@ export default function PlayerDashboard() {
                   </div>
                 )}
 
-                {myGuestCount >= 4 && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: "#666" }}>Maximum 4 guests per player reached.</div>
-                )}
-                {myGuestCount < 4 && detailSpotsLeft === 0 && (
+                {detailSpotsLeft === 0 && (
                   <div style={{ marginTop: 8, fontSize: 11, color: "#666" }}>Game is full — no open slots to add more guests.</div>
                 )}
               </div>

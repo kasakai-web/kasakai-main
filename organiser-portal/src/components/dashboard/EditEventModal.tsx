@@ -85,28 +85,26 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       .catch(console.error);
   }, []);
 
+  const deriveGuests = (game: any): GuestReg[] => {
+    const organiserIdStr = String(game.organiser?._id ?? game.organiser ?? "");
+    return (game.registrations || [])
+      .filter((r: any) => r.plusOneName && String(r.player?._id ?? r.player ?? "") === organiserIdStr)
+      .map((r: any) => ({ _id: String(r._id), plusOneName: r.plusOneName }));
+  };
+
   const addGuest = async () => {
     setGuestError("");
     const { token } = getSession();
     if (!token) return;
-    const guestNumber = guests.length + 1;
-    const organiserName = initialData.organiser?.name || "Organiser";
-    const firstName = organiserName.trim().split(/\s+/)[0];
-    const plusOneName = `${firstName} + ${guestNumber}`;
     setGuestLoading(true);
     try {
-      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-player`), {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-guest`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ plusOneName }),
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setGuestError(data.message || "Failed to add guest"); return; }
-      // Find the newly added registration in the returned game
-      const newReg = (data.data?.registrations || []).find(
-        (r: any) => r.plusOneName === plusOneName && !guests.some(g => g._id === r._id)
-      );
-      if (newReg) setGuests((prev) => [...prev, { _id: newReg._id, plusOneName: newReg.plusOneName }]);
+      setGuests(deriveGuests(data.data));
     } catch (err: any) {
       setGuestError(err.message || "Failed to add guest");
     } finally {
@@ -126,7 +124,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setGuestError(data.message || "Failed to remove guest"); return; }
-      setGuests((prev) => prev.filter((g) => g._id !== regId));
+      setGuests(deriveGuests(data.data));
     } catch (err: any) {
       setGuestError(err.message || "Failed to remove guest");
     } finally {
@@ -393,13 +391,13 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
             <button
               type="button"
               onClick={addGuest}
-              disabled={guestLoading || guests.length >= 10}
+              disabled={guestLoading}
               style={{
                 marginTop: 4, width: "100%", padding: "9px 0",
                 background: "rgba(200,255,62,0.06)", border: "1px dashed rgba(200,255,62,0.3)",
                 borderRadius: 8, color: "#c8ff3e", fontSize: 13, fontWeight: 600,
-                cursor: (guestLoading || guests.length >= 10) ? "not-allowed" : "pointer",
-                opacity: (guestLoading || guests.length >= 10) ? 0.5 : 1,
+                cursor: guestLoading ? "not-allowed" : "pointer",
+                opacity: guestLoading ? 0.5 : 1,
               }}
             >
               {guestLoading ? "…" : "+ Add Guest"}
