@@ -6,6 +6,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { SuccessPopup } from "@/components/ui/SuccessPopup";
 
 const SERVER_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
 import "./dashboard.css";
@@ -182,11 +184,16 @@ export default function DashboardLayout({
     setActiveSection("games");
   }, [pathname]);
 
-  const handleLogout = () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
+
+  const doLogout = () => {
     clearSession();
     localStorage.removeItem("userProfileImage");
     router.replace("/login");
   };
+
+  const handleLogout = () => setShowLogoutConfirm(true);
 
   if (!authResolved || !authenticated) {
     return null;
@@ -194,6 +201,20 @@ export default function DashboardLayout({
 
   return (
     <div className="dashboard-app-wrapper">
+      <ConfirmationModal
+        open={showLogoutConfirm}
+        title="Log Out"
+        message="Are you sure you want to log out of Kasakai?"
+        confirmLabel="Yes, Log Out"
+        onConfirm={() => { setShowLogoutConfirm(false); setShowLogoutSuccess(true); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+      <SuccessPopup
+        show={showLogoutSuccess}
+        message="Logged out. See you on the pitch! 👋"
+        onClose={doLogout}
+      />
+
       {/* NAVBAR */}
       <nav className="dashboard-nav">
         <Link
