@@ -16,6 +16,10 @@ export default function SocketClient() {
       // handled by useNotificationSocket / bell
     });
 
+    socket.on("wallet-update", (data: { balancePaise: number; lockedPaise: number; availablePaise: number }) => {
+      window.dispatchEvent(new CustomEvent("kk-wallet-update", { detail: data }));
+    });
+
     return () => { socket.disconnect(); };
   }, []);
 

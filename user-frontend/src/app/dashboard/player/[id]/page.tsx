@@ -249,6 +249,16 @@ export default function PlayerDashboard() {
     return () => clearInterval(id);
   }, [lastUpdated]);
 
+  // Real-time wallet: update balance immediately when backend emits wallet-update
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { availablePaise } = (e as CustomEvent<{ availablePaise: number }>).detail;
+      setWalletBalance(availablePaise / 100);
+    };
+    window.addEventListener("kk-wallet-update", handler);
+    return () => window.removeEventListener("kk-wallet-update", handler);
+  }, []);
+
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab === "my-games") {

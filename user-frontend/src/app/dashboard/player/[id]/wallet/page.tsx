@@ -38,6 +38,7 @@ interface RazorpayInstance {
 interface WalletData {
   _id: string;
   balancePaise: number;
+  lockedPaise: number;
   availablePaise: number;
   totalTopUpPaise: number;
   totalSpentPaise: number;
@@ -141,6 +142,17 @@ export default function WalletPage() {
     onVisible: true,
     enabled:   isAuthorized,
   });
+
+  // Real-time: update balance instantly on wallet-update socket event, then refetch for new tx
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { balancePaise, lockedPaise, availablePaise } = (e as CustomEvent<{ balancePaise: number; lockedPaise: number; availablePaise: number }>).detail;
+      setWallet((prev) => prev ? { ...prev, balancePaise, lockedPaise, availablePaise } : prev);
+      fetchWallet();
+    };
+    window.addEventListener("kk-wallet-update", handler);
+    return () => window.removeEventListener("kk-wallet-update", handler);
+  }, [fetchWallet]);
 
   const openModal = () => {
     setModalStep("amount");
@@ -308,25 +320,6 @@ export default function WalletPage() {
               </div>
               <div style={{ fontSize: 42, fontWeight: 800, color: "#c8ff3e", letterSpacing: "-0.02em", marginBottom: 20 }}>
                 {wallet ? fmtRupees(wallet.availablePaise ?? wallet.balancePaise) : "₹0"}
-              </div>
-
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
-                {[
-                  { label: "Total Added",    val: wallet?.totalTopUpPaise    ?? 0, color: "#4ade80" },
-                  { label: "Total Spent",    val: wallet?.totalSpentPaise    ?? 0, color: "#f87171" },
-                  { label: "Total Refunded", val: wallet?.totalRefundedPaise ?? 0, color: "#60a5fa" },
-                ].map(({ label, val, color }) => (
-                  <div key={label} style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid #222",
-                    borderRadius: 8,
-                    padding: "10px 16px",
-                    flex: "1 1 120px",
-                  }}>
-                    <div style={{ fontSize: 11, color: "#666", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color }}>{fmtRupees(val)}</div>
-                  </div>
-                ))}
               </div>
 
               <button
