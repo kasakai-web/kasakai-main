@@ -342,7 +342,7 @@ export function BookingModal({
                   <select
                     value={teamPreference}
                     onChange={(e) => setTeamPreference(e.target.value)}
-                    className="bm-team-select"
+                    className={`bm-team-select${teamPreference === "Red Team" ? " bm-team-select--red" : teamPreference === "Blue Team" ? " bm-team-select--blue" : ""}`}
                   >
                     <option value="No Preference">No Preference</option>
                     <option value="Red Team">Red Team</option>
@@ -351,77 +351,51 @@ export function BookingModal({
                 </div>
               </div>
 
-              <div>
-                <div className="bm-section-title">Format Changes</div>
-                <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", color: "var(--white)" }}>
-                  <input
-                    type="checkbox"
-                    checked={willingIfFormatChange}
-                    onChange={(e) => setWillingIfFormatChange(e.target.checked)}
-                    style={{ marginTop: 4 }}
-                  />
-                  <span style={{ fontSize: 13, lineHeight: 1.5 }}>
-                    If the organiser changes the format, I&apos;m still willing to play.
-                  </span>
-                </label>
-                <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted,#666)" }}>
-                  This helps the organiser decide whether to switch format if numbers change.
-                </p>
+              <div className="bm-format-toggle-row">
+                <div>
+                  <div className="bm-section-title" style={{ marginBottom: 2 }}>Format Changes</div>
+                  <p className="bm-format-toggle-sub">Still willing to play if the organiser changes format</p>
+                </div>
+                <button
+                  type="button"
+                  className={`bm-toggle-pill${willingIfFormatChange ? " on" : ""}`}
+                  onClick={() => setWillingIfFormatChange(!willingIfFormatChange)}
+                >
+                  {willingIfFormatChange ? "Yes" : "No"}
+                </button>
               </div>
 
               {registeredPlayers.length > 0 && (
                 <div>
-                  <div className="bm-section-title">Play With / Play Against</div>
-                  <p style={{ margin: "0 0 10px", fontSize: 11, color: "var(--muted,#666)" }}>
-                    Optional — tap a player to set a preference. These help the organiser balance teams.
+                  <div className="bm-section-title">Play With / Against</div>
+                  <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--muted,#666)" }}>
+                    Optional — helps the organiser balance teams.
                   </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div className="bm-player-pref-list">
                     {registeredPlayers.map((p) => {
                       const withSelected    = playWith.includes(p.name);
                       const againstSelected = playAgainst.includes(p.name);
                       return (
-                        <div key={p.id ?? p.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ flex: 1, fontSize: 13, color: "var(--white)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {p.name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (againstSelected) togglePref(playAgainst, setPlayAgainst, p.name);
-                              togglePref(playWith, setPlayWith, p.name);
-                            }}
-                            style={{
-                              padding: "3px 10px",
-                              fontSize: 11,
-                              borderRadius: 20,
-                              border: "1px solid",
-                              cursor: "pointer",
-                              background: withSelected ? "rgba(74,222,128,0.18)" : "transparent",
-                              borderColor: withSelected ? "#4ade80" : "rgba(255,255,255,0.15)",
-                              color: withSelected ? "#4ade80" : "#666",
-                            }}
-                          >
-                            With
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (withSelected) togglePref(playWith, setPlayWith, p.name);
-                              togglePref(playAgainst, setPlayAgainst, p.name);
-                            }}
-                            style={{
-                              padding: "3px 10px",
-                              fontSize: 11,
-                              borderRadius: 20,
-                              border: "1px solid",
-                              cursor: "pointer",
-                              background: againstSelected ? "rgba(248,113,113,0.18)" : "transparent",
-                              borderColor: againstSelected ? "#f87171" : "rgba(255,255,255,0.15)",
-                              color: againstSelected ? "#f87171" : "#666",
-                            }}
-                          >
-                            Against
-                          </button>
+                        <div key={p.id ?? p.name} className="bm-player-pref-row">
+                          <span className="bm-player-pref-name">{p.name}</span>
+                          <div className="bm-player-pref-btns">
+                            <button
+                              type="button"
+                              className={`bm-pref-btn bm-pref-with${withSelected ? " active" : ""}`}
+                              onClick={() => {
+                                if (againstSelected) togglePref(playAgainst, setPlayAgainst, p.name);
+                                togglePref(playWith, setPlayWith, p.name);
+                              }}
+                            >With</button>
+                            <button
+                              type="button"
+                              className={`bm-pref-btn bm-pref-vs${againstSelected ? " active" : ""}`}
+                              onClick={() => {
+                                if (withSelected) togglePref(playWith, setPlayWith, p.name);
+                                togglePref(playAgainst, setPlayAgainst, p.name);
+                              }}
+                            >vs</button>
+                          </div>
                         </div>
                       );
                     })}

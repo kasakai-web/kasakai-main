@@ -1089,12 +1089,12 @@ body::after {
 }
 
 .bm-game-info {
-  padding: 18px 24px;
+  padding: 12px 24px;
   background: rgba(255, 255, 255, .02);
   border-bottom: 1px solid var(--border);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 .bm-info-item {
   display: flex;
@@ -1103,17 +1103,18 @@ body::after {
 }
 .bm-info-label {
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: .18em;
+  font-size: 8.5px;
+  letter-spacing: .16em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .bm-info-value {
   font-family: var(--cond);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--white);
-  letter-spacing: .03em;
+  letter-spacing: .02em;
+  white-space: nowrap;
 }
 
 .bm-body {
@@ -1243,6 +1244,83 @@ body::after {
   background: #111;
   color: var(--white);
 }
+.bm-team-select--red { border-color: rgba(231, 76, 60, 0.55); color: #ff6b6b; }
+.bm-team-select--red:focus { border-color: #e74c3c; }
+.bm-team-select--blue { border-color: rgba(52, 152, 219, 0.55); color: #74b9ff; }
+.bm-team-select--blue:focus { border-color: #3498db; }
+
+/* Format changes toggle row */
+.bm-format-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bm-format-toggle-sub {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--muted, #666);
+  line-height: 1.35;
+}
+.bm-toggle-pill {
+  flex-shrink: 0;
+  padding: 7px 18px;
+  border-radius: 20px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  color: var(--muted, #666);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bm-toggle-pill:hover { border-color: #444; color: var(--white); }
+.bm-toggle-pill.on {
+  background: rgba(196, 213, 108, 0.1);
+  border-color: var(--lime, #c4d56c);
+  color: var(--lime, #c4d56c);
+}
+
+/* Play with / against player rows */
+.bm-player-pref-list { display: flex; flex-direction: column; }
+.bm-player-pref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid #111;
+}
+.bm-player-pref-row:last-child { border-bottom: none; }
+.bm-player-pref-name {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.bm-player-pref-btns { display: flex; gap: 5px; flex-shrink: 0; }
+.bm-pref-btn {
+  padding: 4px 11px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-radius: 20px;
+  border: 1px solid #202020;
+  background: transparent;
+  color: #444;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bm-pref-btn:hover { border-color: #333; color: #666; }
+.bm-pref-with.active { background: rgba(74, 222, 128, 0.1); border-color: #4ade80; color: #4ade80; }
+.bm-pref-vs.active { background: rgba(248, 113, 113, 0.1); border-color: #f87171; color: #f87171; }
 
 /* preference (legacy — kept for backwards compat) */
 .pref-row { display: flex; gap: 8px; }
