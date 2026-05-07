@@ -36,6 +36,7 @@ interface BookingModalProps {
     willingIfFormatChange: boolean,
     playWith: string[],
     playAgainst: string[],
+    waitlistGuests?: Guest[],
   ) => void;
   walletBalance: number;
   playerPositions?: string[];
@@ -66,17 +67,21 @@ function GuestCard({
   gameFee,
   onUpdate,
   onRemove,
+  isWaitlisted,
 }: {
   index: number;
   guest: Guest;
   gameFee: number;
   onUpdate: (g: Partial<Guest>) => void;
   onRemove: () => void;
+  isWaitlisted?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`bm-guest-card ${expanded ? "expanded" : "collapsed"}`}>
+    <div className={`bm-guest-card ${expanded ? "expanded" : "collapsed"}${isWaitlisted ? " bm-guest-card--waitlist" : ""}`}
+      style={isWaitlisted ? { borderColor: "rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.04)" } : undefined}
+    >
       <div className="bm-guest-header">
         <button
           type="button"
@@ -86,6 +91,14 @@ function GuestCard({
         >
           <span className="bm-guest-label">
             {guest.name || `Guest ${index + 1}`}
+            {isWaitlisted && (
+              <span style={{
+                marginLeft: 6, fontSize: 10, fontWeight: 700, padding: "1px 6px",
+                borderRadius: 4, background: "rgba(245,158,11,0.15)",
+                color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)",
+                letterSpacing: "0.05em",
+              }}>WAITLIST</span>
+            )}
           </span>
           {!expanded && (
             <span className="bm-guest-summary-pills">
@@ -122,7 +135,10 @@ function GuestCard({
       {expanded && (
         <div className="bm-guest-fields">
           <div className="bm-guest-meta">
-            <span className="bm-guest-fee">+₹{gameFee}</span>
+            {isWaitlisted
+              ? <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>Waitlist — no charge until seat opens</span>
+              : <span className="bm-guest-fee">+₹{gameFee}</span>
+            }
           </div>
 
           <div className="bm-guest-row">
@@ -203,12 +219,18 @@ export function BookingModal({
 
   if (!game || !game.venue) return null;
 
-  const totalFee = game.fee * (1 + guests.length);
   const isWaitlist = game.waitlist;
+  // How many guests can be confirmed (fit in available spots after player takes 1)
+  const spotsForGuests = isWaitlist ? 0 : Math.max(0, (game.spots ?? 0) - 1);
+  // Guests beyond spotsForGuests go to waitlist
+  const confirmedGuestCount = Math.min(guests.length, spotsForGuests);
+  const waitlistGuestCount  = Math.max(0, guests.length - spotsForGuests);
+  // Fee only covers player + confirmed guests (waitlist guests pay when slot opens)
+  const totalFee = game.fee * (1 + confirmedGuestCount);
   const canAfford = isWaitlist || walletBalance >= totalFee;
-  // Player occupies 1 slot, so max guests = spotsRemaining - 1
-  const maxGuests = isWaitlist ? MAX_GUESTS_HARD_CAP : Math.min(MAX_GUESTS_HARD_CAP, Math.max(0, (game.spots ?? 0) - 1));
-  const canAddGuest = guests.length < maxGuests;
+  const canAddGuest = guests.length < MAX_GUESTS_HARD_CAP;
+  // Button switches label once confirmed slots are full
+  const nextGuestIsWaitlist = !isWaitlist && guests.length >= spotsForGuests;
 
   const [venueName, venueCity] = game.venue.split(",").map((value) => value.trim());
   const hasPositions = playerPositions.length > 0;
@@ -239,7 +261,10 @@ export function BookingModal({
     setPhotoError(false);
     setIsLoading(true);
     try {
-      onConfirm(game, guests, teamPreference, willingIfFormatChange, playWith, playAgainst);
+      // Split guests: first spotsForGuests go as confirmed, remainder as waitlist
+      const confirmedGuests = isWaitlist ? guests : guests.slice(0, spotsForGuests);
+      const overflowGuests  = isWaitlist ? []     : guests.slice(spotsForGuests);
+      onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, playWith, playAgainst, overflowGuests);
       await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setNotification(true);
@@ -411,19 +436,26 @@ export function BookingModal({
                     <div className="bm-section-title" style={{ marginBottom: "2px" }}>Bring Friends</div>
                     <div className="bm-guests-sub">
                       {guests.length === 0
-                        ? maxGuests > 0
-                          ? `Add up to ${maxGuests} friend${maxGuests !== 1 ? "s" : ""} — each adds ₹${game.fee}`
-                          : "No guest slots available"
-                        : `${guests.length} of ${maxGuests} guests added · +₹${game.fee * guests.length} total`}
+                        ? spotsForGuests > 0 || isWaitlist
+                          ? isWaitlist
+                            ? `Add guests — no charge until a seat opens`
+                            : `Add up to ${spotsForGuests} confirmed guest${spotsForGuests !== 1 ? "s" : ""} — each adds ₹${game.fee}`
+                          : "Game is full — guests will join the waitlist"
+                        : confirmedGuestCount > 0 && waitlistGuestCount > 0
+                          ? `${confirmedGuestCount} confirmed · ${waitlistGuestCount} on waitlist · +₹${game.fee * confirmedGuestCount} now`
+                          : waitlistGuestCount > 0
+                            ? `${waitlistGuestCount} guest${waitlistGuestCount > 1 ? "s" : ""} on waitlist — no charge now`
+                            : `${guests.length} guest${guests.length > 1 ? "s" : ""} added · +₹${game.fee * guests.length} total`}
                     </div>
                   </div>
                   <button
-                    className={`bm-add-guest-btn ${!canAddGuest ? "disabled" : ""}`}
+                    className={`bm-add-guest-btn ${!canAddGuest ? "disabled" : ""}${nextGuestIsWaitlist ? " bm-add-guest-btn--waitlist" : ""}`}
                     onClick={addGuest}
                     disabled={!canAddGuest}
                     type="button"
+                    style={nextGuestIsWaitlist ? { color: "#f59e0b", borderColor: "rgba(245,158,11,0.4)", background: "rgba(245,158,11,0.08)" } : undefined}
                   >
-                    + Add Guest
+                    {nextGuestIsWaitlist ? "+ Add to Waitlist" : "+ Add Guest"}
                   </button>
                 </div>
 
@@ -437,6 +469,7 @@ export function BookingModal({
                         gameFee={game.fee}
                         onUpdate={(patch) => updateGuest(index, patch)}
                         onRemove={() => removeGuest(index)}
+                        isWaitlisted={!isWaitlist && index >= spotsForGuests}
                       />
                     ))}
                   </div>

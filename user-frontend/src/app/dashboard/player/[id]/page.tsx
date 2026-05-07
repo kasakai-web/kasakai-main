@@ -465,6 +465,7 @@ export default function PlayerDashboard() {
     willingIfFormatChange: boolean,
     playWith: string[],
     playAgainst: string[],
+    waitlistGuests?: BookingGuest[],
   ) => {
     try {
       const { token } = getSession();
@@ -494,6 +495,16 @@ export default function PlayerDashboard() {
         }),
       };
       if (!isWaitlist) body.willingIfFormatChange = willingIfFormatChange;
+      if (!isWaitlist && waitlistGuests && waitlistGuests.length > 0) {
+        body.waitlistGuests = waitlistGuests.map((g, index) => {
+          const fallbackName = `Guest ${index + 1}`;
+          return {
+            name: (g.name || fallbackName).trim() || fallbackName,
+            position: g.position || "Any",
+            teamPreference: g.teamPreference || "No Preference",
+          };
+        });
+      }
 
       const res = await fetch(buildApiUrl(endpoint), {
         method: 'POST',
@@ -511,6 +522,7 @@ export default function PlayerDashboard() {
           setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
         } else {
           const autoGuests: string[] = data.autoConfirmedGuests || [];
+          const waitlistAdded: number = data.waitlistGuestsAdded || 0;
           let msg = "✓ Event booking confirmed!";
           let subtitle: string | undefined;
           if (autoGuests.length === 1) {
@@ -518,10 +530,14 @@ export default function PlayerDashboard() {
           } else if (autoGuests.length > 1) {
             subtitle = `${autoGuests.length} guests also confirmed from waitlist`;
           }
+          if (waitlistAdded > 0) {
+            const wlLine = `${waitlistAdded} guest${waitlistAdded > 1 ? 's' : ''} added to waitlist`;
+            subtitle = subtitle ? `${subtitle} · ${wlLine}` : wlLine;
+          }
           showPopupNotification("success", msg, 3000, subtitle);
           setActiveTab("my-games");
           if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
-          setTimeout(() => { fetchDashboardData(); }, 500);
+          setTimeout(() => { fetchDashboardData(); if (waitlistAdded > 0) fetchMyWaitlist(); }, 500);
         }
       } else {
         if (data.code === "INSUFFICIENT_BALANCE") {

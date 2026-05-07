@@ -141,6 +141,13 @@ export default function OrganizerDashboard() {
   const silentFetch = useCallback(() => fetchGames({ silent: true }), [fetchGames]);
   useAutoRefresh(isAuthorized ? silentFetch : null, { interval: 20_000 });
 
+  // Real-time: re-fetch whenever a socket notification arrives (e.g. guest waitlist changes)
+  useEffect(() => {
+    const onSocketNotif = () => { silentFetch(); };
+    window.addEventListener('kk-new-notification', onSocketNotif);
+    return () => window.removeEventListener('kk-new-notification', onSocketNotif);
+  }, [silentFetch]);
+
   // Tick every 5 s to update "Updated X ago" text
   useEffect(() => {
     function formatRelativeTime(d: Date) {
