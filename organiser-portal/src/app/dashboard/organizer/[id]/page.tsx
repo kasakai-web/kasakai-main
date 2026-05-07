@@ -859,6 +859,7 @@ export default function OrganizerDashboard() {
           gameName={selectedGame.title}
           players={selectedGame.registrations || []}
           waitlist={selectedGame.waitlist || []}
+          guestWaitlist={selectedGame.guestWaitlist || []}
           totalSlots={selectedGame.totalSlots}
           organiserIsPlaying={Boolean(selectedGame.organiserIsPlaying)}
           onToggleOrganiserPlaying={() => handleOrganiserWithdraw(selectedGame._id)}

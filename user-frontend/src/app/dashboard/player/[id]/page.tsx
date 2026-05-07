@@ -626,7 +626,8 @@ export default function PlayerDashboard() {
       setDetailGame(data.data);
       fetchWalletBalance();
       fetchMyGames();
-      showNotification("success", data.message || "Guest confirmed!");
+      const feeAmt = detailGame?.feeInPaise || 0;
+      showDetailNotif("success", `Guest confirmed!${feeAmt > 0 ? ` ₹${Math.round(feeAmt / 100)} debited from your wallet.` : ""}`, 3000);
     } catch {
       showNotification("error", "Failed to confirm guest. Please try again.");
     } finally {
@@ -802,6 +803,9 @@ export default function PlayerDashboard() {
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
   const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
+  const myWaitlistStatus: string = (detailIsWaitlisted && detailGame)
+    ? (myWaitlist.find((wg: any) => wg._id === detailGame._id)?._myWaitlistStatus || "waiting")
+    : "waiting";
   // Live registrations excluding locally-removed guests (so UI is instant, no re-flash on any refresh)
   const liveRegistrations = (detailGame?.registrations || []).filter(
     (r: any) => !removedGuestIds.has(String(r._id))
@@ -1194,32 +1198,52 @@ export default function PlayerDashboard() {
                 alignItems: "center",
                 gap: 12,
               }}>
-                <span style={{ fontSize: 22 }}>⚡</span>
-                <div>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>⚡</span>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", marginBottom: 3 }}>
                     A spot just opened up — be first to claim it!
                   </div>
                   <div style={{ color: "#a3e6bf", fontSize: 12, lineHeight: 1.5 }}>
-                    You were on the waitlist for this game. A player dropped out — click Sign Up Now before someone else does.
+                    First to register gets the seat. No payment charged until you confirm.
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setDetailGame(null); handleBook(detailGame); }}
+                  style={{
+                    flexShrink: 0,
+                    background: "#4ade80",
+                    color: "#000",
+                    border: "none",
+                    borderRadius: 7,
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Sign Up Now
+                </button>
               </div>
             )}
 
             {detailIsWaitlisted && detailSpotsLeft === 0 && !detailIsCancelled && (
               <div style={{
-                border: "1px solid rgba(245,158,11,0.3)",
+                border: myWaitlistStatus === "approved" ? "1px solid rgba(74,222,128,0.35)" : "1px solid rgba(245,158,11,0.3)",
                 padding: "12px 16px",
-                background: "rgba(245,158,11,0.06)",
+                background: myWaitlistStatus === "approved" ? "rgba(74,222,128,0.06)" : "rgba(245,158,11,0.06)",
                 marginBottom: 16,
                 borderRadius: 8,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
               }}>
-                <span style={{ fontSize: 18 }}>📋</span>
-                <div style={{ color: "#fcd34d", fontSize: 12, lineHeight: 1.5 }}>
-                  You&apos;re on the waitlist. We&apos;ll email you the moment a spot opens up — first to sign up gets it!
+                <span style={{ fontSize: 18 }}>{myWaitlistStatus === "approved" ? "✅" : "📋"}</span>
+                <div style={{ fontSize: 12, lineHeight: 1.5, color: myWaitlistStatus === "approved" ? "#4ade80" : "#fcd34d" }}>
+                  {myWaitlistStatus === "approved"
+                    ? "The organiser approved you! You'll get an email the moment a slot opens — be ready to register quickly."
+                    : "You're on the waitlist. We'll email you the moment a spot opens up — first to sign up gets it!"}
                 </div>
               </div>
             )}

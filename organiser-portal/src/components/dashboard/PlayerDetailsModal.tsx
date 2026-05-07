@@ -28,11 +28,21 @@ interface WaitlistEntry {
   teamPreference?: string;
 }
 
+interface GuestWaitlistEntry {
+  _id?: string;
+  player?: { _id?: string; name?: string };
+  plusOneName?: string;
+  requestedAt?: string;
+  notifiedAt?: string;
+  status?: string;
+}
+
 interface PlayerDetailsModalProps {
-  gameId: string;   // ✅ ADD THIS
+  gameId: string;
   gameName: string;
   players: Registration[];
   waitlist?: WaitlistEntry[];
+  guestWaitlist?: GuestWaitlistEntry[];
   totalSlots: number;
   onClose: () => void;
   organiserIsPlaying?: boolean;
@@ -96,6 +106,7 @@ export function PlayerDetailsModal({
   gameName,
   players,
   waitlist = [],
+  guestWaitlist = [],
   totalSlots,
   onClose,
   organiserIsPlaying = false,
@@ -113,10 +124,32 @@ export function PlayerDetailsModal({
   const [searching, setSearching] = useState(false);
   const [addingPlayerId, setAddingPlayerId] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const showStatus = (type: "success" | "error", text: string) => {
     setStatusMsg({ type, text });
     setTimeout(() => setStatusMsg(null), 3500);
+  };
+
+  const approveWaitlistEntry = async (waitlistId: string) => {
+    setApprovingId(waitlistId);
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/waitlist/${waitlistId}/approve`), {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showStatus("error", data.message || "Failed to approve player.");
+        return;
+      }
+      showStatus("success", "Player approved — they'll be notified when a slot opens.");
+      onRefresh?.();
+    } catch {
+      showStatus("error", "Failed to approve. Please try again.");
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   const searchPlayers = async (query: string) => {
@@ -713,8 +746,38 @@ export function PlayerDetailsModal({
               </div>
               <div className="pdm-cards-list">
                 {waitlist.map((entry, idx) => (
-                  <WaitlistCard key={entry._id || idx} entry={entry} position={idx + 1} />
+                  <WaitlistCard
+                    key={entry._id || idx}
+                    entry={entry}
+                    position={idx + 1}
+                    onApprove={entry.status === "waiting" && entry._id ? () => approveWaitlistEntry(entry._id!) : undefined}
+                    isApproving={approvingId === entry._id}
+                  />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Guest Waitlist Section */}
+          {guestWaitlist.filter(g => ["waiting", "notified"].includes(g.status || "waiting")).length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 0 10px 0", borderTop: "1px solid #222",
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a78bfa" }}>
+                  👥 Guest Waitlist ({guestWaitlist.filter(g => ["waiting", "notified"].includes(g.status || "waiting")).length})
+                </span>
+                <span style={{ fontSize: 11, color: "#666", fontStyle: "italic" }}>
+                  — players waiting to confirm their guests
+                </span>
+              </div>
+              <div className="pdm-cards-list">
+                {guestWaitlist
+                  .filter(g => ["waiting", "notified"].includes(g.status || "waiting"))
+                  .map((entry, idx) => (
+                    <GuestWaitlistCard key={entry._id || idx} entry={entry} position={idx + 1} />
+                  ))}
               </div>
             </div>
           )}
@@ -788,12 +851,18 @@ const WAITLIST_STATUS_CFG: Record<string, { label: string; bg: string; color: st
   registered:{ label: "Registered",bg: "rgba(96,165,250,0.08)", color: "#60a5fa", border: "rgba(96,165,250,0.2)", leftBorder: "#60a5fa" },
 };
 
-function WaitlistCard({ entry, position }: { entry: WaitlistEntry; position: number }) {
+function WaitlistCard({ entry, position, onApprove, isApproving }: {
+  entry: WaitlistEntry;
+  position: number;
+  onApprove?: () => void;
+  isApproving?: boolean;
+}) {
   const status  = entry.status || "waiting";
   const cfg     = WAITLIST_STATUS_CFG[status] ?? WAITLIST_STATUS_CFG.waiting;
   const name    = entry.player?.name || "Unknown";
   const pos     = posLabel(entry.preferredPosition);
   const isNotified = status === "notified";
+  const isApproved = status === "approved";
 
   return (
     <div
@@ -810,18 +879,41 @@ function WaitlistCard({ entry, position }: { entry: WaitlistEntry; position: num
       <div className="pdm-card-body">
         <div className="pdm-card-top">
           <div className="pdm-card-name">{name}</div>
-          <span
-            className="pdm-type-chip"
-            style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
-          >
-            {cfg.label}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              className="pdm-type-chip"
+              style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
+            >
+              {cfg.label}
+            </span>
+            {onApprove && (
+              <button
+                onClick={onApprove}
+                disabled={isApproving}
+                style={{
+                  fontSize: 10, fontWeight: 700, padding: "2px 8px",
+                  borderRadius: 4, cursor: isApproving ? "not-allowed" : "pointer",
+                  background: isApproving ? "rgba(74,222,128,0.05)" : "rgba(74,222,128,0.12)",
+                  color: isApproving ? "rgba(74,222,128,0.4)" : "#4ade80",
+                  border: "1px solid rgba(74,222,128,0.3)",
+                }}
+              >
+                {isApproving ? "…" : "Approve"}
+              </button>
+            )}
+          </div>
         </div>
 
         {isNotified && (
           <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
             <span>🔔</span>
             <span>Slot available — awaiting player confirmation</span>
+          </div>
+        )}
+        {isApproved && (
+          <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>✅</span>
+            <span>Approved — will be notified when a slot opens</span>
           </div>
         )}
 
@@ -840,6 +932,60 @@ function WaitlistCard({ entry, position }: { entry: WaitlistEntry; position: num
           {pos && <span className="pdm-pos-tag">{pos}</span>}
           {entry.joinedAt && <span className="pdm-date-tag">Joined {fmtDate(entry.joinedAt)}</span>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const GUEST_WAITLIST_STATUS_CFG: Record<string, { label: string; bg: string; color: string; border: string; leftBorder: string }> = {
+  waiting:   { label: "Waiting",   bg: "rgba(167,139,250,0.08)", color: "#a78bfa", border: "rgba(167,139,250,0.2)",  leftBorder: "#a78bfa" },
+  notified:  { label: "Notified",  bg: "rgba(34,197,94,0.08)",   color: "#4ade80", border: "rgba(74,222,128,0.25)", leftBorder: "#4ade80" },
+  confirmed: { label: "Confirmed", bg: "rgba(96,165,250,0.08)",  color: "#60a5fa", border: "rgba(96,165,250,0.2)",  leftBorder: "#60a5fa" },
+  expired:   { label: "Expired",   bg: "rgba(239,68,68,0.06)",   color: "#f87171", border: "rgba(239,68,68,0.2)",   leftBorder: "#f87171" },
+};
+
+function GuestWaitlistCard({ entry, position }: { entry: GuestWaitlistEntry; position: number }) {
+  const status    = entry.status || "waiting";
+  const cfg       = GUEST_WAITLIST_STATUS_CFG[status] ?? GUEST_WAITLIST_STATUS_CFG.waiting;
+  const guestName = entry.plusOneName || "Unknown guest";
+  const ownerName = entry.player?.name || "Unknown player";
+
+  return (
+    <div
+      className="pdm-card pdm-card-player"
+      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderLeft: `3px solid ${cfg.leftBorder}` }}
+    >
+      <div className="pdm-slot-num" style={{ color: cfg.color }}>#{position}</div>
+      <div
+        className="pdm-avatar pdm-avatar-p"
+        style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
+      >
+        {initials(guestName)}
+      </div>
+      <div className="pdm-card-body">
+        <div className="pdm-card-top">
+          <div>
+            <div className="pdm-card-name">{guestName}</div>
+            <div style={{ fontSize: 11, color: "#666", marginTop: 1 }}>via {ownerName}</div>
+          </div>
+          <span
+            className="pdm-type-chip"
+            style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
+          >
+            {cfg.label}
+          </span>
+        </div>
+        {status === "notified" && (
+          <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>🔔</span>
+            <span>Slot available — awaiting player confirmation</span>
+          </div>
+        )}
+        {entry.requestedAt && (
+          <div className="pdm-card-tags">
+            <span className="pdm-date-tag">Requested {fmtDate(entry.requestedAt)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
