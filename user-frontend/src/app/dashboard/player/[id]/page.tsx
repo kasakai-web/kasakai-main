@@ -532,6 +532,8 @@ export default function PlayerDashboard() {
         } else {
           showNotification("error", data.message || (isWaitlist ? "Waitlist failed." : "Registration failed."));
           setSelectedGame(null);
+          // Backend debited then refunded on a race loss — re-sync wallet balance
+          if (res.status === 409) fetchWalletBalance();
         }
       }
     } catch {
@@ -618,8 +620,12 @@ export default function PlayerDashboard() {
         if (data.code === "INSUFFICIENT_BALANCE") {
           showNotification("error", "Insufficient wallet balance.");
           if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+        } else if (data.code === "RACE_REFUND_FAILED") {
+          showNotification("error", "Slot was taken and we couldn't auto-refund your payment. Please contact support.");
         } else {
-          showNotification("error", data.message || "Could not confirm guest.");
+          showDetailNotif("error", data.message || "Could not confirm guest.");
+          // Slot was taken by a concurrent request; backend refunded — re-sync balance
+          if (res.status === 409) fetchWalletBalance();
         }
         return;
       }
