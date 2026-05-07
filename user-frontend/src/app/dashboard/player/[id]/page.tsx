@@ -510,8 +510,15 @@ export default function PlayerDashboard() {
           showNotification("success", "You've joined the waitlist! We'll notify you when a spot opens.");
           setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
         } else {
-          // Show 2 second booking confirmation popup message
-          showPopupNotification("success", "✓ Event booking confirmed!", 2000);
+          const autoGuests: string[] = data.autoConfirmedGuests || [];
+          let msg = "✓ Event booking confirmed!";
+          let subtitle: string | undefined;
+          if (autoGuests.length === 1) {
+            subtitle = `${autoGuests[0]} also confirmed from waitlist`;
+          } else if (autoGuests.length > 1) {
+            subtitle = `${autoGuests.length} guests also confirmed from waitlist`;
+          }
+          showPopupNotification("success", msg, 3000, subtitle);
           setActiveTab("my-games");
           if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
           setTimeout(() => { fetchDashboardData(); }, 500);
@@ -624,8 +631,20 @@ export default function PlayerDashboard() {
           showNotification("error", "Slot was taken and we couldn't auto-refund your payment. Please contact support.");
         } else {
           showDetailNotif("error", data.message || "Could not confirm guest.");
-          // Slot was taken by a concurrent request; backend refunded — re-sync balance
-          if (res.status === 409) fetchWalletBalance();
+          if (res.status === 409) {
+            // Slot was taken — backend reset status to 'waiting' and refunded; re-sync both
+            fetchWalletBalance();
+            // Refresh game data so the stale "Confirm" button disappears
+            setDetailGame((prev: any) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                guestWaitlist: (prev.guestWaitlist || []).map((g: any) =>
+                  g._id === gwId ? { ...g, status: "waiting" } : g
+                ),
+              };
+            });
+          }
         }
         return;
       }
@@ -655,6 +674,7 @@ export default function PlayerDashboard() {
         if (!res.ok || !data.success) { showNotification("error", data.message || "Failed to remove from waitlist."); return; }
         setDetailGame(data.data);
         fetchMyGames();
+        fetchMyWaitlist();
         showNotification("success", `${guestName} removed from waitlist.`);
       } catch {
         showNotification("error", "Failed to remove from waitlist.");
@@ -854,9 +874,9 @@ export default function PlayerDashboard() {
   const myGuestCount = myGuests.length;
 
   // Guest waitlist entries belonging to current player.
-  // Uses _isMine (set by getMyGames) with a fallback to direct playerId comparison
-  // so the section stays visible immediately after add/confirm/cancel without waiting for fetchMyGames.
-  const myGuestWaitlist = (detailIsRegistered && detailGame)
+  // Visible both when registered (guest confirmed a slot separately) and when
+  // waitlisted (guests waitlisted alongside the player, auto-confirmed on registration).
+  const myGuestWaitlist = ((detailIsRegistered || detailIsWaitlisted) && detailGame)
     ? (detailGame?.guestWaitlist || []).filter((g: any) => {
         const isMine = g._isMine || g.player?.toString() === playerId || g.player?._id?.toString() === playerId;
         return isMine && ['waiting', 'notified'].includes(g.status);
@@ -1433,7 +1453,7 @@ export default function PlayerDashboard() {
             )}
 
             {/* ── Guest Waitlist ── */}
-            {detailIsRegistered && myGuestWaitlist.length > 0 && (
+            {(detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -1445,8 +1465,17 @@ export default function PlayerDashboard() {
                   <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
                     Guests on Waitlist ({myGuestWaitlist.length})
                   </span>
-                  <span style={{ fontSize: 11, color: "#888" }}>First to confirm gets the seat</span>
+                  <span style={{ fontSize: 11, color: "#888" }}>
+                    {detailIsWaitlisted
+                      ? "Will auto-confirm when you register"
+                      : "First to confirm gets the seat"}
+                  </span>
                 </div>
+                {detailIsWaitlisted && (
+                  <div style={{ fontSize: 11, color: "#a78bfa", marginBottom: 10, lineHeight: 1.5 }}>
+                    These guests are waitlisted with you. When a slot opens and you register, your guests will be auto-confirmed in order — up to available seats.
+                  </div>
+                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {myGuestWaitlist.map((gw: any) => {
                     const isNotified = gw.status === "notified";
@@ -1462,12 +1491,16 @@ export default function PlayerDashboard() {
                       }}>
                         <div>
                           <div style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 600 }}>{gw.plusOneName}</div>
-                          <div style={{ fontSize: 11, marginTop: 2, color: isNotified ? "#f59e0b" : "#666" }}>
-                            {isNotified ? "Seat available — confirm now!" : "Waiting for a slot to open"}
+                          <div style={{ fontSize: 11, marginTop: 2, color: isNotified && detailSpotsLeft > 0 ? "#f59e0b" : "#666" }}>
+                            {detailIsWaitlisted
+                              ? "Waitlisted with you — auto-confirmed when you register"
+                              : isNotified && detailSpotsLeft > 0
+                                ? "Seat available — confirm now!"
+                                : "Waiting for a slot to open"}
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 6 }}>
-                          {isNotified && (
+                          {detailIsRegistered && isNotified && detailSpotsLeft > 0 && (
                             <button
                               type="button"
                               onClick={() => handleConfirmGuestWaitlist(detailGame, gw._id)}

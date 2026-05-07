@@ -745,15 +745,24 @@ export function PlayerDetailsModal({
                 </span>
               </div>
               <div className="pdm-cards-list">
-                {waitlist.map((entry, idx) => (
-                  <WaitlistCard
-                    key={entry._id || idx}
-                    entry={entry}
-                    position={idx + 1}
-                    onApprove={entry.status === "waiting" && entry._id ? () => approveWaitlistEntry(entry._id!) : undefined}
-                    isApproving={approvingId === entry._id}
-                  />
-                ))}
+                {waitlist.map((entry, idx) => {
+                  const playerId = entry.player?._id;
+                  const gc = playerId
+                    ? (guestWaitlist || []).filter(
+                        (g) => g.player?._id === playerId && ["waiting", "notified"].includes(g.status || "waiting")
+                      ).length
+                    : 0;
+                  return (
+                    <WaitlistCard
+                      key={entry._id || idx}
+                      entry={entry}
+                      position={idx + 1}
+                      onApprove={entry.status === "waiting" && entry._id ? () => approveWaitlistEntry(entry._id!) : undefined}
+                      isApproving={approvingId === entry._id}
+                      guestCount={gc}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -851,11 +860,12 @@ const WAITLIST_STATUS_CFG: Record<string, { label: string; bg: string; color: st
   registered:{ label: "Registered",bg: "rgba(96,165,250,0.08)", color: "#60a5fa", border: "rgba(96,165,250,0.2)", leftBorder: "#60a5fa" },
 };
 
-function WaitlistCard({ entry, position, onApprove, isApproving }: {
+function WaitlistCard({ entry, position, onApprove, isApproving, guestCount }: {
   entry: WaitlistEntry;
   position: number;
   onApprove?: () => void;
   isApproving?: boolean;
+  guestCount?: number;
 }) {
   const status  = entry.status || "waiting";
   const cfg     = WAITLIST_STATUS_CFG[status] ?? WAITLIST_STATUS_CFG.waiting;
@@ -914,6 +924,12 @@ function WaitlistCard({ entry, position, onApprove, isApproving }: {
           <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
             <span>✅</span>
             <span>Approved — will be notified when a slot opens</span>
+          </div>
+        )}
+        {guestCount != null && guestCount > 0 && (
+          <div style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>👥</span>
+            <span>{guestCount} guest{guestCount > 1 ? "s" : ""} also on waitlist</span>
           </div>
         )}
 
