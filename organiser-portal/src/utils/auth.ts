@@ -26,27 +26,18 @@ export const INDIAN_NAMES = [
   "Vikram", "Rajesh", "Amit", "Priya", "Ananya",
 ];
 
-// Mock OTP service - Replace with backend call
-export const sendOTP = async (phone: string): Promise<boolean> => {
-  // Replace with actual API call to backend
-  console.log(`OTP sent to ${phone}`);
-  return true;
+export const sendOTP = async (_phone: string): Promise<boolean> => {
+  throw new Error("sendOTP is not implemented.");
 };
 
-export const verifyOTP = async (phone: string, otp: string): Promise<boolean> => {
-  // Replace with actual API call to backend
-  // For demo: accept "123456"
-  return otp === "123456";
+export const verifyOTP = async (_phone: string, _otp: string): Promise<boolean> => {
+  throw new Error("verifyOTP is not implemented.");
 };
 
-export const createAccount = async (userData: any): Promise<boolean> => {
-  // Replace with actual API call to backend
-  console.log("Account created:", userData);
-  return true;
+export const createAccount = async (_userData: unknown): Promise<boolean> => {
+  throw new Error("createAccount is not implemented.");
 };
 
-export const resetPassword = async (phone: string, newPassword: string): Promise<boolean> => {
-  // Replace with actual API call to backend
-  console.log("Password reset for:", phone);
-  return true;
+export const resetPassword = async (_phone: string, _newPassword: string): Promise<boolean> => {
+  throw new Error("resetPassword is not implemented.");
 };

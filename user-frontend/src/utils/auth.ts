@@ -26,21 +26,18 @@ export const INDIAN_NAMES = [
   "Vikram", "Rajesh", "Amit", "Priya", "Ananya",
 ];
 
-export const sendOTP = async (phone: string): Promise<boolean> => {
-  console.warn("sendOTP is not wired to backend", { phone });
-  throw new Error("sendOTP is not implemented for production.");
+export const sendOTP = async (_phone: string): Promise<boolean> => {
+  throw new Error("sendOTP is not implemented.");
 };
 
-export const verifyOTP = async (phone: string, otp: string): Promise<boolean> => {
-  console.warn("verifyOTP is not wired to backend", { phone, otp });
-  throw new Error("verifyOTP is not implemented for production.");
+export const verifyOTP = async (_phone: string, _otp: string): Promise<boolean> => {
+  throw new Error("verifyOTP is not implemented.");
 };
 
 export const createAccount = async (_userData: unknown): Promise<boolean> => {
-  throw new Error("createAccount helper is not implemented for production.");
+  throw new Error("createAccount is not implemented.");
 };
 
-export const resetPassword = async (phone: string, _newPassword: string): Promise<boolean> => {
-  console.warn("resetPassword is not wired to backend", { phone });
-  throw new Error("resetPassword is not implemented for production.");
+export const resetPassword = async (_phone: string, _newPassword: string): Promise<boolean> => {
+  throw new Error("resetPassword is not implemented.");
 };
