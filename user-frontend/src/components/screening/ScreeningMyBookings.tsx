@@ -115,7 +115,7 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
       <div style={{ display: "flex", alignItems: "stretch" }}>
         {/* Image */}
         <div style={{ width: "100px", minHeight: "120px", flexShrink: 0, overflow: "hidden", alignSelf: "stretch", background: "#1a1a1a" }}>
-          <img src={screening.image} alt={screening.matchTitle}
+          <img src={screening.image ?? undefined} alt={screening.matchTitle}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px" }} />
         </div>
 
