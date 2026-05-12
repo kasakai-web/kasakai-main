@@ -29,14 +29,14 @@ export async function generateMetadata({
       openGraph: {
         title: s.matchTitle,
         description: s.description,
-        images: [{ url: s.image, width: 800, height: 600, alt: s.matchTitle }],
+        ...(s.image ? { images: [{ url: s.image, width: 800, height: 600, alt: s.matchTitle }] } : {}),
         type: "website",
       },
       twitter: {
         card: "summary_large_image",
         title: s.matchTitle,
         description: s.description,
-        images: [s.image],
+        ...(s.image ? { images: [s.image] } : {}),
       },
     };
   } catch {
