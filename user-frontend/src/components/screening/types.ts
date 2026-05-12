@@ -16,7 +16,7 @@ export interface Screening {
   description: string;
   startingPrice: number;
   tiers: TicketTier[];
-  image: string;
+  image: string | null;
 }
 
 export type BookingStep = "HOME" | "QUANTITY" | "PAYMENT" | "CONFIRMATION";

@@ -202,7 +202,7 @@ export function toScreening(e: ApiScrEvent): Screening {
     description:  e.description,
     startingPrice,
     tiers,
-    image:        e.image,
+    image:        e.image || null,
   };
 }
 
