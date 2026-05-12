@@ -14,12 +14,11 @@ interface OTPVerificationPhoneProps {
   devOtp?: string;
 }
 
-export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack, devOtp: devOtpProp }: OTPVerificationPhoneProps) {
+export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack }: OTPVerificationPhoneProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const [devOtp, setDevOtp] = useState(devOtpProp);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -95,7 +94,6 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
         throw new Error(data.message || "Failed to resend OTP");
       }
 
-      if (data.dev_otp) setDevOtp(data.dev_otp);
       setResendTimer(60);
     } catch (err: any) {
       setError(err.message || "Failed to resend OTP. Please try again.");
@@ -129,12 +127,6 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>
         OTP sent to your WhatsApp at {destinationText}
       </p>
-
-      {devOtp && (
-        <div style={{ background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.35)", color: "#5be6b2", padding: "10px 14px", borderRadius: "6px", marginBottom: "16px", fontSize: "13px" }}>
-          DEV — OTP: <strong style={{ letterSpacing: "0.18em", fontSize: "15px" }}>{devOtp}</strong>
-        </div>
-      )}
 
       {error && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
