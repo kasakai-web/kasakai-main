@@ -1011,3 +1011,132 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── Screening: event cards + create form ───────────────────────────────────── */
+.scrEventCard {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  transition: border-color 0.15s;
+}
+
+.scrEventCard:hover {
+  border-color: var(--border2);
+}
+
+.scrEventCardImg {
+  width: 150px;
+  min-width: 150px;
+  height: 200px;
+  flex-shrink: 0;
+  background: var(--surface2);
+  overflow: hidden;
+}
+
+.scrEventCardContent {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.scrGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.scrGridPoc {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .scrGrid2 {
+    grid-template-columns: 1fr;
+  }
+  .scrGridPoc {
+    grid-template-columns: 1fr 1fr;
+  }
+  .sectionHead {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .scrCard {
+    padding: 16px;
+  }
+  .scrGridPoc {
+    grid-template-columns: 1fr;
+  }
+  .scrEventCard {
+    flex-direction: column;
+  }
+  .scrEventCardImg {
+    width: 100%;
+    min-width: unset;
+    height: 180px;
+  }
+  .scrEventCardContent {
+    padding: 16px;
+  }
+}
+
+.scrManageLayout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 24px;
+  align-items: start;
+}
+.scrManageSidebar { display: flex; flex-direction: column; gap: 12px; }
+.scrManageTabBar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.scrManageTab {
+  flex: 1; padding: 12px 16px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--muted);
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px; text-align: center;
+}
+.scrManageTab:hover { color: var(--text); }
+.scrManageTabActive { color: var(--white); border-bottom-color: #5be6b2; }
+
+@media (max-width: 900px) {
+  .scrManageLayout { grid-template-columns: 1fr; }
+  .scrManageSidebar { order: -1; }
+}
+
+.scrViewLayout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .scrViewLayout { grid-template-columns: 1fr; }
+}
+
+/* analytics snapshot grid — collapses to 2-col then 1-col */
+@media (max-width: 700px) {
+  .scrManageLayout { grid-template-columns: 1fr; }
+}

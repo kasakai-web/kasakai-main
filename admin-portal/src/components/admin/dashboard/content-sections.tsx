@@ -638,25 +638,67 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 // ── Game Detail Modal ──────────────────────────────────────────────────────────
 
 function GameDetailModal({ gameId, onClose }: { gameId: string; onClose: () => void }) {
-  const [game, setGame]     = useState<GameDetail | null>(null);
+  const [game, setGame] = useState<GameDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const token = getAdminToken();
-    if (!token) { setError("Admin session missing."); setLoading(false); return; }
+    if (!token) {
+      setError("Admin session missing.");
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
     fetch(`${API_BASE}/admin/games/${gameId}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { if (d.success) setGame(d.data); else setError(d.message || "Failed to load game."); })
+      .then((d) => {
+        if (d.success) {
+          setGame(d.data);
+        } else {
+          setError(d.message || "Failed to load game.");
+        }
+      })
       .catch(() => setError("Cannot reach the server."))
       .finally(() => setLoading(false));
   }, [gameId]);
 
-  const regs    = game?.registrations || [];
-  const paidCount  = regs.filter((r) => r.paymentStatus === "paid").length;
+  if (loading) {
+    return (
+      <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={`${styles.modal} ${styles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHead}>
+            <div className={styles.sectionTitle}>Loading…</div>
+            <button className={styles.modalClose} onClick={onClose} type="button">✕</button>
+          </div>
+          <div className={styles.loadingState}>Loading game data…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.modalOverlay} onClick={onClose}>
+        <div className={`${styles.modal} ${styles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHead}>
+            <div className={styles.sectionTitle}>Error</div>
+            <button className={styles.modalClose} onClick={onClose} type="button">✕</button>
+          </div>
+          <div className={styles.formError}>{error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!game) return null;
+
+  const regs = game.registrations || [];
+  const paidCount = regs.filter((r) => r.paymentStatus === "paid").length;
   const guestCount = regs.filter((r) => r.plusOneName).length;
   const totalRevPaise = regs.filter((r) => r.paymentStatus === "paid").reduce((s, r) => s + (r.amountPaidPaise || 0), 0);
-  const presentCount  = regs.filter((r) => r.attended === "present").length;
+  const presentCount = regs.filter((r) => r.attended === "present").length;
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -1907,6 +1949,46 @@ function Finance() {
         </>
       )}
     </>
+  );
+}
+
+// ── Streaming — extracted to ./screening/index.tsx ────────────────────────────
+// ScrEvents is imported at the top of this file from "./screening".
+
+
+function ScrGuests() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px", textAlign: "center", padding: "40px" }}>
+      <div style={{ width: 56, height: 56, borderRadius: "16px", background: "rgba(59,130,246,0.1)", border: "1.5px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <div>
+        <p style={{ margin: "0 0 6px", fontSize: "11px", fontWeight: 800, color: "#3b82f6", letterSpacing: "0.18em", textTransform: "uppercase" }}>Streaming</p>
+        <h2 style={{ margin: "0 0 10px", fontSize: "22px", fontWeight: 800, color: "var(--white)" }}>Guest List</h2>
+        <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", maxWidth: "360px", lineHeight: 1.7 }}>Per-event door verification table. Manage walk-in guests, verify ticket codes, and track entry in real time.</p>
+      </div>
+      <div style={{ marginTop: "8px", padding: "6px 16px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.18)", borderRadius: "999px" }}>
+        <span style={{ fontSize: "10px", fontWeight: 800, color: "#3b82f6", letterSpacing: "0.16em", textTransform: "uppercase" }}>Coming Soon</span>
+      </div>
+    </div>
+  );
+}
+
+function ScrFinance() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px", textAlign: "center", padding: "40px" }}>
+      <div style={{ width: 56, height: 56, borderRadius: "16px", background: "rgba(91,230,178,0.08)", border: "1.5px solid rgba(91,230,178,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="1.8" strokeLinecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      </div>
+      <div>
+        <p style={{ margin: "0 0 6px", fontSize: "11px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.18em", textTransform: "uppercase" }}>Streaming</p>
+        <h2 style={{ margin: "0 0 10px", fontSize: "22px", fontWeight: 800, color: "var(--white)" }}>Streaming Finance</h2>
+        <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", maxWidth: "360px", lineHeight: 1.7 }}>Revenue analytics for screening events. Track ticket sales, payout breakdowns, and venue-level financial performance.</p>
+      </div>
+      <div style={{ marginTop: "8px", padding: "6px 16px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.2)", borderRadius: "999px" }}>
+        <span style={{ fontSize: "10px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.16em", textTransform: "uppercase" }}>Coming Soon</span>
+      </div>
+    </div>
   );
 }
 

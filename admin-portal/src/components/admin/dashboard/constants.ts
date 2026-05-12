@@ -10,6 +10,9 @@ export const dashboardSections = [
   "disputes",
   "communities",
   "venues",
+  "scr-events",
+  "scr-guests",
+  "scr-finance",
 ] as const;
 
 export type DashboardSection = (typeof dashboardSections)[number];
@@ -26,20 +29,26 @@ export const sectionTitles: Record<DashboardSection, string> = {
   disputes:      "Disputes",
   communities:   "Communities",
   venues:        "Venues & Turfs",
+  "scr-events":  "Screening Events",
+  "scr-guests":  "Guest List",
+  "scr-finance": "Streaming Finance",
 };
 
 export const sectionPaths: Record<DashboardSection, string> = {
   dashboard:     "Overview",
   users:         "People / Users",
   organisers:    "People / Organisers",
-  games:         "Platform / Games",
-  payments:      "Platform / Payments",
-  finance:       "Platform / Finance",
-  notifications: "Platform / Notifications",
-  feedback:      "Platform / Feedback",
-  disputes:      "Platform / Disputes",
+  games:         "Football / Games",
+  payments:      "Football / Payments",
+  finance:       "Football / Finance",
+  notifications: "Football / Notifications",
+  feedback:      "Football / Feedback",
+  disputes:      "Football / Disputes",
   communities:   "Config / Communities",
   venues:        "Config / Venues",
+  "scr-events":  "Streaming / Events",
+  "scr-guests":  "Streaming / Guest List",
+  "scr-finance": "Streaming / Finance",
 };
 
 export type SidebarItem = {
@@ -67,7 +76,7 @@ export const sidebarGroups: SidebarGroup[] = [
     ],
   },
   {
-    label: "Platform",
+    label: "Football",
     items: [
       { section: "games",         label: "Games & Events" },
       { section: "payments",      label: "Payments" },
@@ -75,6 +84,14 @@ export const sidebarGroups: SidebarGroup[] = [
       { section: "notifications", label: "Notifications" },
       { section: "feedback",      label: "Feedback" },
       { section: "disputes",      label: "Disputes", badgeTone: "red" },
+    ],
+  },
+  {
+    label: "Streaming",
+    items: [
+      { section: "scr-events",  label: "Events" },
+      { section: "scr-guests",  label: "Guest List" },
+      { section: "scr-finance", label: "Finance" },
     ],
   },
   {

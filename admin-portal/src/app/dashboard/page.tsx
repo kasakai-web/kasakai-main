@@ -1,11 +1,15 @@
-import type { Metadata } from "next";
-import { DashboardShell } from "@/components/admin/dashboard-shell";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Admin Dashboard | Kasa Kai",
-  description: "Kasa Kai admin analytics and operations console",
-};
+import { useDashboard } from "@/context/dashboard-context";
+import { ContentSections } from "@/components/admin/dashboard/content-sections";
 
 export default function DashboardPage() {
-  return <DashboardShell />;
+  const { activeSection, onOpenDetail, onNavigate } = useDashboard();
+  return (
+    <ContentSections
+      activeSection={activeSection}
+      onOpenDetail={onOpenDetail}
+      onNavigate={onNavigate}
+    />
+  );
 }

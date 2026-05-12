@@ -129,52 +129,74 @@ export function HeroSection() {
         </p>
 
         <style>{`
-          .hero-arrow-btn {
+          /* ── Primary CTA — filled lime ── */
+          .hero-btn-primary {
             display: inline-flex;
             align-items: center;
-            gap: 0;
+            gap: 10px;
             text-decoration: none;
-            border: 1.5px solid var(--lime);
-            background: transparent;
-            color: var(--lime);
-            font-family: var(--cond);
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: .16em;
-            text-transform: uppercase;
-            padding: 0;
-            overflow: hidden;
-            transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
-          }
-          .hero-arrow-btn:hover {
-            background: var(--lime);
+            background: #c8f135;
             color: #000;
-            box-shadow: 0 0 24px rgba(196,213,108,0.25);
+            font-family: var(--cond);
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            padding: 0 28px;
+            height: 50px;
+            border: none;
+            box-shadow: 0 0 28px rgba(200,241,53,0.22);
+            transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
           }
-          .hero-arrow-btn .btn-label {
-            padding: 12px 24px;
-            border-right: 1.5px solid var(--lime);
+          .hero-btn-primary:hover {
+            background: #d4f545;
+            box-shadow: 0 0 40px rgba(200,241,53,0.38);
+            transform: translateY(-1px);
           }
-          .hero-arrow-btn .btn-arrow {
-            padding: 12px 16px;
-            display: flex;
+          .hero-btn-primary:active { transform: scale(0.97); }
+
+          /* ── Secondary CTA — outlined lime ── */
+          .hero-btn-secondary {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            transition: transform 0.22s ease;
+            gap: 10px;
+            text-decoration: none;
+            background: rgba(200,241,53,0.06);
+            color: #c8f135;
+            font-family: var(--cond);
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            padding: 0 28px;
+            height: 50px;
+            border: 1.5px solid rgba(200,241,53,0.35);
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
           }
-          .hero-arrow-btn:hover .btn-arrow {
-            transform: translateX(4px);
+          .hero-btn-secondary:hover {
+            background: rgba(200,241,53,0.12);
+            border-color: rgba(200,241,53,0.65);
+            box-shadow: 0 0 24px rgba(200,241,53,0.14);
+            transform: translateY(-1px);
           }
+          .hero-btn-secondary:active { transform: scale(0.97); }
         `}</style>
 
-        <div className="hero-ctas" style={{ display: "flex", justifyContent: "center" }}>
-          <a href="/login" className="hero-arrow-btn">
-            <span className="btn-label">Login</span>
-            <span className="btn-arrow">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </span>
+        <div className="hero-ctas" style={{ display: "flex", justifyContent: "center", gap: "14px", flexWrap: "wrap", marginTop: "8px" }}>
+          {/* Primary: Login */}
+          <a href="/login" className="hero-btn-primary">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" />
+            </svg>
+            Login
+          </a>
+
+          {/* Secondary: Live Screenings */}
+          <a href="/screening" className="hero-btn-secondary">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none" opacity="0.7"/>
+            </svg>
+            Live Screening
           </a>
         </div>
       </div>

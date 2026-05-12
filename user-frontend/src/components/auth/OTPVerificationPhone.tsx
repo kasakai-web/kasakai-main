@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { buildApiUrl } from "@/utils/api";
+import "../../app/auth-styles.css";
 
 interface OTPVerificationPhoneProps {
   phone?: string;
@@ -10,13 +11,15 @@ interface OTPVerificationPhoneProps {
   mode: "signup" | "forgot-password";
   onVerified: (otpString: string) => void;
   onBack: () => void;
+  devOtp?: string;
 }
 
-export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack }: OTPVerificationPhoneProps) {
+export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack, devOtp: devOtpProp }: OTPVerificationPhoneProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [devOtp, setDevOtp] = useState(devOtpProp);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -92,29 +95,19 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
         throw new Error(data.message || "Failed to resend OTP");
       }
 
+      if (data.dev_otp) setDevOtp(data.dev_otp);
       setResendTimer(60);
     } catch (err: any) {
       setError(err.message || "Failed to resend OTP. Please try again.");
     }
   };
 
-  const maskEmail = (value: string) => {
-    const [namePart, domainPart] = value.split("@");
-    if (!domainPart) return value;
-    const visiblePrefix = namePart.slice(0, 2);
-    return `${visiblePrefix}${"*".repeat(Math.max(namePart.length - 2, 1))}@${domainPart}`;
-  };
+  const maskPhone = (p: string) => `••••••${p.slice(-4)}`;
 
-  const maskPhone = (phone: string) => `••••••${phone.slice(-4)}`;
-
-  const destinationText = email
-    ? maskEmail(email)
-    : phone
-      ? `+91 ${maskPhone(phone)}`
-      : "your contact";
+  const destinationText = phone ? `+91 ${maskPhone(phone)}` : "your WhatsApp";
 
   return (
-    <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
+    <div className="auth-form-container" style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
       <button
         onClick={onBack}
         style={{
@@ -131,11 +124,17 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>
-        {email ? "Verify Email Address" : "Verify Phone Number"}
+        Verify via WhatsApp
       </h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>
-        OTP sent to {destinationText}
+        OTP sent to your WhatsApp at {destinationText}
       </p>
+
+      {devOtp && (
+        <div style={{ background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.35)", color: "#5be6b2", padding: "10px 14px", borderRadius: "6px", marginBottom: "16px", fontSize: "13px" }}>
+          DEV — OTP: <strong style={{ letterSpacing: "0.18em", fontSize: "15px" }}>{devOtp}</strong>
+        </div>
+      )}
 
       {error && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
@@ -146,7 +145,7 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
       <form onSubmit={handleVerify}>
         <div style={{ marginBottom: "30px" }}>
           <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "16px", textAlign: "center" }}>Enter 6-digit OTP</label>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px" }}>
+          <div className="otp-input-container" style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px" }}>
             {otp.map((digit, index) => (
               <input
                 key={index}
@@ -156,6 +155,7 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
                 value={digit}
                 onChange={(e) => handleOtpChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
+                className="otp-input"
                 style={{
                   width: "50px",
                   height: "50px",

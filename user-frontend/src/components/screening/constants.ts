@@ -1,0 +1,115 @@
+import type { Ticket } from "./types";
+
+// ── Dummy upcoming bookings (placeholder until Phase 4 real booking) ──────
+export const DUMMY_TICKETS: Ticket[] = [
+  {
+    id: "TKT-UCL7X2",
+    screening: {
+      id: "ucl-final-placeholder",
+      matchTitle: "UCL Final: Real Madrid vs. Dortmund",
+      venueName: "The Local Cafe",
+      location: "Gurgaon",
+      date: "Jun 1", day: "Sat", time: "12:30 AM",
+      description: "Experience the pinnacle of European football!",
+      startingPrice: 499,
+      tiers: [
+        { id: "cover",      name: "Cover Charge", price: 499,  description: "₹400 redeemable on F&B" },
+        { id: "full-cover", name: "Full Cover",   price: 999,  description: "₹950 redeemable on F&B" },
+        { id: "vip",        name: "VIP Seating",  price: 1499, description: "Front row seats + 1 Starter" },
+      ],
+      image: "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&q=80&w=800",
+    },
+    tiers: [{ tier: { id: "full-cover", name: "Full Cover", price: 999, description: "₹950 redeemable on F&B" }, quantity: 2 }],
+    totalAmount: 1998,
+    bookingTime: "May 10, 2025, 3:42 PM",
+    entryCode: "EVT-X9K2M",
+  },
+  {
+    id: "TKT-EPL4Q1",
+    screening: {
+      id: "epl-arsenal-placeholder",
+      matchTitle: "EPL: Arsenal vs. Man City",
+      venueName: "Brew & Ball",
+      location: "Sector 29, Gurgaon",
+      date: "May 12", day: "Sun", time: "9:00 PM",
+      description: "The race for the title heats up!",
+      startingPrice: 299,
+      tiers: [
+        { id: "early-bird", name: "Early Bird",     price: 299, description: "Limited slots available" },
+        { id: "standard",   name: "Standard Entry", price: 499, description: "General admission" },
+      ],
+      image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=800",
+    },
+    tiers: [
+      { tier: { id: "early-bird", name: "Early Bird",     price: 299, description: "Limited slots" }, quantity: 1 },
+      { tier: { id: "standard",   name: "Standard Entry", price: 499, description: "General admission" }, quantity: 1 },
+    ],
+    totalAmount: 798,
+    bookingTime: "May 9, 2025, 7:15 PM",
+    entryCode: "EVT-L4P8Q",
+  },
+];
+
+// ── Dummy history (past attended screenings) ───────────────────────────────
+export const DUMMY_HISTORY: Ticket[] = [
+  {
+    id: "TKT-CL9W3K",
+    screening: {
+      id: "cl-qf",
+      matchTitle: "Champions League: PSG vs. Barcelona",
+      venueName: "Kick Off Sports Bar",
+      location: "Indiranagar, Bangalore",
+      date: "Apr 16",
+      day: "Tue",
+      time: "12:30 AM",
+      description: "Quarter-final showdown.",
+      startingPrice: 299,
+      tiers: [{ id: "std", name: "Standard Entry", price: 299 }],
+      image: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&q=80&w=800",
+    },
+    tiers: [{ tier: { id: "std", name: "Standard Entry", price: 299 }, quantity: 3 }],
+    totalAmount: 897,
+    bookingTime: "Apr 14, 2025, 11:22 AM",
+    entryCode: "EVT-CL9W3",
+  },
+  {
+    id: "TKT-DRB2M5",
+    screening: {
+      id: "derby-old",
+      matchTitle: "El Clásico: Real Madrid vs. Barcelona",
+      venueName: "Offside Sports Lounge",
+      location: "Banjara Hills, Hyderabad",
+      date: "Mar 30",
+      day: "Sun",
+      time: "9:00 PM",
+      description: "The greatest rivalry.",
+      startingPrice: 499,
+      tiers: [{ id: "vip", name: "VIP Seating", price: 1499 }],
+      image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800",
+    },
+    tiers: [{ tier: { id: "vip", name: "VIP Seating", price: 1499 }, quantity: 2 }],
+    totalAmount: 2998,
+    bookingTime: "Mar 28, 2025, 6:05 PM",
+    entryCode: "EVT-DRB2M",
+  },
+  {
+    id: "TKT-WC8N4P",
+    screening: {
+      id: "wc-final-old",
+      matchTitle: "FA Cup Semi-Final: Chelsea vs. Liverpool",
+      venueName: "The Bench Sports Bar",
+      location: "Koregaon Park, Pune",
+      date: "Mar 09",
+      day: "Sun",
+      time: "7:45 PM",
+      description: "Wembley-worthy atmosphere.",
+      startingPrice: 349,
+      tiers: [{ id: "gen", name: "General Entry", price: 349 }],
+      image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+    },
+    tiers: [{ tier: { id: "gen", name: "General Entry", price: 349 }, quantity: 1 }],
+    totalAmount: 349,
+    bookingTime: "Mar 7, 2025, 2:30 PM",
+    entryCode: "EVT-WC8N4",
+  },
+];

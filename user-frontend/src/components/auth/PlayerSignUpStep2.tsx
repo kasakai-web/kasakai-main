@@ -12,7 +12,7 @@ interface PlayerSignUpStep2Props {
     preferences: { positions: string[]; preferredLocations: string[] };
   };
   onBack: () => void;
-  onSuccess: (password: string) => void;
+  onSuccess: (password: string, devOtp?: string) => void;
 }
 
 export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpStep2Props) {
@@ -58,12 +58,12 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
         }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create account");
+        throw new Error(data.message || "Failed to create account");
       }
 
-      onSuccess(password);
+      onSuccess(password, data.dev_otp);
     } catch (err: unknown) {
       const isNetworkError = err instanceof TypeError;
       const errorMessage = err instanceof Error ? err.message : "Failed to create account. Please try again.";
