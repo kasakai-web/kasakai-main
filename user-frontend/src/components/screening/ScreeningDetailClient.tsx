@@ -334,14 +334,18 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
 
       {/* ── Hero ── */}
       <div className="sd-hero" style={{ position: "relative" }}>
-        <Image
-          src={screening.image}
-          alt={screening.matchTitle}
-          fill
-          priority
-          sizes="100vw"
-          style={{ objectFit: "cover" }}
-        />
+        {screening.image ? (
+          <Image
+            src={screening.image}
+            alt={screening.matchTitle}
+            fill
+            priority
+            sizes="100vw"
+            style={{ objectFit: "cover" }}
+          />
+        ) : (
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #0d0d1a 0%, #0a0a0a 100%)" }} />
+        )}
         <div className="sd-hero-grad" />
         <div className="sd-hero-grad-l" />
 
