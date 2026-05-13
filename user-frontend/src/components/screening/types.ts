@@ -17,6 +17,7 @@ export interface Screening {
   startingPrice: number;
   tiers: TicketTier[];
   image: string | null;
+  status: 'published' | 'cancelled';
 }
 
 export type BookingStep = "HOME" | "QUANTITY" | "PAYMENT" | "CONFIRMATION";
@@ -34,4 +35,5 @@ export interface Ticket {
   totalAmount: number;
   bookingTime: string;
   entryCode: string;
+  status: 'confirmed' | 'used' | 'cancelled';
 }

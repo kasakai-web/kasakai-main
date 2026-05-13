@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useReducer } from "react";
+import { useState, useEffect, useCallback, useReducer, useRef } from "react";
 import dynamic from "next/dynamic";
 import { getSession } from "@/utils/api";
 
@@ -117,9 +117,34 @@ export default function ScreeningPage() {
   const { screenings, loading: eventsLoading, error: eventsError, refetch: refetchEvents } = useScreeningEvents();
   const { confirmed: myBookings, history: myHistory, loading: ticketsLoading, error: ticketsError, refetch: refetchMyTickets } = useMyTickets(isLoggedIn);
 
+  // Map of eventId → entryCode for events the user has already booked
+  const bookedMap = myBookings.reduce<Record<string, string>>((acc, t) => {
+    acc[t.screening.id] = t.entryCode;
+    return acc;
+  }, {});
+
   useEffect(() => {
     const { token } = getSession();
     dispatch({ type: "SET_LOGGED_IN", payload: !!token });
+  }, []);
+
+  // ── Booking notification toast ────────────────────────────────────────────
+  const [notifToast, setNotifToast] = useState<{ title: string; body: string } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const data = (e as CustomEvent).detail as { type: string; title: string; body: string };
+      if (data?.type !== "screening_booked") return;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      setNotifToast({ title: data.title, body: data.body });
+      toastTimerRef.current = setTimeout(() => setNotifToast(null), 6000);
+    };
+    window.addEventListener("kk-new-notification", handler);
+    return () => {
+      window.removeEventListener("kk-new-notification", handler);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   // Derived totals — computed inline (not useMemo'd JSX, just numbers)
@@ -166,6 +191,7 @@ export default function ScreeningPage() {
                 loading={eventsLoading}
                 error={eventsError}
                 onRetry={refetchEvents}
+                bookedMap={bookedMap}
               />
             )}
             {currentView === "MY_BOOKINGS" && (
@@ -230,6 +256,71 @@ export default function ScreeningPage() {
           screening={pendingScreening}
         />
       )}
+
+      {/* ── Booking confirmation toast (real-time via Socket.io) ── */}
+      {notifToast && (() => {
+        const [msgPart, codePart] = notifToast.body.split(/Entry code:\s*/i);
+        return (
+          <div
+            style={{
+              position: "fixed", bottom: "86px", right: "16px", zIndex: 500,
+              background: "#111", border: "1px solid rgba(200,241,53,0.35)",
+              boxShadow: "0 0 40px rgba(200,241,53,0.1), 0 8px 40px rgba(0,0,0,0.7)",
+              maxWidth: "300px", width: "calc(100vw - 32px)",
+              animation: "scrFadeIn 0.3s ease both", overflow: "hidden",
+            }}
+          >
+            <div style={{ height: "3px", background: "linear-gradient(90deg,#c8f135,transparent)" }} />
+            <div style={{ padding: "14px 16px 16px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Title row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "9px" }}>
+                    <div style={{
+                      width: "20px", height: "20px", borderRadius: "50%", flexShrink: 0,
+                      background: "rgba(200,241,53,0.1)", border: "1px solid rgba(200,241,53,0.25)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", textTransform: "uppercase", letterSpacing: "0.2em" }}>
+                      {notifToast.title}
+                    </span>
+                  </div>
+                  {/* Message */}
+                  <p style={{ fontSize: "12px", color: "#777", lineHeight: 1.55, margin: codePart ? "0 0 10px" : "0" }}>
+                    {msgPart?.trim()}
+                  </p>
+                  {/* Entry code chip */}
+                  {codePart && (
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", gap: "8px",
+                      padding: "7px 12px",
+                      background: "rgba(200,241,53,0.06)", border: "1px solid rgba(200,241,53,0.18)",
+                    }}>
+                      <span style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.2em" }}>Code</span>
+                      <span style={{ fontSize: "15px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.2em" }}>{codePart.trim()}</span>
+                    </div>
+                  )}
+                </div>
+                {/* Close */}
+                <button
+                  onClick={() => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); setNotifToast(null); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#3a3a3a", padding: "2px", flexShrink: 0, lineHeight: 1 }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#666")}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#3a3a3a")}
+                >
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

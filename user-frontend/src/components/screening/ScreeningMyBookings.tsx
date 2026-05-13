@@ -114,9 +114,17 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
       {/* ── Match info row ── */}
       <div style={{ display: "flex", alignItems: "stretch" }}>
         {/* Image */}
-        <div style={{ width: "100px", minHeight: "120px", flexShrink: 0, overflow: "hidden", alignSelf: "stretch", background: "#1a1a1a" }}>
-          <img src={screening.image ?? undefined} alt={screening.matchTitle}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px" }} />
+        <div className="scr-ticket-img" style={{ minHeight: "120px", overflow: "hidden", alignSelf: "stretch", background: "#1a1a1a" }}>
+          {screening.image ? (
+            <img src={screening.image} alt={screening.matchTitle}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", minHeight: "120px", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2a2a2a" strokeWidth="1.5" strokeLinecap="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              </svg>
+            </div>
+          )}
         </div>
 
         {/* Details */}
@@ -170,7 +178,7 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
           <span style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
             Entry Code
           </span>
-          <span style={{ fontSize: "20px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.22em", lineHeight: 1 }}>
+          <span style={{ fontSize: "20px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.22em", lineHeight: 1, display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>
             {ticket.entryCode}
           </span>
         </div>
@@ -179,7 +187,7 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
             Total Paid
           </span>
           <span style={{ fontSize: "22px", fontWeight: 900, color: "#f0f0f0", lineHeight: 1 }}>
-            ₹{ticket.totalAmount.toLocaleString()}
+            {ticket.totalAmount === 0 ? "Free" : `₹${ticket.totalAmount.toLocaleString()}`}
           </span>
         </div>
       </div>

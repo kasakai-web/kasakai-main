@@ -520,12 +520,12 @@ function ScreeningAuthFlow() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Login failed");
-      localStorage.setItem("authToken", data.data?.token || data.token);
+      localStorage.setItem("authToken", data.token);
       localStorage.setItem("userRole", "player");
-      localStorage.setItem("userId", data.data?.userId || data.data?.user?._id || data.userId || "");
-      localStorage.setItem("userName", data.data?.user?.firstName || data.data?.firstName || data.userName || "");
+      localStorage.setItem("userId", data.user?.id || "");
+      localStorage.setItem("userName", data.user?.name || "");
       window.dispatchEvent(new CustomEvent("kk-auth-changed"));
-      router.push("/screening");
+      router.push(searchParams.get("redirect") || "/screening");
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
@@ -547,7 +547,7 @@ function ScreeningAuthFlow() {
       const res = await fetch(buildApiUrl("/api/v1/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: name.trim(), phone: signupPhone, email, password, role: "player" }),
+        body: JSON.stringify({ name: name.trim(), phone: signupPhone, email, password, role: "player" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Registration failed");

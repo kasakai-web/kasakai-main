@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Screening, TicketTier } from "./types";
+import { createBookingOrder, verifyBookingPayment, fetchMyTickets } from "@/utils/screening-api";
 import { ScreeningHeader } from "./ScreeningHeader";
 import "@/components/screening/screening.css";
 
@@ -62,6 +63,20 @@ const TERMS = [
   "Venue rules apply.",
 ];
 
+// ── Razorpay loader ────────────────────────────────────────────────────────
+function loadRazorpay(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).Razorpay) {
+      resolve(); return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load payment gateway."));
+    document.body.appendChild(script);
+  });
+}
+
 // ── Stepper ────────────────────────────────────────────────────────────────
 const Stepper = memo(function Stepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
@@ -115,28 +130,81 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
 
 // ── Booking widget ─────────────────────────────────────────────────────────
 const BookingWidget = memo(function BookingWidget({
-  screening, quantities, onChange, isLoggedIn,
+  screening, quantities, onChange, isLoggedIn, existingCode,
 }: {
   screening: Screening;
   quantities: Record<string, number>;
   onChange: (id: string, n: number) => void;
   isLoggedIn: boolean;
+  existingCode?: string | null;
 }) {
   const router = useRouter();
-  const [booked, setBooked] = useState(false);
-  const [entryCode] = useState(() => "EVT-" + Math.random().toString(36).toUpperCase().slice(2, 7));
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [confirmedCode, setConfirmedCode] = useState<string | null>(null);
 
   const totalQty = Object.values(quantities).reduce((a, b) => a + b, 0);
   const totalAmt = screening.tiers.reduce((s, t) => s + (quantities[t.id] ?? 0) * t.price, 0);
   const hasTickets = totalQty > 0;
 
-  const handleBook = () => {
+  type RzpConstructor = new (options: unknown) => { open: () => void };
+
+  const handleBook = async () => {
     if (!isLoggedIn) { router.push(`/screening/login?redirect=/screening/${screening.id}`); return; }
-    if (!hasTickets) return;
-    setBooked(true);
+    if (!hasTickets || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const tierQuantities: Record<string, number> = {};
+      for (const t of screening.tiers) {
+        const q = quantities[t.id] ?? 0;
+        if (q > 0) tierQuantities[t.id] = q;
+      }
+      const order = await createBookingOrder(screening.id, tierQuantities);
+
+      if (order.isFree) {
+        setConfirmedCode(order.entryCode);
+        setLoading(false);
+        return;
+      }
+
+      await loadRazorpay();
+
+      await new Promise<void>((resolve, reject) => {
+        const RzpClass = (window as unknown as { Razorpay: RzpConstructor }).Razorpay;
+        new RzpClass({
+          key:         order.keyId,
+          amount:      order.amount,
+          currency:    "INR",
+          name:        "Kasa Kai Screening",
+          description: screening.matchTitle,
+          order_id:    order.orderId,
+          theme:       { color: "#c8f135" },
+          handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+            try {
+              const ticket = await verifyBookingPayment({
+                razorpayOrderId:   response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+              setConfirmedCode(ticket.entryCode);
+              resolve();
+            } catch (e) { reject(e); }
+          },
+          modal: { ondismiss: () => { setLoading(false); resolve(); } },
+        }).open();
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (booked) {
+  const displayCode = confirmedCode ?? existingCode;
+
+  if (displayCode) {
+    const isAlreadyBooked = !!existingCode && !confirmedCode;
     return (
       <div className="sd-confirmed">
         <div className="sd-widget-lime" />
@@ -147,18 +215,24 @@ const BookingWidget = memo(function BookingWidget({
             </svg>
           </div>
           <p style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", letterSpacing: ".28em", textTransform: "uppercase", marginBottom: "8px" }}>Booking Confirmed</p>
-          <h3 style={{ fontSize: "20px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 6px" }}>You&apos;re all set!</h3>
-          <p style={{ fontSize: "12px", color: "#444", lineHeight: 1.65, margin: "0 0 20px" }}>Show this code at the venue entrance.</p>
+          <h3 style={{ fontSize: "20px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 6px" }}>
+            {isAlreadyBooked ? "Already Booked" : "You’re all set!"}
+          </h3>
+          <p style={{ fontSize: "12px", color: "#444", lineHeight: 1.65, margin: "0 0 20px" }}>
+            {isAlreadyBooked ? "You have an active booking for this event." : "Show this code at the venue entrance."}
+          </p>
 
           <div className="sd-code-box">
             <p style={{ fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".22em", textTransform: "uppercase", marginBottom: "8px" }}>Entry Code</p>
-            <p className="sd-code-val">{entryCode}</p>
+            <p className="sd-code-val">{displayCode}</p>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", padding: "11px 14px", background: "#0e0e0e", border: "1px solid #181818", borderRadius: "8px" }}>
-            <span style={{ fontSize: "11px", color: "#555", fontWeight: 700 }}>{totalQty} ticket{totalQty > 1 ? "s" : ""}</span>
-            <span style={{ fontSize: "16px", fontWeight: 900, color: "#e8e8e8" }}>₹{totalAmt.toLocaleString()}</span>
-          </div>
+          {totalAmt > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", padding: "11px 14px", background: "#0e0e0e", border: "1px solid #181818", borderRadius: "8px" }}>
+              <span style={{ fontSize: "11px", color: "#555", fontWeight: 700 }}>{totalQty} ticket{totalQty > 1 ? "s" : ""}</span>
+              <span style={{ fontSize: "16px", fontWeight: 900, color: "#e8e8e8" }}>₹{totalAmt.toLocaleString()}</span>
+            </div>
+          )}
 
           <Link
             href="/screening"
@@ -167,7 +241,7 @@ const BookingWidget = memo(function BookingWidget({
             onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#777"; }}
             onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#1e1e1e"; el.style.color = "#444"; }}
           >
-            Browse More Events
+            {isAlreadyBooked ? "My Bookings" : "Browse More Events"}
           </Link>
         </div>
       </div>
@@ -193,6 +267,12 @@ const BookingWidget = memo(function BookingWidget({
 
         <div style={{ borderTop: "1px solid #141414", margin: "0 0 14px" }} />
 
+        {error && (
+          <div style={{ marginBottom: "12px", padding: "9px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px", fontSize: "11px", color: "#ef4444", fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
+
         <div style={{ marginBottom: "16px" }}>
           <p style={{ fontSize: "9px", fontWeight: 900, color: "#444", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "4px" }}>
             {hasTickets ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "No tickets selected"}
@@ -202,8 +282,10 @@ const BookingWidget = memo(function BookingWidget({
           </p>
         </div>
 
-        <button onClick={handleBook} className={`sd-cta ${hasTickets || !isLoggedIn ? "lime" : "inactive"}`}>
-          {isLoggedIn ? (
+        <button onClick={handleBook} disabled={loading} className={`sd-cta ${(hasTickets || !isLoggedIn) && !loading ? "lime" : "inactive"}`}>
+          {loading ? (
+            <><svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".25"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> Processing…</>
+          ) : isLoggedIn ? (
             hasTickets
               ? <>Confirm Booking <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
               : "Select tickets above"
@@ -224,6 +306,36 @@ const BookingWidget = memo(function BookingWidget({
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+});
+
+// ── Cancelled widget ───────────────────────────────────────────────────────
+const CancelledWidget = memo(function CancelledWidget() {
+  return (
+    <div className="sd-widget" style={{ border: "1px solid rgba(239,68,68,0.18)" }}>
+      <div style={{ height: 3, background: "linear-gradient(90deg, #ef4444, #7f1d1d)", borderRadius: "4px 4px 0 0" }} />
+      <div className="sd-widget-body" style={{ textAlign: "center", padding: "32px 22px" }}>
+        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(239,68,68,0.08)", border: "1.5px solid rgba(239,68,68,0.22)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+          <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </div>
+        <p style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: ".28em", textTransform: "uppercase", marginBottom: "8px" }}>Event Cancelled</p>
+        <h3 style={{ fontSize: "18px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 10px" }}>This event has been cancelled</h3>
+        <p style={{ fontSize: "12px", color: "#555", lineHeight: 1.7, margin: "0 0 22px" }}>
+          Tickets are no longer available. If you had a booking, a refund will be processed automatically.
+        </p>
+        <Link
+          href="/screening"
+          className="no-underline"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "44px", background: "transparent", color: "#444", border: "1px solid #1e1e1e", borderRadius: "8px", fontSize: "11px", fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}
+          onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#777"; }}
+          onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#1e1e1e"; el.style.color = "#444"; }}
+        >
+          Browse Other Events
+        </Link>
       </div>
     </div>
   );
@@ -299,9 +411,10 @@ function NotFound() {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export function ScreeningDetailClient({ screening }: { screening: Screening | null }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [tcModalOpen, setTcModalOpen] = useState(false);
+  const [isLoggedIn,   setIsLoggedIn]   = useState(false);
+  const [quantities,   setQuantities]   = useState<Record<string, number>>({});
+  const [tcModalOpen,  setTcModalOpen]  = useState(false);
+  const [existingCode, setExistingCode] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoggedIn(!!localStorage.getItem("authToken"));
@@ -309,6 +422,17 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
     window.addEventListener("kk-auth-changed", h);
     return () => window.removeEventListener("kk-auth-changed", h);
   }, []);
+
+  // Check if user already has a confirmed ticket for this event
+  useEffect(() => {
+    if (!isLoggedIn) { setExistingCode(null); return; }
+    fetchMyTickets()
+      .then(data => {
+        const match = data.confirmed.find(t => t.event._id === screening?.id);
+        if (match) setExistingCode(match.entryCode);
+      })
+      .catch(() => {});
+  }, [isLoggedIn, screening?.id]);
 
   const setQty = useCallback((id: string, n: number) =>
     setQuantities((p) => ({ ...p, [id]: n })), []);
@@ -359,10 +483,19 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
         </div>
 
         <div className="sd-hero-bottom">
-          <div className="sd-live-badge">
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", display: "inline-block", animation: "sd-blink 2s infinite" }} />
-            <span style={{ fontSize: "9px", fontWeight: 900, color: "#f87171", letterSpacing: ".22em", textTransform: "uppercase" }}>Live Event</span>
-          </div>
+          {screening.status === 'cancelled' ? (
+            <div className="sd-live-badge" style={{ background: "rgba(239,68,68,0.15)", borderColor: "rgba(239,68,68,0.35)" }}>
+              <svg width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="3" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: ".22em", textTransform: "uppercase" }}>Event Cancelled</span>
+            </div>
+          ) : (
+            <div className="sd-live-badge">
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", display: "inline-block", animation: "sd-blink 2s infinite" }} />
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#f87171", letterSpacing: ".22em", textTransform: "uppercase" }}>Live Event</span>
+            </div>
+          )}
           <h1 className="sd-hero-title">{screening.matchTitle}</h1>
         </div>
       </div>
@@ -428,8 +561,11 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
 
             {/* Mobile booking widget */}
             <div className="sd-mob-widget">
-              <SH>Book Tickets</SH>
-              <BookingWidget screening={screening} quantities={quantities} onChange={setQty} isLoggedIn={isLoggedIn} />
+              <SH>{screening.status === 'cancelled' ? "Event Status" : "Book Tickets"}</SH>
+              {screening.status === 'cancelled'
+                ? <CancelledWidget />
+                : <BookingWidget screening={screening} quantities={quantities} onChange={setQty} isLoggedIn={isLoggedIn} existingCode={existingCode} />
+              }
             </div>
 
             {/* Venue */}
@@ -537,7 +673,10 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
 
           {/* ── Right column (sticky, desktop only) ── */}
           <div className="sd-sidebar">
-            <BookingWidget screening={screening} quantities={quantities} onChange={setQty} isLoggedIn={isLoggedIn} />
+            {screening.status === 'cancelled'
+              ? <CancelledWidget />
+              : <BookingWidget screening={screening} quantities={quantities} onChange={setQty} isLoggedIn={isLoggedIn} existingCode={existingCode} />
+            }
           </div>
 
         </div>
@@ -548,23 +687,37 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
 
       {/* ── Mobile bottom bar ── */}
       <div className="sd-bottom-bar">
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "3px" }}>
-            {totalQty > 0 ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "Starting from"}
-          </p>
-          <p style={{ fontSize: "18px", fontWeight: 900, color: "#c8f135", lineHeight: 1, margin: 0 }}>
-            {totalQty > 0 ? `₹${totalAmt.toLocaleString()}` : `₹${screening.startingPrice}`}
-          </p>
-        </div>
-        <Link
-          href={isLoggedIn ? "#" : `/screening/login?redirect=/screening/${screening.id}`}
-          className="no-underline"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s" }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#d4f545")}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#c8f135")}
-        >
-          {isLoggedIn ? "Book Now" : "Login to Book"}
-        </Link>
+        {screening.status === 'cancelled' ? (
+          <>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: "9px", fontWeight: 900, color: "#4a1515", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "3px" }}>Event Status</p>
+              <p style={{ fontSize: "14px", fontWeight: 900, color: "#ef4444", lineHeight: 1, margin: 0 }}>Cancelled</p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#1a0a0a", color: "#4a1515", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", border: "1px solid #2a0a0a" }}>
+              Not Available
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "3px" }}>
+                {totalQty > 0 ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "Starting from"}
+              </p>
+              <p style={{ fontSize: "18px", fontWeight: 900, color: "#c8f135", lineHeight: 1, margin: 0 }}>
+                {totalQty > 0 ? `₹${totalAmt.toLocaleString()}` : `₹${screening.startingPrice}`}
+              </p>
+            </div>
+            <Link
+              href={isLoggedIn ? "#" : `/screening/login?redirect=/screening/${screening.id}`}
+              className="no-underline"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#d4f545")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#c8f135")}
+            >
+              {isLoggedIn ? "Book Now" : "Login to Book"}
+            </Link>
+          </>
+        )}
       </div>
 
     </div>

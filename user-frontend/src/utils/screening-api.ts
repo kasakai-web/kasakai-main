@@ -34,7 +34,7 @@ export type ApiScrEvent = {
   languages: string[];
   tiers: ApiScrTier[];
   shows: ApiScrShow[];
-  status: 'published';
+  status: 'published' | 'cancelled' | 'draft';
   gatesOpenBefore: number;
   isIndoor: boolean | null;
   isSeated: boolean | null;
@@ -96,9 +96,10 @@ function playerHeaders(): Record<string, string> {
 }
 
 export type BookingOrderResponse = {
-  orderId:   string;
+  isFree:    boolean;
+  orderId?:  string;
   amount:    number;
-  keyId:     string;
+  keyId?:    string;
   ticketId:  string;
   entryCode: string;
 };
@@ -146,7 +147,7 @@ export type ApiMyTicket = {
   lineItems: { tierId: string; tierName: string; quantity: number; pricePaise: number }[];
   totalPaise: number;
   entryCode: string;
-  status: 'confirmed' | 'used' | 'cancelled';
+  status: 'confirmed' | 'used' | 'cancelled' | 'pending';
   bookedAt: string;
 };
 
@@ -203,6 +204,7 @@ export function toScreening(e: ApiScrEvent): Screening {
     startingPrice,
     tiers,
     image:        e.image || null,
+    status:       e.status === 'cancelled' ? 'cancelled' : 'published',
   };
 }
 
@@ -218,5 +220,6 @@ export function toTicket(t: ApiMyTicket): Ticket {
     totalAmount:  Math.round(t.totalPaise / 100),
     bookingTime:  new Date(t.bookedAt).toLocaleString('en-IN'),
     entryCode:    t.entryCode,
+    status:       (t.status === 'used' || t.status === 'cancelled') ? t.status : 'confirmed',
   };
 }

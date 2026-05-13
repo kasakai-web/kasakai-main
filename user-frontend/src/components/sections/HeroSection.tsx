@@ -183,20 +183,14 @@ export function HeroSection() {
         `}</style>
 
         <div className="hero-ctas" style={{ display: "flex", justifyContent: "center", gap: "14px", flexWrap: "wrap", marginTop: "8px" }}>
-          {/* Primary: Login */}
+          {/* Primary: Football */}
           <a href="/login" className="hero-btn-primary">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" />
-            </svg>
-            Login
+            Football →
           </a>
 
           {/* Secondary: Live Screenings */}
           <a href="/screening" className="hero-btn-secondary">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none" opacity="0.7"/>
-            </svg>
-            Live Screening
+            Screening →
           </a>
         </div>
       </div>

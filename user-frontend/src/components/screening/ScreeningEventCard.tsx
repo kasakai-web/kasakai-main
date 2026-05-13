@@ -8,9 +8,10 @@ import type { Screening } from "./types";
 interface Props {
   screening: Screening;
   onBook: (screening: Screening) => void;
+  bookedEntryCode?: string;
 }
 
-export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }: Props) {
+export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, bookedEntryCode }: Props) {
   return (
     <div
       className="group flex flex-col overflow-hidden transition-all duration-200"
@@ -41,21 +42,43 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }
           )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #111 0%, rgba(17,17,17,0.4) 45%, transparent 100%)" }} />
 
-          {/* Live badge */}
+          {/* Badge: Cancelled / Booked / Live */}
           <div className="absolute top-3 left-3">
-            <div className="flex items-center gap-1.5"
-              style={{ padding: "5px 10px", background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "999px" }}>
-              <span className="w-[6px] h-[6px] rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-              <span style={{ fontSize: "9px", fontWeight: 900, color: "#fff", letterSpacing: "0.18em", textTransform: "uppercase" }}>Live Now</span>
-            </div>
+            {screening.status === 'cancelled' ? (
+              <div className="flex items-center gap-1.5"
+                style={{ padding: "5px 10px", background: "rgba(239,68,68,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: "999px" }}>
+                <svg width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="3" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+                <span style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: "0.18em", textTransform: "uppercase" }}>Cancelled</span>
+              </div>
+            ) : bookedEntryCode ? (
+              <div className="flex items-center gap-1.5"
+                style={{ padding: "5px 10px", background: "rgba(200,241,53,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(200,241,53,0.4)", borderRadius: "999px" }}>
+                <svg width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="3" strokeLinecap="round">
+                  <path d="M5 13l4 4L19 7"/>
+                </svg>
+                <span style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.18em", textTransform: "uppercase" }}>Booked</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5"
+                style={{ padding: "5px 10px", background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "999px" }}>
+                <span className="w-[6px] h-[6px] rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                <span style={{ fontSize: "9px", fontWeight: 900, color: "#fff", letterSpacing: "0.18em", textTransform: "uppercase" }}>Live Now</span>
+              </div>
+            )}
           </div>
 
-          {/* Price chip */}
-          <div className="absolute bottom-3 right-3">
-            <div style={{ padding: "4px 10px", background: "#c8f135", borderRadius: "4px" }}>
-              <span style={{ fontSize: "11px", fontWeight: 900, color: "#000", letterSpacing: "0.04em" }}>from ₹{screening.startingPrice}</span>
+          {/* Price chip — hidden for cancelled events */}
+          {screening.status !== 'cancelled' && (
+            <div className="absolute bottom-3 right-3">
+              <div style={{ padding: "4px 10px", background: screening.startingPrice === 0 ? "#c8f135" : "#c8f135", borderRadius: "4px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 900, color: "#000", letterSpacing: "0.04em" }}>
+                  {screening.startingPrice === 0 ? "Free" : `from ₹${screening.startingPrice}`}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Link>
 
@@ -102,21 +125,52 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }
 
         {/* CTA */}
         <div className="flex items-center justify-between" style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #1e1e1e" }}>
-          <span style={{ fontSize: "12px", fontWeight: 700, color: "#555" }}>
-            {screening.tiers.length} {screening.tiers.length === 1 ? "option" : "options"} available
-          </span>
-          <Link
-            href={`/screening/${screening.id}`}
-            className="no-underline"
-            style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "transparent", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.4)", transition: "background 0.15s, border-color 0.15s" }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "rgba(200,241,53,0.1)"; el.style.borderColor = "rgba(200,241,53,0.75)"; }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.borderColor = "rgba(200,241,53,0.4)"; }}
-          >
-            Explore
-            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </Link>
+          {screening.status === 'cancelled' ? (
+            <div className="flex items-center justify-between w-full">
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a1515" }}>This event has been cancelled</span>
+              <Link
+                href={`/screening/${screening.id}`}
+                className="no-underline"
+                style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "transparent", color: "#555", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid #222" }}
+              >
+                Details
+              </Link>
+            </div>
+          ) : bookedEntryCode ? (
+            <>
+              <div>
+                <span style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.2em", display: "block", marginBottom: "3px" }}>Your Code</span>
+                <span style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.18em" }}>{bookedEntryCode}</span>
+              </div>
+              <Link
+                href={`/screening/${screening.id}`}
+                className="no-underline"
+                style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "rgba(200,241,53,0.08)", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.3)", transition: "background 0.15s" }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(200,241,53,0.14)")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(200,241,53,0.08)")}
+              >
+                View
+              </Link>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#555" }}>
+                {screening.tiers.length} {screening.tiers.length === 1 ? "option" : "options"} available
+              </span>
+              <Link
+                href={`/screening/${screening.id}`}
+                className="no-underline"
+                style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "transparent", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.4)", transition: "background 0.15s, border-color 0.15s" }}
+                onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "rgba(200,241,53,0.1)"; el.style.borderColor = "rgba(200,241,53,0.75)"; }}
+                onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.borderColor = "rgba(200,241,53,0.4)"; }}
+              >
+                Explore
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>

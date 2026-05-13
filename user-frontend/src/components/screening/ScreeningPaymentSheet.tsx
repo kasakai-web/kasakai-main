@@ -50,13 +50,20 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, onSucces
     setError(null);
 
     try {
-      // 1. Create Razorpay order on backend (amount verified server-side)
+      // 1. Create order on backend (amount verified server-side)
       const order = await createBookingOrder(eventId, tierQuantities);
 
-      // 2. Load Razorpay checkout.js if not already loaded
+      // 2. Free ticket — no payment needed, confirm immediately
+      if (order.isFree) {
+        onSuccess(order.entryCode);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Load Razorpay checkout.js if not already loaded
       await loadRazorpay();
 
-      // 3. Open checkout — wraps in a Promise so we can await it cleanly
+      // 4. Open checkout — wraps in a Promise so we can await it cleanly
       await new Promise<void>((resolve, reject) => {
         const options = {
           key:         order.keyId,

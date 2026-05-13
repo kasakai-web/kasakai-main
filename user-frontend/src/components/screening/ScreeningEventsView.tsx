@@ -10,9 +10,10 @@ interface Props {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  bookedMap?: Record<string, string>;
 }
 
-export const ScreeningEventsView = memo(function ScreeningEventsView({ screenings, onBook, loading, error, onRetry }: Props) {
+export const ScreeningEventsView = memo(function ScreeningEventsView({ screenings, onBook, loading, error, onRetry, bookedMap }: Props) {
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
 
@@ -176,7 +177,7 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
           </div>
 
           {/* City pills */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="scr-city-scroll">
             {cities.map((c) => (
               <button
                 key={c}
@@ -224,8 +225,8 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
         </div>
 
         {loading ? (
-          <div style={{ padding: "80px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", width: "100%", maxWidth: "900px" }}>
+          <div style={{ paddingTop: "40px" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} style={{ height: "280px", background: "#111", borderRadius: "4px", opacity: 0.6, animation: "pulse 1.8s ease-in-out infinite", animationDelay: `${i * 0.1}s` }} />
               ))}
@@ -271,7 +272,7 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((s) => (
-              <ScreeningEventCard key={s.id} screening={s} onBook={onBook} />
+              <ScreeningEventCard key={s.id} screening={s} onBook={onBook} bookedEntryCode={bookedMap?.[s.id]} />
             ))}
           </div>
         )}
