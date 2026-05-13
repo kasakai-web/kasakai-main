@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchPublicScreenings, toScreening } from '@/utils/screening-api';
 import type { Screening } from '@/components/screening/types';
 
@@ -26,11 +26,10 @@ type UseScreeningEventsResult = {
 };
 
 export function useScreeningEvents(): UseScreeningEventsResult {
-  const cachedRef              = useRef<Screening[]>(readCache());
-  const [screenings, setScreenings] = useState<Screening[]>(cachedRef.current);
-  // Only show spinner when there's nothing to display yet
-  const [loading, setLoading]  = useState(cachedRef.current.length === 0);
-  const [error,   setError]    = useState<string | null>(null);
+  // Must match SSR: start empty so server and client agree on initial render
+  const [screenings, setScreenings] = useState<Screening[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -42,11 +41,18 @@ export function useScreeningEvents(): UseScreeningEventsResult {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load events');
     } finally {
-      setLoading(false); // clears initial spinner; no-op on background polls
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // Safe to read sessionStorage here — this only runs on the client after hydration
+    const cached = readCache();
+    if (cached.length > 0) {
+      setScreenings(cached);
+      setLoading(false);
+    }
+    // Fetch fresh data (and poll every 30 s silently)
     load();
     const id = setInterval(load, POLL_MS);
     return () => clearInterval(id);
