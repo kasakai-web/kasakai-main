@@ -6,6 +6,12 @@ export interface TicketTier {
   available?: number; // remaining seats (capacity - sold)
 }
 
+export interface ScreeningContact {
+  name:  string;
+  email: string;
+  phone: string;
+}
+
 export interface Screening {
   id: string;
   matchTitle: string;
@@ -19,6 +25,7 @@ export interface Screening {
   tiers: TicketTier[];
   image: string | null;
   status: 'published' | 'cancelled';
+  contacts: ScreeningContact[];
 }
 
 export type BookingStep = "HOME" | "QUANTITY" | "PAYMENT" | "CONFIRMATION";

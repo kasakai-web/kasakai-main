@@ -39,7 +39,7 @@ export function ScreeningQuantitySheet({ bookingData, onUpdateQty, onProceed, on
 
         {/* Tier list */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3 scr-scroll">
-          {bookingData.screening?.tiers.map((tier) => {
+          {bookingData.screening?.tiers?.map((tier) => {
             const qty      = bookingData.tierQuantities[tier.id] || 0;
             const avail    = tier.available ?? 999;
             const atMax    = qty >= Math.min(avail, 10);

@@ -24,10 +24,10 @@ export function useMyTickets(enabled: boolean): UseMyTicketsResult {
     setError(null);
     try {
       const data = await fetchMyTickets();
-      setConfirmed(data.confirmed.map(toTicket));
-      setHistory(data.history.map(toTicket));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load tickets');
+      setConfirmed((data.confirmed ?? []).map(toTicket));
+      setHistory((data.history ?? []).map(toTicket));
+    } catch {
+      setError('Could not load your tickets. Please try again.');
     } finally {
       setLoading(false);
     }

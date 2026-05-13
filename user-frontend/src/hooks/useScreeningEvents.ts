@@ -35,7 +35,7 @@ export function useScreeningEvents(): UseScreeningEventsResult {
     setError(null);
     try {
       const res    = await fetchPublicScreenings();
-      const events = res.events.map(toScreening);
+      const events = (res.events ?? []).map(toScreening);
       setScreenings(events);
       writeCache(events);
     } catch (e) {

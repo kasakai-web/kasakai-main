@@ -68,7 +68,7 @@ export function ScreeningConfirmation({ bookingData, totalAmount, entryCode, onV
               <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1.5">Booking</p>
               <div className="space-y-1">
                 {screening?.tiers
-                  .filter((t) => (tierQuantities[t.id] || 0) > 0)
+                  ?.filter((t) => (tierQuantities[t.id] || 0) > 0)
                   .map((t) => (
                     <p key={t.id} className="text-[11px] font-bold text-white">
                       {tierQuantities[t.id]}× {t.name}

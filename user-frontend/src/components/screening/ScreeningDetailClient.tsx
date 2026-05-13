@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
+import { useState, useEffect, useCallback, memo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -299,39 +299,56 @@ const BookingWidget = memo(function BookingWidget({
           </div>
         )}
 
-        <div style={{ marginBottom: "16px" }}>
-          <p style={{ fontSize: "9px", fontWeight: 900, color: "#444", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "4px" }}>
-            {hasTickets ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "No tickets selected"}
-          </p>
-          <p style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, color: hasTickets ? "#e8e8e8" : "#333", margin: 0 }}>
-            {hasTickets ? `₹${totalAmt.toLocaleString()}` : "—"}
-          </p>
-        </div>
-
-        <button onClick={handleBook} disabled={loading} className={`sd-cta ${loading ? "inactive" : (hasTickets || !isLoggedIn) ? "lime" : "hint"}`}>
-          {loading ? (
-            <><svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".25"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> Processing…</>
-          ) : isLoggedIn ? (
-            hasTickets
-              ? <>{existingCode ? "Book More Tickets" : "Confirm Booking"} <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
-              : "Select tickets above"
-          ) : (
-            <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Login to Book</>
-          )}
-        </button>
-
-        <div className="sd-trust">
-          {[
-            { d: "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z", l: "Verified" },
-            { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", l: "Secure" },
-            { d: "M13 10V3L4 14h7v7l9-11h-7z", l: "Instant" },
-          ].map(({ d, l }) => (
-            <div key={l} className="sd-trust-item">
-              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="rgba(200,241,53,.45)" strokeWidth="2" strokeLinecap="round"><path d={d}/></svg>
-              <span className="sd-trust-label">{l}</span>
+        {/* Already booked + no new tickets selected → show Booked state */}
+        {existingCode && !hasTickets ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", background: "rgba(200,241,53,0.05)", border: "1px solid rgba(200,241,53,0.18)", borderRadius: "10px" }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(200,241,53,0.08)", border: "1.5px solid rgba(200,241,53,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M5 13l4 4L19 7"/>
+              </svg>
             </div>
-          ))}
-        </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: "9px", fontWeight: 900, color: "#5a6e1a", textTransform: "uppercase", letterSpacing: ".22em", margin: "0 0 3px" }}>Booked</p>
+              <p style={{ fontSize: "11px", color: "#555", margin: 0, lineHeight: 1.5 }}>You have a ticket. Select more above to add seats.</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: "16px" }}>
+              <p style={{ fontSize: "9px", fontWeight: 900, color: "#444", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "4px" }}>
+                {hasTickets ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "No tickets selected"}
+              </p>
+              <p style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, color: hasTickets ? "#e8e8e8" : "#333", margin: 0 }}>
+                {hasTickets ? `₹${totalAmt.toLocaleString()}` : "—"}
+              </p>
+            </div>
+
+            <button onClick={handleBook} disabled={loading} className={`sd-cta ${loading ? "inactive" : (hasTickets || !isLoggedIn) ? "lime" : "hint"}`}>
+              {loading ? (
+                <><svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".25"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> Processing…</>
+              ) : isLoggedIn ? (
+                hasTickets
+                  ? <>{existingCode ? "Book More Tickets" : "Confirm Booking"} <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
+                  : "Select tickets above"
+              ) : (
+                <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Login to Book</>
+              )}
+            </button>
+
+            <div className="sd-trust">
+              {[
+                { d: "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z", l: "Verified" },
+                { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", l: "Secure" },
+                { d: "M13 10V3L4 14h7v7l9-11h-7z", l: "Instant" },
+              ].map(({ d, l }) => (
+                <div key={l} className="sd-trust-item">
+                  <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="rgba(200,241,53,.45)" strokeWidth="2" strokeLinecap="round"><path d={d}/></svg>
+                  <span className="sd-trust-label">{l}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -471,7 +488,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
     if (!isLoggedIn) { setExistingCode(null); return; }
     fetchMyTickets()
       .then(data => {
-        const match = data.confirmed.find(t => t.event._id === screening?.id);
+        const match = data.confirmed.find(t => t.event?._id === screening?.id);
         if (match) setExistingCode(match.entryCode);
       })
       .catch(() => {});
@@ -479,18 +496,6 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
 
   const setQty = useCallback((id: string, n: number) =>
     setQuantities((p) => ({ ...p, [id]: n })), []);
-
-  const totalQty = useMemo(
-    () => Object.values(quantities).reduce((a: number, b: number) => a + b, 0),
-    [quantities]
-  );
-
-  const totalAmt = useMemo(
-    () => screening
-      ? screening.tiers.reduce((s, t) => s + (quantities[t.id] ?? 0) * t.price, 0)
-      : 0,
-    [quantities, screening]
-  );
 
   if (!screening) return <NotFound />;
 
@@ -655,38 +660,50 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
             </div>
 
             {/* Organized By */}
-            <div className="sd-section">
-              <SH>Organized By</SH>
-              <div className="sd-organizer">
-                <div className="sd-org-avatar">
-                  <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2e2e2e" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10"/>
-                  </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p className="sd-org-name">GLOBAL DEVINE FOODS &amp; BEVERAGES LLP</p>
-                  <div className="sd-org-stats">
-                    <div className="sd-org-stat">
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="#7a2222">
-                          <path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/>
-                        </svg>
-                        <span className="sd-org-stat-val">100%</span>
-                      </div>
-                      <span className="sd-org-stat-lbl">Liked</span>
+            {screening.contacts.length > 0 && (
+              <div className="sd-section">
+                <SH>Organized By</SH>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {screening.contacts.map((c, i) => (
+                    <div key={i} style={{ background: "#0c0c0c", border: "1px solid #1c1c1c", borderRadius: "12px", padding: "16px 18px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {/* Name */}
+                      {c.name && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: "8px", background: "#111", border: "1px solid #1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#555" strokeWidth="1.8" strokeLinecap="round">
+                              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/>
+                            </svg>
+                          </div>
+                          <span style={{ fontSize: "13px", fontWeight: 800, color: "#b0b0b0", lineHeight: 1.3 }}>{c.name}</span>
+                        </div>
+                      )}
+                      {/* Phone */}
+                      {c.phone && (
+                        <a href={`tel:${c.phone}`} style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: "8px", background: "rgba(200,241,53,0.06)", border: "1px solid rgba(200,241,53,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="1.8" strokeLinecap="round">
+                              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .9h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                            </svg>
+                          </div>
+                          <span style={{ fontSize: "13px", fontWeight: 700, color: "#c8f135", letterSpacing: "0.04em" }}>{c.phone}</span>
+                        </a>
+                      )}
+                      {/* Email */}
+                      {c.email && (
+                        <a href={`mailto:${c.email}`} style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: "8px", background: "#111", border: "1px solid #1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#555" strokeWidth="1.8" strokeLinecap="round">
+                              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                          </div>
+                          <span style={{ fontSize: "13px", fontWeight: 700, color: "#888" }}>{c.email}</span>
+                        </a>
+                      )}
                     </div>
-                    <div className="sd-org-stat">
-                      <span className="sd-org-stat-val">1</span>
-                      <span className="sd-org-stat-lbl">Events</span>
-                    </div>
-                    <div className="sd-org-stat">
-                      <span className="sd-org-stat-val">1 mo</span>
-                      <span className="sd-org-stat-lbl">Hosting</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Terms & Conditions — opens popup */}
             <div className="sd-section">
@@ -789,51 +806,6 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
         );
       })()}
 
-      {/* ── Mobile bottom bar ── */}
-      <div className="sd-bottom-bar">
-        {screening.status === 'cancelled' ? (
-          <>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: "9px", fontWeight: 900, color: "#4a1515", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "3px" }}>Event Status</p>
-              <p style={{ fontSize: "14px", fontWeight: 900, color: "#ef4444", lineHeight: 1, margin: 0 }}>Cancelled</p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#1a0a0a", color: "#4a1515", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", border: "1px solid #2a0a0a" }}>
-              Not Available
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "3px" }}>
-                {totalQty > 0 ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "Starting from"}
-              </p>
-              <p style={{ fontSize: "18px", fontWeight: 900, color: "#c8f135", lineHeight: 1, margin: 0 }}>
-                {totalQty > 0 ? `₹${totalAmt.toLocaleString()}` : `₹${screening.startingPrice}`}
-              </p>
-            </div>
-            {isLoggedIn ? (
-              <button
-                onClick={() => document.getElementById("mob-booking")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s", border: "none", cursor: "pointer" }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#d4f545")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#c8f135")}
-              >
-                Book Now
-              </button>
-            ) : (
-              <Link
-                href={`/screening/login?redirect=/screening/${screening.id}`}
-                className="no-underline"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s" }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#d4f545")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#c8f135")}
-              >
-                Login to Book
-              </Link>
-            )}
-          </>
-        )}
-      </div>
 
     </div>
   );

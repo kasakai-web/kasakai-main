@@ -20,6 +20,12 @@ export type ApiScrShow = {
   status: 'active' | 'expired' | 'cancelled';
 };
 
+export type ApiScrContact = {
+  name:  string;
+  email: string;
+  phone: string;
+};
+
 export type ApiScrEvent = {
   _id: string;
   title: string;
@@ -34,6 +40,7 @@ export type ApiScrEvent = {
   languages: string[];
   tiers: ApiScrTier[];
   shows: ApiScrShow[];
+  contacts?: ApiScrContact[];
   status: 'published' | 'cancelled' | 'draft';
   gatesOpenBefore: number;
   isIndoor: boolean | null;
@@ -168,7 +175,7 @@ export async function fetchMyTickets(): Promise<MyTicketsResponse> {
 /* ── Transform: API event → frontend Screening type ─────────────────────── */
 
 export function toScreening(e: ApiScrEvent): Screening {
-  const firstShow = e.shows[0];
+  const firstShow = (e.shows ?? [])[0];
   let date = '';
   let day = '';
   let time = '';
@@ -180,12 +187,13 @@ export function toScreening(e: ApiScrEvent): Screening {
     time = firstShow.startTime;                                                 // "9:00 PM"
   }
 
+  const rawTiers = e.tiers ?? [];
   const startingPrice =
-    e.tiers.length > 0
-      ? Math.min(...e.tiers.map(t => Math.round(t.pricePaise / 100)))
+    rawTiers.length > 0
+      ? Math.min(...rawTiers.map(t => Math.round(t.pricePaise / 100)))
       : 0;
 
-  const tiers: TicketTier[] = e.tiers.map(t => ({
+  const tiers: TicketTier[] = rawTiers.map(t => ({
     id:          t._id,
     name:        t.name,
     price:       Math.round(t.pricePaise / 100),
@@ -206,10 +214,26 @@ export function toScreening(e: ApiScrEvent): Screening {
     tiers,
     image:        e.image || null,
     status:       e.status === 'cancelled' ? 'cancelled' : 'published',
+    contacts:     (e.contacts || []).map(c => ({ name: c.name, email: c.email, phone: c.phone })),
   };
 }
 
 export function toTicket(t: ApiMyTicket): Ticket {
+  if (!t.event) {
+    return {
+      id:          t._id,
+      screening:   {
+        id: '', matchTitle: 'Event Unavailable', venueName: '', location: '',
+        date: '', day: '', time: '', description: '', startingPrice: 0,
+        tiers: [], image: null, status: 'published' as const, contacts: [],
+      },
+      tiers:       t.lineItems?.map(li => ({ tier: { id: String(li.tierId), name: li.tierName, price: Math.round(li.pricePaise / 100) }, quantity: li.quantity })) ?? [],
+      totalAmount: Math.round(t.totalPaise / 100),
+      bookingTime: new Date(t.bookedAt).toLocaleString('en-IN'),
+      entryCode:   t.entryCode,
+      status:      (t.status === 'used' || t.status === 'cancelled') ? t.status : 'confirmed',
+    };
+  }
   const screening = toScreening(t.event);
   return {
     id:          t._id,
