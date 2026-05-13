@@ -603,7 +603,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
             </div>
 
             {/* Mobile booking widget */}
-            <div className="sd-mob-widget">
+            <div id="mob-booking" className="sd-mob-widget">
               <SH>{screening.status === 'cancelled' ? "Event Status" : "Book Tickets"}</SH>
               {screening.status === 'cancelled'
                 ? <CancelledWidget />
@@ -734,7 +734,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
         return (
           <div
             style={{
-              position: "fixed", bottom: "86px", right: "16px", zIndex: 500,
+              position: "fixed", bottom: "calc(86px + env(safe-area-inset-bottom))", right: "16px", zIndex: 500,
               background: "#111", border: "1px solid rgba(200,241,53,0.35)",
               boxShadow: "0 0 40px rgba(200,241,53,0.1), 0 8px 40px rgba(0,0,0,0.7)",
               maxWidth: "300px", width: "calc(100vw - 32px)",
@@ -811,15 +811,26 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                 {totalQty > 0 ? `₹${totalAmt.toLocaleString()}` : `₹${screening.startingPrice}`}
               </p>
             </div>
-            <Link
-              href={isLoggedIn ? "#" : `/screening/login?redirect=/screening/${screening.id}`}
-              className="no-underline"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s" }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#d4f545")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#c8f135")}
-            >
-              {isLoggedIn ? "Book Now" : "Login to Book"}
-            </Link>
+            {isLoggedIn ? (
+              <button
+                onClick={() => document.getElementById("mob-booking")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s", border: "none", cursor: "pointer" }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#d4f545")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#c8f135")}
+              >
+                Book Now
+              </button>
+            ) : (
+              <Link
+                href={`/screening/login?redirect=/screening/${screening.id}`}
+                className="no-underline"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "0 24px", height: "46px", background: "#c8f135", color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: "8px", boxShadow: "0 0 18px rgba(200,241,53,.18)", transition: "background .15s" }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#d4f545")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "#c8f135")}
+              >
+                Login to Book
+              </Link>
+            )}
           </>
         )}
       </div>

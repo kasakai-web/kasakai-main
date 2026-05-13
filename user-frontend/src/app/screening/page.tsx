@@ -189,7 +189,7 @@ export default function ScreeningPage() {
       {step === "HOME" && (
         <div className="flex flex-col h-screen">
           <ScreeningHeader isLoggedIn={isLoggedIn} />
-          <div className="flex-1 overflow-y-auto scr-scroll pb-6">
+          <div className="flex-1 overflow-y-auto scr-scroll" style={{ paddingBottom: "calc(24px + env(safe-area-inset-bottom))" }}>
             {currentView === "LIVE_EVENTS" && (
               <ScreeningEventsView
                 screenings={screenings}
@@ -270,7 +270,7 @@ export default function ScreeningPage() {
         return (
           <div
             style={{
-              position: "fixed", bottom: "86px", right: "16px", zIndex: 500,
+              position: "fixed", bottom: "calc(86px + env(safe-area-inset-bottom))", right: "16px", zIndex: 500,
               background: "#111", border: "1px solid rgba(200,241,53,0.35)",
               boxShadow: "0 0 40px rgba(200,241,53,0.1), 0 8px 40px rgba(0,0,0,0.7)",
               maxWidth: "300px", width: "calc(100vw - 32px)",
