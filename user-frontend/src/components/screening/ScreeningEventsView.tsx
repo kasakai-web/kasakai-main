@@ -100,32 +100,6 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
             </p>
           </div>
 
-          {/* Stats */}
-          <div style={{ display: "flex", borderTop: "1px solid #1e1e1e" }}>
-            {[
-              { value: String(screenings.length), label: "Events Live", color: "#f0f0f0" },
-              { value: String(cities.length - 1),  label: "Cities",      color: "#f0f0f0" },
-              { value: "4K",                        label: "Screens",     color: "#c8f135" },
-              { value: "₹0",                        label: "Booking Fee", color: "#f0f0f0" },
-            ].map(({ value, label, color }, i) => (
-              <div
-                key={label}
-                style={{
-                  flex: 1,
-                  padding: "clamp(10px,2vw,18px) clamp(6px,1.5vw,16px) clamp(12px,2.2vw,20px)",
-                  borderLeft: i > 0 ? "1px solid #1e1e1e" : "none",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: "5px",
-                }}
-              >
-                <span style={{ fontSize: "clamp(15px,3.8vw,30px)", fontWeight: 900, lineHeight: 1, color, letterSpacing: "-0.01em" }}>
-                  {value}
-                </span>
-                <span style={{ fontSize: "clamp(7px,1.6vw,9px)", fontWeight: 900, color: "#666", letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", lineHeight: 1.3 }}>
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

@@ -70,21 +70,6 @@ export const ScreeningHeader = memo(function ScreeningHeader({ isLoggedIn }: Pro
             </div>
           </Link>
 
-          {/* ── Screening label ── */}
-          <div style={{
-            padding: "0 14px", height: "100%",
-            borderRight: "1px solid #1a1a1a",
-            display: "flex", flexDirection: "column",
-            alignItems: "flex-start", justifyContent: "center", flexShrink: 0,
-          }}>
-            <span className="hidden sm:block" style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.25em", lineHeight: 1 }}>
-              Kasa Kai
-            </span>
-            <span style={{ fontSize: "12px", fontWeight: 900, color: "#c8f135", textTransform: "uppercase", letterSpacing: "0.18em", lineHeight: 1, marginTop: "4px" }}>
-              Screening
-            </span>
-          </div>
-
           <div style={{ flex: 1 }} />
 
           {/* ── Right: Login / Logout ── */}
