@@ -24,9 +24,11 @@ export const ScreeningHeader = memo(function ScreeningHeader({ isLoggedIn }: Pro
       localStorage.removeItem("userRole");
       localStorage.removeItem("profileImage");
       window.dispatchEvent(new Event("kk-auth-changed"));
-      // Already on /screening — just update auth state, no navigation needed
       if (pathname !== "/screening") {
         router.replace("/screening");
+      } else {
+        // Already on the right page — kk-auth-changed already updated state, dismiss overlay
+        setLoggingOut(false);
       }
     }, 2000);
   }
