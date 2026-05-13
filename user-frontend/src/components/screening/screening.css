@@ -129,6 +129,7 @@
 .sd-cta.lime:hover { background:#d4f545; box-shadow:0 0 30px rgba(200,241,53,.26); }
 .sd-cta.lime:active{ transform:scale(.98); }
 .sd-cta.inactive{ background:#0e0e0e; color:#2a2a2a; border:1px solid #181818; cursor:default; }
+.sd-cta.hint    { background:rgba(200,241,53,0.06); color:#8a9a4a; border:1px solid rgba(200,241,53,0.22); cursor:default; }
 
 /* Confirmed state */
 .sd-confirmed  { background:#0c0c0c; border:1px solid rgba(200,241,53,.18); border-radius:14px; overflow:hidden; box-shadow:0 0 36px rgba(200,241,53,.04); animation:sd-in .3s cubic-bezier(.22,1,.36,1) both; }

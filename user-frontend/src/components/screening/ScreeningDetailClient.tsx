@@ -308,7 +308,7 @@ const BookingWidget = memo(function BookingWidget({
           </p>
         </div>
 
-        <button onClick={handleBook} disabled={loading} className={`sd-cta ${(hasTickets || !isLoggedIn) && !loading ? "lime" : "inactive"}`}>
+        <button onClick={handleBook} disabled={loading} className={`sd-cta ${loading ? "inactive" : (hasTickets || !isLoggedIn) ? "lime" : "hint"}`}>
           {loading ? (
             <><svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".25"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> Processing…</>
           ) : isLoggedIn ? (
