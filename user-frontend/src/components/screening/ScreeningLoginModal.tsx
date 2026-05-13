@@ -12,8 +12,9 @@ interface Props {
 export function ScreeningLoginModal({ open, onClose, screening }: Props) {
   if (!open) return null;
 
-  const loginHref = "/screening/login";
-  const signupHref = "/screening/login?mode=signup";
+  const redirectParam = screening ? `?redirect=${encodeURIComponent(`/screening/${screening.id}`)}` : "";
+  const loginHref  = `/screening/login${redirectParam}`;
+  const signupHref = `/screening/login${redirectParam ? redirectParam + "&mode=signup" : "?mode=signup"}`;
 
   return (
     <div

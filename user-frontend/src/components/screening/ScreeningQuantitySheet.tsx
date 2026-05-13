@@ -39,15 +39,31 @@ export function ScreeningQuantitySheet({ bookingData, onUpdateQty, onProceed, on
 
         {/* Tier list */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3 scr-scroll">
-          {bookingData.screening?.tiers.map((tier) => (
+          {bookingData.screening?.tiers.map((tier) => {
+            const qty      = bookingData.tierQuantities[tier.id] || 0;
+            const avail    = tier.available ?? 999;
+            const atMax    = qty >= Math.min(avail, 10);
+            const soldOut  = avail <= 0;
+            return (
             <div
               key={tier.id}
               className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between hover:border-[#c8f135]/20 transition-all"
+              style={soldOut ? { opacity: 0.45 } : undefined}
             >
               <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-black text-white">{tier.name}</span>
-                  <span className="text-xs font-black text-[#c8f135]">₹{tier.price}</span>
+                  <span className="text-xs font-black text-[#c8f135]">
+                    {tier.price === 0 ? "Free" : `₹${tier.price}`}
+                  </span>
+                  {!soldOut && avail <= 20 && (
+                    <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">
+                      Only {avail} left
+                    </span>
+                  )}
+                  {soldOut && (
+                    <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">Sold out</span>
+                  )}
                 </div>
                 {tier.description && (
                   <p className="text-[10px] text-zinc-500">{tier.description}</p>
@@ -57,18 +73,18 @@ export function ScreeningQuantitySheet({ bookingData, onUpdateQty, onProceed, on
               <div className="flex items-center gap-3 bg-black/50 p-1.5 rounded-xl border border-white/5">
                 <button
                   onClick={() => onUpdateQty(tier.id, -1)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-all"
+                  disabled={qty === 0}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M5 12h14" />
                   </svg>
                 </button>
-                <span className="text-sm font-black w-5 text-center text-white">
-                  {bookingData.tierQuantities[tier.id] || 0}
-                </span>
+                <span className="text-sm font-black w-5 text-center text-white">{qty}</span>
                 <button
                   onClick={() => onUpdateQty(tier.id, 1)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[#c8f135] hover:bg-[#c8f135]/10 transition-all"
+                  disabled={atMax || soldOut}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-[#c8f135] hover:bg-[#c8f135]/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M12 5v14M5 12h14" />
@@ -76,7 +92,8 @@ export function ScreeningQuantitySheet({ bookingData, onUpdateQty, onProceed, on
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}
@@ -84,11 +101,20 @@ export function ScreeningQuantitySheet({ bookingData, onUpdateQty, onProceed, on
           <div className="flex items-center justify-between mb-4">
             <div>
               <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">Total Amount</span>
-              <span className="text-2xl font-black text-white">₹{total}</span>
+              <span className="text-2xl font-black text-white">
+                {total === 0 && totalTickets > 0 ? "Free" : `₹${total}`}
+              </span>
             </div>
             <div className="text-right">
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">Selected</span>
-              <span className="text-sm font-black text-zinc-300">{totalTickets} Ticket{totalTickets !== 1 ? "s" : ""}</span>
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">Tickets</span>
+              <span className="text-sm font-black text-zinc-300">
+                {totalTickets === 0 ? "—" : `${totalTickets} ticket${totalTickets !== 1 ? "s" : ""}`}
+              </span>
+              {totalTickets > 1 && (
+                <span className="text-[9px] text-zinc-600 block mt-0.5">
+                  for {totalTickets} {totalTickets === 1 ? "person" : "people"}
+                </span>
+              )}
             </div>
           </div>
           <button

@@ -78,7 +78,7 @@ function loadRazorpay(): Promise<void> {
 }
 
 // ── Stepper ────────────────────────────────────────────────────────────────
-const Stepper = memo(function Stepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+const Stepper = memo(function Stepper({ value, onChange, max = 10 }: { value: number; onChange: (n: number) => void; max?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       <button
@@ -91,8 +91,8 @@ const Stepper = memo(function Stepper({ value, onChange }: { value: number; onCh
       <button
         className="sd-step-btn"
         style={{ borderRadius: "0 6px 6px 0" }}
-        disabled={value >= 10}
-        onClick={() => onChange(Math.min(10, value + 1))}
+        disabled={value >= max}
+        onClick={() => onChange(Math.min(max, value + 1))}
       >+</button>
     </div>
   );
@@ -100,11 +100,14 @@ const Stepper = memo(function Stepper({ value, onChange }: { value: number; onCh
 
 // ── Tier row ───────────────────────────────────────────────────────────────
 const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTier; qty: number; onChange: (n: number) => void }) {
+  const avail   = tier.available ?? 999;
+  const soldOut = avail <= 0;
+  const max     = Math.min(avail, 10);
   return (
-    <div className={`sd-tier${qty > 0 ? " active" : ""}`}>
+    <div className={`sd-tier${qty > 0 ? " active" : ""}${soldOut ? " opacity-40" : ""}`} style={soldOut ? { pointerEvents: "none" } : undefined}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "3px" }}>
             <p style={{ fontSize: "13px", fontWeight: 900, color: qty > 0 ? "#e8e8e8" : "#777", margin: 0 }}>
               {tier.name}
             </p>
@@ -113,16 +116,24 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
                 ×{qty}
               </span>
             )}
+            {soldOut && (
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: ".1em", textTransform: "uppercase" }}>Sold out</span>
+            )}
+            {!soldOut && avail <= 20 && (
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#f59e0b", letterSpacing: ".1em", textTransform: "uppercase" }}>Only {avail} left</span>
+            )}
           </div>
           {tier.description && (
             <p style={{ fontSize: "11px", color: "#555", margin: "0 0 7px", lineHeight: 1.5 }}>{tier.description}</p>
           )}
           <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-            <span style={{ fontSize: "15px", fontWeight: 900, color: "#c8f135" }}>₹{tier.price.toLocaleString()}</span>
-            <span style={{ fontSize: "10px", color: "#555", fontWeight: 600 }}>/ person</span>
+            <span style={{ fontSize: "15px", fontWeight: 900, color: "#c8f135" }}>
+              {tier.price === 0 ? "Free" : `₹${tier.price.toLocaleString()}`}
+            </span>
+            {tier.price > 0 && <span style={{ fontSize: "10px", color: "#555", fontWeight: 600 }}>/ person</span>}
           </div>
         </div>
-        <Stepper value={qty} onChange={onChange} />
+        <Stepper value={qty} onChange={onChange} max={max} />
       </div>
     </div>
   );

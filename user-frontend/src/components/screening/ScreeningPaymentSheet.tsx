@@ -11,10 +11,13 @@ const TC_ITEMS = [
   "Organizers hold the right to deny late entry to the event.",
 ];
 
+interface TierLine { name: string; qty: number; price: number; }
+
 interface Props {
   total: number;
   eventId: string;
   tierQuantities: Record<string, number>;
+  tierBreakdown?: TierLine[];
   onSuccess: (entryCode: string) => void;
   onBack: () => void;
 }
@@ -39,7 +42,7 @@ function loadRazorpay(): Promise<void> {
   });
 }
 
-export function ScreeningPaymentSheet({ total, eventId, tierQuantities, onSuccess, onBack }: Props) {
+export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBreakdown = [], onSuccess, onBack }: Props) {
   const [tcOpen,   setTcOpen]   = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
@@ -153,6 +156,40 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, onSucces
             fontWeight: 600,
           }}>
             {error}
+          </div>
+        )}
+
+        {/* Ticket breakdown */}
+        {tierBreakdown.length > 0 && (
+          <div style={{ margin: "0 24px", padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px" }}>
+            <p style={{ fontSize: "9px", fontWeight: 900, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: ".18em", marginBottom: "10px" }}>
+              Order Summary
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+              {tierBreakdown.map((line, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 900, color: "#c8f135", background: "rgba(200,241,53,.08)", border: "1px solid rgba(200,241,53,.15)", padding: "2px 8px", borderRadius: "6px" }}>
+                      ×{line.qty}
+                    </span>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>{line.name}</span>
+                  </div>
+                  <span style={{ fontSize: "12px", fontWeight: 900, color: "#e8e8e8" }}>
+                    {line.price === 0 ? "Free" : `₹${(line.price * line.qty).toLocaleString()}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {tierBreakdown.length > 1 && (
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: "10px", paddingTop: "10px", display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px", fontWeight: 900, color: "#555", textTransform: "uppercase", letterSpacing: ".12em" }}>
+                  {tierBreakdown.reduce((s, l) => s + l.qty, 0)} tickets total
+                </span>
+                <span style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135" }}>
+                  {total === 0 ? "Free" : `₹${total.toLocaleString()}`}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

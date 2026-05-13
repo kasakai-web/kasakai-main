@@ -3,6 +3,7 @@ export interface TicketTier {
   name: string;
   price: number;
   description?: string;
+  available?: number; // remaining seats (capacity - sold)
 }
 
 export interface Screening {

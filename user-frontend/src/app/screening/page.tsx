@@ -139,19 +139,25 @@ export default function ScreeningPage() {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
       setNotifToast({ title: data.title, body: data.body });
       toastTimerRef.current = setTimeout(() => setNotifToast(null), 6000);
+      refetchMyTickets(); // keep My Bookings tab live
     };
     window.addEventListener("kk-new-notification", handler);
     return () => {
       window.removeEventListener("kk-new-notification", handler);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
-  }, []);
+  }, [refetchMyTickets]);
 
   // Derived totals — computed inline (not useMemo'd JSX, just numbers)
   const total = bookingData.screening
     ? bookingData.screening.tiers.reduce((sum, t) => sum + t.price * (bookingData.tierQuantities[t.id] || 0), 0)
     : 0;
   const totalTickets = Object.values(bookingData.tierQuantities).reduce((a: number, b: number) => a + b, 0);
+  const tierBreakdown = bookingData.screening
+    ? bookingData.screening.tiers
+        .filter(t => (bookingData.tierQuantities[t.id] || 0) > 0)
+        .map(t => ({ name: t.name, qty: bookingData.tierQuantities[t.id] || 0, price: t.price }))
+    : [];
 
   const handleBookNow = useCallback((screening: Screening) => {
     if (!isLoggedIn) { dispatch({ type: "OPEN_LOGIN", payload: screening }); return; }
@@ -231,6 +237,7 @@ export default function ScreeningPage() {
           total={total}
           eventId={bookingData.screening?.id ?? ""}
           tierQuantities={bookingData.tierQuantities}
+          tierBreakdown={tierBreakdown}
           onSuccess={(entryCode) => handlePaymentSuccess(entryCode)}
           onBack={goToQuantity}
         />

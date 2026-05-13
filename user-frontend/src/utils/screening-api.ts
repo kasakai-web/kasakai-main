@@ -190,6 +190,7 @@ export function toScreening(e: ApiScrEvent): Screening {
     name:        t.name,
     price:       Math.round(t.pricePaise / 100),
     description: t.description || undefined,
+    available:   t.capacity - t.sold,
   }));
 
   return {

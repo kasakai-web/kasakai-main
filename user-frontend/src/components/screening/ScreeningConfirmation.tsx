@@ -12,6 +12,7 @@ interface Props {
 
 export function ScreeningConfirmation({ bookingData, totalAmount, entryCode, onViewBookings, onBackToEvents }: Props) {
   const { screening, tierQuantities } = bookingData;
+  const totalTickets = Object.values(tierQuantities).reduce((a, b) => a + b, 0);
 
   return (
     <div className="min-h-screen flex items-center justify-center py-16 px-4">
@@ -27,6 +28,17 @@ export function ScreeningConfirmation({ bookingData, totalAmount, entryCode, onV
           <div>
             <h1 className="text-4xl font-black text-white uppercase tracking-tight">Confirmed!</h1>
             <p className="text-zinc-500 text-sm italic mt-1">Your spot is reserved at the venue</p>
+            {totalTickets > 0 && (
+              <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
+                style={{ background: "rgba(200,241,53,0.08)", border: "1px solid rgba(200,241,53,0.2)" }}>
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 108 0 4 4 0 00-8 0M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+                <span style={{ fontSize: "11px", fontWeight: 900, color: "#c8f135", letterSpacing: ".14em", textTransform: "uppercase" }}>
+                  {totalTickets} {totalTickets === 1 ? "Ticket" : "Tickets"} · {totalTickets === 1 ? "Just you" : `You + ${totalTickets - 1} friend${totalTickets - 1 > 1 ? "s" : ""}`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

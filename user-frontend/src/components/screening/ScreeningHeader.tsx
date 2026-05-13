@@ -2,14 +2,15 @@
 
 import { useState, memo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface Props {
   isLoggedIn: boolean;
 }
 
 export const ScreeningHeader = memo(function ScreeningHeader({ isLoggedIn }: Props) {
-  const router = useRouter();
+  const router   = useRouter();
+  const pathname = usePathname();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loggingOut,  setLoggingOut]  = useState(false);
 
@@ -23,7 +24,10 @@ export const ScreeningHeader = memo(function ScreeningHeader({ isLoggedIn }: Pro
       localStorage.removeItem("userRole");
       localStorage.removeItem("profileImage");
       window.dispatchEvent(new Event("kk-auth-changed"));
-      router.push("/screening");
+      // Already on /screening — just update auth state, no navigation needed
+      if (pathname !== "/screening") {
+        router.replace("/screening");
+      }
     }, 2000);
   }
 
