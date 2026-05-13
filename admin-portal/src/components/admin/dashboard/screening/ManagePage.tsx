@@ -3,6 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { ScrEvent, ScrShow, ScrShowTicket, scrStatusBadge, mockShowsForEvent, backBtnStyle, inp } from "./types";
+import { scrApi } from "@/lib/screening-api";
 
 // ── static data ───────────────────────────────────────────────────────────────
 
@@ -405,9 +406,15 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
   const [kidFriendly, setKidFriendly]   = useState("No");
   const [petFriendly, setPetFriendly]   = useState("No");
   const [gatesOpen, setGatesOpen]       = useState(false);
-  const [pocs, setPocs]                 = useState<Poc[]>([{ id: "poc-1", name: "Rahul Yadav", email: "kkmmanager@gmail.com", phone: "9930604869" }]);
+  const [pocs, setPocs]                 = useState<Poc[]>(() =>
+    ev.contacts.length > 0
+      ? ev.contacts.map((c, i) => ({ id: `poc-${i}`, name: c.name, email: c.email, phone: c.phone }))
+      : [{ id: "poc-0", name: "", email: "", phone: "" }]
+  );
   const [sendCopies, setSendCopies]     = useState(false);
   const [extraSections, setExtraSections] = useState<string[]>([]);
+  const [saving, setSaving]             = useState(false);
+  const [saveMsg, setSaveMsg]           = useState<string | null>(null);
 
   const badge      = scrStatusBadge(ev.status);
   const allExpired = shows.every(s => s.status === "expired");
@@ -431,6 +438,22 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
 
   const toggleExtra = useCallback((sec: string) =>
     setExtraSections(p => p.includes(sec) ? p.filter(s => s !== sec) : [...p, sec]), []);
+
+  const handleSaveOverview = useCallback(async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      await scrApi.updateEvent(ev.id, {
+        contacts: pocs.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+      });
+      setSaveMsg("Saved");
+    } catch {
+      setSaveMsg("Save failed");
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMsg(null), 3000);
+    }
+  }, [ev.id, pocs]);
 
   return (
     <>
@@ -781,13 +804,18 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                 </div>
 
                 {/* ── Save button ── */}
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <button type="button"
-                    style={{ padding: "12px 40px", background: "#5be6b2", border: "none", borderRadius: "10px", color: "#000", fontSize: "14px", fontWeight: 800, cursor: "pointer", boxShadow: "0 0 24px rgba(91,230,178,0.22)", letterSpacing: "0.04em" }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#79eebc")}
-                    onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#5be6b2")}>
-                    Save Changes
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "14px" }}>
+                  <button type="button" onClick={handleSaveOverview} disabled={saving}
+                    style={{ padding: "12px 40px", background: saving ? "rgba(91,230,178,0.4)" : "#5be6b2", border: "none", borderRadius: "10px", color: "#000", fontSize: "14px", fontWeight: 800, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 0 24px rgba(91,230,178,0.22)", letterSpacing: "0.04em" }}
+                    onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#79eebc"; }}
+                    onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#5be6b2"; }}>
+                    {saving ? "Saving…" : "Save Changes"}
                   </button>
+                  {saveMsg && (
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: saveMsg === "Saved" ? "#5be6b2" : "#ef4444" }}>
+                      {saveMsg}
+                    </span>
+                  )}
                 </div>
               </div>
             )}

@@ -225,6 +225,7 @@ export type UIScrEvent = {
   capacity: number;
   sold: number;
   pricePaise: number;
+  contacts: { name: string; email: string; phone: string }[];
 };
 
 export function toUIScrEvent(e: ApiScrEvent): UIScrEvent {
@@ -248,5 +249,6 @@ export function toUIScrEvent(e: ApiScrEvent): UIScrEvent {
     capacity,
     sold,
     pricePaise,
+    contacts:   e.contacts || [],
   };
 }
