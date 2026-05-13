@@ -797,7 +797,11 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
           <div className={styles.scrManageSidebar}>
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "14px", overflow: "hidden" }}>
               <div style={{ height: "120px", overflow: "hidden", position: "relative" }}>
-                <img src={ev.image} alt={ev.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {ev.image ? (
+                  <img src={ev.image} alt={ev.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", background: "var(--surface2)" }} />
+                )}
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(18,26,31,0.9), transparent)" }} />
                 <span style={{ position: "absolute", bottom: "10px", left: "12px", padding: "3px 10px", borderRadius: "999px", fontSize: "11px", fontWeight: 700, background: badge.bg, border: `1px solid ${badge.border}`, color: badge.color }}>{badge.label}</span>
               </div>

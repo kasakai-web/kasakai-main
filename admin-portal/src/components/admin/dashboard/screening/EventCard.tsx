@@ -24,8 +24,12 @@ export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAna
   return (
     <div className={styles.scrEventCard}>
       <div className={styles.scrEventCardImg}>
-        <img src={ev.image} alt={ev.title} loading="lazy"
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        {ev.image ? (
+          <img src={ev.image} alt={ev.title} loading="lazy"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", background: "var(--surface2)" }} />
+        )}
       </div>
 
       <div className={styles.scrEventCardContent}>

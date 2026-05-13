@@ -45,10 +45,14 @@ export function ScrViewEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () => v
 
       {/* Hero image */}
       <div style={{ position: "relative", borderRadius: "16px", overflow: "hidden", height: "340px", marginBottom: "24px", background: "var(--surface2)" }}>
-        <img src={ev.image} alt={ev.title}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(10px)", transform: "scale(1.1)", opacity: 0.5 }} />
-        <img src={ev.image} alt={ev.title}
-          style={{ position: "relative", display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
+        {ev.image && (
+          <>
+            <img src={ev.image} alt={ev.title}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(10px)", transform: "scale(1.1)", opacity: 0.5 }} />
+            <img src={ev.image} alt={ev.title}
+              style={{ position: "relative", display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
+          </>
+        )}
       </div>
 
       {/* Title block */}
