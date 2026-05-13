@@ -92,7 +92,7 @@ export function ScreeningQuantitySheet({ bookingData, onUpdateQty, onProceed, on
             </div>
           </div>
           <button
-            disabled={total === 0}
+            disabled={totalTickets === 0}
             onClick={onProceed}
             className="w-full py-4 bg-[#c8f135] disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-black font-black text-sm rounded-2xl uppercase tracking-widest shadow-lg shadow-[#c8f135]/20 active:scale-[0.98] transition-all"
           >

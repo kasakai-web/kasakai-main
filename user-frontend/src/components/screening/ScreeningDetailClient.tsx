@@ -201,10 +201,8 @@ const BookingWidget = memo(function BookingWidget({
     }
   };
 
-  const displayCode = confirmedCode ?? existingCode;
-
-  if (displayCode) {
-    const isAlreadyBooked = !!existingCode && !confirmedCode;
+  // Just completed a booking in this session → show full confirmation screen
+  if (confirmedCode) {
     return (
       <div className="sd-confirmed">
         <div className="sd-widget-lime" />
@@ -215,16 +213,12 @@ const BookingWidget = memo(function BookingWidget({
             </svg>
           </div>
           <p style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", letterSpacing: ".28em", textTransform: "uppercase", marginBottom: "8px" }}>Booking Confirmed</p>
-          <h3 style={{ fontSize: "20px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 6px" }}>
-            {isAlreadyBooked ? "Already Booked" : "You’re all set!"}
-          </h3>
-          <p style={{ fontSize: "12px", color: "#444", lineHeight: 1.65, margin: "0 0 20px" }}>
-            {isAlreadyBooked ? "You have an active booking for this event." : "Show this code at the venue entrance."}
-          </p>
+          <h3 style={{ fontSize: "20px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 6px" }}>You&apos;re all set!</h3>
+          <p style={{ fontSize: "12px", color: "#444", lineHeight: 1.65, margin: "0 0 20px" }}>Show this code at the venue entrance.</p>
 
           <div className="sd-code-box">
             <p style={{ fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".22em", textTransform: "uppercase", marginBottom: "8px" }}>Entry Code</p>
-            <p className="sd-code-val">{displayCode}</p>
+            <p className="sd-code-val">{confirmedCode}</p>
           </div>
 
           {totalAmt > 0 && (
@@ -241,7 +235,7 @@ const BookingWidget = memo(function BookingWidget({
             onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#777"; }}
             onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#1e1e1e"; el.style.color = "#444"; }}
           >
-            {isAlreadyBooked ? "My Bookings" : "Browse More Events"}
+            Browse More Events
           </Link>
         </div>
       </div>
@@ -252,8 +246,29 @@ const BookingWidget = memo(function BookingWidget({
     <div className="sd-widget">
       <div className="sd-widget-lime" />
       <div className="sd-widget-body">
+
+        {/* Existing booking banner — shown when user already has a ticket */}
+        {existingCode && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 13px", marginBottom: "14px",
+            background: "rgba(200,241,53,0.05)", border: "1px solid rgba(200,241,53,0.18)",
+            borderRadius: "8px",
+          }}>
+            <div>
+              <p style={{ fontSize: "8px", fontWeight: 900, color: "#5a6e1a", textTransform: "uppercase", letterSpacing: ".2em", margin: "0 0 3px" }}>Active Booking</p>
+              <p style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135", letterSpacing: ".18em", margin: 0 }}>{existingCode}</p>
+            </div>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="rgba(200,241,53,0.5)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+        )}
+
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "16px" }}>
-          <p style={{ fontSize: "10px", fontWeight: 900, color: "#444", letterSpacing: ".2em", textTransform: "uppercase", margin: 0 }}>Select Tickets</p>
+          <p style={{ fontSize: "10px", fontWeight: 900, color: "#444", letterSpacing: ".2em", textTransform: "uppercase", margin: 0 }}>
+            {existingCode ? "Add More Tickets" : "Select Tickets"}
+          </p>
           <p style={{ fontSize: "11px", color: "#3a3a3a", margin: 0, fontWeight: 600 }}>
             from <span style={{ color: "#c8f135", fontWeight: 900 }}>₹{screening.startingPrice}</span>
           </p>
@@ -287,7 +302,7 @@ const BookingWidget = memo(function BookingWidget({
             <><svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity=".25"/><path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> Processing…</>
           ) : isLoggedIn ? (
             hasTickets
-              ? <>Confirm Booking <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
+              ? <>{existingCode ? "Book More Tickets" : "Confirm Booking"} <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
               : "Select tickets above"
           ) : (
             <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Login to Book</>
