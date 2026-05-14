@@ -105,15 +105,17 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
     </div>
   );
 
-  // Histogram data
-  const maxCapacity = Math.max(...analytics.tierStats.map(t => t.capacity), 1);
+  const hasSales = analytics.totalTicketsSold > 0;
+  const soldTiers = analytics.tierStats.filter(t => t.sold > 0);
+  const maxSold   = Math.max(...soldTiers.map(t => t.sold), 1);
   const statusItems = [
     { label: "Confirmed",  value: analytics.confirmedCount,  color: "#60a5fa" },
     { label: "Checked In", value: analytics.usedCount,       color: "#5be6b2" },
     { label: "Pending",    value: analytics.pendingCount,    color: "#fbbf24" },
     { label: "Cancelled",  value: analytics.cancelledCount,  color: "#f87171" },
   ];
-  const maxStatus = Math.max(...statusItems.map(s => s.value), 1);
+  const hasActivity = statusItems.some(s => s.value > 0);
+  const maxStatus   = Math.max(...statusItems.map(s => s.value), 1);
 
   return (
     <div style={{ paddingBottom: 48 }}>
@@ -164,12 +166,23 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
         <StatCard label="Checked In"    value={`${analytics.usedCount} / ${analytics.confirmedCount + analytics.usedCount}`} sub={`${analytics.checkInRate}% check-in rate`} color="#60a5fa" />
       </div>
 
-      {/* ── TIER SALES HISTOGRAM ── */}
-      {analytics.tierStats.length > 0 && sectionCard("Tier Sales",
+      {/* ── NO SALES PLACEHOLDER ── */}
+      {!hasSales && (
+        <div style={{ background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: "14px", padding: "40px 24px", textAlign: "center", marginBottom: "16px" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "12px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="1.8" strokeLinecap="round"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+          </div>
+          <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 800, color: "var(--white)" }}>No Tickets Sold Yet</p>
+          <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>Sales data will appear here once users start booking.</p>
+        </div>
+      )}
+
+      {/* ── TIER SALES HISTOGRAM (only when there are sales) ── */}
+      {hasSales && soldTiers.length > 0 && sectionCard("Tier Sales",
         <div>
-          {analytics.tierStats.map(t => {
+          {soldTiers.map(t => {
             const soldPct  = t.capacity > 0 ? Math.min(100, Math.round((t.sold / t.capacity) * 100)) : 0;
-            const capPct   = Math.round((t.capacity / maxCapacity) * 100);
+            const barPct   = Math.round((t.sold / maxSold) * 100);
             const barColor = soldPct >= 90 ? "#f87171" : soldPct >= 60 ? "#fbbf24" : "#5be6b2";
             return (
               <div key={t.tierId} style={{ marginBottom: 20 }}>
@@ -183,11 +196,8 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
                     <span style={{ fontSize: 11, fontWeight: 800, color: barColor }}>{soldPct}%</span>
                   </div>
                 </div>
-                {/* Track sized to capacity ratio, fill sized to sold ratio */}
                 <div style={{ height: 10, background: "rgba(255,255,255,0.04)", borderRadius: 5, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${capPct}%`, background: "rgba(255,255,255,0.06)", borderRadius: 5, position: "relative" }}>
-                    <div style={{ position: "absolute", inset: 0, width: `${soldPct}%`, background: barColor, borderRadius: 5 }} />
-                  </div>
+                  <div style={{ height: "100%", width: `${barPct}%`, background: barColor, borderRadius: 5 }} />
                 </div>
               </div>
             );
@@ -195,10 +205,10 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
         </div>
       )}
 
-      {/* ── BOOKING STATUS HISTOGRAM ── */}
-      {sectionCard("Booking Status",
+      {/* ── BOOKING STATUS HISTOGRAM (only when there is activity) ── */}
+      {hasActivity && sectionCard("Booking Status",
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px 40px" }}>
-          {statusItems.map(s => {
+          {statusItems.filter(s => s.value > 0).map(s => {
             const pct = Math.round((s.value / maxStatus) * 100);
             return (
               <div key={s.label}>
@@ -215,7 +225,7 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
         </div>
       )}
 
-      {/* ── TIER BREAKDOWN TABLE ── */}
+      {/* ── TIER BREAKDOWN TABLE (always shown — capacity info is useful even with 0 sales) ── */}
       {sectionCard("Tier Breakdown",
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "520px" }}>
@@ -231,39 +241,24 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
                 <tr key={t.tierId} style={{ borderBottom: "1px solid var(--border)" }}>
                   <td style={{ padding: "11px 14px", color: "var(--white)", fontWeight: 600 }}>{t.tierName}</td>
                   <td style={{ padding: "11px 14px", color: "var(--text)" }}>{t.capacity}</td>
-                  <td style={{ padding: "11px 14px", color: "#5be6b2", fontWeight: 700 }}>{t.sold}</td>
+                  <td style={{ padding: "11px 14px", color: t.sold > 0 ? "#5be6b2" : "var(--muted)", fontWeight: t.sold > 0 ? 700 : 400 }}>{t.sold > 0 ? t.sold : "—"}</td>
                   <td style={{ padding: "11px 14px", color: "var(--text)" }}>{t.capacity - t.sold}</td>
                   <td style={{ padding: "11px 14px", color: "var(--text)" }}>₹{Math.round(t.pricePaise / 100).toLocaleString("en-IN")}</td>
-                  <td style={{ padding: "11px 14px", color: "var(--text)" }}>{t.revenuePaise > 0 ? `₹${(t.revenuePaise / 100).toLocaleString("en-IN")}` : "₹0"}</td>
+                  <td style={{ padding: "11px 14px", color: "var(--text)" }}>{t.revenuePaise > 0 ? `₹${(t.revenuePaise / 100).toLocaleString("en-IN")}` : "—"}</td>
                 </tr>
               ))}
               <tr style={{ background: "rgba(91,230,178,0.03)" }}>
                 <td style={{ padding: "11px 14px", color: "#5be6b2", fontWeight: 800 }}>Totals</td>
                 <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--white)" }}>{analytics.totalCapacity}</td>
-                <td style={{ padding: "11px 14px", fontWeight: 700, color: "#5be6b2" }}>{analytics.totalTicketsSold}</td>
+                <td style={{ padding: "11px 14px", fontWeight: 700, color: hasSales ? "#5be6b2" : "var(--muted)" }}>{hasSales ? analytics.totalTicketsSold : "—"}</td>
                 <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--white)" }}>{analytics.totalCapacity - analytics.totalTicketsSold}</td>
                 <td style={{ padding: "11px 14px", color: "var(--muted)" }}>—</td>
-                <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--white)" }}>{analytics.totalRevenuePaise > 0 ? `₹${(analytics.totalRevenuePaise / 100).toLocaleString("en-IN")}` : "₹0"}</td>
+                <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--white)" }}>{analytics.totalRevenuePaise > 0 ? `₹${(analytics.totalRevenuePaise / 100).toLocaleString("en-IN")}` : "—"}</td>
               </tr>
             </tbody>
           </table>
         </div>
       )}
-
-      {/* ── STATUS COUNT TILES ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
-        {[
-          { label: "Confirmed",  value: analytics.confirmedCount.toString() },
-          { label: "Checked In", value: analytics.usedCount.toString() },
-          { label: "Pending",    value: analytics.pendingCount.toString() },
-          { label: "Cancelled",  value: analytics.cancelledCount.toString() },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px" }}>
-            <p style={{ margin: "0 0 6px", fontSize: "10px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</p>
-            <p style={{ margin: 0, fontSize: "22px", fontWeight: 800, color: "var(--white)" }}>{value}</p>
-          </div>
-        ))}
-      </div>
 
       {/* ── TRAFFIC — COMING SOON ── */}
       <div style={{ background: "var(--surface)", border: "1px dashed var(--border2)", borderRadius: "14px", padding: "40px 24px", textAlign: "center" }}>
