@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { scrApi, toUIScrEvent, type ApiScrEvent, type ScrAnalyticsData } from "@/lib/screening-api";
 import { ScrAnalyticsPage } from "@/components/admin/dashboard/screening/AnalyticsPage";
@@ -15,13 +15,21 @@ export default function AnalyticsEventPage() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    Promise.all([scrApi.getEvent(id), scrApi.getEventAnalytics(id)])
-      .then(([ev, an]) => { setEvent(ev); setAnalytics(an); })
-      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
-      .finally(() => setLoading(false));
+    try {
+      const [ev, an] = await Promise.all([scrApi.getEvent(id), scrApi.getEventAnalytics(id)]);
+      setEvent(ev);
+      setAnalytics(an);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
@@ -48,9 +56,11 @@ export default function AnalyticsEventPage() {
   return (
     <ScrAnalyticsPage
       ev={ev}
+      eventId={id}
       analytics={analytics}
       badge={badge}
       onBack={() => router.push("/dashboard/streaming")}
+      onRefresh={load}
     />
   );
 }

@@ -149,6 +149,65 @@ export type ScrAdminTicketsResponse = {
   limit:   number;
 };
 
+export type ScrExportRow = {
+  transactionType: string;
+  brandName: string;
+  registeredCompanyName: string;
+  eventName: string;
+  eventShow: string;
+  showStartTime: string;
+  showEndTime: string;
+  showId: string;
+  eventCategory: string;
+  eventCity: string;
+  venueName: string;
+  billingEmail: string;
+  userState: string;
+  name: string;
+  email: string;
+  phone: string;
+  transactionId: string;
+  shortcode: string;
+  transactionTime: string;
+  transactionLastModifiedTime: string;
+  ticketGroup: string;
+  ticketName: string;
+  ticketListPrice: number;
+  numberOfTickets: number;
+  seatNumber: string;
+  redeemedStatus: string;
+  printedStatus: string;
+  grossAmount: number;
+  discount: number;
+  netAmount: number;
+  discountType: string;
+  discountCoupon: string;
+  discountFundedBy: string;
+  offlinePayment: string;
+  cgstPct: number;
+  cgstAmount: number;
+  sgstPct: number;
+  sgstAmount: number;
+  igstPct: number;
+  igstAmount: number;
+  tax1Name: string;
+  tax1Amount: string;
+  tax1Pct: string;
+  tax2Name: string;
+  tax2Amount: string;
+  tax2Pct: string;
+  basePrice: number;
+  commissionPct: number;
+  commissionAmount: number;
+  transactionSource: string;
+  devicePlatform: string;
+};
+
+export type ScrExportResponse = {
+  rows: ScrExportRow[];
+  eventTitle: string;
+};
+
 export type ScrScanResult = {
   _id:        string;
   entryCode:  string;
@@ -218,6 +277,9 @@ export const scrApi = {
     if (!res.ok) throw new Error(data.message || 'Upload failed');
     return (data.data as { url: string }).url;
   },
+
+  exportTickets: (id: string) =>
+    apiFetch<ScrExportResponse>(`/screening/admin/events/${id}/export`),
 
   getEventTickets: (id: string, params?: { status?: string; search?: string; page?: number }) => {
     const qs = new URLSearchParams();

@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
       { protocol: "http",  hostname: "localhost", port: "5000", pathname: "/uploads/**" },
       // Backend-served uploads (prod)
       { protocol: "https", hostname: "api.kasakai.in", pathname: "/uploads/**" },
+      // Azure App Service backend
+      { protocol: "https", hostname: "kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net", pathname: "/uploads/**" },
     ],
   },
   experimental: {
