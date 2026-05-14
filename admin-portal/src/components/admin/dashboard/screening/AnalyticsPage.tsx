@@ -108,10 +108,10 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
   const hasSales = analytics.totalTicketsSold > 0;
   const soldTiers = analytics.tierStats.filter(t => t.sold > 0);
   const maxSold   = Math.max(...soldTiers.map(t => t.sold), 1);
+  // Pending = incomplete payment (checkout abandoned) — not shown in analytics
   const statusItems = [
     { label: "Confirmed",  value: analytics.confirmedCount,  color: "#60a5fa" },
     { label: "Checked In", value: analytics.usedCount,       color: "#5be6b2" },
-    { label: "Pending",    value: analytics.pendingCount,    color: "#fbbf24" },
     { label: "Cancelled",  value: analytics.cancelledCount,  color: "#f87171" },
   ];
   const hasActivity = statusItems.some(s => s.value > 0);
