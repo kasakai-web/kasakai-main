@@ -16,51 +16,89 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
 
 type BadgeStyle = { label: string; color: string; bg: string; border: string };
 
-function generateCsvAndDownload(rows: ScrExportRow[], eventTitle: string) {
-  const headers = [
-    "Transaction Type","Brand Name","Registered Company Name","Event Name",
-    "Event Show","Event Show Start Time","Event Show End Time","Event Show ID",
-    "Event Category","Event City","Event Venue Name","Billing Email",
-    "User State","Name","Email","Phone","Transaction ID","Shortcode",
-    "Transaction Time","Transaction Last Modified Time","Ticket Group",
-    "Ticket Name","Ticket List Price","Number of Tickets","Seat Number",
-    "Redeemed Status","Printed Status","Gross Amount","Discount","Net Amount",
-    "Discount Type","Discount Coupon","Discount Funded By","Offline Payment",
-    "CGST %","CGST Amount","SGST %","SGST Amount","IGST %","IGST Amount",
-    "Additional Tax 1 Name","Additional Tax 1 Amount","Additional Tax 1 %",
-    "Additional Tax 2 Name","Additional Tax 2 Amount","Additional Tax 2 %",
-    "Base Price","Commission %","Commission Amount","Transaction Source","Device Platform",
+const EXPORT_HEADERS = [
+  "Transaction Type","Brand Name","Registered Company Name","Event Name",
+  "Event Show","Event Show Start Time","Event Show End Time","Event Show ID",
+  "Event Category","Event City","Event Venue Name","Billing Email",
+  "User State","Name","Email","Phone","Transaction ID","Shortcode",
+  "Transaction Time","Transaction Last Modified Time","Ticket Group",
+  "Ticket Name","Ticket List Price","Number of Tickets","Seat Number",
+  "Redeemed Status","Printed Status","Gross Amount","Discount","Net Amount",
+  "Discount Type","Discount Coupon","Discount Funded By","Offline Payment",
+  "CGST %","CGST Amount","SGST %","SGST Amount","IGST %","IGST Amount",
+  "Additional Tax 1 Name","Additional Tax 1 Amount","Additional Tax 1 %",
+  "Additional Tax 2 Name","Additional Tax 2 Amount","Additional Tax 2 %",
+  "Base Price","Commission %","Commission Amount","Transaction Source","Device Platform",
+];
+
+function rowValues(r: ScrExportRow): unknown[] {
+  return [
+    r.transactionType, r.brandName, r.registeredCompanyName, r.eventName,
+    r.eventShow, r.showStartTime, r.showEndTime, r.showId,
+    r.eventCategory, r.eventCity, r.venueName, r.billingEmail,
+    r.userState, r.name, r.email, r.phone, r.transactionId, r.shortcode,
+    r.transactionTime, r.transactionLastModifiedTime, r.ticketGroup,
+    r.ticketName, r.ticketListPrice, r.numberOfTickets, r.seatNumber,
+    r.redeemedStatus, r.printedStatus, r.grossAmount, r.discount, r.netAmount,
+    r.discountType, r.discountCoupon, r.discountFundedBy, r.offlinePayment,
+    r.cgstPct, r.cgstAmount, r.sgstPct, r.sgstAmount, r.igstPct, r.igstAmount,
+    r.tax1Name, r.tax1Amount, r.tax1Pct,
+    r.tax2Name, r.tax2Amount, r.tax2Pct,
+    r.basePrice, r.commissionPct, r.commissionAmount,
+    r.transactionSource, r.devicePlatform,
   ];
+}
 
-  const esc = (v: unknown) => {
-    const s = String(v ?? "");
-    return (s.includes(",") || s.includes('"') || s.includes("\n")) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
+function escHtml(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-  const lines = [
-    headers.map(esc).join(","),
-    ...rows.map(r => [
-      r.transactionType, r.brandName, r.registeredCompanyName, r.eventName,
-      r.eventShow, r.showStartTime, r.showEndTime, r.showId,
-      r.eventCategory, r.eventCity, r.venueName, r.billingEmail,
-      r.userState, r.name, r.email, r.phone, r.transactionId, r.shortcode,
-      r.transactionTime, r.transactionLastModifiedTime, r.ticketGroup,
-      r.ticketName, r.ticketListPrice, r.numberOfTickets, r.seatNumber,
-      r.redeemedStatus, r.printedStatus, r.grossAmount, r.discount, r.netAmount,
-      r.discountType, r.discountCoupon, r.discountFundedBy, r.offlinePayment,
-      r.cgstPct, r.cgstAmount, r.sgstPct, r.sgstAmount, r.igstPct, r.igstAmount,
-      r.tax1Name, r.tax1Amount, r.tax1Pct,
-      r.tax2Name, r.tax2Amount, r.tax2Pct,
-      r.basePrice, r.commissionPct, r.commissionAmount,
-      r.transactionSource, r.devicePlatform,
-    ].map(esc).join(",")),
-  ];
+function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string) {
+  const H_BG   = "#0f2d4a";
+  const H_TEXT = "#5be6b2";
+  const R1_BG  = "#ffffff";
+  const R2_BG  = "#f0f7ff";
+  const BORDER = "1px solid #c8daea";
 
-  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${eventTitle.replace(/[^\w\s-]/g, "").trim()}_tickets_${new Date().toISOString().slice(0, 10)}.csv`;
+  const tdStyle = (bg: string, bold = false) =>
+    `background-color:${bg};color:#1a2b40;font-family:Calibri,Arial,sans-serif;` +
+    `font-size:11px;padding:5px 10px;border:${BORDER};white-space:nowrap;` +
+    (bold ? "font-weight:bold;" : "");
+
+  const headerCells = EXPORT_HEADERS.map(h =>
+    `<td style="background-color:${H_BG};color:${H_TEXT};font-family:Calibri,Arial,sans-serif;` +
+    `font-size:11px;font-weight:bold;padding:6px 12px;border:${BORDER};white-space:nowrap;">${escHtml(h)}</td>`
+  ).join("");
+
+  const dataRows = rows.map((r, i) => {
+    const bg = i % 2 === 0 ? R1_BG : R2_BG;
+    const cells = rowValues(r).map(v => `<td style="${tdStyle(bg)}">${escHtml(v)}</td>`).join("");
+    return `<tr>${cells}</tr>`;
+  }).join("\n");
+
+  const safeTitle = escHtml(eventTitle);
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>Tickets</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+</head>
+<body>
+<table border="1" cellpadding="0" cellspacing="0">
+<thead><tr>${headerCells}</tr></thead>
+<tbody>${dataRows}</tbody>
+</table>
+</body></html>`;
+
+  const blob = new Blob(["﻿" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `${eventTitle.replace(/[^\w\s-]/g, "").trim()}_tickets_${new Date().toISOString().slice(0, 10)}.xls`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -89,8 +127,8 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
     setExporting(true);
     try {
       const data = await scrApi.exportTickets(eventId);
-      if (!data.rows.length) { alert("No ticket data to export."); return; }
-      generateCsvAndDownload(data.rows, data.eventTitle);
+      if (!data.rows.length) { alert("No confirmed ticket data to export."); return; }
+      generateExcelAndDownload(data.rows, data.eventTitle);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Export failed");
     } finally {
