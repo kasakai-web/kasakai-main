@@ -152,7 +152,7 @@ function VerticalBars({ bars, height = 120, color }: {
         const barH   = maxVal > 0 ? Math.max(4, Math.round((b.value / maxVal) * height)) : 4;
         const c      = typeof color === "function" ? color(i) : color;
         return (
-          <div key={b.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", height: "100%", justifyContent: "flex-end" }}>
+          <div key={`${b.label}-${i}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", height: "100%", justifyContent: "flex-end" }}>
             <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--white)" }}>{b.value > 0 ? b.value : ""}</span>
             <div style={{ width: "100%", height: barH, background: c, borderRadius: "4px 4px 0 0", opacity: b.value === 0 ? 0.15 : 1, transition: "height 0.4s ease" }} />
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, textAlign: "center" }} />

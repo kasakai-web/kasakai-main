@@ -368,6 +368,22 @@ function ScopeOption({ selected, onClick, title, sub, comingSoon }: {
   );
 }
 
+function parseDuration(timeLabel: string): string {
+  const m = timeLabel.match(/(\d+):(\d+)\s*(AM|PM)\s+to\s+(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return "";
+  const toMin = (h: string, mi: string, ap: string) => (parseInt(h) % 12 + (ap.toUpperCase() === "PM" ? 12 : 0)) * 60 + parseInt(mi);
+  const start = toMin(m[1], m[2], m[3]);
+  const end   = toMin(m[4], m[5], m[6]);
+  let diff = end - start;
+  const spansDay = diff <= 0;
+  if (spansDay) diff += 24 * 60;
+  const hrs = Math.floor(diff / 60), mins = diff % 60;
+  const parts: string[] = [];
+  if (hrs)  parts.push(`${hrs} hour${hrs !== 1 ? "s" : ""}`);
+  if (mins) parts.push(`${mins} min${mins !== 1 ? "s" : ""}`);
+  return `Duration: ${parts.join(" ")}${spansDay ? " (spans across 1 calendar day)" : ""}`;
+}
+
 function AddTicketDrawer({ open, onClose, onSave, shows }: {
   open: boolean; onClose: () => void;
   onSave: (tier: { name: string; pricePaise: number; capacity: number; description: string }) => Promise<void>;
@@ -385,9 +401,12 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
   const [ticketDisabled, setTicketDisabled] = useState(false);
   const [showScope, setShowScope]           = useState<"all" | "single" | "custom">("all");
   const [selectedShowId, setSelectedShowId] = useState("");
+  const [selectedDate, setSelectedDate]     = useState("");
+  const [dateDropOpen, setDateDropOpen]     = useState(false);
   const [errors, setErrors]                 = useState<Record<string, string>>({});
   const [saving, setSaving]                 = useState(false);
-  const nameRef                             = useRef<HTMLInputElement>(null);
+  const nameRef    = useRef<HTMLInputElement>(null);
+  const dateDropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) { setTimeout(() => nameRef.current?.focus(), 80); }
@@ -395,7 +414,8 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
       setStep(1); setName("Regular Ticket"); setDescription(""); setPriceRs(""); setQuantity("");
       setSalesEndNum("0"); setSalesEndUnit("Hours"); setSalesEndStrat("Before Show Start");
       setGst("None / Exempt"); setTicketDisabled(false);
-      setShowScope("all"); setSelectedShowId(""); setErrors({}); setSaving(false);
+      setShowScope("all"); setSelectedShowId(""); setSelectedDate(""); setDateDropOpen(false);
+      setErrors({}); setSaving(false);
     }
   }, [open]);
 
@@ -405,6 +425,15 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, step, onClose]);
+
+  useEffect(() => {
+    if (!dateDropOpen) return;
+    const h = (e: MouseEvent) => {
+      if (dateDropRef.current && !dateDropRef.current.contains(e.target as Node)) setDateDropOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [dateDropOpen]);
 
   const validate = useCallback(() => {
     const errs: Record<string, string> = {};
@@ -435,7 +464,9 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
 
   const fe = (k: string): React.CSSProperties => ({ ...inp, marginTop: "6px", borderColor: errors[k] ? "rgba(239,68,68,0.6)" : undefined });
 
-  const activeShows = shows.filter(s => s.status === "active");
+  const activeShows  = shows.filter(s => s.status === "active");
+  const uniqueDates  = [...new Set(activeShows.map(s => s.dateLabel))];
+  const showsForDate = activeShows.filter(s => s.dateLabel === selectedDate);
 
   return (
     <>
@@ -567,19 +598,60 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
                 <ScopeOption selected={showScope === "single"} onClick={() => setShowScope("single")}
                   title="Single show" sub="Choose a date and time slot to add ticket" />
                 {showScope === "single" && (
-                  <div style={{ padding: "14px", background: "var(--bg)", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                  <div style={{ padding: "14px", background: "var(--bg)", borderRadius: "10px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "12px" }}>
                     {activeShows.length === 0 ? (
                       <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>No active shows available</p>
-                    ) : activeShows.map(s => (
-                      <button key={s.id} type="button" onClick={() => setSelectedShowId(s.id)}
-                        style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", padding: "10px 12px", marginBottom: "6px", background: selectedShowId === s.id ? "rgba(91,230,178,0.08)" : "var(--surface)", border: `1.5px solid ${selectedShowId === s.id ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "9px", cursor: "pointer", textAlign: "left" }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: selectedShowId === s.id ? "#5be6b2" : "var(--muted)", flexShrink: 0 }} />
+                    ) : (
+                      <>
+                        {/* Date dropdown */}
                         <div>
-                          <p style={{ margin: "0 0 1px", fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>{s.dateLabel}</p>
-                          <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>{s.timeLabel}</p>
+                          <p style={{ margin: "0 0 7px", fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Select date</p>
+                          <div ref={dateDropRef} style={{ position: "relative" }}>
+                            <button type="button" onClick={() => setDateDropOpen(p => !p)}
+                              style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "10px 14px", background: "var(--surface)", border: `1.5px solid ${selectedDate ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "9px", cursor: "pointer" }}>
+                              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+                              </svg>
+                              <span style={{ flex: 1, fontSize: "13px", fontWeight: 600, textAlign: "left", color: selectedDate ? "var(--white)" : "var(--muted)" }}>
+                                {selectedDate || "Select date"}
+                              </span>
+                              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" style={{ transform: dateDropOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
+                                <path d="M6 9l6 6 6-6"/>
+                              </svg>
+                            </button>
+                            {dateDropOpen && (
+                              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 20, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "9px", overflow: "hidden", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+                                {uniqueDates.map((d, i) => (
+                                  <button key={d} type="button" onClick={() => { setSelectedDate(d); setSelectedShowId(""); setDateDropOpen(false); }}
+                                    style={{ display: "flex", alignItems: "center", width: "100%", padding: "10px 14px", background: selectedDate === d ? "rgba(91,230,178,0.08)" : "none", border: "none", borderBottom: i < uniqueDates.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left", fontSize: "13px", fontWeight: 600, color: selectedDate === d ? "#5be6b2" : "var(--white)" }}>
+                                    {d}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </button>
-                    ))}
+
+                        {/* Time slot list — appears after date is picked */}
+                        {selectedDate && (
+                          <div>
+                            <p style={{ margin: "0 0 7px", fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Select time slot</p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {showsForDate.map(s => (
+                                <button key={s.id} type="button" onClick={() => setSelectedShowId(s.id)}
+                                  style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", padding: "11px 14px", background: selectedShowId === s.id ? "rgba(91,230,178,0.08)" : "var(--surface)", border: `1.5px solid ${selectedShowId === s.id ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "9px", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                                  <div style={{ width: 10, height: 10, borderRadius: "50%", border: `2px solid ${selectedShowId === s.id ? "#5be6b2" : "var(--muted)"}`, background: selectedShowId === s.id ? "#5be6b2" : "transparent", flexShrink: 0, transition: "all 0.15s" }} />
+                                  <div>
+                                    <p style={{ margin: "0 0 2px", fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>{s.timeLabel}</p>
+                                    <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>{parseDuration(s.timeLabel)}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
                 <ScopeOption selected={false} onClick={() => {}}
@@ -742,28 +814,40 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
 
   const handleSaveTicket = useCallback(async (tier: { name: string; pricePaise: number; capacity: number; description: string }) => {
     const updatedTiers = [
-      ...fullTiers.map(t => ({ name: t.name, pricePaise: t.pricePaise, capacity: t.capacity, description: t.description })),
+      ...fullTiers.map(t => ({ _id: t._id, name: t.name, pricePaise: t.pricePaise, capacity: t.capacity, description: t.description })),
       tier,
     ];
-    await scrApi.updateEvent(ev.id, { tiers: updatedTiers });
-    const newTicket: ScrShowTicket = { id: `tier-${Date.now()}`, name: tier.name, qty: tier.capacity, sold: 0, pricePaise: tier.pricePaise };
-    setShows(p => p.map(s => ({ ...s, tickets: [...s.tickets, newTicket] })));
-    setFullTiers(p => [...p, { _id: `tier-${Date.now()}`, ...tier, sold: 0 }]);
+    const saved = await scrApi.updateEvent(ev.id, { tiers: updatedTiers });
+    // Refresh from real response so _ids are always valid MongoDB ObjectIds
+    setFullTiers(saved.tiers || []);
+    setShows(p => p.map(s => ({
+      ...s,
+      tickets: (saved.tiers || []).map(t => ({ id: String(t._id), name: t.name, qty: t.capacity, sold: t.sold, pricePaise: t.pricePaise })),
+    })));
   }, [ev.id, fullTiers]);
 
   const handleSaveShow = useCallback(async (newShow: ScrShow, raw: { date: string; startTime: string; endTime: string }) => {
-    setShows(p => [newShow, ...p]);
+    // Optimistic add — include existing tiers as tickets so they appear immediately
+    const optimisticShow: ScrShow = {
+      ...newShow,
+      tickets: fullTiers.map(t => ({ id: String(t._id), name: t.name, qty: t.capacity, sold: 0, pricePaise: t.pricePaise })),
+    };
+    setShows(p => [optimisticShow, ...p]);
     const newRaw = { date: raw.date, startTime: raw.startTime, endTime: raw.endTime };
-    const updatedShows = [...fullShows, newRaw] as CreateScrEventPayload["shows"];
+    // Strip _id / status from existing shows so Mongoose doesn't get invalid cast strings
+    const updatedShows = [
+      ...fullShows.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime })),
+      newRaw,
+    ] as CreateScrEventPayload["shows"];
     try {
-      await scrApi.updateEvent(ev.id, { shows: updatedShows });
-      setFullShows(p => [...p, { _id: `local-${Date.now()}`, ...newRaw, status: "active" as const }]);
+      const saved = await scrApi.updateEvent(ev.id, { shows: updatedShows });
+      // Use real _ids from the response to avoid fake-id issues on next save
+      setFullShows(saved.shows || []);
     } catch (err) {
       console.error("[ManagePage] Failed to save show:", err);
-      // Revert if backend save failed
       setShows(p => p.filter(s => s.id !== newShow.id));
     }
-  }, [ev.id, fullShows]);
+  }, [ev.id, fullShows, fullTiers]);
 
   const availableSubCats = useMemo(() => {
     const all = new Set<string>();
@@ -887,10 +971,10 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                     {shows.length === 0 && (
                       <div style={{ textAlign: "center", padding: "48px 24px", border: "1.5px dashed var(--border)", borderRadius: "14px", marginBottom: "20px" }}>
                         <p style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "var(--muted)" }}>No shows scheduled</p>
-                        <button type="button" onClick={openTicketDrawer}
+                        <button type="button" onClick={openDrawer}
                           style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 20px", background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.3)", borderRadius: "8px", color: "#5be6b2", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
                           <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                          Add Ticket
+                          Add Show
                         </button>
                       </div>
                     )}
