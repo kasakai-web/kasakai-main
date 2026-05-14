@@ -72,9 +72,7 @@ export async function fetchPublicScreenings(params?: {
   if (params?.limit)  qs.set('limit', String(params.limit));
 
   const query = qs.toString() ? `?${qs.toString()}` : '';
-  const res = await fetch(buildApiUrl(`/screening/events${query}`), {
-    next: { revalidate: 60 }, // ISR: revalidate every 60 s in server components
-  } as RequestInit);
+  const res = await fetch(buildApiUrl(`/screening/events${query}`));
 
   if (!res.ok) throw new Error('Failed to fetch screenings');
   const data = await res.json();
