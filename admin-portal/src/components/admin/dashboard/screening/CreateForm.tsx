@@ -79,6 +79,9 @@ const SEC: React.CSSProperties = { margin:"0 0 20px", fontSize:"14px", fontWeigh
 let _n = 0;
 const uid = () => `c${++_n}`;
 
+/* ── Required asterisk ── */
+const Req = () => <span style={{ color:'#ef4444', marginLeft:'2px' }}>*</span>;
+
 /* ── reusable atoms ── */
 function Chip({ label, active, onToggle }: { label:string; active:boolean; onToggle:()=>void }) {
   return (
@@ -122,6 +125,10 @@ function UploadBox({ label, hint, value, onChange }: {
   const [uploadErr, setUploadErr] = useState<string|null>(null);
 
   async function handleFile(file: File) {
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadErr('File is too large. Maximum size is 2 MB.');
+      return;
+    }
     setUploading(true);
     setUploadErr(null);
     try {
@@ -171,7 +178,7 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <p style={SEC}>Event Name</p>
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
           <div>
-            <span style={LBL}>Event Title *</span>
+            <span style={LBL}>Event Title <Req /></span>
             <input style={INP} placeholder="e.g. UCL Final Big Screening"
               value={form.name} onChange={e => set(f => ({ ...f, name:e.target.value }))} />
           </div>
@@ -188,7 +195,7 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <p style={SEC}>Event Type</p>
         <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
           <div>
-            <span style={LBL}>Category — choose up to 2</span>
+            <span style={LBL}>Category — choose up to 2 <Req /></span>
             <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginTop:"4px" }}>
               {CATEGORIES.map(cat => (
                 <Chip key={cat} label={cat} active={form.categories.includes(cat)} onToggle={() => set(f => {
@@ -253,7 +260,7 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         {form.pocs.map((poc, i) => (
           <div key={i} className={styles.scrGridPoc} style={{ marginBottom:i < form.pocs.length-1 ? "14px" : 0 }}>
             <div>
-              <span style={LBL}>Name</span>
+              <span style={LBL}>Name {i === 0 && <Req />}</span>
               <input style={INP} placeholder="Full name" value={poc.name}
                 onChange={e => { const p=[...form.pocs]; p[i]={...p[i],name:e.target.value}; set(f=>({...f,pocs:p})); }} />
             </div>
@@ -263,7 +270,7 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
                 onChange={e => { const p=[...form.pocs]; p[i]={...p[i],email:e.target.value}; set(f=>({...f,pocs:p})); }} />
             </div>
             <div>
-              <span style={LBL}>Phone</span>
+              <span style={LBL}>Phone {i === 0 && <Req />}</span>
               <input style={INP} type="tel" placeholder="+91 98765 43210" value={poc.phone}
                 onChange={e => { const p=[...form.pocs]; p[i]={...p[i],phone:e.target.value}; set(f=>({...f,pocs:p})); }} />
             </div>
@@ -301,7 +308,7 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <p style={SEC}>Venue</p>
         <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
           <div>
-            <span style={LBL}>Location / Venue Name *</span>
+            <span style={LBL}>Location / Venue Name <Req /></span>
             <input style={INP} placeholder="e.g. The Local Cafe, Sector 29, Gurgaon"
               value={form.venueLocation} onChange={e => set(f => ({ ...f, venueLocation:e.target.value }))} />
           </div>
@@ -321,7 +328,7 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
 
       <div className={styles.scrCard}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
-          <p style={{ margin:0, fontSize:"14px", fontWeight:800, color:"var(--white)" }}>Shows</p>
+          <p style={{ margin:0, fontSize:"14px", fontWeight:800, color:"var(--white)" }}>Shows <Req /></p>
           {!addOpen && (
             <button type="button" onClick={() => setAddOpen(true)}
               style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"7px 14px",
@@ -337,17 +344,17 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
           <div style={{ background:"var(--bg)", border:"1px solid var(--border)", borderRadius:"10px", padding:"16px", marginBottom:"16px" }}>
             <div className={styles.scrGrid2}>
               <div style={{ gridColumn:"1 / -1" }}>
-                <span style={LBL}>Date *</span>
+                <span style={LBL}>Date <Req /></span>
                 <input style={INP} type="date" value={newShow.date}
                   onChange={e => setNewShow(s => ({ ...s, date:e.target.value }))} />
               </div>
               <div>
-                <span style={LBL}>Start Time *</span>
+                <span style={LBL}>Start Time <Req /></span>
                 <input style={INP} type="time" value={newShow.startTime}
                   onChange={e => setNewShow(s => ({ ...s, startTime:e.target.value }))} />
               </div>
               <div>
-                <span style={LBL}>End Time *</span>
+                <span style={LBL}>End Time <Req /></span>
                 <input style={INP} type="time" value={newShow.endTime}
                   onChange={e => setNewShow(s => ({ ...s, endTime:e.target.value }))} />
               </div>
@@ -417,7 +424,7 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
     <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
       <div className={styles.scrCard}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
-          <p style={{ margin:0, fontSize:"14px", fontWeight:800, color:"var(--white)" }}>Ticket Tiers</p>
+          <p style={{ margin:0, fontSize:"14px", fontWeight:800, color:"var(--white)" }}>Ticket Tiers <Req /></p>
           {!addOpen && (
             <button type="button" onClick={() => setAddOpen(true)}
               style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"7px 14px",
@@ -433,17 +440,17 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
           <div style={{ background:"var(--bg)", border:"1px solid var(--border)", borderRadius:"10px", padding:"16px", marginBottom:"16px" }}>
             <div className={styles.scrGrid2}>
               <div>
-                <span style={LBL}>Tier Name *</span>
+                <span style={LBL}>Tier Name <Req /></span>
                 <input style={INP} placeholder="e.g. General, VIP" value={newTier.name}
                   onChange={e => setNewTier(t => ({ ...t, name:e.target.value }))} />
               </div>
               <div>
-                <span style={LBL}>Price (₹) *</span>
+                <span style={LBL}>Price (₹) <Req /></span>
                 <input style={INP} type="number" placeholder="0 for free" min="0" value={newTier.price}
                   onChange={e => setNewTier(t => ({ ...t, price:e.target.value }))} />
               </div>
               <div>
-                <span style={LBL}>Capacity *</span>
+                <span style={LBL}>Capacity <Req /></span>
                 <input style={INP} type="number" placeholder="Max seats" min="1" value={newTier.capacity}
                   onChange={e => setNewTier(t => ({ ...t, capacity:e.target.value }))} />
               </div>
@@ -511,9 +518,9 @@ function S4({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
       <div className={styles.scrCard}>
         <p style={SEC}>Creatives</p>
         <div className={styles.scrGrid2}>
-          <UploadBox label="Landscape Banner (16:9)" hint="PNG or JPG · up to 10 MB"
+          <UploadBox label="Landscape Banner (16:9) ★" hint="PNG / JPG / WebP · max 2 MB · Required"
             value={form.image}  onChange={url => set(f => ({ ...f, image: url }))} />
-          <UploadBox label="Portrait Poster (3:4)"   hint="PNG or JPG · up to 10 MB"
+          <UploadBox label="Portrait Poster (3:4)"   hint="PNG / JPG / WebP · max 2 MB"
             value={form.poster} onChange={url => set(f => ({ ...f, poster: url }))} />
         </div>
       </div>
@@ -549,6 +556,7 @@ function GallerySlot({ value, onChange }: { value:string; onChange:(url:string)=
   const [uploading, setUploading] = useState(false);
 
   async function handleFile(file: File) {
+    if (file.size > 2 * 1024 * 1024) return;
     setUploading(true);
     try {
       const url = await scrApi.uploadImage(file);
@@ -663,6 +671,26 @@ function S5({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
   );
 }
 
+function validateStep(step: number, form: Draft): string | null {
+  if (step === 1) {
+    if (!form.name.trim())            return 'Event title is required.';
+    if (form.categories.length === 0) return 'Select at least one category.';
+    const hasContact = form.pocs.some(p => p.name.trim() && p.phone.trim());
+    if (!hasContact) return 'Add at least one contact with name and phone number.';
+  }
+  if (step === 2) {
+    if (!form.venueLocation.trim())   return 'Venue / location is required.';
+    if (form.shows.length === 0)      return 'Add at least one show date and time.';
+  }
+  if (step === 3) {
+    if (form.tiers.length === 0)      return 'Add at least one ticket tier.';
+  }
+  if (step === 4) {
+    if (!form.image)                  return 'Upload a landscape banner image.';
+  }
+  return null;
+}
+
 function buildPayload(form: Draft): CreateScrEventPayload {
   return {
     title:           form.name,
@@ -714,9 +742,19 @@ export function ScrCreateEventForm({
   const [step, setStep]             = useState(1);
   const [form, setForm]             = useState<Draft>(INIT);
   const [submitting, setSubmitting] = useState(false);
+  const [stepError, setStepError]   = useState<string|null>(null);
 
-  const goNext = useCallback(() => setStep(s => Math.min(s + 1, 5)), []);
-  const goPrev = useCallback(() => setStep(s => Math.max(s - 1, 1)), []);
+  const goNext = useCallback(() => {
+    const err = validateStep(step, form);
+    if (err) { setStepError(err); return; }
+    setStepError(null);
+    setStep(s => Math.min(s + 1, 5));
+  }, [step, form]);
+
+  const goPrev = useCallback(() => {
+    setStepError(null);
+    setStep(s => Math.max(s - 1, 1));
+  }, []);
 
   const handlePublish = useCallback(async (status: 'draft' | 'published') => {
     if (!onSubmit || submitting) return;
@@ -754,7 +792,7 @@ export function ScrCreateEventForm({
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"8px",
                   flex:i === STEPS.length-1 ? "0 0 auto" : "1", position:"relative", zIndex:1 }}>
                   <button type="button"
-                    onClick={() => { if (s.num <= step) setStep(s.num); }}
+                    onClick={() => { if (s.num <= step) { setStep(s.num); setStepError(null); } }}
                     style={{ width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center",
                       fontSize:"13px", fontWeight:800, transition:"all 0.2s", border:"2px solid",
                       cursor:s.num <= step ? "pointer" : "default",
@@ -784,6 +822,18 @@ export function ScrCreateEventForm({
       {step === 3 && <S3 form={form} set={setForm} />}
       {step === 4 && <S4 form={form} set={setForm} />}
       {step === 5 && <S5 form={form} set={setForm} />}
+
+      {/* Step error */}
+      {stepError && (
+        <div style={{ margin:"16px 0 0", padding:"12px 16px", background:"rgba(239,68,68,0.08)",
+          border:"1px solid rgba(239,68,68,0.3)", borderRadius:"10px",
+          display:"flex", alignItems:"center", gap:"10px" }}>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+          </svg>
+          <span style={{ fontSize:"13px", fontWeight:600, color:"#ef4444" }}>{stepError}</span>
+        </div>
+      )}
 
       {/* Navigation */}
       <div style={{ display:"flex", justifyContent:"space-between", gap:"12px", padding:"24px 0 48px" }}>
