@@ -245,11 +245,6 @@ function ImageUploadBox({ label, ratio, maxSize, existingUrl, disabled, onUpload
 
 // ── Add Show Drawer ────────────────────────────────────────────────────────────
 
-type DraftTicket = { id: string; name: string; qty: string; price: string };
-function emptyTicket(): DraftTicket {
-  return { id: Math.random().toString(36).slice(2), name: "", qty: "", price: "" };
-}
-
 function AddShowDrawer({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
   onSave: (show: ScrShow, raw: { date: string; startTime: string; endTime: string }) => void;
@@ -257,13 +252,12 @@ function AddShowDrawer({ open, onClose, onSave }: {
   const [date, setDate]       = useState("");
   const [startTime, setStart] = useState("");
   const [endTime, setEnd]     = useState("");
-  const [tickets, setTickets] = useState<DraftTicket[]>([emptyTicket()]);
   const [errors, setErrors]   = useState<Record<string, string>>({});
   const firstRef              = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) { setTimeout(() => firstRef.current?.focus(), 80); }
-    else { setDate(""); setStart(""); setEnd(""); setTickets([emptyTicket()]); setErrors({}); }
+    else { setDate(""); setStart(""); setEnd(""); setErrors({}); }
   }, [open]);
 
   useEffect(() => {
@@ -273,26 +267,16 @@ function AddShowDrawer({ open, onClose, onSave }: {
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
 
-  const addTicket    = useCallback(() => setTickets(p => [...p, emptyTicket()]), []);
-  const removeTicket = useCallback((id: string) => setTickets(p => p.filter(t => t.id !== id)), []);
-  const updateTicket = useCallback((id: string, field: keyof DraftTicket, val: string) =>
-    setTickets(p => p.map(t => t.id === id ? { ...t, [field]: val } : t)), []);
-
-  const fmt = (t: string) => { const [h,m] = t.split(":").map(Number); return `${((h%12)||12).toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${h>=12?"PM":"AM"}`; };
+  const fmt = useCallback((t: string) => { const [h,m] = t.split(":").map(Number); return `${((h%12)||12).toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${h>=12?"PM":"AM"}`; }, []);
 
   const handleSave = useCallback(() => {
     const errs: Record<string, string> = {};
     if (!date) errs.date = "Required";
     if (!startTime) errs.startTime = "Required";
     if (!endTime) errs.endTime = "Required";
-    tickets.forEach((t, i) => {
-      if (!t.name.trim()) errs[`n${i}`] = "Required";
-      if (!t.qty || +t.qty <= 0) errs[`q${i}`] = "Required";
-      if (!t.price || +t.price < 0) errs[`p${i}`] = "Required";
-    });
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const d = new Date(date);
+    const d = new Date(date + "T12:00:00");
     const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
     const mons = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const dateLabel = `${days[d.getDay()]}, ${d.getDate()} ${mons[d.getMonth()]}`;
@@ -303,12 +287,12 @@ function AddShowDrawer({ open, onClose, onSave }: {
         dateLabel,
         timeLabel: `${fmt(startTime)} to ${fmt(endTime)}`,
         status: "active", expanded: false,
-        tickets: tickets.map(t => ({ id: t.id, name: t.name.trim(), qty: +t.qty, sold: 0, pricePaise: Math.round(+t.price * 100) })),
+        tickets: [],
       },
-      { date: new Date(date).toISOString(), startTime: fmt(startTime), endTime: fmt(endTime) }
+      { date: new Date(date + "T12:00:00").toISOString(), startTime: fmt(startTime), endTime: fmt(endTime) }
     );
     onClose();
-  }, [date, startTime, endTime, tickets, onSave, onClose, fmt]);
+  }, [date, startTime, endTime, onSave, onClose, fmt]);
 
   const fe = (k: string): React.CSSProperties => ({ ...inp, marginTop: "6px", borderColor: errors[k] ? "rgba(239,68,68,0.6)" : undefined });
 
@@ -318,7 +302,7 @@ function AddShowDrawer({ open, onClose, onSave }: {
       <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, width: "min(480px,100vw)", background: "var(--surface)", borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", boxShadow: "-6px 0 40px rgba(0,0,0,0.45)", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div>
-            <p style={{ margin: "0 0 2px", fontSize: "10px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.16em", textTransform: "uppercase" }}>Shows &amp; Tickets</p>
+            <p style={{ margin: "0 0 2px", fontSize: "10px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.16em", textTransform: "uppercase" }}>Shows</p>
             <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--white)" }}>Add New Show</h3>
           </div>
           <button type="button" onClick={onClose} style={{ width: 32, height: 32, borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -326,12 +310,15 @@ function AddShowDrawer({ open, onClose, onSave }: {
           </button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "22px" }}>
+          <p style={{ margin: "0 0 20px", fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
+            Adding a new show date makes this event available to book again. Ticket tiers are shared across all shows and can be edited in the Tickets section.
+          </p>
           <div style={{ marginBottom: "18px" }}>
             <OvLabel required>Show Date</OvLabel>
             <input ref={firstRef} type="date" value={date} onChange={e => { setDate(e.target.value); setErrors(p => ({ ...p, date: "" })); }} style={fe("date")} />
             {errors.date && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.date}</p>}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "24px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
             <div>
               <OvLabel required>Start Time</OvLabel>
               <input type="time" value={startTime} onChange={e => { setStart(e.target.value); setErrors(p => ({ ...p, startTime: "" })); }} style={fe("startTime")} />
@@ -342,48 +329,6 @@ function AddShowDrawer({ open, onClose, onSave }: {
               <input type="time" value={endTime} onChange={e => { setEnd(e.target.value); setErrors(p => ({ ...p, endTime: "" })); }} style={fe("endTime")} />
               {errors.endTime && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.endTime}</p>}
             </div>
-          </div>
-          <div style={{ height: "1px", background: "var(--border)", margin: "0 0 20px" }} />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-            <div>
-              <p style={{ margin: "0 0 2px", fontSize: "13px", fontWeight: 800, color: "var(--white)" }}>Tickets</p>
-              <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>Add ticket tiers for this show</p>
-            </div>
-            <button type="button" onClick={addTicket} style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "7px 13px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.25)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-              Add Ticket
-            </button>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {tickets.map((t, i) => (
-              <div key={t.id} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "10px", padding: "14px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.12em", textTransform: "uppercase" }}>Ticket {i + 1}</span>
-                  {tickets.length > 1 && (
-                    <button type="button" onClick={() => removeTicket(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "2px", display: "flex" }}>
-                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                    </button>
-                  )}
-                </div>
-                <div style={{ marginBottom: "10px" }}>
-                  <OvLabel required>Name</OvLabel>
-                  <input type="text" placeholder="e.g. Cover Charge, VIP…" value={t.name} onChange={e => { updateTicket(t.id, "name", e.target.value); setErrors(p => ({ ...p, [`n${i}`]: "" })); }} style={fe(`n${i}`)} />
-                  {errors[`n${i}`] && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors[`n${i}`]}</p>}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <div>
-                    <OvLabel required>Quantity</OvLabel>
-                    <input type="number" min="1" placeholder="100" value={t.qty} onChange={e => { updateTicket(t.id, "qty", e.target.value); setErrors(p => ({ ...p, [`q${i}`]: "" })); }} style={fe(`q${i}`)} />
-                    {errors[`q${i}`] && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors[`q${i}`]}</p>}
-                  </div>
-                  <div>
-                    <OvLabel required>Price (₹)</OvLabel>
-                    <input type="number" min="0" placeholder="499" value={t.price} onChange={e => { updateTicket(t.id, "price", e.target.value); setErrors(p => ({ ...p, [`p${i}`]: "" })); }} style={fe(`p${i}`)} />
-                    {errors[`p${i}`] && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors[`p${i}`]}</p>}
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
         <div style={{ padding: "16px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: "10px", flexShrink: 0 }}>

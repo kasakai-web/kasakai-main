@@ -6,20 +6,24 @@ import { scrApi } from "@/lib/screening-api";
 import type { CreateScrEventPayload } from "@/lib/screening-api";
 
 /* ── static data ── */
-const CATEGORIES = ["Sports","Music","Comedy","Art","Food & Drinks","Tech","Film","Business","Wellness","Education"];
+const CATEGORIES = [
+  "TV Screenings","Music","Nightlife","Social Mixers","Performances",
+  "Open Mics","Comedy","Sports","Food & Drinks","Esports",
+  "Games & Quizzes","Fitness Activities","Kids","Art Exhibitions",
+  "Fests & Fairs","Conferences & Talks","Workshops","Adventure",
+];
 const SUB_CATS: Record<string,string[]> = {
-  Sports:          ["Football","Cricket","Basketball","Tennis","Badminton","Other"],
-  Music:           ["Live Band","DJ Night","Open Mic","Acoustic","Other"],
-  Comedy:          ["Stand-up","Improv","Sketch","Other"],
-  Art:             ["Exhibition","Workshop","Performance","Other"],
-  "Food & Drinks": ["Tasting","Cooking Class","Brunch","Dinner","Other"],
-  Tech:            ["Hackathon","Meetup","Workshop","Conference","Other"],
-  Film:            ["Screening","Festival","Workshop","Other"],
-  Business:        ["Networking","Conference","Workshop","Other"],
-  Wellness:        ["Yoga","Meditation","Fitness","Other"],
-  Education:       ["Workshop","Seminar","Course","Other"],
+  "TV Screenings":     ["Football Screenings","Cricket Screenings","F1 Screenings","Movie Screenings","Olympics Screenings","Concert Screenings"],
+  Sports:              ["Football","Cricket","Tennis","Badminton","Running","Cycling"],
+  Music:               ["Live Music","DJ Night","Open Mic","Classical"],
+  "Food & Drinks":     ["Dining Experience","Bar Night","Wine Tasting","Food Festival"],
+  Comedy:              ["Stand-up","Improv","Sketch","Other"],
+  Esports:             ["PC Gaming","Console","Mobile","Other"],
+  "Games & Quizzes":   ["Trivia","Board Games","Pub Quiz","Other"],
+  "Fitness Activities":["Yoga","Workout","Dance","Other"],
+  Workshops:           ["Art","Music","Tech","Cooking","Other"],
 };
-const LANGUAGES  = ["English","Hindi","Tamil","Telugu","Kannada","Malayalam","Bengali","Marathi","Other"];
+const LANGUAGES  = ["English","Hindi","Hinglish","Bengali","Telugu","Tamil","Tanglish","Marathi","Gujarati","Kannada","Punjabi","Malayalam","French","Spanish","German"];
 const EXTRA_SECS = ["Event Instructions","Youtube Video","Prohibited Items","FAQs"];
 
 const STEPS = [
