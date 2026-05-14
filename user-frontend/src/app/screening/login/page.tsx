@@ -576,6 +576,14 @@ function ScreeningAuthFlow() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Invalid OTP");
+      // Backend now returns a JWT — auto-login and redirect without a second login step
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("screening-auth-changed"));
+        router.push(searchParams.get("redirect") || "/screening");
+        return;
+      }
       goTo("signup-success");
     } catch (err: any) {
       setError(err.message || "OTP verification failed. Please try again.");
