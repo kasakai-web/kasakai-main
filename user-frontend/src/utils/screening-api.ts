@@ -83,8 +83,8 @@ export async function fetchPublicScreenings(params?: {
 
 export async function fetchPublicScreeningById(id: string): Promise<ApiScrEvent | null> {
   const res = await fetch(buildApiUrl(`/screening/events/${id}`), {
-    next: { revalidate: 60 },
-  } as RequestInit);
+    cache: 'no-store',
+  });
 
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to fetch event');
@@ -202,19 +202,27 @@ export function toScreening(e: ApiScrEvent): Screening {
   }));
 
   return {
-    id:           e._id,
-    matchTitle:   e.title,
-    venueName:    e.venueName,
-    location:     e.location,
+    id:             e._id,
+    matchTitle:     e.title,
+    venueName:      e.venueName,
+    location:       e.location,
     date,
     day,
     time,
-    description:  e.description,
+    description:    e.description,
     startingPrice,
     tiers,
-    image:        e.image || null,
-    status:       e.status === 'cancelled' ? 'cancelled' : 'published',
-    contacts:     (e.contacts || []).map(c => ({ name: c.name, email: c.email, phone: c.phone })),
+    image:          e.image || null,
+    status:         e.status === 'cancelled' ? 'cancelled' : 'published',
+    contacts:       (e.contacts || []).map(c => ({ name: c.name, email: c.email, phone: c.phone })),
+    languages:      e.languages || [],
+    isIndoor:       e.isIndoor ?? null,
+    isSeated:       e.isSeated ?? null,
+    kidFriendly:    e.kidFriendly ?? null,
+    petFriendly:    e.petFriendly ?? null,
+    minAgeEntry:    e.minAgeEntry || 0,
+    minAgePaid:     e.minAgePaid || 0,
+    gatesOpenBefore: e.gatesOpenBefore || 0,
   };
 }
 

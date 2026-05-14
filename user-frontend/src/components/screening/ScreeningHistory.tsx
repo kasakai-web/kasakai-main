@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Ticket } from "./types";
 
 interface Props {
@@ -77,6 +78,7 @@ export function ScreeningHistory({ history, onFindEvents, loading, error }: Prop
 
 function HistoryCard({ ticket }: { ticket: Ticket }) {
   const { screening } = ticket;
+  const [imgErr, setImgErr] = useState(false);
   const isCancelled = ticket.status === 'cancelled';
   const stampColor  = isCancelled ? "rgba(239,68,68,0.6)" : "rgba(200,241,53,0.6)";
   const stampBorder = isCancelled ? "1px solid rgba(239,68,68,0.35)" : "1px solid rgba(200,241,53,0.35)";
@@ -111,12 +113,24 @@ function HistoryCard({ ticket }: { ticket: Ticket }) {
       {/* ── Match info row ── */}
       <div style={{ display: "flex", alignItems: "stretch" }}>
         {/* Image */}
-        <div className="scr-ticket-img" style={{ minHeight: "120px", overflow: "hidden", position: "relative", alignSelf: "stretch", background: "#111" }}>
-          {screening.image ? (
+        <div className="scr-ticket-img" style={{ minHeight: "120px", overflow: "hidden", position: "relative", alignSelf: "stretch", background: "#0d0d1a" }}>
+          {!imgErr && screening.image ? (
             <img src={screening.image} alt={screening.matchTitle}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px", filter: "grayscale(80%) brightness(0.5)" }} />
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px", filter: "grayscale(80%) brightness(0.5)" }}
+              onError={() => setImgErr(true)} />
           ) : (
-            <div style={{ width: "100%", height: "100%", minHeight: "120px", background: "#161616" }} />
+            <div style={{ width: "100%", height: "100%", minHeight: "120px", background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "5px" }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="1" width="22" height="15" rx="2" stroke="#1e2240" strokeWidth="1.5" fill="#0c0c1a"/>
+                <path d="M12 16v3" stroke="#1e2240" strokeWidth="1.5"/>
+                <path d="M8 21h8" stroke="#1e2240" strokeWidth="1.5"/>
+                <line x1="3" y1="7" x2="21" y2="7" stroke="#12122a" strokeWidth="0.75"/>
+                <line x1="3" y1="11" x2="21" y2="11" stroke="#12122a" strokeWidth="0.75"/>
+                <circle cx="12" cy="8.5" r="4" stroke="#1e2240" strokeWidth="1" fill="#10102a"/>
+                <polygon points="10.5,6.5 10.5,10.5 14.5,8.5" fill="#1e2240"/>
+              </svg>
+              <span style={{ fontSize: "6px", fontWeight: 800, color: "#1e2240", letterSpacing: "0.18em", textTransform: "uppercase" }}>No Preview</span>
+            </div>
           )}
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{

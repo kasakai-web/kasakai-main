@@ -40,7 +40,7 @@ type Draft = {
   categories:string[]; subCategory:string;
   gstin:string; accountNumber:string; ifsc:string; accountType:"savings"|"current";
   pocs:Poc[];
-  venueLocation:string; ownRestaurant:boolean|null; instagramLink:string;
+  venueLocation:string; venueCity:string; ownRestaurant:boolean|null; instagramLink:string;
   shows:Show[]; gatesOpenBefore:string;
   tiers:Tier[];
   languages:string[]; minAgeEntry:string; minAgePaid:string;
@@ -55,7 +55,7 @@ const INIT: Draft = {
   categories:[], subCategory:"",
   gstin:"", accountNumber:"", ifsc:"", accountType:"savings",
   pocs:[{ name:"", email:"", phone:"" }],
-  venueLocation:"", ownRestaurant:null, instagramLink:"",
+  venueLocation:"", venueCity:"", ownRestaurant:null, instagramLink:"",
   shows:[], gatesOpenBefore:"",
   tiers:[],
   languages:[], minAgeEntry:"", minAgePaid:"",
@@ -303,10 +303,17 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
       <div className={styles.scrCard}>
         <p style={SEC}>Venue</p>
         <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
-          <div>
-            <span style={LBL}>Location / Venue Name <Req /></span>
-            <input style={inp} placeholder="e.g. The Local Cafe, Sector 29, Gurgaon"
-              value={form.venueLocation} onChange={e => set(f => ({ ...f, venueLocation:e.target.value }))} />
+          <div className={styles.scrGrid2}>
+            <div>
+              <span style={LBL}>Venue Name <Req /></span>
+              <input style={inp} placeholder="e.g. The Local Cafe"
+                value={form.venueLocation} onChange={e => set(f => ({ ...f, venueLocation:e.target.value }))} />
+            </div>
+            <div>
+              <span style={LBL}>City / Area <Req /></span>
+              <input style={inp} placeholder="e.g. Koramangala, Bangalore"
+                value={form.venueCity} onChange={e => set(f => ({ ...f, venueCity:e.target.value }))} />
+            </div>
           </div>
           <TriToggle label="Hosting at own restaurant?" value={form.ownRestaurant} onChange={v => set(f => ({ ...f, ownRestaurant:v }))} />
           <div>
@@ -656,7 +663,7 @@ function S5({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
           {[
             { label:"Event",        value:form.name || "—" },
             { label:"Categories",   value:form.categories.join(", ") || "—" },
-            { label:"Venue",        value:form.venueLocation || "—" },
+            { label:"Venue",        value:form.venueLocation ? [form.venueLocation, form.venueCity].filter(Boolean).join(", ") : "—" },
             { label:"Shows",        value:form.shows.length ? `${form.shows.length} show(s)` : "None" },
             { label:"Ticket tiers", value:form.tiers.length
               ? form.tiers.map(t => `${t.name} (₹${Number(t.price).toLocaleString()})`).join(", ")
@@ -681,7 +688,8 @@ function validateStep(step: number, form: Draft): string | null {
     if (!hasContact) return 'Add at least one contact with name and phone number.';
   }
   if (step === 2) {
-    if (!form.venueLocation.trim())   return 'Venue / location is required.';
+    if (!form.venueLocation.trim())   return 'Venue name is required.';
+    if (!form.venueCity.trim())       return 'City / area is required.';
     if (form.shows.length === 0)      return 'Add at least one show date and time.';
   }
   if (step === 3) {
@@ -693,6 +701,12 @@ function validateStep(step: number, form: Draft): string | null {
   return null;
 }
 
+function fmtTime(t: string): string {
+  if (!t || t.includes("AM") || t.includes("PM")) return t;
+  const [h, m] = t.split(":").map(Number);
+  return `${((h % 12) || 12).toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
+
 function buildPayload(form: Draft): CreateScrEventPayload {
   return {
     title:           form.name,
@@ -701,7 +715,7 @@ function buildPayload(form: Draft): CreateScrEventPayload {
     subCategories:   form.subCategory ? [form.subCategory] : [],
     languages:       form.languages,
     venueName:       form.venueLocation,
-    location:        form.venueLocation,
+    location:        form.venueCity,
     ownRestaurant:   form.ownRestaurant ?? false,
     venueInstagram:  form.instagramLink,
     gatesOpenBefore: Number(form.gatesOpenBefore) || 0,
@@ -711,7 +725,7 @@ function buildPayload(form: Draft): CreateScrEventPayload {
     petFriendly:     form.petFriendly,
     minAgeEntry:     Number(form.minAgeEntry) || 0,
     minAgePaid:      Number(form.minAgePaid) || 0,
-    shows:           form.shows.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime })),
+    shows:           form.shows.map(s => ({ date: s.date, startTime: fmtTime(s.startTime), endTime: fmtTime(s.endTime) })),
     tiers:           form.tiers.map(t => ({
       name:        t.name,
       pricePaise:  Math.round(Number(t.price) * 100),

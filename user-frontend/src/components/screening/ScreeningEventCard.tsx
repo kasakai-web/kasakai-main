@@ -1,9 +1,27 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { Screening } from "./types";
+
+function TvFallback() {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+      style={{ background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)" }}>
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="1" width="22" height="15" rx="2" stroke="#1e2240" strokeWidth="1.5" fill="#0c0c1a"/>
+        <path d="M12 16v3" stroke="#1e2240" strokeWidth="1.5"/>
+        <path d="M8 21h8" stroke="#1e2240" strokeWidth="1.5"/>
+        <line x1="3" y1="7" x2="21" y2="7" stroke="#12122a" strokeWidth="0.75"/>
+        <line x1="3" y1="11" x2="21" y2="11" stroke="#12122a" strokeWidth="0.75"/>
+        <circle cx="12" cy="8.5" r="4" stroke="#1e2240" strokeWidth="1" fill="#10102a"/>
+        <polygon points="10.5,6.5 10.5,10.5 14.5,8.5" fill="#1e2240"/>
+      </svg>
+      <span style={{ fontSize: "8px", fontWeight: 800, color: "#1e2240", letterSpacing: "0.18em", textTransform: "uppercase" }}>No Preview</span>
+    </div>
+  );
+}
 
 interface Props {
   screening: Screening;
@@ -12,6 +30,7 @@ interface Props {
 }
 
 export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, bookedEntryCode }: Props) {
+  const [imgErr, setImgErr] = useState(false);
   return (
     <div
       className="group flex flex-col overflow-hidden transition-all duration-200"
@@ -22,7 +41,7 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
       {/* Image */}
       <Link href={`/screening/${screening.id}`} className="no-underline" tabIndex={-1}>
         <div className="relative overflow-hidden flex-shrink-0" style={{ height: "200px", background: "#1a1a1a" }}>
-          {screening.image ? (
+          {!imgErr && screening.image ? (
             <Image
               src={screening.image}
               alt={screening.matchTitle}
@@ -30,15 +49,10 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
+              onError={() => setImgErr(true)}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)" }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.5" strokeLinecap="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
-            </div>
+            <TvFallback />
           )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #111 0%, rgba(17,17,17,0.4) 45%, transparent 100%)" }} />
 

@@ -1,5 +1,5 @@
 "use client";
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import styles from "../dashboard.module.css";
 import { ScrEvent, scrStatusBadge } from "./types";
 
@@ -14,6 +14,7 @@ type Props = {
 };
 
 export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAnalytics, onViewEvent, onPublish, onCancel, onDelete }: Props) {
+  const [imgErr, setImgErr] = useState(false);
   const badge = scrStatusBadge(ev.status);
   const capacity = ev.capacity ?? 100;
   const sold = ev.sold ?? 0;
@@ -23,12 +24,24 @@ export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAna
 
   return (
     <div className={styles.scrEventCard}>
-      <div className={styles.scrEventCardImg}>
-        {ev.image ? (
+      <div className={styles.scrEventCardImg} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {!imgErr && ev.image ? (
           <img src={ev.image} alt={ev.title} loading="lazy"
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            onError={() => setImgErr(true)} />
         ) : (
-          <div style={{ width: "100%", height: "100%", background: "var(--surface2)" }} />
+          <div style={{ width: "100%", height: "100%", background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="1" width="22" height="15" rx="2" stroke="#1e2240" strokeWidth="1.5" fill="#0c0c1a"/>
+              <path d="M12 16v3" stroke="#1e2240" strokeWidth="1.5"/>
+              <path d="M8 21h8" stroke="#1e2240" strokeWidth="1.5"/>
+              <line x1="3" y1="7" x2="21" y2="7" stroke="#12122a" strokeWidth="0.75"/>
+              <line x1="3" y1="11" x2="21" y2="11" stroke="#12122a" strokeWidth="0.75"/>
+              <circle cx="12" cy="8.5" r="4" stroke="#1e2240" strokeWidth="1" fill="#10102a"/>
+              <polygon points="10.5,6.5 10.5,10.5 14.5,8.5" fill="#1e2240"/>
+            </svg>
+            <span style={{ fontSize: "7px", fontWeight: 800, color: "#1e2240", letterSpacing: "0.18em", textTransform: "uppercase" }}>No Preview</span>
+          </div>
         )}
       </div>
 

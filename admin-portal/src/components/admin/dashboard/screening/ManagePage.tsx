@@ -2,8 +2,8 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
-import { ScrEvent, ScrShow, ScrShowTicket, scrStatusBadge, mockShowsForEvent, backBtnStyle, inp } from "./types";
-import { scrApi } from "@/lib/screening-api";
+import { ScrEvent, ScrShow, ScrShowTicket, scrStatusBadge, backBtnStyle, inp } from "./types";
+import { scrApi, type ApiScrEvent, type ApiScrShow, type CreateScrEventPayload } from "@/lib/screening-api";
 
 // ── static data ───────────────────────────────────────────────────────────────
 
@@ -178,17 +178,36 @@ function MultiSelect({ options, value, onChange, max, disabled }: {
   );
 }
 
-function ImageUploadBox({ label, ratio, maxSize, existingUrl, disabled }: {
+// Uploads the file immediately; calls onUpload with the returned server URL.
+function ImageUploadBox({ label, ratio, maxSize, existingUrl, disabled, onUpload }: {
   label: string; ratio: string; maxSize: string; existingUrl?: string; disabled?: boolean;
+  onUpload?: (url: string) => void;
 }) {
-  const [preview, setPreview] = useState(existingUrl ?? "");
+  const [preview,    setPreview]    = useState(existingUrl ?? "");
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadErr,  setUploadErr]  = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Sync if parent updates existingUrl (e.g. after loadEvent)
+  useEffect(() => { if (existingUrl) setPreview(existingUrl); }, [existingUrl]);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = URL.createObjectURL(f);
-    setPreview(url);
+    setUploadErr("");
+    setPreview(URL.createObjectURL(f)); // immediate local preview
+    if (onUpload) {
+      setUploading(true);
+      try {
+        const url = await scrApi.uploadImage(f);
+        setPreview(url);
+        onUpload(url);
+      } catch {
+        setUploadErr("Upload failed — try again");
+      } finally {
+        setUploading(false);
+      }
+    }
   };
 
   return (
@@ -203,18 +222,13 @@ function ImageUploadBox({ label, ratio, maxSize, existingUrl, disabled }: {
           {preview && (
             <img src={preview} alt="preview" style={{ height: "44px", width: "auto", borderRadius: "6px", border: "1px solid var(--border)", objectFit: "cover" }} />
           )}
-          <button type="button" onClick={() => !disabled && fileRef.current?.click()}
-            style={{ padding: "6px 14px", background: "none", border: "1px solid var(--border)", borderRadius: "7px", color: disabled ? "var(--muted2)" : "var(--muted)", fontSize: "12px", fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer" }}>
-            {preview ? "Replace" : "Upload"}
+          <button type="button" onClick={() => !disabled && !uploading && fileRef.current?.click()}
+            style={{ padding: "6px 14px", background: "none", border: "1px solid var(--border)", borderRadius: "7px", color: (disabled || uploading) ? "var(--muted2)" : "var(--muted)", fontSize: "12px", fontWeight: 600, cursor: (disabled || uploading) ? "not-allowed" : "pointer" }}>
+            {uploading ? "Uploading…" : preview ? "Replace" : "Upload"}
           </button>
-          {preview && (
-            <button type="button"
-              style={{ padding: "6px 14px", background: "rgba(91,230,178,0.07)", border: "1px solid rgba(91,230,178,0.2)", borderRadius: "7px", color: "#5be6b2", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-              Preview
-            </button>
-          )}
         </div>
       </div>
+      {uploadErr && <p style={{ margin: "0 0 8px", fontSize: "11px", color: "#ef4444" }}>{uploadErr}</p>}
       {!preview && !disabled && (
         <div onClick={() => fileRef.current?.click()}
           style={{ border: "1.5px dashed var(--border)", borderRadius: "10px", padding: "20px", textAlign: "center", cursor: "pointer" }}
@@ -224,7 +238,7 @@ function ImageUploadBox({ label, ratio, maxSize, existingUrl, disabled }: {
           <span style={{ fontSize: "12px", color: "var(--muted)" }}>Click to upload</span>
         </div>
       )}
-      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleFile} />
     </div>
   );
 }
@@ -237,7 +251,8 @@ function emptyTicket(): DraftTicket {
 }
 
 function AddShowDrawer({ open, onClose, onSave }: {
-  open: boolean; onClose: () => void; onSave: (show: ScrShow) => void;
+  open: boolean; onClose: () => void;
+  onSave: (show: ScrShow, raw: { date: string; startTime: string; endTime: string }) => void;
 }) {
   const [date, setDate]       = useState("");
   const [startTime, setStart] = useState("");
@@ -263,6 +278,8 @@ function AddShowDrawer({ open, onClose, onSave }: {
   const updateTicket = useCallback((id: string, field: keyof DraftTicket, val: string) =>
     setTickets(p => p.map(t => t.id === id ? { ...t, [field]: val } : t)), []);
 
+  const fmt = (t: string) => { const [h,m] = t.split(":").map(Number); return `${((h%12)||12).toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${h>=12?"PM":"AM"}`; };
+
   const handleSave = useCallback(() => {
     const errs: Record<string, string> = {};
     if (!date) errs.date = "Required";
@@ -279,17 +296,19 @@ function AddShowDrawer({ open, onClose, onSave }: {
     const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
     const mons = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const dateLabel = `${days[d.getDay()]}, ${d.getDate()} ${mons[d.getMonth()]}`;
-    const fmt = (t: string) => { const [h,m] = t.split(":").map(Number); return `${((h%12)||12).toString().padStart(2,"0")}:${m.toString().padStart(2,"0")} ${h>=12?"PM":"AM"}`; };
 
-    onSave({
-      id: `show-${Date.now()}`,
-      dateLabel,
-      timeLabel: `${fmt(startTime)} to ${fmt(endTime)}`,
-      status: "active", expanded: false,
-      tickets: tickets.map(t => ({ id: t.id, name: t.name.trim(), qty: +t.qty, sold: 0, pricePaise: Math.round(+t.price * 100) })),
-    });
+    onSave(
+      {
+        id: `show-${Date.now()}`,
+        dateLabel,
+        timeLabel: `${fmt(startTime)} to ${fmt(endTime)}`,
+        status: "active", expanded: false,
+        tickets: tickets.map(t => ({ id: t.id, name: t.name.trim(), qty: +t.qty, sold: 0, pricePaise: Math.round(+t.price * 100) })),
+      },
+      { date: new Date(date).toISOString(), startTime: fmt(startTime), endTime: fmt(endTime) }
+    );
     onClose();
-  }, [date, startTime, endTime, tickets, onSave, onClose]);
+  }, [date, startTime, endTime, tickets, onSave, onClose, fmt]);
 
   const fe = (k: string): React.CSSProperties => ({ ...inp, marginTop: "6px", borderColor: errors[k] ? "rgba(239,68,68,0.6)" : undefined });
 
@@ -385,45 +404,125 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
 
   // Shows tab state
   const [tab, setTab]               = useState<"shows" | "overview">("shows");
-  const [shows, setShows]           = useState<ScrShow[]>(() => mockShowsForEvent(ev));
+  const [shows, setShows]           = useState<ScrShow[]>([]);
+  const [fullShows, setFullShows]   = useState<ApiScrShow[]>([]); // raw API shows for persistence
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Overview tab state
-  const [eventName, setEventName]   = useState(ev.title);
-  const [description, setDescription] = useState(
-    "A Tale of Two Ends: Arsenal's Title Charge Meets West Ham's Survival Battle!\n\nThe 2025/26 Premier League season is reaching a dramatic, heart-stopping climax, and you cannot afford to miss this showdown. Arsenal is on the brink of glory, chasing their first league title in 22 years, while West Ham United is fighting for their Premier League life in a desperate relegation battle.\n\nThis is more than just a football match; it's a high-stakes drama. Watch it with fellow football addicts over a big screen and commentary on the sound system!\n\nPS: Free beer if you are in a spurs jersey! ;)"
-  );
-  const [categories, setCategories]     = useState<string[]>(["TV Screenings"]);
-  const [subCategories, setSubCats]     = useState<string[]>(["Football Screenings"]);
-  const [venueLocation, setVenueLoc]    = useState(ev.venue);
-  const [ownRestaurant, setOwnRest]     = useState<"yes" | "no">("no");
-  const [instagramLink, setIgLink]      = useState("");
-  const [language, setLanguage]         = useState<string[]>(["English"]);
-  const [minAge, setMinAge]             = useState("16");
-  const [ticketAge, setTicketAge]       = useState("16");
-  const [venueType, setVenueType]       = useState("Indoor");
-  const [seating, setSeating]           = useState("Seated & Standing");
-  const [kidFriendly, setKidFriendly]   = useState("No");
-  const [petFriendly, setPetFriendly]   = useState("No");
-  const [gatesOpen, setGatesOpen]       = useState(false);
-  const [pocs, setPocs]                 = useState<Poc[]>(() =>
+  // Overview tab state — all initialised empty; useEffect populates from API
+  const [eventName, setEventName]         = useState(ev.title);
+  const [description, setDescription]     = useState("");
+  const [categories, setCategories]       = useState<string[]>([]);
+  const [subCategories, setSubCats]       = useState<string[]>([]);
+  const [venueLocation, setVenueLoc]      = useState("");
+  const [venueCity, setVenueCity]         = useState("");
+  const [ownRestaurant, setOwnRest]       = useState<"yes" | "no">("no");
+  const [instagramLink, setIgLink]        = useState("");
+  const [language, setLanguage]           = useState<string[]>([]);
+  const [minAge, setMinAge]               = useState("All ages");
+  const [ticketAge, setTicketAge]         = useState("All ages");
+  const [venueType, setVenueType]         = useState("Indoor");
+  const [seating, setSeating]             = useState("Seated & Standing");
+  const [kidFriendly, setKidFriendly]     = useState("No");
+  const [petFriendly, setPetFriendly]     = useState("No");
+  const [gatesOpen, setGatesOpen]         = useState(false);
+  const [gatesOpenMinutes, setGatesOpenMinutes] = useState(30);
+  const [imgUrl, setImgUrl]               = useState(ev.image || "");
+  const [posterUrl, setPosterUrl]         = useState("");
+  const [pocs, setPocs]                   = useState<Poc[]>(() =>
     ev.contacts.length > 0
       ? ev.contacts.map((c, i) => ({ id: `poc-${i}`, name: c.name, email: c.email, phone: c.phone }))
       : [{ id: "poc-0", name: "", email: "", phone: "" }]
   );
-  const [sendCopies, setSendCopies]     = useState(false);
+  const [sendCopies, setSendCopies]       = useState(false);
   const [extraSections, setExtraSections] = useState<string[]>([]);
-  const [saving, setSaving]             = useState(false);
-  const [saveMsg, setSaveMsg]           = useState<string | null>(null);
+  const [extraContent, setExtraContent]   = useState<Record<string, string>>({});
+  const [saving, setSaving]               = useState(false);
+  const [saveMsg, setSaveMsg]             = useState<string | null>(null);
+  const [loadingOverview, setLoadingOverview] = useState(true);
 
   const badge      = scrStatusBadge(ev.status);
   const allExpired = shows.every(s => s.status === "expired");
   const isLocked   = ev.status === "published";
 
+  // Load full event data to populate all form fields
+  useEffect(() => {
+    setLoadingOverview(true);
+    scrApi.getEvent(ev.id)
+      .then((full: ApiScrEvent) => {
+        setEventName(full.title || ev.title);
+        setDescription(full.description || "");
+        setCategories(full.categories || []);
+        setSubCats(full.subCategories || []);
+        setLanguage(full.languages || []);
+        setOwnRest(full.ownRestaurant ? "yes" : "no");
+        setIgLink(full.venueInstagram || "");
+        setMinAge(full.minAgeEntry > 0 ? String(full.minAgeEntry) : "All ages");
+        setTicketAge(full.minAgePaid > 0 ? String(full.minAgePaid) : "All ages");
+        setVenueType(full.isIndoor === false ? "Outdoor" : "Indoor");
+        setSeating(full.isSeated === true ? "Seated" : full.isSeated === false ? "Standing" : "Seated & Standing");
+        setKidFriendly(full.kidFriendly === true ? "Yes" : "No");
+        setPetFriendly(full.petFriendly === true ? "Yes" : "No");
+        const gateMin = full.gatesOpenBefore || 0;
+        setGatesOpen(gateMin > 0);
+        setGatesOpenMinutes(gateMin > 0 ? gateMin : 30);
+        setImgUrl(full.image || "");
+        setPosterUrl(full.poster || "");
+        setVenueLoc(full.venueName || "");
+        setVenueCity(full.location || "");
+        if (full.contacts?.length) {
+          setPocs(full.contacts.map((c, i) => ({ id: `poc-${i}`, name: c.name, email: c.email, phone: c.phone })));
+        }
+        // Populate extra sections from stored data
+        const storedSections = (full.extraSections || []).filter(s => s.content);
+        if (storedSections.length) {
+          setExtraSections(storedSections.map(s => s.type));
+          const content: Record<string, string> = {};
+          storedSections.forEach(s => { content[s.type] = s.content; });
+          setExtraContent(content);
+        }
+        // Transform API shows to display format
+        const displayShows: ScrShow[] = (full.shows || []).map(s => {
+          const d = new Date(s.date);
+          const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+          const mons = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          const dateLabel = `${days[d.getDay()]}, ${d.getDate()} ${mons[d.getMonth()]}`;
+          const timeLabel = s.endTime ? `${s.startTime} to ${s.endTime}` : s.startTime;
+          const isExpired = new Date(s.date) < new Date();
+          return {
+            id: s._id,
+            dateLabel,
+            timeLabel,
+            status: (isExpired ? "expired" : "active") as "active" | "expired",
+            expanded: false,
+            tickets: (full.tiers || []).map(t => ({
+              id: String(t._id), name: t.name, qty: t.capacity, sold: t.sold, pricePaise: t.pricePaise,
+            })),
+          };
+        });
+        setShows(displayShows);
+        setFullShows(full.shows || []);
+      })
+      .catch(err => console.error("[ManagePage] Failed to load event:", err))
+      .finally(() => setLoadingOverview(false));
+  }, [ev.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleShow    = useCallback((id: string) => setShows(p => p.map(s => s.id === id ? { ...s, expanded: !s.expanded } : s)), []);
   const openDrawer    = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer   = useCallback(() => setDrawerOpen(false), []);
-  const handleSaveShow = useCallback((newShow: ScrShow) => setShows(p => [newShow, ...p]), []);
+
+  const handleSaveShow = useCallback(async (newShow: ScrShow, raw: { date: string; startTime: string; endTime: string }) => {
+    setShows(p => [newShow, ...p]);
+    const newRaw = { date: raw.date, startTime: raw.startTime, endTime: raw.endTime };
+    const updatedShows = [...fullShows, newRaw] as CreateScrEventPayload["shows"];
+    try {
+      await scrApi.updateEvent(ev.id, { shows: updatedShows });
+      setFullShows(p => [...p, { _id: `local-${Date.now()}`, ...newRaw, status: "active" as const }]);
+    } catch (err) {
+      console.error("[ManagePage] Failed to save show:", err);
+      // Revert if backend save failed
+      setShows(p => p.filter(s => s.id !== newShow.id));
+    }
+  }, [ev.id, fullShows]);
 
   const availableSubCats = useMemo(() => {
     const all = new Set<string>();
@@ -443,8 +542,35 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
     setSaving(true);
     setSaveMsg(null);
     try {
+      const minAgeNum    = minAge === "All ages"    ? 0 : Number(minAge);
+      const ticketAgeNum = ticketAge === "All ages" ? 0 : Number(ticketAge);
+      const isIndoorVal  = venueType === "Indoor" ? true : venueType === "Outdoor" ? false : null;
+      const isSeatedVal  = seating === "Seated" ? true : seating === "Standing" ? false : null;
+
       await scrApi.updateEvent(ev.id, {
-        contacts: pocs.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        title:           eventName.trim() || ev.title,
+        description,
+        categories,
+        subCategories,
+        languages:       language,
+        venueName:       venueLocation,
+        location:        venueCity,
+        ownRestaurant:   ownRestaurant === "yes",
+        venueInstagram:  instagramLink,
+        isIndoor:        isIndoorVal,
+        isSeated:        isSeatedVal,
+        kidFriendly:     kidFriendly === "Yes",
+        petFriendly:     petFriendly === "Yes",
+        minAgeEntry:     minAgeNum,
+        minAgePaid:      ticketAgeNum,
+        gatesOpenBefore: gatesOpen ? gatesOpenMinutes : 0,
+        contacts:        pocs.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        ...(imgUrl    ? { image:  imgUrl }    : {}),
+        ...(posterUrl ? { poster: posterUrl } : {}),
+        extraSections: extraSections.map(sec => ({
+          type:    sec,
+          content: extraContent[sec] || "",
+        })),
       });
       setSaveMsg("Saved");
     } catch {
@@ -453,7 +579,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       setSaving(false);
       setTimeout(() => setSaveMsg(null), 3000);
     }
-  }, [ev.id, pocs]);
+  }, [ev.id, ev.title, eventName, description, categories, subCategories, language, venueLocation, venueCity, ownRestaurant, instagramLink, venueType, seating, kidFriendly, petFriendly, minAge, ticketAge, gatesOpen, gatesOpenMinutes, pocs, imgUrl, posterUrl, extraSections, extraContent]);
 
   return (
     <>
@@ -494,329 +620,315 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
             {/* ── Shows tab ── */}
             {tab === "shows" && (
               <div>
-                {allExpired && (
-                  <div style={{ background: "rgba(17,17,17,0.9)", border: "1.5px dashed rgba(255,255,255,0.08)", borderRadius: "14px", padding: "36px 24px", marginBottom: "24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "10px" }}>
-                    <div style={{ width: 52, height: 52, borderRadius: "14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px" }}>
-                      <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                    </div>
-                    <p style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--white)" }}>All the shows are expired</p>
-                    <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.6 }}>Please consider adding a new show</p>
-                    <button type="button" onClick={openDrawer}
-                      style={{ marginTop: "8px", display: "inline-flex", alignItems: "center", gap: "8px", padding: "11px 24px", background: "#5be6b2", border: "none", borderRadius: "10px", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer" }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#79eebc")}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#5be6b2")}>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                      Add new show
-                    </button>
+                {loadingOverview ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
+                    <svg className="animate-spin" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" stroke="#5be6b2" strokeWidth="3" strokeOpacity="0.2"/>
+                      <path d="M12 2a10 10 0 0110 10" stroke="#5be6b2" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
                   </div>
-                )}
-                {!allExpired && (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>
-                      {shows.filter(s => s.status === "active").length} active · {shows.filter(s => s.status === "expired").length} expired
-                    </p>
-                    <button type="button" onClick={openDrawer}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.3)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                      Add Show
-                    </button>
-                  </div>
-                )}
-                {shows.map(show => (
-                  <div key={show.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", marginBottom: "10px", overflow: "hidden" }}>
-                    <button type="button" onClick={() => toggleShow(show.id)}
-                      style={{ display: "flex", alignItems: "center", width: "100%", padding: "15px 18px", background: "none", border: "none", cursor: "pointer", gap: "12px" }}>
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: show.status === "active" ? "#22c55e" : "#444", flexShrink: 0 }} />
-                      <div style={{ flex: 1, textAlign: "left" }}>
-                        <p style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: 700, color: "var(--white)" }}>{show.dateLabel}</p>
-                        <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>{show.timeLabel}</p>
-                      </div>
-                      <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "999px", background: show.status === "active" ? "rgba(34,197,94,0.1)" : "var(--surface2)", color: show.status === "active" ? "#22c55e" : "var(--muted)", border: `1px solid ${show.status === "active" ? "rgba(34,197,94,0.25)" : "var(--border)"}` }}>
-                        {show.status === "active" ? "Active" : "Expired"}
-                      </span>
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" style={{ transition: "transform 0.2s", transform: show.expanded ? "rotate(180deg)" : "none", flexShrink: 0 }}><path d="M7.5 9.75l4.5 4.5 4.5-4.5"/></svg>
-                    </button>
-                    {show.expanded && (
-                      <div style={{ padding: "0 18px 16px", borderTop: "1px solid var(--border)" }}>
-                        <p style={{ margin: "14px 0 10px", fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Tickets</p>
-                        {show.tickets.map((t, i) => <TicketRow key={t.id} ticket={t} isLast={i === show.tickets.length - 1} />)}
+                ) : (
+                  <>
+                    {shows.length > 0 && allExpired && (
+                      <div style={{ background: "rgba(17,17,17,0.9)", border: "1.5px dashed rgba(255,255,255,0.08)", borderRadius: "14px", padding: "36px 24px", marginBottom: "24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "10px" }}>
+                        <div style={{ width: 52, height: 52, borderRadius: "14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "6px" }}>
+                          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                        </div>
+                        <p style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--white)" }}>All shows are expired</p>
+                        <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.6 }}>Add a new show date below</p>
+                        <button type="button" onClick={openDrawer}
+                          style={{ marginTop: "8px", display: "inline-flex", alignItems: "center", gap: "8px", padding: "11px 24px", background: "#5be6b2", border: "none", borderRadius: "10px", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer" }}>
+                          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                          Add new show
+                        </button>
                       </div>
                     )}
-                  </div>
-                ))}
+                    {shows.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "48px 24px", border: "1.5px dashed var(--border)", borderRadius: "14px", marginBottom: "20px" }}>
+                        <p style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "var(--muted)" }}>No shows scheduled</p>
+                        <button type="button" onClick={openDrawer}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 20px", background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.3)", borderRadius: "8px", color: "#5be6b2", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                          Add Show
+                        </button>
+                      </div>
+                    )}
+                    {shows.length > 0 && !allExpired && (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                        <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>
+                          {shows.filter(s => s.status === "active").length} active · {shows.filter(s => s.status === "expired").length} expired
+                        </p>
+                        <button type="button" onClick={openDrawer}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.3)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                          Add Show
+                        </button>
+                      </div>
+                    )}
+                    {shows.map(show => (
+                      <div key={show.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", marginBottom: "10px", overflow: "hidden" }}>
+                        <button type="button" onClick={() => toggleShow(show.id)}
+                          style={{ display: "flex", alignItems: "center", width: "100%", padding: "15px 18px", background: "none", border: "none", cursor: "pointer", gap: "12px" }}>
+                          <div style={{ width: 10, height: 10, borderRadius: "50%", background: show.status === "active" ? "#22c55e" : "#444", flexShrink: 0 }} />
+                          <div style={{ flex: 1, textAlign: "left" }}>
+                            <p style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: 700, color: "var(--white)" }}>{show.dateLabel}</p>
+                            <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>{show.timeLabel}</p>
+                          </div>
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "999px", background: show.status === "active" ? "rgba(34,197,94,0.1)" : "var(--surface2)", color: show.status === "active" ? "#22c55e" : "var(--muted)", border: `1px solid ${show.status === "active" ? "rgba(34,197,94,0.25)" : "var(--border)"}` }}>
+                            {show.status === "active" ? "Active" : "Expired"}
+                          </span>
+                          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" style={{ transition: "transform 0.2s", transform: show.expanded ? "rotate(180deg)" : "none", flexShrink: 0 }}><path d="M7.5 9.75l4.5 4.5 4.5-4.5"/></svg>
+                        </button>
+                        {show.expanded && (
+                          <div style={{ padding: "0 18px 16px", borderTop: "1px solid var(--border)" }}>
+                            <p style={{ margin: "14px 0 10px", fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Ticket Tiers</p>
+                            {show.tickets.map((t, i) => <TicketRow key={t.id} ticket={t} isLast={i === show.tickets.length - 1} />)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
 
             {/* ── Overview tab ── */}
             {tab === "overview" && (
               <div>
-                {/* Locked banner */}
-                {isLocked && (
-                  <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "10px", padding: "11px 16px", marginBottom: "16px", display: "flex", gap: "10px", alignItems: "center" }}>
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    <span style={{ fontSize: "12px", color: "#f59e0b", fontWeight: 600 }}>Some fields are locked because the event is expired. Contact <strong>events.moderation@kasakai.in</strong> for changes.</span>
+                {loadingOverview ? (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
+                    <svg className="animate-spin" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" stroke="#5be6b2" strokeWidth="3" strokeOpacity="0.2"/>
+                      <path d="M12 2a10 10 0 0110 10" stroke="#5be6b2" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
                   </div>
-                )}
-
-                {/* ── Event Name + Description ── */}
-                <OvSection title="Event Info">
-                  <div style={{ marginBottom: "14px" }}>
-                    <OvLabel>Event Name</OvLabel>
-                    <input value={eventName} onChange={e => setEventName(e.target.value)} disabled={isLocked}
-                      style={{ ...inp, opacity: isLocked ? 0.55 : 1, cursor: isLocked ? "not-allowed" : "text" }} />
-                  </div>
-                  <div>
-                    <OvLabel required>Event Description</OvLabel>
-                    <textarea value={description} onChange={e => setDescription(e.target.value)} rows={7} disabled={isLocked}
-                      style={{ ...inp, resize: "vertical", lineHeight: 1.7, opacity: isLocked ? 0.55 : 1, cursor: isLocked ? "not-allowed" : "text" } as React.CSSProperties} />
-                    <p style={{ margin: "5px 0 0", fontSize: "11px", color: "var(--muted2)" }}>{description.length} characters</p>
-                  </div>
-                </OvSection>
-
-                {/* ── Event Type ── */}
-                <OvSection title="Event Type">
-                  <p style={{ margin: "0 0 14px", fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>Add category and sub-category tags to help the right audience discover your event.</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "14px" }}>
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                        <OvLabel required>Category</OvLabel>
-                        <span style={{ fontSize: "11px", color: "var(--muted2)" }}>Upto 2</span>
+                ) : (
+                  <>
+                    {isLocked && (
+                      <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "10px", padding: "11px 16px", marginBottom: "16px", display: "flex", gap: "10px", alignItems: "center" }}>
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span style={{ fontSize: "12px", color: "#f59e0b", fontWeight: 600 }}>This event is published. Some fields may be restricted. Contact <strong>events.moderation@kasakai.in</strong> for structural changes.</span>
                       </div>
-                      <MultiSelect options={CATEGORIES} value={categories} onChange={setCategories} max={2} disabled={isLocked} />
-                    </div>
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                        <OvLabel>Sub-Category</OvLabel>
-                        <span style={{ fontSize: "11px", color: "var(--muted2)" }}>Upto 2</span>
-                      </div>
-                      <MultiSelect options={availableSubCats.length ? availableSubCats : ["Select a category first"]} value={subCategories} onChange={setSubCats} max={2} disabled={isLocked || availableSubCats.length === 0} />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 14px", background: "rgba(91,230,178,0.05)", border: "1px solid rgba(91,230,178,0.15)", borderRadius: "10px" }}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: "1px" }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                    <span style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>For listing menu and ambience gallery for dining experiences, please choose <strong style={{ color: "var(--white)" }}>Food &amp; Drinks</strong> as your category.</span>
-                  </div>
-                </OvSection>
+                    )}
 
-                {/* ── Payout & Contact ── */}
-                <OvSection title="Payout & Contact Details">
-                  <div style={{ marginBottom: "14px" }}>
-                    <OvLabel required>Organiser</OvLabel>
-                    <input value="Kasa Kai Mumbai (TDKR technologies)" disabled
-                      style={{ ...inp, opacity: 0.5, cursor: "not-allowed" }} />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-                    {[
-                      { label: "Account Number", val: "015805008353" },
-                      { label: "IFSC",            val: "ICIC0000158"  },
-                      { label: "Account Type",    val: "Current"      },
-                    ].map(({ label, val }) => (
-                      <div key={label}>
-                        <OvLabel>{label}</OvLabel>
-                        <div style={{ ...inp, opacity: 0.45, cursor: "not-allowed", color: "var(--muted)", userSelect: "none" }}>{val}</div>
+                    {/* Event Name + Description */}
+                    <OvSection title="Event Info">
+                      <div style={{ marginBottom: "14px" }}>
+                        <OvLabel>Event Name</OvLabel>
+                        <input value={eventName} onChange={e => setEventName(e.target.value)} disabled={isLocked}
+                          style={{ ...inp, opacity: isLocked ? 0.55 : 1, cursor: isLocked ? "not-allowed" : "text" }} />
                       </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: "12px" }}>
-                    <OvLabel>GSTIN</OvLabel>
-                    <div style={{ ...inp, opacity: 0.45, cursor: "not-allowed", color: "var(--muted)", userSelect: "none" }}>27AAGCT2284C1ZF</div>
-                  </div>
-                </OvSection>
+                      <div>
+                        <OvLabel required>Event Description</OvLabel>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={7} disabled={isLocked}
+                          style={{ ...inp, resize: "vertical", lineHeight: 1.7, opacity: isLocked ? 0.55 : 1, cursor: isLocked ? "not-allowed" : "text" } as React.CSSProperties} />
+                        <p style={{ margin: "5px 0 0", fontSize: "11px", color: "var(--muted2)" }}>{description.length} characters</p>
+                      </div>
+                    </OvSection>
 
-                {/* ── Venue ── */}
-                <OvSection title="Set Up Venue">
-                  <div style={{ marginBottom: "14px" }}>
-                    <OvLabel required>Location</OvLabel>
-                    <p style={{ margin: "0 0 8px", fontSize: "12px", color: "var(--muted2)" }}>Help people in the area discover your event and let attendees know where to show up</p>
-                    <input value={venueLocation} onChange={e => setVenueLoc(e.target.value)} disabled={isLocked}
-                      style={{ ...inp, opacity: isLocked ? 0.55 : 1, cursor: isLocked ? "not-allowed" : "text" }} />
-                  </div>
-                  <div style={{ marginBottom: "14px" }}>
-                    <OvLabel required>Hosting at your restaurant?</OvLabel>
-                    <div style={{ display: "flex", gap: "24px", marginTop: "8px" }}>
-                      {(["yes","no"] as const).map(v => (
-                        <label key={v} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.55 : 1 }}>
-                          <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${ownRestaurant === v ? "#5be6b2" : "var(--border)"}`, background: ownRestaurant === v ? "#5be6b2" : "none", flexShrink: 0, cursor: "pointer" }}
-                            onClick={() => !isLocked && setOwnRest(v)} />
-                          <span style={{ fontSize: "13px", color: "var(--muted)", textTransform: "capitalize" }}>{v}</span>
-                        </label>
+                    {/* Event Type */}
+                    <OvSection title="Event Type">
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "14px" }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                            <OvLabel required>Category</OvLabel>
+                            <span style={{ fontSize: "11px", color: "var(--muted2)" }}>Upto 2</span>
+                          </div>
+                          <MultiSelect options={CATEGORIES} value={categories} onChange={setCategories} max={2} disabled={isLocked} />
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                            <OvLabel>Sub-Category</OvLabel>
+                            <span style={{ fontSize: "11px", color: "var(--muted2)" }}>Upto 2</span>
+                          </div>
+                          <MultiSelect options={availableSubCats.length ? availableSubCats : ["Select a category first"]} value={subCategories} onChange={setSubCats} max={2} disabled={isLocked || availableSubCats.length === 0} />
+                        </div>
+                      </div>
+                    </OvSection>
+
+                    {/* Venue */}
+                    <OvSection title="Set Up Venue">
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+                        <div>
+                          <OvLabel required>Venue Name</OvLabel>
+                          <input value={venueLocation} onChange={e => setVenueLoc(e.target.value)} disabled={isLocked}
+                            style={{ ...inp, opacity: isLocked ? 0.55 : 1 }} />
+                        </div>
+                        <div>
+                          <OvLabel required>City / Area</OvLabel>
+                          <input value={venueCity} onChange={e => setVenueCity(e.target.value)} disabled={isLocked}
+                            style={{ ...inp, opacity: isLocked ? 0.55 : 1 }} placeholder="e.g. Koramangala, Bangalore" />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: "14px" }}>
+                        <OvLabel required>Hosting at your restaurant?</OvLabel>
+                        <div style={{ display: "flex", gap: "24px", marginTop: "8px" }}>
+                          {(["yes","no"] as const).map(v => (
+                            <label key={v} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.55 : 1 }}>
+                              <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${ownRestaurant === v ? "#5be6b2" : "var(--border)"}`, background: ownRestaurant === v ? "#5be6b2" : "none", flexShrink: 0, cursor: "pointer" }}
+                                onClick={() => !isLocked && setOwnRest(v)} />
+                              <span style={{ fontSize: "13px", color: "var(--muted)", textTransform: "capitalize" }}>{v}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <OvLabel>Instagram Link</OvLabel>
+                        <input type="url" placeholder="https://instagram.com/yourvenue" value={instagramLink} onChange={e => setIgLink(e.target.value)} disabled={isLocked}
+                          style={{ ...inp, opacity: isLocked ? 0.55 : 1 }} />
+                      </div>
+                    </OvSection>
+
+                    {/* Event Card Images */}
+                    <OvSection title="Event Card Images">
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <ImageUploadBox
+                          label="Landscape for Website" ratio="16:9 · 1600×900px" maxSize="1.5MB"
+                          existingUrl={imgUrl} disabled={isLocked}
+                          onUpload={url => setImgUrl(url)}
+                        />
+                        <ImageUploadBox
+                          label="Portrait for App" ratio="3:4 · 900×1200px" maxSize="1.5MB"
+                          existingUrl={posterUrl} disabled={isLocked}
+                          onUpload={url => setPosterUrl(url)}
+                        />
+                      </div>
+                    </OvSection>
+
+                    {/* Event Guide */}
+                    <OvSection title="Event Guide">
+                      <div style={{ marginBottom: "12px" }}>
+                        <GuideRow label="Language(s)">
+                          <MultiSelect options={LANGUAGES} value={language} onChange={setLanguage} disabled={isLocked} />
+                        </GuideRow>
+                        <GuideRow label="Minimum age for entry">
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <OvSelect value={minAge} onChange={setMinAge} options={AGE_OPTS} disabled={isLocked} />
+                            <span style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>&amp; above</span>
+                          </div>
+                        </GuideRow>
+                        <GuideRow label="Age for paid entry">
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <OvSelect value={ticketAge} onChange={setTicketAge} options={AGE_OPTS} disabled={isLocked} />
+                            <span style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>&amp; above</span>
+                          </div>
+                        </GuideRow>
+                        <GuideRow label="Indoor or Outdoor?">
+                          <OvSelect value={venueType} onChange={setVenueType} options={["Indoor","Outdoor"]} disabled={isLocked} />
+                        </GuideRow>
+                        <GuideRow label="Seated or Standing?">
+                          <OvSelect value={seating} onChange={setSeating} options={["Seated","Standing","Seated & Standing"]} disabled={isLocked} />
+                        </GuideRow>
+                        <GuideRow label="Kid-friendly?">
+                          <OvSelect value={kidFriendly} onChange={setKidFriendly} options={["Yes","No"]} disabled={isLocked} />
+                        </GuideRow>
+                        <GuideRow label="Pet-friendly?">
+                          <OvSelect value={petFriendly} onChange={setPetFriendly} options={["Yes","No"]} disabled={isLocked} />
+                        </GuideRow>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "center", padding: "12px 0" }}>
+                          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>Gates open before start?<span style={{ color: "#ef4444", marginLeft: "3px" }}>*</span></span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <button type="button" onClick={() => !isLocked && setGatesOpen(p => !p)}
+                              style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: isLocked ? "not-allowed" : "pointer", padding: 0, opacity: isLocked ? 0.5 : 1 }}>
+                              <div style={{ width: 40, height: 22, borderRadius: "999px", background: gatesOpen ? "#5be6b2" : "var(--surface2)", border: `1.5px solid ${gatesOpen ? "#5be6b2" : "var(--border)"}`, position: "relative", transition: "background 0.2s" }}>
+                                <div style={{ position: "absolute", top: "2px", left: gatesOpen ? "20px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: gatesOpen ? "#000" : "var(--muted)", transition: "left 0.2s" }} />
+                              </div>
+                              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>{gatesOpen ? "Yes" : "No"}</span>
+                            </button>
+                            {gatesOpen && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <input type="number" min="5" max="120" value={gatesOpenMinutes}
+                                  onChange={e => setGatesOpenMinutes(Number(e.target.value))}
+                                  disabled={isLocked}
+                                  style={{ ...inp, width: "64px", padding: "4px 8px", fontSize: "13px" }} />
+                                <span style={{ fontSize: "12px", color: "var(--muted)" }}>min</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </OvSection>
+
+                    {/* Add More Sections */}
+                    <div style={{ background: "rgba(91,230,178,0.03)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "14px" }}>
+                      <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 800, color: "var(--white)" }}>Add More Sections</p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                        {["Event Instructions","Youtube Video","Prohibited Items","FAQs"].map(sec => {
+                          const active = extraSections.includes(sec);
+                          return (
+                            <button key={sec} type="button" onClick={() => toggleExtra(sec)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "7px 14px", background: active ? "rgba(91,230,178,0.1)" : "var(--surface)", border: `1px solid ${active ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "8px", color: active ? "#5be6b2" : "var(--muted)", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                              {active
+                                ? <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
+                                : <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                              }
+                              {sec}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {extraSections.map(sec => (
+                        <div key={sec} style={{ marginTop: "14px" }}>
+                          <OvLabel>{sec}</OvLabel>
+                          <textarea rows={3} placeholder={`Enter ${sec.toLowerCase()}…`} value={extraContent[sec] || ""}
+                            onChange={e => setExtraContent(p => ({ ...p, [sec]: e.target.value }))}
+                            style={{ ...inp, resize: "vertical" } as React.CSSProperties} />
+                        </div>
                       ))}
                     </div>
-                  </div>
-                  <div>
-                    <OvLabel>Instagram Link</OvLabel>
-                    <input type="url" placeholder="Enter valid Instagram link" value={instagramLink} onChange={e => setIgLink(e.target.value)} disabled={isLocked}
-                      style={{ ...inp, opacity: isLocked ? 0.55 : 1, cursor: isLocked ? "not-allowed" : "text" }} />
-                  </div>
-                </OvSection>
 
-                {/* ── Event Card Images ── */}
-                <OvSection title="Event Card Images">
-                  <p style={{ margin: "0 0 14px", fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>Ensure images follow the event card guidelines and are provided in both formats. <span style={{ color: "#ef4444", fontSize: "11px" }}>* Guidelines updated</span></p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <ImageUploadBox label="Landscape for Website" ratio="16:9 · 1600×900px" maxSize="1.5MB" existingUrl={ev.image} disabled={isLocked} />
-                    <ImageUploadBox label="Portrait for App" ratio="3:4 · 900×1200px" maxSize="1.5MB" disabled={isLocked} />
-                  </div>
-                  <div style={{ marginTop: "16px" }}>
-                    <p style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: 800, color: "var(--white)" }}>Video Sneak Peek</p>
-                    <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px" }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "10px" }}>
-                        {[["Format",".mov or .mp4"],["Dimensions","3:4 · 900×1200px"],["Duration","10–60 secs"],["Max Size","5MB"]].map(([k,v]) => (
-                          <div key={k}><p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k}</p><p style={{ margin: 0, fontSize: "13px", color: "var(--white)" }}>{v}</p></div>
+                    {/* Point of Contact */}
+                    <OvSection title="Point of Contact">
+                      <p style={{ margin: "0 0 14px", fontSize: "12px", color: "var(--muted)" }}>Add POCs with whom event feedback will be shared</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "14px" }}>
+                        {pocs.map((poc) => (
+                          <div key={poc.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "10px", alignItems: "center" }}>
+                            <input value={poc.name}  onChange={e => updatePoc(poc.id, "name",  e.target.value)} placeholder="Name"  style={inp} />
+                            <input value={poc.email} onChange={e => updatePoc(poc.id, "email", e.target.value)} placeholder="Email" type="email" style={inp} />
+                            <input value={poc.phone} onChange={e => updatePoc(poc.id, "phone", e.target.value)} placeholder="Phone" type="tel"   style={inp} />
+                            {pocs.length > 1 && (
+                              <button type="button" onClick={() => removePoc(poc.id)}
+                                style={{ width: 32, height: 32, borderRadius: "7px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                              </button>
+                            )}
+                          </div>
                         ))}
                       </div>
-                      <button type="button" disabled={isLocked}
-                        style={{ padding: "7px 16px", background: "none", border: "1px solid var(--border)", borderRadius: "7px", color: "var(--muted)", fontSize: "12px", fontWeight: 600, cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.5 : 1 }}>
-                        Upload Video
+                      <button type="button" onClick={addPoc}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.25)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        Add POC
                       </button>
-                    </div>
-                    <p style={{ margin: "8px 0 0", fontSize: "11px", color: "var(--muted2)" }}>Give attendees a preview before they buy tickets.</p>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 14px", background: "rgba(91,230,178,0.05)", border: "1px solid rgba(91,230,178,0.15)", borderRadius: "10px", marginTop: "10px" }}>
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: "1px" }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                      <span style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>Events with videos get <strong style={{ color: "#5be6b2" }}>10% more clicks!</strong></span>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: "16px" }}>
-                    <p style={{ margin: "0 0 6px", fontSize: "13px", fontWeight: 800, color: "var(--white)" }}>Gallery</p>
-                    <p style={{ margin: "0 0 10px", fontSize: "12px", color: "var(--muted)" }}>Add multiple images and videos to bring your event to life!</p>
-                    <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
-                      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-                        {[["Format","jpeg, png"],["Max size per image","1.5MB"]].map(([k,v]) => (
-                          <div key={k}><p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k}</p><p style={{ margin: 0, fontSize: "13px", color: "var(--white)" }}>{v}</p></div>
-                        ))}
-                      </div>
-                      <button type="button" disabled={isLocked}
-                        style={{ padding: "7px 16px", background: "none", border: "1px solid var(--border)", borderRadius: "7px", color: "var(--muted)", fontSize: "12px", fontWeight: 600, cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.5 : 1 }}>
-                        Upload
-                      </button>
-                    </div>
-                  </div>
-                </OvSection>
+                    </OvSection>
 
-                {/* ── Event Guide ── */}
-                <OvSection title="Event Guide">
-                  <div style={{ marginBottom: "12px" }}>
-                    <GuideRow label="Language(s)">
-                      <MultiSelect options={LANGUAGES} value={language} onChange={setLanguage} disabled={isLocked} />
-                    </GuideRow>
-                    <GuideRow label="Minimum age for entry">
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <OvSelect value={minAge} onChange={setMinAge} options={AGE_OPTS} disabled={isLocked} />
-                        <span style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>&amp; above</span>
-                      </div>
-                    </GuideRow>
-                    <GuideRow label="Age for paid entry">
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <OvSelect value={ticketAge} onChange={setTicketAge} options={AGE_OPTS} disabled={isLocked} />
-                        <span style={{ fontSize: "12px", color: "var(--muted)", whiteSpace: "nowrap" }}>&amp; above</span>
-                      </div>
-                    </GuideRow>
-                    <GuideRow label="Indoor or Outdoor?">
-                      <OvSelect value={venueType} onChange={setVenueType} options={["Indoor","Outdoor"]} disabled={isLocked} />
-                    </GuideRow>
-                    <GuideRow label="Seated or Standing?">
-                      <OvSelect value={seating} onChange={setSeating} options={["Seated","Standing","Seated & Standing"]} disabled={isLocked} />
-                    </GuideRow>
-                    <GuideRow label="Kid-friendly?">
-                      <OvSelect value={kidFriendly} onChange={setKidFriendly} options={["Yes","No"]} disabled={isLocked} />
-                    </GuideRow>
-                    <GuideRow label="Pet-friendly?">
-                      <OvSelect value={petFriendly} onChange={setPetFriendly} options={["Yes","No"]} disabled={isLocked} />
-                    </GuideRow>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "center", padding: "12px 0" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--muted)" }}>Gates open before start time?<span style={{ color: "#ef4444", marginLeft: "3px" }}>*</span></span>
-                      <button type="button" onClick={() => !isLocked && setGatesOpen(p => !p)}
-                        style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: isLocked ? "not-allowed" : "pointer", padding: 0, opacity: isLocked ? 0.5 : 1 }}>
-                        <div style={{ width: 40, height: 22, borderRadius: "999px", background: gatesOpen ? "#5be6b2" : "var(--surface2)", border: `1.5px solid ${gatesOpen ? "#5be6b2" : "var(--border)"}`, position: "relative", transition: "background 0.2s, border-color 0.2s" }}>
-                          <div style={{ position: "absolute", top: "2px", left: gatesOpen ? "20px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: gatesOpen ? "#000" : "var(--muted)", transition: "left 0.2s" }} />
+                    {/* Send copy toggle */}
+                    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>Send a copy of every sale to organiser</p>
+                      <button type="button" onClick={() => setSendCopies(p => !p)}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                        <div style={{ width: 40, height: 22, borderRadius: "999px", background: sendCopies ? "#5be6b2" : "var(--surface2)", border: `1.5px solid ${sendCopies ? "#5be6b2" : "var(--border)"}`, position: "relative", transition: "background 0.2s" }}>
+                          <div style={{ position: "absolute", top: "2px", left: sendCopies ? "20px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: sendCopies ? "#000" : "var(--muted)", transition: "left 0.2s" }} />
                         </div>
-                        <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>{gatesOpen ? "Yes" : "No"}</span>
                       </button>
                     </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 14px", background: "rgba(91,230,178,0.05)", border: "1px solid rgba(91,230,178,0.15)", borderRadius: "10px" }}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: "1px" }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                    <span style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>Don&apos;t see an option? Write to <strong style={{ color: "var(--white)" }}>events@kasakai.in</strong> and we&apos;ll sort you out.</span>
-                  </div>
-                </OvSection>
 
-                {/* ── Add More Sections ── */}
-                <div style={{ background: "rgba(91,230,178,0.03)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "14px" }}>
-                  <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 800, color: "var(--white)" }}>Add More Sections</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                    {["Event Instructions","Youtube Video","Prohibited Items","FAQs"].map(sec => {
-                      const active = extraSections.includes(sec);
-                      return (
-                        <button key={sec} type="button" onClick={() => toggleExtra(sec)}
-                          style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "7px 14px", background: active ? "rgba(91,230,178,0.1)" : "var(--surface)", border: `1px solid ${active ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "8px", color: active ? "#5be6b2" : "var(--muted)", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                          {active
-                            ? <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
-                            : <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                          }
-                          {sec}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {extraSections.map(sec => (
-                    <div key={sec} style={{ marginTop: "14px" }}>
-                      <OvLabel>{sec}</OvLabel>
-                      <textarea rows={3} placeholder={`Enter ${sec.toLowerCase()}…`}
-                        style={{ ...inp, resize: "vertical" } as React.CSSProperties} />
+                    {/* Save button */}
+                    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "14px" }}>
+                      <button type="button" onClick={handleSaveOverview} disabled={saving}
+                        style={{ padding: "12px 40px", background: saving ? "rgba(91,230,178,0.4)" : "#5be6b2", border: "none", borderRadius: "10px", color: "#000", fontSize: "14px", fontWeight: 800, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 0 24px rgba(91,230,178,0.22)", letterSpacing: "0.04em" }}
+                        onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#79eebc"; }}
+                        onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#5be6b2"; }}>
+                        {saving ? "Saving…" : "Save Changes"}
+                      </button>
+                      {saveMsg && (
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: saveMsg === "Saved" ? "#5be6b2" : "#ef4444" }}>
+                          {saveMsg}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-
-                {/* ── Point of Contact ── */}
-                <OvSection title="Point of Contact">
-                  <p style={{ margin: "0 0 14px", fontSize: "12px", color: "var(--muted)" }}>Add POCs with whom event feedback will be shared</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "14px" }}>
-                    {pocs.map((poc, i) => (
-                      <div key={poc.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "10px", alignItems: "center" }}>
-                        <input value={poc.name} onChange={e => updatePoc(poc.id, "name", e.target.value)} placeholder="Name" style={inp} />
-                        <input value={poc.email} onChange={e => updatePoc(poc.id, "email", e.target.value)} placeholder="Email" type="email" style={inp} />
-                        <input value={poc.phone} onChange={e => updatePoc(poc.id, "phone", e.target.value)} placeholder="Phone" type="tel" style={inp} />
-                        {pocs.length > 1 && (
-                          <button type="button" onClick={() => removePoc(poc.id)}
-                            style={{ width: 32, height: 32, borderRadius: "7px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" onClick={addPoc}
-                    style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.25)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-                    <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                    Add POC
-                  </button>
-                </OvSection>
-
-                {/* ── Send copy toggle ── */}
-                <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>Send a copy of every sale to organiser</p>
-                  <button type="button" onClick={() => setSendCopies(p => !p)}
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    <div style={{ width: 40, height: 22, borderRadius: "999px", background: sendCopies ? "#5be6b2" : "var(--surface2)", border: `1.5px solid ${sendCopies ? "#5be6b2" : "var(--border)"}`, position: "relative", transition: "background 0.2s" }}>
-                      <div style={{ position: "absolute", top: "2px", left: sendCopies ? "20px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: sendCopies ? "#000" : "var(--muted)", transition: "left 0.2s" }} />
-                    </div>
-                  </button>
-                </div>
-
-                {/* ── Save button ── */}
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "14px" }}>
-                  <button type="button" onClick={handleSaveOverview} disabled={saving}
-                    style={{ padding: "12px 40px", background: saving ? "rgba(91,230,178,0.4)" : "#5be6b2", border: "none", borderRadius: "10px", color: "#000", fontSize: "14px", fontWeight: 800, cursor: saving ? "not-allowed" : "pointer", boxShadow: "0 0 24px rgba(91,230,178,0.22)", letterSpacing: "0.04em" }}
-                    onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#79eebc"; }}
-                    onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#5be6b2"; }}>
-                    {saving ? "Saving…" : "Save Changes"}
-                  </button>
-                  {saveMsg && (
-                    <span style={{ fontSize: "13px", fontWeight: 600, color: saveMsg === "Saved" ? "#5be6b2" : "#ef4444" }}>
-                      {saveMsg}
-                    </span>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -825,8 +937,8 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
           <div className={styles.scrManageSidebar}>
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "14px", overflow: "hidden" }}>
               <div style={{ height: "120px", overflow: "hidden", position: "relative" }}>
-                {ev.image ? (
-                  <img src={ev.image} alt={ev.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {imgUrl || ev.image ? (
+                  <img src={imgUrl || ev.image} alt={ev.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <div style={{ width: "100%", height: "100%", background: "var(--surface2)" }} />
                 )}
@@ -841,7 +953,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                     <p style={{ margin: 0, fontSize: "10px", color: "var(--muted)", fontWeight: 600 }}>Sold</p>
                   </div>
                   <div style={{ flex: 1, background: "var(--bg)", borderRadius: "8px", padding: "10px 12px", textAlign: "center" }}>
-                    <p style={{ margin: "0 0 2px", fontSize: "18px", fontWeight: 800, color: "var(--white)" }}>{(ev.capacity ?? 100) - (ev.sold ?? 0)}</p>
+                    <p style={{ margin: "0 0 2px", fontSize: "18px", fontWeight: 800, color: "var(--white)" }}>{(ev.capacity ?? 0) - (ev.sold ?? 0)}</p>
                     <p style={{ margin: 0, fontSize: "10px", color: "var(--muted)", fontWeight: 600 }}>Left</p>
                   </div>
                 </div>

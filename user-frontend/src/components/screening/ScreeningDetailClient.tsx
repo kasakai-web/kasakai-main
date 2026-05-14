@@ -15,42 +15,31 @@ const HIGHLIGHTS = [
   { label: "Electric Crowd",   d: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" },
 ];
 
-const THINGS_TO_KNOW: { text: string; paths: string[]; warn?: boolean }[] = [
-  {
-    text: "English & Hindi",
-    paths: ["M12 2a10 10 0 100 20A10 10 0 0012 2zM2 12h20M12 2c-2.5 4-4 8-4 10s1.5 6 4 10M12 2c2.5 4 4 8 4 10s-1.5 6-4 10"],
-  },
-  {
-    text: "Duration: 4h 29m",
-    paths: ["M12 2a10 10 0 100 20A10 10 0 0012 2z", "M12 6v6l4 2"],
-  },
-  {
-    text: "18+ ticket required",
-    paths: ["M20 12V22H4V12", "M22 7H2v5h20V7z", "M12 7v15"],
-  },
-  {
-    text: "18+ entry only",
-    paths: ["M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2", "M12 11a4 4 0 100-8 4 4 0 000 8"],
-  },
-  {
-    text: "Indoor venue",
-    paths: ["M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z", "M9 22V12h6v10"],
-  },
-  {
-    text: "Seated & Standing",
-    paths: ["M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"],
-  },
-  {
-    text: "No kids",
-    paths: ["M12 2a10 10 0 100 20A10 10 0 0012 2z", "M4.93 4.93l14.14 14.14"],
-    warn: true,
-  },
-  {
-    text: "No pets",
-    paths: ["M12 2a10 10 0 100 20A10 10 0 0012 2z", "M4.93 4.93l14.14 14.14"],
-    warn: true,
-  },
-];
+function buildThingsToKnow(s: Screening): { text: string; paths: string[]; warn?: boolean }[] {
+  const items: { text: string; paths: string[]; warn?: boolean }[] = [];
+  const globePaths = ["M12 2a10 10 0 100 20A10 10 0 0012 2zM2 12h20M12 2c-2.5 4-4 8-4 10s1.5 6 4 10M12 2c2.5 4 4 8 4 10s-1.5 6-4 10"];
+  const clockPaths = ["M12 2a10 10 0 100 20A10 10 0 0012 2z", "M12 6v6l4 2"];
+  const ticketPaths = ["M20 12V22H4V12", "M22 7H2v5h20V7z", "M12 7v15"];
+  const personPaths = ["M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2", "M12 11a4 4 0 100-8 4 4 0 000 8"];
+  const housePaths = ["M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z", "M9 22V12h6v10"];
+  const heartPaths = ["M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"];
+  const crossCircle = ["M12 2a10 10 0 100 20A10 10 0 0012 2z", "M4.93 4.93l14.14 14.14"];
+
+  if (s.languages?.length) items.push({ text: s.languages.join(' & '), paths: globePaths });
+  if (s.gatesOpenBefore && s.gatesOpenBefore > 0) items.push({ text: `Gates open ${s.gatesOpenBefore} min early`, paths: clockPaths });
+  if (s.minAgePaid && s.minAgePaid > 0) items.push({ text: `${s.minAgePaid}+ ticket required`, paths: ticketPaths });
+  if (s.minAgeEntry && s.minAgeEntry > 0) items.push({ text: `${s.minAgeEntry}+ entry only`, paths: personPaths });
+  if (s.isIndoor === true)  items.push({ text: "Indoor venue",  paths: housePaths });
+  if (s.isIndoor === false) items.push({ text: "Outdoor venue", paths: housePaths });
+  if (s.isSeated === true)  items.push({ text: "Seated",             paths: heartPaths });
+  if (s.isSeated === false) items.push({ text: "Standing",           paths: heartPaths });
+  if (s.isSeated == null && s.isSeated !== undefined) items.push({ text: "Seated & Standing", paths: heartPaths });
+  if (s.kidFriendly === false) items.push({ text: "No kids",      paths: crossCircle, warn: true });
+  if (s.petFriendly === false) items.push({ text: "No pets",      paths: crossCircle, warn: true });
+  if (s.kidFriendly === true)  items.push({ text: "Kids welcome", paths: globePaths });
+  if (s.petFriendly === true)  items.push({ text: "Pets welcome", paths: globePaths });
+  return items;
+}
 
 const TERMS = [
   "Please carry a valid ID proof along with you.",
@@ -459,6 +448,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
   const [tcModalOpen,  setTcModalOpen]  = useState(false);
   const [existingCode, setExistingCode] = useState<string | null>(null);
   const [notifToast,   setNotifToast]   = useState<{ title: string; body: string } | null>(null);
+  const [heroImgErr,   setHeroImgErr]   = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -506,7 +496,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
 
       {/* ── Hero ── */}
       <div className="sd-hero" style={{ position: "relative" }}>
-        {screening.image ? (
+        {!heroImgErr && screening.image ? (
           <Image
             src={screening.image}
             alt={screening.matchTitle}
@@ -514,9 +504,21 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
             priority
             sizes="100vw"
             style={{ objectFit: "cover" }}
+            onError={() => setHeroImgErr(true)}
           />
         ) : (
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #0d0d1a 0%, #0a0a0a 100%)" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)" }}>
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="1" width="22" height="15" rx="2" stroke="#1e2240" strokeWidth="1.5" fill="#0c0c1a"/>
+              <path d="M12 16v3" stroke="#1e2240" strokeWidth="1.5"/>
+              <path d="M8 21h8" stroke="#1e2240" strokeWidth="1.5"/>
+              <line x1="3" y1="7" x2="21" y2="7" stroke="#12122a" strokeWidth="0.75"/>
+              <line x1="3" y1="11" x2="21" y2="11" stroke="#12122a" strokeWidth="0.75"/>
+              <circle cx="12" cy="8.5" r="4" stroke="#1e2240" strokeWidth="1" fill="#10102a"/>
+              <polygon points="10.5,6.5 10.5,10.5 14.5,8.5" fill="#1e2240"/>
+            </svg>
+            <span style={{ fontSize: "10px", fontWeight: 800, color: "#1e2240", letterSpacing: "0.2em", textTransform: "uppercase" }}>No Preview Available</span>
+          </div>
         )}
         <div className="sd-hero-grad" />
         <div className="sd-hero-grad-l" />
@@ -630,9 +632,11 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                     <p style={{ fontSize: "15px", fontWeight: 900, color: "#d0d0d0", marginBottom: "4px" }}>{screening.venueName}</p>
                     <p style={{ fontSize: "12px", color: "#666", lineHeight: 1.65, marginBottom: "12px" }}>{screening.location}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                      <span style={{ fontSize: "10px", fontWeight: 800, color: "#333", padding: "4px 11px", background: "#0e0e0e", border: "1px solid #1c1c1c", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
-                        Sports Bar
-                      </span>
+                      {screening.isIndoor != null && (
+                        <span style={{ fontSize: "10px", fontWeight: 800, color: "#333", padding: "4px 11px", background: "#0e0e0e", border: "1px solid #1c1c1c", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+                          {screening.isIndoor ? "Indoor" : "Outdoor"}
+                        </span>
+                      )}
                       <span style={{ fontSize: "10px", fontWeight: 800, color: "#333", padding: "4px 11px", background: "#0e0e0e", border: "1px solid #1c1c1c", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
                         {screening.location.includes(",") ? screening.location.split(",")[1].trim() : screening.location}
                       </span>
@@ -643,10 +647,11 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
             </div>
 
             {/* Things to Know */}
+            {buildThingsToKnow(screening).length > 0 && (
             <div className="sd-section">
               <SH>Things to Know</SH>
               <div className="sd-know-grid2">
-                {THINGS_TO_KNOW.map(({ text, paths, warn }) => (
+                {buildThingsToKnow(screening).map(({ text, paths, warn }) => (
                   <div key={text} className="sd-know-cell">
                     <div className="sd-know-icon">
                       <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={warn ? "#5a2020" : "#3a3a3a"} strokeWidth="1.8" strokeLinecap="round">
@@ -658,6 +663,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                 ))}
               </div>
             </div>
+            )}
 
             {/* Organized By */}
             {screening.contacts.length > 0 && (

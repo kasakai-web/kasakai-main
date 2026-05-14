@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import type { Ticket } from "./types";
 
 interface Props {
@@ -95,6 +95,7 @@ export function ScreeningMyBookings({ bookings, onFindEvents, loading, error }: 
 
 const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
   const { screening } = ticket;
+  const [imgErr, setImgErr] = useState(false);
   return (
     <div style={{ background: "#111", border: "1px solid #222", overflow: "hidden" }}>
 
@@ -114,15 +115,23 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
       {/* ── Match info row ── */}
       <div style={{ display: "flex", alignItems: "stretch" }}>
         {/* Image */}
-        <div className="scr-ticket-img" style={{ minHeight: "120px", overflow: "hidden", alignSelf: "stretch", background: "#1a1a1a" }}>
-          {screening.image ? (
+        <div className="scr-ticket-img" style={{ minHeight: "120px", overflow: "hidden", alignSelf: "stretch", background: "#0d0d1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {!imgErr && screening.image ? (
             <img src={screening.image} alt={screening.matchTitle}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px" }} />
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", minHeight: "120px" }}
+              onError={() => setImgErr(true)} />
           ) : (
-            <div style={{ width: "100%", height: "100%", minHeight: "120px", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2a2a2a" strokeWidth="1.5" strokeLinecap="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <div style={{ width: "100%", height: "100%", minHeight: "120px", background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "5px" }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="1" width="22" height="15" rx="2" stroke="#1e2240" strokeWidth="1.5" fill="#0c0c1a"/>
+                <path d="M12 16v3" stroke="#1e2240" strokeWidth="1.5"/>
+                <path d="M8 21h8" stroke="#1e2240" strokeWidth="1.5"/>
+                <line x1="3" y1="7" x2="21" y2="7" stroke="#12122a" strokeWidth="0.75"/>
+                <line x1="3" y1="11" x2="21" y2="11" stroke="#12122a" strokeWidth="0.75"/>
+                <circle cx="12" cy="8.5" r="4" stroke="#1e2240" strokeWidth="1" fill="#10102a"/>
+                <polygon points="10.5,6.5 10.5,10.5 14.5,8.5" fill="#1e2240"/>
               </svg>
+              <span style={{ fontSize: "6px", fontWeight: 800, color: "#1e2240", letterSpacing: "0.18em", textTransform: "uppercase" }}>No Preview</span>
             </div>
           )}
         </div>

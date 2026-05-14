@@ -47,6 +47,7 @@ export type ApiScrEvent = {
   image: string;
   poster: string;
   videoUrl: string;
+  galleryImages: string[];
   status: 'draft' | 'published' | 'cancelled';
   venueName: string;
   location: string;
@@ -57,6 +58,7 @@ export type ApiScrEvent = {
   shows: ApiScrShow[];
   contacts: { name: string; email: string; phone: string }[];
   payout: { gstin: string; accountNumber: string; ifsc: string; accountType: string };
+  extraSections: { type: string; content: string }[];
   isIndoor: boolean | null;
   isSeated: boolean | null;
   kidFriendly: boolean | null;
@@ -197,10 +199,10 @@ export const scrApi = {
   getEventAnalytics: (id: string) =>
     apiFetch<ScrAnalyticsData>(`/screening/admin/events/${id}/analytics`),
 
-  scanTicket: (entryCode: string) =>
+  scanTicket: (entryCode: string, eventId?: string) =>
     apiFetch<ScrScanResult>(`/screening/admin/scan`, {
       method: 'POST',
-      body: JSON.stringify({ entryCode }),
+      body: JSON.stringify({ entryCode, ...(eventId ? { eventId } : {}) }),
     }),
 
   uploadImage: async (file: File): Promise<string> => {

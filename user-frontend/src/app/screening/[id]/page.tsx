@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { fetchPublicScreenings, fetchPublicScreeningById, toScreening } from "@/utils/screening-api";
+import { fetchPublicScreeningById, toScreening } from "@/utils/screening-api";
 import { ScreeningDetailClient } from "@/components/screening/ScreeningDetailClient";
 
-// Pre-generate static pages for all published events at build time.
-// Falls back to on-demand ISR if the backend is unavailable during build.
-export async function generateStaticParams() {
-  try {
-    const { events } = await fetchPublicScreenings({ limit: 200 });
-    return events.map((e) => ({ id: e._id }));
-  } catch {
-    return [];
-  }
-}
+// Always render fresh — never serve from a stale static/ISR cache.
+// Without this, Next.js can cache a null result (from when the event was
+// draft or the backend was briefly unreachable) and keep serving 404.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,

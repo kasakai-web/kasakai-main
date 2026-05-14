@@ -28,7 +28,7 @@ export default function ScanPage() {
     if (!trimmed) return;
     setState({ status: "scanning" });
     try {
-      const ticket = await scrApi.scanTicket(trimmed);
+      const ticket = await scrApi.scanTicket(trimmed, id);
       setState({ status: "granted", ticket });
       setCode("");
     } catch (err: unknown) {

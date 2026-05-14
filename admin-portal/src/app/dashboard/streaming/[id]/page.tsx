@@ -2,22 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { scrApi, toUIScrEvent } from "@/lib/screening-api";
+import { scrApi } from "@/lib/screening-api";
 import { ScrViewEventPage } from "@/components/admin/dashboard/screening/ViewPage";
-import type { ScrEvent } from "@/components/admin/dashboard/screening/types";
+import type { ApiScrEvent } from "@/lib/screening-api";
 
 export default function ViewEventPage() {
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
 
-  const [ev,      setEv]      = useState<ScrEvent | null>(null);
+  const [ev,      setEv]      = useState<ApiScrEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     scrApi.getEvent(id)
-      .then(e => setEv(toUIScrEvent(e)))
+      .then(e => setEv(e))
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -41,5 +41,13 @@ export default function ViewEventPage() {
     );
   }
 
-  return <ScrViewEventPage ev={ev} onBack={() => router.push("/dashboard/streaming")} />;
+  return (
+    <ScrViewEventPage
+      ev={ev}
+      onBack={() => router.push("/dashboard/streaming")}
+      onManage={() => router.push(`/dashboard/streaming/${id}/manage`)}
+      onViewAnalytics={() => router.push(`/dashboard/streaming/${id}/analytics`)}
+      onViewAttendees={() => router.push(`/dashboard/streaming/${id}/attendees`)}
+    />
+  );
 }

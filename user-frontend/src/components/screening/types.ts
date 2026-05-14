@@ -26,6 +26,14 @@ export interface Screening {
   image: string | null;
   status: 'published' | 'cancelled';
   contacts: ScreeningContact[];
+  languages?: string[];
+  isIndoor?: boolean | null;
+  isSeated?: boolean | null;
+  kidFriendly?: boolean | null;
+  petFriendly?: boolean | null;
+  minAgeEntry?: number;
+  minAgePaid?: number;
+  gatesOpenBefore?: number;
 }
 
 export type BookingStep = "HOME" | "QUANTITY" | "PAYMENT" | "CONFIRMATION";
