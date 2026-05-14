@@ -578,9 +578,11 @@ function ScreeningAuthFlow() {
       if (!res.ok) throw new Error(data.message || "Invalid OTP");
       // Backend now returns a JWT — auto-login and redirect without a second login step
       if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        window.dispatchEvent(new Event("screening-auth-changed"));
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("userRole", "player");
+        localStorage.setItem("userId", data.user?.id || "");
+        localStorage.setItem("userName", data.user?.name || "");
+        window.dispatchEvent(new CustomEvent("kk-auth-changed"));
         router.push(searchParams.get("redirect") || "/screening");
         return;
       }
@@ -672,7 +674,7 @@ function ScreeningAuthFlow() {
       const res = await fetch(buildApiUrl("/api/v1/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp: verifiedForgotOtp, password: newPassword, role: "player" }),
+        body: JSON.stringify({ phone, otp: verifiedForgotOtp, newPassword, role: "player" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to reset password");
