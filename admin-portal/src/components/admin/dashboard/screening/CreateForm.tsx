@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useCallback } from "react";
 import styles from "../dashboard.module.css";
-import { backBtnStyle } from "./types";
+import { backBtnStyle, inp } from "./types";
 import { scrApi } from "@/lib/screening-api";
 import type { CreateScrEventPayload } from "@/lib/screening-api";
 
@@ -68,10 +68,6 @@ const INIT: Draft = {
 const LBL: React.CSSProperties = {
   display:"block", fontSize:"11px", fontWeight:700, color:"var(--muted)",
   letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"6px",
-};
-const INP: React.CSSProperties = {
-  width:"100%", padding:"10px 12px", background:"var(--bg)", border:"1px solid var(--border)",
-  borderRadius:"8px", color:"var(--white)", fontSize:"13px", outline:"none", boxSizing:"border-box",
 };
 const SEC: React.CSSProperties = { margin:"0 0 20px", fontSize:"14px", fontWeight:800, color:"var(--white)" };
 
@@ -179,12 +175,12 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
           <div>
             <span style={LBL}>Event Title <Req /></span>
-            <input style={INP} placeholder="e.g. UCL Final Big Screening"
+            <input style={inp} placeholder="e.g. UCL Final Big Screening"
               value={form.name} onChange={e => set(f => ({ ...f, name:e.target.value }))} />
           </div>
           <div>
             <span style={LBL}>Description</span>
-            <textarea style={{ ...INP, minHeight:"100px", resize:"vertical", fontFamily:"inherit", lineHeight:1.6 } as React.CSSProperties}
+            <textarea style={{ ...inp, minHeight:"100px", resize:"vertical", fontFamily:"inherit", lineHeight:1.6 } as React.CSSProperties}
               placeholder="Tell attendees what to expect…"
               value={form.description} onChange={e => set(f => ({ ...f, description:e.target.value }))} />
           </div>
@@ -209,7 +205,7 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
           {subOpts.length > 0 && (
             <div>
               <span style={LBL}>Sub-category</span>
-              <select style={INP} value={form.subCategory} onChange={e => set(f => ({ ...f, subCategory:e.target.value }))}>
+              <select style={inp} value={form.subCategory} onChange={e => set(f => ({ ...f, subCategory:e.target.value }))}>
                 <option value="">Select sub-category</option>
                 {subOpts.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -223,22 +219,22 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <div className={styles.scrGrid2}>
           <div>
             <span style={LBL}>GSTIN (optional)</span>
-            <input style={INP} placeholder="22AAAAA0000A1Z5"
+            <input style={inp} placeholder="22AAAAA0000A1Z5"
               value={form.gstin} onChange={e => set(f => ({ ...f, gstin:e.target.value }))} />
           </div>
           <div>
             <span style={LBL}>Bank Account Number</span>
-            <input style={INP} placeholder="Account number"
+            <input style={inp} placeholder="Account number"
               value={form.accountNumber} onChange={e => set(f => ({ ...f, accountNumber:e.target.value }))} />
           </div>
           <div>
             <span style={LBL}>IFSC Code</span>
-            <input style={INP} placeholder="e.g. HDFC0001234"
+            <input style={inp} placeholder="e.g. HDFC0001234"
               value={form.ifsc} onChange={e => set(f => ({ ...f, ifsc:e.target.value }))} />
           </div>
           <div>
             <span style={LBL}>Account Type</span>
-            <select style={INP} value={form.accountType} onChange={e => set(f => ({ ...f, accountType:e.target.value as "savings"|"current" }))}>
+            <select style={inp} value={form.accountType} onChange={e => set(f => ({ ...f, accountType:e.target.value as "savings"|"current" }))}>
               <option value="savings">Savings</option>
               <option value="current">Current</option>
             </select>
@@ -261,17 +257,17 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
           <div key={i} className={styles.scrGridPoc} style={{ marginBottom:i < form.pocs.length-1 ? "14px" : 0 }}>
             <div>
               <span style={LBL}>Name {i === 0 && <Req />}</span>
-              <input style={INP} placeholder="Full name" value={poc.name}
+              <input style={inp} placeholder="Full name" value={poc.name}
                 onChange={e => { const p=[...form.pocs]; p[i]={...p[i],name:e.target.value}; set(f=>({...f,pocs:p})); }} />
             </div>
             <div>
               <span style={LBL}>Email</span>
-              <input style={INP} type="email" placeholder="name@example.com" value={poc.email}
+              <input style={inp} type="email" placeholder="name@example.com" value={poc.email}
                 onChange={e => { const p=[...form.pocs]; p[i]={...p[i],email:e.target.value}; set(f=>({...f,pocs:p})); }} />
             </div>
             <div>
               <span style={LBL}>Phone {i === 0 && <Req />}</span>
-              <input style={INP} type="tel" placeholder="+91 98765 43210" value={poc.phone}
+              <input style={inp} type="tel" placeholder="+91 98765 43210" value={poc.phone}
                 onChange={e => { const p=[...form.pocs]; p[i]={...p[i],phone:e.target.value}; set(f=>({...f,pocs:p})); }} />
             </div>
             {form.pocs.length > 1
@@ -309,18 +305,18 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <div style={{ display:"flex", flexDirection:"column", gap:"18px" }}>
           <div>
             <span style={LBL}>Location / Venue Name <Req /></span>
-            <input style={INP} placeholder="e.g. The Local Cafe, Sector 29, Gurgaon"
+            <input style={inp} placeholder="e.g. The Local Cafe, Sector 29, Gurgaon"
               value={form.venueLocation} onChange={e => set(f => ({ ...f, venueLocation:e.target.value }))} />
           </div>
           <TriToggle label="Hosting at own restaurant?" value={form.ownRestaurant} onChange={v => set(f => ({ ...f, ownRestaurant:v }))} />
           <div>
             <span style={LBL}>Venue Instagram (optional)</span>
-            <input style={INP} placeholder="https://instagram.com/venuename"
+            <input style={inp} placeholder="https://instagram.com/venuename"
               value={form.instagramLink} onChange={e => set(f => ({ ...f, instagramLink:e.target.value }))} />
           </div>
           <div>
             <span style={LBL}>Gates Open Before Event (mins)</span>
-            <input style={INP} type="number" placeholder="e.g. 30" min="0"
+            <input style={inp} type="number" placeholder="e.g. 30" min="0"
               value={form.gatesOpenBefore} onChange={e => set(f => ({ ...f, gatesOpenBefore:e.target.value }))} />
           </div>
         </div>
@@ -345,17 +341,17 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
             <div className={styles.scrGrid2}>
               <div style={{ gridColumn:"1 / -1" }}>
                 <span style={LBL}>Date <Req /></span>
-                <input style={INP} type="date" value={newShow.date}
+                <input style={inp} type="date" value={newShow.date}
                   onChange={e => setNewShow(s => ({ ...s, date:e.target.value }))} />
               </div>
               <div>
                 <span style={LBL}>Start Time <Req /></span>
-                <input style={INP} type="time" value={newShow.startTime}
+                <input style={inp} type="time" value={newShow.startTime}
                   onChange={e => setNewShow(s => ({ ...s, startTime:e.target.value }))} />
               </div>
               <div>
                 <span style={LBL}>End Time <Req /></span>
-                <input style={INP} type="time" value={newShow.endTime}
+                <input style={inp} type="time" value={newShow.endTime}
                   onChange={e => setNewShow(s => ({ ...s, endTime:e.target.value }))} />
               </div>
             </div>
@@ -414,7 +410,9 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
   const [newTier, setNewTier] = useState({ name:"", price:"", capacity:"", desc:"" });
 
   function saveTier() {
-    if (!newTier.name || !newTier.price || !newTier.capacity) return;
+    if (!newTier.name.trim()) return;
+    if (newTier.price === '' || Number(newTier.price) < 0) return;
+    if (!newTier.capacity || Number(newTier.capacity) < 1) return;
     set(f => ({ ...f, tiers:[...f.tiers, { id:uid(), ...newTier }] }));
     setNewTier({ name:"", price:"", capacity:"", desc:"" });
     setAddOpen(false);
@@ -441,22 +439,22 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
             <div className={styles.scrGrid2}>
               <div>
                 <span style={LBL}>Tier Name <Req /></span>
-                <input style={INP} placeholder="e.g. General, VIP" value={newTier.name}
+                <input style={inp} placeholder="e.g. General, VIP" value={newTier.name}
                   onChange={e => setNewTier(t => ({ ...t, name:e.target.value }))} />
               </div>
               <div>
                 <span style={LBL}>Price (₹) <Req /></span>
-                <input style={INP} type="number" placeholder="0 for free" min="0" value={newTier.price}
+                <input style={inp} type="number" placeholder="0 for free" min="0" value={newTier.price}
                   onChange={e => setNewTier(t => ({ ...t, price:e.target.value }))} />
               </div>
               <div>
                 <span style={LBL}>Capacity <Req /></span>
-                <input style={INP} type="number" placeholder="Max seats" min="1" value={newTier.capacity}
+                <input style={inp} type="number" placeholder="Max seats" min="1" value={newTier.capacity}
                   onChange={e => setNewTier(t => ({ ...t, capacity:e.target.value }))} />
               </div>
               <div>
                 <span style={LBL}>Description (optional)</span>
-                <input style={INP} placeholder="e.g. Includes free drinks" value={newTier.desc}
+                <input style={inp} placeholder="e.g. Includes free drinks" value={newTier.desc}
                   onChange={e => setNewTier(t => ({ ...t, desc:e.target.value }))} />
               </div>
             </div>
@@ -529,7 +527,7 @@ function S4({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
         <p style={SEC}>Video Sneak Peek</p>
         <div>
           <span style={LBL}>Paste YouTube / Vimeo URL</span>
-          <input style={INP} placeholder="https://youtube.com/watch?v=…"
+          <input style={inp} placeholder="https://youtube.com/watch?v=…"
             value={form.videoUrl} onChange={e => set(f => ({ ...f, videoUrl: e.target.value }))} />
         </div>
       </div>
@@ -554,29 +552,33 @@ function S4({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
 
 function GallerySlot({ value, onChange }: { value:string; onChange:(url:string)=>void }) {
   const [uploading, setUploading] = useState(false);
+  const [tooBig,    setTooBig]    = useState(false);
 
   async function handleFile(file: File) {
-    if (file.size > 2 * 1024 * 1024) return;
+    if (file.size > 2 * 1024 * 1024) { setTooBig(true); setTimeout(() => setTooBig(false), 2500); return; }
+    setTooBig(false);
     setUploading(true);
     try {
       const url = await scrApi.uploadImage(file);
       onChange(url);
-    } catch { /* silent — slot stays empty */ }
+    } catch { /* slot stays empty */ }
     finally { setUploading(false); }
   }
 
   return (
-    <label style={{ aspectRatio:"1", border:"1.5px dashed var(--border2)", borderRadius:"8px",
+    <label style={{ aspectRatio:"1", border:`1.5px dashed ${tooBig ? "rgba(239,68,68,0.6)" : "var(--border2)"}`, borderRadius:"8px",
       display:"flex", alignItems:"center", justifyContent:"center", cursor: uploading ? "wait" : "pointer",
-      background:"var(--bg)", overflow:"hidden", transition:"border-color 0.15s" }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(91,230,178,0.4)")}
-      onMouseLeave={e => (e.currentTarget.style.borderColor="var(--border2)")}>
+      background: tooBig ? "rgba(239,68,68,0.05)" : "var(--bg)", overflow:"hidden", transition:"border-color 0.15s, background 0.15s" }}
+      onMouseEnter={e => { if (!tooBig) e.currentTarget.style.borderColor="rgba(91,230,178,0.4)"; }}
+      onMouseLeave={e => { if (!tooBig) e.currentTarget.style.borderColor="var(--border2)"; }}>
       <input type="file" accept="image/*" style={{ display:"none" }} disabled={uploading}
         onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }} />
       {value
         ? <img src={value} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
         : uploading
         ? <span style={{ fontSize:"10px", color:"var(--muted)" }}>…</span>
+        : tooBig
+        ? <span style={{ fontSize:"9px", color:"#ef4444", textAlign:"center", padding:"4px", lineHeight:1.3 }}>Max 2 MB</span>
         : <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
       }
     </label>
@@ -606,12 +608,12 @@ function S5({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
           <div className={styles.scrGrid2}>
             <div>
               <span style={LBL}>Minimum Age (Entry)</span>
-              <input style={INP} type="number" placeholder="0 = no restriction" min="0"
+              <input style={inp} type="number" placeholder="0 = no restriction" min="0"
                 value={form.minAgeEntry} onChange={e => set(f => ({ ...f, minAgeEntry:e.target.value }))} />
             </div>
             <div>
               <span style={LBL}>Minimum Age (Paid Ticket)</span>
-              <input style={INP} type="number" placeholder="0 = no restriction" min="0"
+              <input style={inp} type="number" placeholder="0 = no restriction" min="0"
                 value={form.minAgePaid} onChange={e => set(f => ({ ...f, minAgePaid:e.target.value }))} />
             </div>
             <TriToggle label="Indoor or Outdoor?"  value={form.isIndoor}    onChange={v => set(f => ({ ...f, isIndoor:v }))}    yesText="Indoor"  noText="Outdoor"  />
@@ -700,7 +702,7 @@ function buildPayload(form: Draft): CreateScrEventPayload {
     languages:       form.languages,
     venueName:       form.venueLocation,
     location:        form.venueLocation,
-    ownRestaurant:   form.ownRestaurant,
+    ownRestaurant:   form.ownRestaurant ?? false,
     venueInstagram:  form.instagramLink,
     gatesOpenBefore: Number(form.gatesOpenBefore) || 0,
     isIndoor:        form.isIndoor,
@@ -758,7 +760,15 @@ export function ScrCreateEventForm({
 
   const handlePublish = useCallback(async (status: 'draft' | 'published') => {
     if (!onSubmit || submitting) return;
-    if (!form.name.trim()) { alert('Event name is required.'); return; }
+    // Validate every step before submitting — catches any skip
+    for (let s = 1; s <= 4; s++) {
+      const err = validateStep(s, form);
+      if (err) {
+        setStep(s);
+        setStepError(err);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       await onSubmit(buildPayload(form), status);
