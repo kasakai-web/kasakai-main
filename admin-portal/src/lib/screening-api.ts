@@ -203,6 +203,20 @@ export const scrApi = {
       body: JSON.stringify({ entryCode }),
     }),
 
+  uploadImage: async (file: File): Promise<string> => {
+    const token = getAdminToken();
+    const form = new FormData();
+    form.append('image', file);
+    const res = await fetch(`${BASE}/screening/admin/upload-image`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Upload failed');
+    return (data.data as { url: string }).url;
+  },
+
   getEventTickets: (id: string, params?: { status?: string; search?: string; page?: number }) => {
     const qs = new URLSearchParams();
     if (params?.status && params.status !== 'all') qs.set('status', params.status);

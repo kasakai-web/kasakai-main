@@ -2,6 +2,7 @@
 import React, { useState, useCallback } from "react";
 import styles from "../dashboard.module.css";
 import { backBtnStyle } from "./types";
+import { scrApi } from "@/lib/screening-api";
 import type { CreateScrEventPayload } from "@/lib/screening-api";
 
 /* ── static data ── */
@@ -46,6 +47,7 @@ type Draft = {
   isIndoor:boolean|null; isSeated:boolean|null;
   kidFriendly:boolean|null; petFriendly:boolean|null;
   extraSections:string[];
+  image:string; poster:string; videoUrl:string; galleryImages:string[];
 };
 
 const INIT: Draft = {
@@ -59,6 +61,7 @@ const INIT: Draft = {
   languages:[], minAgeEntry:"", minAgePaid:"",
   isIndoor:null, isSeated:null, kidFriendly:null, petFriendly:null,
   extraSections:[],
+  image:"", poster:"", videoUrl:"", galleryImages:[],
 };
 
 /* ── shared styles ── */
@@ -112,19 +115,38 @@ function TriToggle({ label, value, onChange, yesText="Yes", noText="No" }: {
   );
 }
 
-function UploadBox({ label, hint }: { label:string; hint:string }) {
-  const [preview, setPreview] = useState<string|null>(null);
+function UploadBox({ label, hint, value, onChange }: {
+  label:string; hint:string; value:string; onChange:(url:string)=>void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string|null>(null);
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const url = await scrApi.uploadImage(file);
+      onChange(url);
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div>
       <span style={LBL}>{label}</span>
       <label style={{ display:"block", border:"1.5px dashed var(--border2)", borderRadius:"10px",
-        padding:"32px 16px", textAlign:"center", background:"var(--bg)", cursor:"pointer", transition:"border-color 0.15s" }}
+        padding:"32px 16px", textAlign:"center", background:"var(--bg)", cursor: uploading ? "wait" : "pointer", transition:"border-color 0.15s" }}
         onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(91,230,178,0.4)")}
         onMouseLeave={e => (e.currentTarget.style.borderColor="var(--border2)")}>
-        <input type="file" accept="image/*" style={{ display:"none" }}
-          onChange={e => { const f=e.target.files?.[0]; if(f) setPreview(URL.createObjectURL(f)); }} />
-        {preview
-          ? <img src={preview} alt="" style={{ maxHeight:"120px", maxWidth:"100%", objectFit:"cover", borderRadius:"6px" }} />
+        <input type="file" accept="image/*" style={{ display:"none" }} disabled={uploading}
+          onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }} />
+        {value
+          ? <img src={value} alt="" style={{ maxHeight:"120px", maxWidth:"100%", objectFit:"cover", borderRadius:"6px" }} />
+          : uploading
+          ? <p style={{ margin:0, fontSize:"13px", color:"var(--muted)" }}>Uploading…</p>
           : <>
               <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" style={{ margin:"0 auto 10px", display:"block" }}>
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
@@ -134,6 +156,7 @@ function UploadBox({ label, hint }: { label:string; hint:string }) {
             </>
         }
       </label>
+      {uploadErr && <p style={{ margin:"6px 0 0", fontSize:"11px", color:"#ef4444" }}>{uploadErr}</p>}
     </div>
   );
 }
@@ -481,36 +504,26 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
 }
 
 /* ── Step 4: Media ── */
-function S4() {
-  const [videoUrl, setVideoUrl] = useState("");
+function S4({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction<Draft>> }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
 
       <div className={styles.scrCard}>
         <p style={SEC}>Creatives</p>
         <div className={styles.scrGrid2}>
-          <UploadBox label="Landscape Banner (16:9)" hint="PNG or JPG · up to 10 MB" />
-          <UploadBox label="Portrait Poster (3:4)"   hint="PNG or JPG · up to 10 MB" />
+          <UploadBox label="Landscape Banner (16:9)" hint="PNG or JPG · up to 10 MB"
+            value={form.image}  onChange={url => set(f => ({ ...f, image: url }))} />
+          <UploadBox label="Portrait Poster (3:4)"   hint="PNG or JPG · up to 10 MB"
+            value={form.poster} onChange={url => set(f => ({ ...f, poster: url }))} />
         </div>
       </div>
 
       <div className={styles.scrCard}>
         <p style={SEC}>Video Sneak Peek</p>
-        <label style={{ display:"block", border:"1.5px dashed var(--border2)", borderRadius:"10px",
-          padding:"28px 16px", textAlign:"center", background:"var(--bg)", cursor:"pointer", transition:"border-color 0.15s" }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(91,230,178,0.4)")}
-          onMouseLeave={e => (e.currentTarget.style.borderColor="var(--border2)")}>
-          <input type="file" accept="video/*" style={{ display:"none" }} />
-          <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" style={{ margin:"0 auto 8px", display:"block" }}>
-            <path d="M15 10l4.553-2.277A1 1 0 0121 8.677v6.646a1 1 0 01-1.447.894L15 14M4 8h8a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z"/>
-          </svg>
-          <p style={{ margin:"0 0 4px", fontSize:"13px", fontWeight:600, color:"var(--muted)" }}>Upload MP4</p>
-          <p style={{ margin:0, fontSize:"11px", color:"var(--muted)", opacity:0.6 }}>max 200 MB</p>
-        </label>
-        <div style={{ marginTop:"14px" }}>
-          <span style={LBL}>Or paste YouTube / Vimeo URL</span>
+        <div>
+          <span style={LBL}>Paste YouTube / Vimeo URL</span>
           <input style={INP} placeholder="https://youtube.com/watch?v=…"
-            value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+            value={form.videoUrl} onChange={e => set(f => ({ ...f, videoUrl: e.target.value }))} />
         </div>
       </div>
 
@@ -519,7 +532,12 @@ function S4() {
         <p style={{ margin:"-12px 0 16px", fontSize:"12px", color:"var(--muted)" }}>Up to 8 images</p>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(110px, 1fr))", gap:"12px" }}>
           {Array.from({ length:8 }).map((_, i) => (
-            <GallerySlot key={i} />
+            <GallerySlot key={i} value={form.galleryImages[i] || ""}
+              onChange={url => set(f => {
+                const imgs = [...f.galleryImages];
+                imgs[i] = url;
+                return { ...f, galleryImages: imgs.filter(Boolean) };
+              })} />
           ))}
         </div>
       </div>
@@ -527,18 +545,30 @@ function S4() {
   );
 }
 
-function GallerySlot() {
-  const [src, setSrc] = useState<string|null>(null);
+function GallerySlot({ value, onChange }: { value:string; onChange:(url:string)=>void }) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    try {
+      const url = await scrApi.uploadImage(file);
+      onChange(url);
+    } catch { /* silent — slot stays empty */ }
+    finally { setUploading(false); }
+  }
+
   return (
     <label style={{ aspectRatio:"1", border:"1.5px dashed var(--border2)", borderRadius:"8px",
-      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+      display:"flex", alignItems:"center", justifyContent:"center", cursor: uploading ? "wait" : "pointer",
       background:"var(--bg)", overflow:"hidden", transition:"border-color 0.15s" }}
       onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(91,230,178,0.4)")}
       onMouseLeave={e => (e.currentTarget.style.borderColor="var(--border2)")}>
-      <input type="file" accept="image/*" style={{ display:"none" }}
-        onChange={e => { const f=e.target.files?.[0]; if(f) setSrc(URL.createObjectURL(f)); }} />
-      {src
-        ? <img src={src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+      <input type="file" accept="image/*" style={{ display:"none" }} disabled={uploading}
+        onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); }} />
+      {value
+        ? <img src={value} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+        : uploading
+        ? <span style={{ fontSize:"10px", color:"var(--muted)" }}>…</span>
         : <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
       }
     </label>
@@ -666,10 +696,10 @@ function buildPayload(form: Draft): CreateScrEventPayload {
       accountType:   form.accountType,
     },
     extraSections:  form.extraSections.map(type => ({ type, content: '' })),
-    image:          '',
-    poster:         '',
-    videoUrl:       '',
-    galleryImages:  [],
+    image:          form.image,
+    poster:         form.poster,
+    videoUrl:       form.videoUrl,
+    galleryImages:  form.galleryImages,
   };
 }
 
@@ -752,7 +782,7 @@ export function ScrCreateEventForm({
       {step === 1 && <S1 form={form} set={setForm} />}
       {step === 2 && <S2 form={form} set={setForm} />}
       {step === 3 && <S3 form={form} set={setForm} />}
-      {step === 4 && <S4 />}
+      {step === 4 && <S4 form={form} set={setForm} />}
       {step === 5 && <S5 form={form} set={setForm} />}
 
       {/* Navigation */}
