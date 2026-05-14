@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { ScrEvent, ScrShow, ScrShowTicket, scrStatusBadge, backBtnStyle, inp } from "./types";
-import { scrApi, type ApiScrEvent, type ApiScrShow, type CreateScrEventPayload } from "@/lib/screening-api";
+import { scrApi, type ApiScrEvent, type ApiScrShow, type ApiScrTier, type CreateScrEventPayload } from "@/lib/screening-api";
 
 // ── static data ───────────────────────────────────────────────────────────────
 
@@ -340,6 +340,286 @@ function AddShowDrawer({ open, onClose, onSave }: {
   );
 }
 
+// ── Add Ticket Drawer ─────────────────────────────────────────────────────────
+
+const SALES_END_UNITS     = ["Minutes", "Hours", "Days"];
+const SALES_END_STRATEGIES = ["Before Show Start", "Before Show End"];
+const GST_OPTIONS          = ["None / Exempt", "CGST+SGST 5%", "CGST+SGST 12%", "CGST+SGST 18%", "IGST 18%"];
+
+function ScopeOption({ selected, onClick, title, sub, comingSoon }: {
+  selected: boolean; onClick: () => void; title: string; sub: string; comingSoon?: boolean;
+}) {
+  return (
+    <button type="button" onClick={comingSoon ? undefined : onClick}
+      style={{ display: "flex", alignItems: "center", gap: "14px", padding: "14px 16px", width: "100%", background: selected ? "rgba(91,230,178,0.06)" : "var(--bg)", border: `1.5px solid ${selected ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "11px", cursor: comingSoon ? "not-allowed" : "pointer", textAlign: "left", opacity: comingSoon ? 0.5 : 1, transition: "all 0.15s" }}>
+      <div style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, border: `2px solid ${selected ? "#5be6b2" : "var(--border)"}`, background: selected ? "rgba(91,230,178,0.15)" : "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
+        {selected && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#5be6b2" }} />}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>{title}</p>
+          {comingSoon && (
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted)", padding: "2px 7px", background: "var(--surface2)", borderRadius: "999px", letterSpacing: "0.06em" }}>SOON</span>
+          )}
+        </div>
+        <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>{sub}</p>
+      </div>
+    </button>
+  );
+}
+
+function AddTicketDrawer({ open, onClose, onSave, shows }: {
+  open: boolean; onClose: () => void;
+  onSave: (tier: { name: string; pricePaise: number; capacity: number; description: string }) => Promise<void>;
+  shows: ScrShow[];
+}) {
+  const [step, setStep]                     = useState<1 | 2>(1);
+  const [name, setName]                     = useState("Regular Ticket");
+  const [description, setDescription]       = useState("");
+  const [priceRs, setPriceRs]               = useState("");
+  const [quantity, setQuantity]             = useState("");
+  const [salesEndNum, setSalesEndNum]       = useState("0");
+  const [salesEndUnit, setSalesEndUnit]     = useState("Hours");
+  const [salesEndStrat, setSalesEndStrat]   = useState("Before Show Start");
+  const [gst, setGst]                       = useState("None / Exempt");
+  const [ticketDisabled, setTicketDisabled] = useState(false);
+  const [showScope, setShowScope]           = useState<"all" | "single" | "custom">("all");
+  const [selectedShowId, setSelectedShowId] = useState("");
+  const [errors, setErrors]                 = useState<Record<string, string>>({});
+  const [saving, setSaving]                 = useState(false);
+  const nameRef                             = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) { setTimeout(() => nameRef.current?.focus(), 80); }
+    else {
+      setStep(1); setName("Regular Ticket"); setDescription(""); setPriceRs(""); setQuantity("");
+      setSalesEndNum("0"); setSalesEndUnit("Hours"); setSalesEndStrat("Before Show Start");
+      setGst("None / Exempt"); setTicketDisabled(false);
+      setShowScope("all"); setSelectedShowId(""); setErrors({}); setSaving(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") { if (step === 2) setStep(1); else onClose(); } };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, step, onClose]);
+
+  const validate = useCallback(() => {
+    const errs: Record<string, string> = {};
+    if (!name.trim()) errs.name = "Required";
+    const p = Number(priceRs);
+    if (priceRs === "" || isNaN(p) || p < 0) errs.price = "Enter a valid price (₹)";
+    const q = Number(quantity);
+    if (!quantity || isNaN(q) || q < 1) errs.quantity = "Minimum 1";
+    return errs;
+  }, [name, priceRs, quantity]);
+
+  const handleNext = useCallback(() => {
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setErrors({});
+    setStep(2);
+  }, [validate]);
+
+  const handleSave = useCallback(async () => {
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); setStep(1); return; }
+    setSaving(true);
+    try {
+      await onSave({ name: name.trim(), pricePaise: Math.round(Number(priceRs) * 100), capacity: Number(quantity), description: description.trim() });
+      onClose();
+    } catch { setSaving(false); }
+  }, [validate, name, priceRs, quantity, description, onSave, onClose]);
+
+  const fe = (k: string): React.CSSProperties => ({ ...inp, marginTop: "6px", borderColor: errors[k] ? "rgba(239,68,68,0.6)" : undefined });
+
+  const activeShows = shows.filter(s => s.status === "active");
+
+  return (
+    <>
+      <div onClick={() => { if (!saving) onClose(); }}
+        style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity 0.25s" }} />
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, width: "min(520px,100vw)", background: "var(--surface)", borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", boxShadow: "-6px 0 40px rgba(0,0,0,0.45)", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {step === 2 && (
+              <button type="button" onClick={() => setStep(1)} style={{ width: 28, height: 28, borderRadius: "7px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+            )}
+            <div>
+              <p style={{ margin: "0 0 2px", fontSize: "10px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.16em", textTransform: "uppercase" }}>
+                Step {step} of 2 · {step === 1 ? "Ticket Details" : "Show Assignment"}
+              </p>
+              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--white)" }}>Add Ticket</h3>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+              <div style={{ width: step === 1 ? 18 : 6, height: 6, borderRadius: "999px", background: "#5be6b2", transition: "width 0.2s" }} />
+              <div style={{ width: step === 2 ? 18 : 6, height: 6, borderRadius: "999px", background: step === 2 ? "#5be6b2" : "var(--border)", transition: "all 0.2s" }} />
+            </div>
+            <button type="button" onClick={onClose} style={{ width: 32, height: 32, borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "22px" }}>
+          {step === 1 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* Name */}
+              <div>
+                <OvLabel required>Name</OvLabel>
+                <input ref={nameRef} value={name} onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: "" })); }}
+                  placeholder="e.g. Regular Ticket" style={fe("name")} />
+                {errors.name && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.name}</p>}
+              </div>
+
+              {/* Description */}
+              <div>
+                <OvLabel>Description</OvLabel>
+                <p style={{ margin: "0 0 8px", fontSize: "11px", color: "var(--muted)", lineHeight: 1.55 }}>
+                  Inclusions, joining details i.e. anything that will help the customer to make this purchase can be added here. This will show up on the e-ticket, website and apps.
+                </p>
+                <textarea value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder="A short description of this ticket" rows={3}
+                  style={{ ...inp, marginTop: 0, resize: "vertical", minHeight: "76px", fontFamily: "inherit" }} />
+              </div>
+
+              {/* Price */}
+              <div>
+                <OvLabel required>Ticket price (inc of taxes) (₹)</OvLabel>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "13px", color: "var(--muted)", fontWeight: 700, pointerEvents: "none" }}>₹</span>
+                  <input type="number" min="0" step="1" value={priceRs}
+                    onChange={e => { setPriceRs(e.target.value); setErrors(p => ({ ...p, price: "" })); }}
+                    placeholder="100" style={{ ...fe("price"), paddingLeft: "28px" }} />
+                </div>
+                {errors.price && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.price}</p>}
+              </div>
+
+              {/* Quantity */}
+              <div>
+                <OvLabel required>Total Quantity</OvLabel>
+                <input type="number" min="1" value={quantity}
+                  onChange={e => { setQuantity(e.target.value); setErrors(p => ({ ...p, quantity: "" })); }}
+                  placeholder="100" style={fe("quantity")} />
+                {errors.quantity && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.quantity}</p>}
+              </div>
+
+              {/* Ticket Sales End */}
+              <div>
+                <OvLabel required>Ticket Sales End</OvLabel>
+                <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+                  <input type="number" min="0" value={salesEndNum} onChange={e => setSalesEndNum(e.target.value)}
+                    style={{ ...inp, width: "80px", flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}><OvSelect value={salesEndUnit} onChange={setSalesEndUnit} options={SALES_END_UNITS} /></div>
+                  <div style={{ flex: 2 }}><OvSelect value={salesEndStrat} onChange={setSalesEndStrat} options={SALES_END_STRATEGIES} /></div>
+                </div>
+              </div>
+
+              {/* GST */}
+              <div>
+                <OvLabel>Applicable GST</OvLabel>
+                <p style={{ margin: "0 0 8px", fontSize: "11px", color: "var(--muted)" }}>Ticket price (Inclusive of tax)</p>
+                <OvSelect value={gst} onChange={setGst} options={GST_OPTIONS} />
+              </div>
+
+              {/* Disable toggle */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "var(--bg)", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                <div>
+                  <p style={{ margin: "0 0 2px", fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>Disable Ticket</p>
+                  <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>Hidden from customers until enabled</p>
+                </div>
+                <button type="button" onClick={() => setTicketDisabled(p => !p)}
+                  style={{ width: 40, height: 22, borderRadius: "999px", background: ticketDisabled ? "#5be6b2" : "var(--surface2)", border: `1.5px solid ${ticketDisabled ? "#5be6b2" : "var(--border)"}`, position: "relative", cursor: "pointer", flexShrink: 0, transition: "background 0.2s", padding: 0 }}>
+                  <div style={{ position: "absolute", top: "2px", left: ticketDisabled ? "19px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: ticketDisabled ? "#000" : "var(--muted)", transition: "left 0.2s" }} />
+                </button>
+              </div>
+
+              {/* Note */}
+              <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "10px", padding: "14px" }}>
+                <p style={{ margin: "0 0 8px", fontSize: "10px", fontWeight: 800, color: "#f59e0b", letterSpacing: "0.12em", textTransform: "uppercase" }}>Note</p>
+                <p style={{ margin: "0 0 4px", fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
+                  You cannot change the price/GST after creating this ticket since the event is already published.
+                </p>
+                <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
+                  If you want to change the price/GST of this ticket in future, you will have to disable this ticket and create a new one.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Step 2 — Show scope */
+            <div>
+              <p style={{ margin: "0 0 20px", fontSize: "15px", fontWeight: 800, color: "var(--white)" }}>
+                Which shows will include this ticket?
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <ScopeOption selected={showScope === "all"} onClick={() => setShowScope("all")}
+                  title="All shows" sub="Add ticket across all dates and time slots" />
+                <ScopeOption selected={showScope === "single"} onClick={() => setShowScope("single")}
+                  title="Single show" sub="Choose a date and time slot to add ticket" />
+                {showScope === "single" && (
+                  <div style={{ padding: "14px", background: "var(--bg)", borderRadius: "10px", border: "1px solid var(--border)" }}>
+                    {activeShows.length === 0 ? (
+                      <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>No active shows available</p>
+                    ) : activeShows.map(s => (
+                      <button key={s.id} type="button" onClick={() => setSelectedShowId(s.id)}
+                        style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", padding: "10px 12px", marginBottom: "6px", background: selectedShowId === s.id ? "rgba(91,230,178,0.08)" : "var(--surface)", border: `1.5px solid ${selectedShowId === s.id ? "rgba(91,230,178,0.35)" : "var(--border)"}`, borderRadius: "9px", cursor: "pointer", textAlign: "left" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: selectedShowId === s.id ? "#5be6b2" : "var(--muted)", flexShrink: 0 }} />
+                        <div>
+                          <p style={{ margin: "0 0 1px", fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>{s.dateLabel}</p>
+                          <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>{s.timeLabel}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <ScopeOption selected={false} onClick={() => {}}
+                  title="Custom range" sub="Choose specific dates, days or time slots to add tickets" comingSoon />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "16px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: "10px", flexShrink: 0 }}>
+          {step === 1 ? (
+            <>
+              <button type="button" onClick={onClose}
+                style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                Cancel
+              </button>
+              <button type="button" onClick={handleNext}
+                style={{ flex: 2, height: "42px", background: "rgba(91,230,178,0.12)", border: "1.5px solid rgba(91,230,178,0.45)", borderRadius: "9px", color: "#5be6b2", fontSize: "13px", fontWeight: 800, cursor: "pointer" }}>
+                Next
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => setStep(1)}
+                style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                Back
+              </button>
+              <button type="button" onClick={handleSave} disabled={saving}
+                style={{ flex: 2, height: "42px", background: saving ? "rgba(91,230,178,0.06)" : "rgba(91,230,178,0.12)", border: "1.5px solid rgba(91,230,178,0.45)", borderRadius: "9px", color: "#5be6b2", fontSize: "13px", fontWeight: 800, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
+                {saving ? "Saving…" : "Add Ticket"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 type Poc = { id: string; name: string; email: string; phone: string };
@@ -349,9 +629,11 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
 
   // Shows tab state
   const [tab, setTab]               = useState<"shows" | "overview">("shows");
-  const [shows, setShows]           = useState<ScrShow[]>([]);
-  const [fullShows, setFullShows]   = useState<ApiScrShow[]>([]); // raw API shows for persistence
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [shows, setShows]                   = useState<ScrShow[]>([]);
+  const [fullShows, setFullShows]           = useState<ApiScrShow[]>([]);
+  const [fullTiers, setFullTiers]           = useState<ApiScrTier[]>([]);
+  const [drawerOpen, setDrawerOpen]         = useState(false);
+  const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
 
   // Overview tab state — all initialised empty; useEffect populates from API
   const [eventName, setEventName]         = useState(ev.title);
@@ -446,14 +728,28 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
         });
         setShows(displayShows);
         setFullShows(full.shows || []);
+        setFullTiers(full.tiers || []);
       })
       .catch(err => console.error("[ManagePage] Failed to load event:", err))
       .finally(() => setLoadingOverview(false));
   }, [ev.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleShow    = useCallback((id: string) => setShows(p => p.map(s => s.id === id ? { ...s, expanded: !s.expanded } : s)), []);
-  const openDrawer    = useCallback(() => setDrawerOpen(true), []);
-  const closeDrawer   = useCallback(() => setDrawerOpen(false), []);
+  const toggleShow        = useCallback((id: string) => setShows(p => p.map(s => s.id === id ? { ...s, expanded: !s.expanded } : s)), []);
+  const openDrawer        = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer       = useCallback(() => setDrawerOpen(false), []);
+  const openTicketDrawer  = useCallback(() => setTicketDrawerOpen(true), []);
+  const closeTicketDrawer = useCallback(() => setTicketDrawerOpen(false), []);
+
+  const handleSaveTicket = useCallback(async (tier: { name: string; pricePaise: number; capacity: number; description: string }) => {
+    const updatedTiers = [
+      ...fullTiers.map(t => ({ name: t.name, pricePaise: t.pricePaise, capacity: t.capacity, description: t.description })),
+      tier,
+    ];
+    await scrApi.updateEvent(ev.id, { tiers: updatedTiers });
+    const newTicket: ScrShowTicket = { id: `tier-${Date.now()}`, name: tier.name, qty: tier.capacity, sold: 0, pricePaise: tier.pricePaise };
+    setShows(p => p.map(s => ({ ...s, tickets: [...s.tickets, newTicket] })));
+    setFullTiers(p => [...p, { _id: `tier-${Date.now()}`, ...tier, sold: 0 }]);
+  }, [ev.id, fullTiers]);
 
   const handleSaveShow = useCallback(async (newShow: ScrShow, raw: { date: string; startTime: string; endTime: string }) => {
     setShows(p => [newShow, ...p]);
@@ -591,10 +887,10 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                     {shows.length === 0 && (
                       <div style={{ textAlign: "center", padding: "48px 24px", border: "1.5px dashed var(--border)", borderRadius: "14px", marginBottom: "20px" }}>
                         <p style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "var(--muted)" }}>No shows scheduled</p>
-                        <button type="button" onClick={openDrawer}
+                        <button type="button" onClick={openTicketDrawer}
                           style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 20px", background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.3)", borderRadius: "8px", color: "#5be6b2", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
                           <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                          Add Show
+                          Add Ticket
                         </button>
                       </div>
                     )}
@@ -603,10 +899,10 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                         <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>
                           {shows.filter(s => s.status === "active").length} active · {shows.filter(s => s.status === "expired").length} expired
                         </p>
-                        <button type="button" onClick={openDrawer}
+                        <button type="button" onClick={openTicketDrawer}
                           style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "rgba(91,230,178,0.1)", border: "1px solid rgba(91,230,178,0.3)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
                           <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                          Add Show
+                          Add Ticket
                         </button>
                       </div>
                     )}
@@ -932,6 +1228,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       </div>
 
       <AddShowDrawer open={drawerOpen} onClose={closeDrawer} onSave={handleSaveShow} />
+      <AddTicketDrawer open={ticketDrawerOpen} onClose={closeTicketDrawer} onSave={handleSaveTicket} shows={shows} />
     </>
   );
 }
