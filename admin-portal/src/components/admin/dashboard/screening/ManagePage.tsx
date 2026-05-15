@@ -1475,9 +1475,9 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
     };
     setShows(p => [optimisticShow, ...p]);
     const newRaw = { date: raw.date, startTime: raw.startTime, endTime: raw.endTime };
-    // Strip _id / status from existing shows so Mongoose doesn't get invalid cast strings
+    // Keep existing show _id values so Mongoose preserves them — avoids stale ID references
     const updatedShows = [
-      ...fullShows.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime })),
+      ...fullShows.map(s => ({ _id: s._id, date: s.date, startTime: s.startTime, endTime: s.endTime })),
       newRaw,
     ] as CreateScrEventPayload["shows"];
     try {
@@ -1499,7 +1499,8 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
   }, [ev.id, showTierToast]);
 
   const handleUpdateShows = useCallback(async (updatedShows: { _id: string; date: string; startTime: string; endTime: string }[]) => {
-    const payload = updatedShows.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime })) as CreateScrEventPayload["shows"];
+    // Keep _id so Mongoose preserves the same ObjectIds — allows UI to match by id after save
+    const payload = updatedShows.map(s => ({ _id: s._id, date: s.date, startTime: s.startTime, endTime: s.endTime })) as CreateScrEventPayload["shows"];
     const saved = await scrApi.updateEvent(ev.id, { shows: payload });
     setFullShows(saved.shows || []);
     setShows(prev => prev.map(s => {
