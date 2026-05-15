@@ -1,28 +1,9 @@
 "use client";
 
-/* ── Icons ─────────────────────────────────────────────────────────────────── */
 
-function ShieldIcon() {
+function IconAuth() {
   return (
-    <svg width="90" height="107" viewBox="0 0 84 100" fill="none">
-      <defs>
-        <linearGradient id="rzpSG" x1="42" y1="0" x2="42" y2="100" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3b82f6" />
-          <stop offset="1" stopColor="#1d4ed8" />
-        </linearGradient>
-      </defs>
-      <path d="M42 0L6 12V46C6 70 42 100 42 100C42 100 78 70 78 46V12L42 0Z" fill="url(#rzpSG)" />
-      <path d="M42 3L9 13.5V46C9 68 42 96 42 96C42 96 75 68 75 46V13.5L42 3Z"
-        stroke="white" strokeOpacity="0.18" strokeWidth="1" />
-      {/* Razorpay slash */}
-      <path d="M46.5 32H29.5L24 43H30L21.5 68H30.5L41.5 43H34L46.5 32Z" fill="rgba(255,255,255,0.28)" />
-    </svg>
-  );
-}
-
-function AuthIcon() {
-  return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M9.5 9.2L11.2 11L14.5 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M8.5 16.5L6.5 22L12 20L17.5 22L15.5 16.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -30,9 +11,9 @@ function AuthIcon() {
   );
 }
 
-function FraudIcon() {
+function IconShield() {
   return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <path d="M12 21C12 21 4 17 4 11V5L12 2L20 5V11C20 17 12 21 12 21Z"
         stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M9 11.5L11 13.5L15.5 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -40,12 +21,11 @@ function FraudIcon() {
   );
 }
 
-function ClockIcon() {
+function IconClock() {
   return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 8V12L14.5 14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M19 5L21 8L17.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -54,21 +34,21 @@ function ClockIcon() {
 
 const BENEFITS = [
   {
-    icon: <AuthIcon />,
+    icon: <IconAuth />,
     num: "01",
-    title: "Authentic\nBusiness",
+    title: "AUTHENTIC\nBUSINESS",
     desc: "Verified & KYC-compliant merchant, registered with Razorpay.",
   },
   {
-    icon: <FraudIcon />,
+    icon: <IconShield />,
     num: "02",
-    title: "Fraud-proof\nTransactions",
+    title: "FRAUD-PROOF\nTRANSACTIONS",
     desc: "Every payment verified via HMAC-SHA256 signature. No spoofing.",
   },
   {
-    icon: <ClockIcon />,
+    icon: <IconClock />,
     num: "03",
-    title: "Fast Dispute\nResolution",
+    title: "FAST DISPUTE\nRESOLUTION",
     desc: "Payment disputes handled with priority through Razorpay support.",
   },
 ];
@@ -79,9 +59,80 @@ export function RazorpayTrustSection() {
   return (
     <section
       id="trust"
-      style={{ background: "var(--black)", borderTop: "1px solid var(--border)" }}
+      style={{ background: "var(--black)", padding: "80px 0 88px", position: "relative", overflow: "hidden" }}
     >
       <style>{`
+        /* ── Animations ── */
+        @keyframes rzp-shimmer {
+          0%   { transform: translateX(-100%) skewX(-10deg); }
+          100% { transform: translateX(260%) skewX(-10deg); }
+        }
+
+        @keyframes rzp-fade-up {
+          from { opacity: 0; transform: translateY(28px); }
+          to   { opacity: 1; transform: none; }
+        }
+        .rzp-card    { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both; }
+        .rzp-brand   { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both; }
+        .rzp-benefit-1 { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.26s both; }
+        .rzp-benefit-2 { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.34s both; }
+        .rzp-benefit-3 { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both; }
+        .rzp-fine    { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.48s both; }
+
+        /* ── Page glow — matches Kasakai hero/footer radial style ── */
+        .rzp-bg-glow {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(ellipse 900px 480px at 10% 60%, rgba(51,149,255,0.08) 0%, transparent 65%),
+            radial-gradient(ellipse 700px 400px at 90% 30%, rgba(196,213,108,0.05) 0%, transparent 60%);
+        }
+
+        /* ── Outer wrapper ── */
+        .rzp-outer {
+          position: relative;
+          z-index: 1;
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 0 clamp(20px, 5vw, 64px);
+        }
+
+        /* ── Section label — lime mono like footer nav labels ── */
+        .rzp-label-row {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 22px;
+        }
+        .rzp-label-text {
+          font-family: var(--mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: .22em;
+          text-transform: uppercase;
+          color: var(--lime);
+          white-space: nowrap;
+        }
+        .rzp-label-rule {
+          flex: 1;
+          max-width: 72px;
+          height: 1px;
+          background: var(--border);
+        }
+
+        /* ── Outer card shell ── */
+        .rzp-card {
+          border-radius: 14px;
+          background: linear-gradient(135deg, rgba(255,255,255,0.022) 0%, rgba(51,149,255,0.04) 100%);
+          border: 1px solid rgba(255,255,255,0.08);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.06),
+            0 40px 90px rgba(0,0,0,0.6),
+            0 0 0 1px rgba(51,149,255,0.06);
+          overflow: hidden;
+        }
+
         /* ── Strip row ── */
         .rzp-strip {
           display: flex;
@@ -94,56 +145,35 @@ export function RazorpayTrustSection() {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          text-align: center;
           gap: 20px;
-          padding: 52px 56px;
-          border-right: 1px solid var(--border);
+          padding: 56px 44px;
+          border-right: 1px solid rgba(255,255,255,0.07);
           flex-shrink: 0;
-          min-width: 240px;
-          background: radial-gradient(circle at 50% 38%, rgba(59,130,246,0.10) 0%, transparent 68%);
-          position: relative;
-        }
-
-        /* ── Benefits row ── */
-        .rzp-benefits {
-          flex: 1;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-        }
-        .rzp-benefit {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          padding: 44px 36px;
-          border-left: 1px solid var(--border);
-          transition: background 0.22s;
-        }
-        .rzp-benefit:first-child {
-          border-left: none;
-        }
-        .rzp-benefit:hover {
-          background: rgba(59,130,246,0.028);
-        }
-
-        /* ── Fine print ── */
-        .rzp-fine {
-          border-top: 1px solid var(--border);
-          padding: 13px 40px;
+          min-width: 264px;
           text-align: center;
-          font-family: var(--body);
-          font-size: 11.5px;
-          color: var(--muted);
-          opacity: 0.45;
-          letter-spacing: .05em;
+          background: radial-gradient(ellipse 250px 230px at 50% 50%, rgba(51,149,255,0.1) 0%, transparent 70%);
         }
 
-        /* ── Shield glow ── */
-        .rzp-shield-glow {
-          filter: drop-shadow(0 8px 24px rgba(59,130,246,0.40));
+        /* ── Razorpay logo on white pill ── */
+        .rzp-logo-pill {
+          background: #ffffff;
+          border-radius: 10px;
+          padding: 18px 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow:
+            0 6px 28px rgba(0,0,0,0.35),
+            0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .rzp-logo-pill img {
+          display: block;
+          height: 28px;
+          width: auto;
         }
 
         /* ── Trusted badge ── */
-        .rzp-badge {
+        .rzp-trusted-badge {
           display: inline-flex;
           align-items: center;
           gap: 6px;
@@ -155,148 +185,274 @@ export function RazorpayTrustSection() {
           color: var(--lime);
           background: rgba(196,213,108,0.07);
           border: 1px solid rgba(196,213,108,0.22);
-          padding: 5px 11px;
+          padding: 5px 12px;
+          border-radius: 2px;
         }
-        .rzp-badge-dot {
-          width: 5px;
-          height: 5px;
+        .rzp-trusted-dot {
+          width: 5px; height: 5px;
           border-radius: 50%;
           background: var(--lime);
           flex-shrink: 0;
+          box-shadow: 0 0 8px rgba(196,213,108,0.7);
         }
 
-        /* ── Responsive ── */
-        @media (max-width: 900px) {
+        .rzp-brand-sub {
+          font-family: var(--mono);
+          font-size: 9.5px;
+          color: var(--muted);
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          opacity: 0.5;
+          line-height: 1.7;
+        }
+
+        /* ── Benefits: now a flex of individual cards with a gap ── */
+        .rzp-benefits {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          gap: 14px;
+          padding: 22px;
+          align-items: stretch;
+        }
+
+        /* ── Single benefit card ──
+             Gradient border via background-clip trick:
+               layer 1 (top) → solid fill clipped to padding-box
+               layer 2 (bottom) → gradient clipped to border-box
+             The solid fill covers the gradient everywhere except in the
+             1px border area, so the gradient shows only on the border.
+        ── */
+        .rzp-benefit {
+          position: relative;
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          padding: 28px 24px 28px;
+          border-radius: 10px;
+          border: 1px solid transparent;
+          background:
+            linear-gradient(rgba(10,12,16,0.92), rgba(10,12,16,0.92)) padding-box,
+            linear-gradient(135deg, rgba(51,149,255,0.3), rgba(255,255,255,0.06) 50%, rgba(51,149,255,0.13)) border-box;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.05),
+            0 4px 20px rgba(0,0,0,0.35);
+          overflow: hidden;
+          transition:
+            transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 0.38s;
+        }
+
+        /* Shimmer sweep — slides left→right on hover */
+        .rzp-benefit::before {
+          content: '';
+          position: absolute;
+          top: 0; bottom: 0;
+          left: 0; width: 45%;
+          background: linear-gradient(90deg, transparent, rgba(51,149,255,0.08), transparent);
+          opacity: 0;
+          pointer-events: none;
+          transform: translateX(-100%) skewX(-10deg);
+        }
+
+        /* Corner arc — decorative bracket in top-right */
+        .rzp-benefit::after {
+          content: '';
+          position: absolute;
+          top: -1px; right: -1px;
+          width: 52px; height: 52px;
+          border-bottom-left-radius: 46px;
+          border-left: 1px solid rgba(51,149,255,0.15);
+          border-bottom: 1px solid rgba(51,149,255,0.15);
+          pointer-events: none;
+          transition: border-color 0.35s;
+        }
+
+        /* Hover: lift + glow + vivid border + shimmer + icon glow */
+        .rzp-benefit:hover {
+          transform: translateY(-5px);
+          background:
+            linear-gradient(rgba(9,17,30,0.95), rgba(9,17,30,0.95)) padding-box,
+            linear-gradient(135deg, rgba(51,149,255,0.62), rgba(196,213,108,0.22) 50%, rgba(51,149,255,0.42)) border-box;
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.07),
+            0 20px 56px rgba(51,149,255,0.15),
+            0 8px 24px rgba(0,0,0,0.5);
+        }
+        .rzp-benefit:hover::before {
+          opacity: 1;
+          animation: rzp-shimmer 2s ease-in-out infinite;
+        }
+        .rzp-benefit:hover::after {
+          border-color: rgba(51,149,255,0.4);
+        }
+
+        /* ── Inside a benefit card ── */
+        .rzp-benefit-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+        }
+
+        .rzp-icon-box {
+          width: 46px; height: 46px;
+          border-radius: 10px;
+          background: rgba(51,149,255,0.08);
+          border: 1px solid rgba(51,149,255,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #3395FF;
+          flex-shrink: 0;
+          transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+        .rzp-benefit:hover .rzp-icon-box {
+          background: rgba(51,149,255,0.14);
+          border-color: rgba(51,149,255,0.38);
+          box-shadow: 0 0 18px rgba(51,149,255,0.22);
+        }
+
+        .rzp-num {
+          font-family: var(--mono);
+          font-size: 10px;
+          letter-spacing: .14em;
+          color: rgba(255,255,255,0.11);
+          font-weight: 500;
+        }
+
+        /* Big all-caps condensed — same style as hero PLAY / SMARTER */
+        .rzp-benefit-title {
+          font-family: var(--cond);
+          font-weight: 900;
+          font-size: clamp(26px, 2.4vw, 34px);
+          letter-spacing: -.01em;
+          color: var(--white);
+          line-height: 0.93;
+          white-space: pre-line;
+          text-transform: uppercase;
+          word-break: break-word;
+          margin-bottom: 14px;
+        }
+
+        /* Thin hairline between title and desc */
+        .rzp-benefit-sep {
+          height: 1px;
+          background: rgba(255,255,255,0.06);
+          margin-bottom: 14px;
+          flex-shrink: 0;
+        }
+
+        .rzp-benefit-desc {
+          font-family: var(--body);
+          font-size: 13.5px;
+          font-weight: 400;
+          color: var(--muted);
+          line-height: 1.72;
+          word-break: break-word;
+        }
+
+        /* ── Fine print bar ── */
+        .rzp-fine {
+          border-top: 1px solid rgba(255,255,255,0.06);
+          padding: 13px 40px;
+          text-align: center;
+          font-family: var(--mono);
+          font-size: 10px;
+          color: var(--muted);
+          letter-spacing: .07em;
+          text-transform: uppercase;
+          opacity: 0.38;
+        }
+
+        /* ── Tablet ── */
+        @media (max-width: 960px) {
           .rzp-strip { flex-direction: column; }
           .rzp-brand {
             border-right: none;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
             flex-direction: row;
             text-align: left;
-            padding: 36px 28px;
+            padding: 36px 32px;
             gap: 24px;
             min-width: unset;
             justify-content: flex-start;
-            background: radial-gradient(circle at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 65%);
+            background: radial-gradient(ellipse 320px 180px at 15% 50%, rgba(51,149,255,0.08) 0%, transparent 70%);
           }
-          .rzp-brand-text { align-items: flex-start !important; }
-          .rzp-benefit { padding: 32px 24px; }
-          .rzp-benefit:first-child { border-left: none; }
+          .rzp-brand-inner { align-items: flex-start !important; }
+          .rzp-benefits { padding: 20px; gap: 12px; }
+          .rzp-benefit { padding: 24px 20px; }
           .rzp-fine { padding: 13px 28px; }
         }
 
-        @media (max-width: 560px) {
+        /* ── Mobile ── */
+        @media (max-width: 600px) {
+          .rzp-card { border-radius: 10px; }
+          .rzp-label-rule { max-width: 36px; }
           .rzp-brand { flex-direction: column; text-align: center; align-items: center; }
-          .rzp-brand-text { align-items: center !important; }
-          .rzp-benefits { grid-template-columns: 1fr; }
-          .rzp-benefit {
-            border-left: none;
-            border-top: 1px solid var(--border);
-            flex-direction: row;
-            align-items: flex-start;
-            gap: 18px;
-            padding: 28px 24px;
-          }
-          .rzp-benefit-text { flex: 1; }
-          .rzp-fine { font-size: 11px; }
+          .rzp-brand-inner { align-items: center !important; }
+          .rzp-benefits { flex-direction: column; gap: 12px; padding: 16px; }
+          .rzp-benefit { padding: 24px 20px; }
+          .rzp-benefit-title { font-size: 26px; }
+          .rzp-fine { font-size: 9.5px; padding: 13px 20px; }
+          /* disable lift on touch screens — no hover intent */
+          .rzp-benefit:hover { transform: none; }
         }
       `}</style>
 
-      {/* ── Main strip ── */}
-      <div className="rzp-strip">
+      {/* Page-level glow */}
+      <div className="rzp-bg-glow" />
 
-        {/* Brand */}
-        <div className="rzp-brand reveal">
-          <div className="rzp-shield-glow">
-            <ShieldIcon />
-          </div>
-          <div
-            className="rzp-brand-text"
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}
-          >
-            <h3 style={{
-              fontFamily: "var(--cond)",
-              fontWeight: 900,
-              fontStyle: "italic",
-              fontSize: "clamp(30px, 3.5vw, 42px)",
-              letterSpacing: "-.02em",
-              color: "var(--white)",
-              lineHeight: 0.95,
-            }}>
-              razorpay
-            </h3>
-            <span className="rzp-badge">
-              <span className="rzp-badge-dot" />
-              TRUSTED BUSINESS
-            </span>
-          </div>
-        </div>
+      <div className="rzp-outer">
 
-        {/* Benefits */}
-        <div className="rzp-benefits">
-          {BENEFITS.map((b, i) => (
-            <div key={i} className={`rzp-benefit reveal d${i + 1}`}>
+        <div className="rzp-card">
+          <div className="rzp-strip">
 
-              {/* Icon + number */}
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{
-                  color: "#5b9cf6",
-                  width: 48,
-                  height: 48,
-                  borderRadius: "10px",
-                  background: "rgba(59,130,246,0.07)",
-                  border: "1px solid rgba(59,130,246,0.18)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}>
-                  {b.icon}
+            {/* ── Brand ── */}
+            <div className="rzp-brand">
+              <div
+                className="rzp-brand-inner"
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}
+              >
+                <div className="rzp-logo-pill">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/razorpay-logo.svg" alt="Razorpay" />
                 </div>
-                <span style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: "11px",
-                  color: "#2e2e2e",
-                  letterSpacing: ".1em",
-                  fontWeight: 500,
-                }}>
-                  {b.num}
+                <span className="rzp-trusted-badge">
+                  <span className="rzp-trusted-dot" />
+                  TRUSTED BUSINESS
+                </span>
+                <span className="rzp-brand-sub">
+                  Official Payment<br />Partner
                 </span>
               </div>
-
-              {/* Text */}
-              <div className="rzp-benefit-text">
-                <p style={{
-                  fontFamily: "var(--cond)",
-                  fontWeight: 800,
-                  fontSize: "clamp(20px, 2.2vw, 26px)",
-                  letterSpacing: ".01em",
-                  color: "var(--white)",
-                  lineHeight: 1.05,
-                  marginBottom: "8px",
-                  whiteSpace: "pre-line",
-                }}>
-                  {b.title}
-                </p>
-                <p style={{
-                  fontFamily: "var(--body)",
-                  fontSize: "13.5px",
-                  color: "var(--muted)",
-                  lineHeight: 1.65,
-                  fontWeight: 400,
-                }}>
-                  {b.desc}
-                </p>
-              </div>
-
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Fine print */}
-      <div className="rzp-fine reveal">
-        All payments are processed securely by Razorpay — Kasa Kai never stores your card, UPI ID, or banking credentials.
+            {/* ── Benefits: 3 individual animated cards ── */}
+            <div className="rzp-benefits">
+              {BENEFITS.map((b, i) => (
+                <div key={i} className={`rzp-benefit rzp-benefit-${i + 1}`}>
+                  <div className="rzp-benefit-top">
+                    <div className="rzp-icon-box">{b.icon}</div>
+                    <span className="rzp-num">{b.num}</span>
+                  </div>
+                  <p className="rzp-benefit-title">{b.title}</p>
+                  <div className="rzp-benefit-sep" />
+                  <p className="rzp-benefit-desc">{b.desc}</p>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+          {/* Fine print */}
+          <div className="rzp-fine">
+            All payments are processed securely by Razorpay — Kasa Kai never stores your card, UPI ID, or banking credentials.
+          </div>
+        </div>
+
       </div>
     </section>
   );
