@@ -528,13 +528,24 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
       {/* ── Hero ── */}
       <div className="sd-hero" style={{ position: "relative" }}>
         {!heroImgErr && screening.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={screening.image}
-            alt={screening.matchTitle}
-            onError={() => setHeroImgErr(true)}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-          />
+          <>
+            {/* Blurred background fill */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={screening.image}
+              alt=""
+              aria-hidden="true"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(28px) brightness(0.22) saturate(0.5)", transform: "scale(1.12)", pointerEvents: "none" }}
+            />
+            {/* Contained poster */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={screening.image}
+              alt={screening.matchTitle}
+              onError={() => setHeroImgErr(true)}
+              style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", maxHeight: "86%", maxWidth: "62%", objectFit: "contain", filter: "drop-shadow(0 12px 48px rgba(0,0,0,0.9))", borderRadius: "4px" }}
+            />
+          </>
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)" }}>
             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">

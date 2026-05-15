@@ -53,10 +53,9 @@
 .sd-page { min-height:100vh; background:#050505; color:#e8e8e8; }
 
 /* Hero */
-.sd-hero         { position:relative; height:clamp(240px,46vw,500px); overflow:hidden; }
-.sd-hero img     { width:100%; height:100%; object-fit:cover; display:block; }
-.sd-hero-grad    { position:absolute; inset:0; background:linear-gradient(to top,#050505 0%,rgba(5,5,5,.72) 32%,rgba(5,5,5,.1) 72%,transparent 100%); }
-.sd-hero-grad-l  { position:absolute; inset:0; background:linear-gradient(to right,rgba(5,5,5,.58) 0%,transparent 58%); }
+.sd-hero         { position:relative; height:clamp(320px,52vw,620px); overflow:hidden; background:#0a0a0a; }
+.sd-hero-grad    { position:absolute; inset:0; background:linear-gradient(to top,#050505 0%,rgba(5,5,5,.65) 28%,rgba(5,5,5,.08) 68%,transparent 100%); pointer-events:none; }
+.sd-hero-grad-l  { position:absolute; inset:0; background:linear-gradient(to right,rgba(5,5,5,.55) 0%,transparent 55%); pointer-events:none; }
 .sd-hero-top     { position:absolute; top:18px; left:0; right:0; padding:0 clamp(16px,4vw,52px); }
 .sd-hero-bottom  { position:absolute; bottom:0; left:0; right:0; padding:0 clamp(16px,4vw,52px) clamp(18px,3.5vw,38px); }
 

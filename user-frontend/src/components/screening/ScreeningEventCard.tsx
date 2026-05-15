@@ -31,28 +31,28 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }
   const [imgErr, setImgErr] = useState(false);
   return (
     <div
-      className="group flex flex-col overflow-hidden transition-all duration-200"
-      style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: "16px" }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#2a2a2a")}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#1e1e1e")}
+      className="group flex flex-col overflow-hidden"
+      style={{ background: "#111", border: "1px solid #1e1e1e", borderRadius: "16px", transition: "border-color 0.2s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease" }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#333"; e.currentTarget.style.transform = "translateY(-5px)"; e.currentTarget.style.boxShadow = "0 16px 48px rgba(0,0,0,0.55)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e1e1e"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
     >
       {/* Image */}
       <Link href={`/screening/${screening.id}`} className="no-underline" tabIndex={-1}>
-        <div className="relative overflow-hidden flex-shrink-0" style={{ height: "200px", background: "#1a1a1a" }}>
+        <div className="relative overflow-hidden flex-shrink-0" style={{ height: "215px", background: "#0e0e0e" }}>
           {!imgErr && screening.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={screening.image}
               alt={screening.matchTitle}
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
               onError={() => setImgErr(true)}
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
             />
           ) : (
             <TvFallback />
           )}
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #111 0%, rgba(17,17,17,0.4) 45%, transparent 100%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #111 0%, rgba(17,17,17,0.5) 40%, rgba(17,17,17,0.08) 75%, transparent 100%)" }} />
 
           {/* Badge: Cancelled / Live */}
           <div className="absolute top-3 left-3">

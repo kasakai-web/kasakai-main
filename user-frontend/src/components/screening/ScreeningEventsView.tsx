@@ -96,7 +96,7 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
               Book your spot at premium sports bars and venues across India.
             </p>
             <p style={{ fontSize: "clamp(12px, 1.4vw, 14px)", color: "#666", lineHeight: 1.7, margin: 0 }}>
-              Giant 4K screens · Great food · Electric crowd.
+              Live screens · Great food · Electric crowd.
             </p>
           </div>
 
