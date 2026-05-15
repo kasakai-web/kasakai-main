@@ -83,7 +83,7 @@
 .sd-section       { margin-bottom:30px; }
 .sd-section-head  { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
 .sd-section-bar   { width:2px; height:17px; background:#c8f135; border-radius:9999px; flex-shrink:0; }
-.sd-section-label { font-size:10px; font-weight:900; color:#606060; letter-spacing:.24em; text-transform:uppercase; margin:0; }
+.sd-section-label { font-size:10px; font-weight:900; color:#888; letter-spacing:.24em; text-transform:uppercase; margin:0; }
 
 /* Highlights (3 cards) */
 .sd-highlights { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
@@ -91,7 +91,7 @@
 
 .sd-hl-card      { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:14px 8px; background:#0c0c0c; border:1px solid #1c1c1c; border-radius:10px; transition:border-color .15s; }
 .sd-hl-card:hover{ border-color:#242424; }
-.sd-hl-card span { font-size:11px; font-weight:700; color:#666; line-height:1.35; }
+.sd-hl-card span { font-size:11px; font-weight:700; color:#999; line-height:1.35; }
 
 /* Venue */
 .sd-venue-card { background:#0c0c0c; border:1px solid #1c1c1c; border-radius:12px; padding:16px 18px; }
@@ -140,7 +140,7 @@
 /* Trust row */
 .sd-trust       { display:flex; align-items:center; justify-content:center; gap:14px; padding-top:2px; }
 .sd-trust-item  { display:flex; align-items:center; gap:5px; }
-.sd-trust-label { font-size:9px; font-weight:800; color:#333; text-transform:uppercase; letter-spacing:.1em; }
+.sd-trust-label { font-size:9px; font-weight:800; color:#666; text-transform:uppercase; letter-spacing:.1em; }
 
 
 /* 404 page */
@@ -150,7 +150,7 @@
 .sd-know-grid2       { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#1a1a1a; border:1px solid #1c1c1c; border-radius:12px; overflow:hidden; }
 .sd-know-cell        { display:flex; align-items:center; gap:10px; padding:12px 13px; background:#0c0c0c; }
 .sd-know-icon        { width:28px; height:28px; border-radius:6px; background:#111; border:1px solid #1e1e1e; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.sd-know-text        { font-size:11.5px; font-weight:600; color:#707070; line-height:1.35; }
+.sd-know-text        { font-size:11.5px; font-weight:600; color:#909090; line-height:1.35; }
 @media(max-width:380px) { .sd-know-text { font-size:10.5px; } }
 
 /* ── Organized By ───────────────────────────────── */
@@ -161,7 +161,7 @@
 .sd-org-stat         { display:flex; flex-direction:column; gap:3px; padding-right:14px; margin-right:14px; border-right:1px solid #1a1a1a; }
 .sd-org-stat:last-child { border-right:none; padding-right:0; margin-right:0; }
 .sd-org-stat-val     { font-size:14px; font-weight:900; color:#888; line-height:1; }
-.sd-org-stat-lbl     { font-size:9px; font-weight:800; color:#3e3e3e; text-transform:uppercase; letter-spacing:.14em; }
+.sd-org-stat-lbl     { font-size:9px; font-weight:800; color:#606060; text-transform:uppercase; letter-spacing:.14em; }
 
 /* ── T&C button ─────────────────────────────────── */
 .sd-tc-btn           { width:100%; display:flex; align-items:center; justify-content:space-between; padding:16px 20px; background:#0c0c0c; border:1px solid #1c1c1c; border-radius:12px; cursor:pointer; transition:border-color .15s,background .15s; text-align:left; }

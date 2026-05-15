@@ -115,7 +115,7 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
           </svg>
           <p className="line-clamp-1" style={{ margin: 0, fontSize: "12px", lineHeight: 1.4 }}>
             <span style={{ fontWeight: 700, color: "#c0c0c0" }}>{screening.venueName}</span>
-            <span style={{ fontWeight: 500, color: "#555" }}> · {screening.location}</span>
+            <span style={{ fontWeight: 500, color: "#777" }}> · {screening.location}</span>
           </p>
         </div>
 
@@ -127,7 +127,7 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
           <span style={{ fontSize: "10px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
             {screening.day}, {screening.date}
           </span>
-          <span style={{ color: "#3a4a20", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>·</span>
+          <span style={{ color: "#5a6e30", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>·</span>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c8f135" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
             <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
           </svg>
@@ -140,7 +140,7 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
         <div className="flex items-center justify-between" style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #1e1e1e" }}>
           {screening.status === 'cancelled' ? (
             <div className="flex items-center justify-between w-full">
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a1515" }}>This event has been cancelled</span>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#cc4444" }}>This event has been cancelled</span>
               <Link
                 href={`/screening/${screening.id}`}
                 className="no-underline"
@@ -167,7 +167,7 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
             </>
           ) : (
             <>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "#555" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>
                 {screening.tiers.length} {screening.tiers.length === 1 ? "option" : "options"} available
               </span>
               <Link

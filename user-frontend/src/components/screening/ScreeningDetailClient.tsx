@@ -112,7 +112,7 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
 
       {/* Description */}
       {tier.description && (
-        <p style={{ margin: "0 0 12px", fontSize: "11.5px", color: soldOut ? "#1a1a1a" : "#555", lineHeight: 1.65 }}>
+        <p style={{ margin: "0 0 12px", fontSize: "11.5px", color: soldOut ? "#1a1a1a" : "#888", lineHeight: 1.65 }}>
           {tier.description}
         </p>
       )}
@@ -125,7 +125,7 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
               {tier.price === 0 ? "Free" : `₹${tier.price.toLocaleString()}`}
             </span>
             {tier.price > 0 && !soldOut && (
-              <span style={{ fontSize: "10px", color: "#333", fontWeight: 600 }}>/ person</span>
+              <span style={{ fontSize: "10px", color: "#666", fontWeight: 600 }}>/ person</span>
             )}
           </div>
           {scarce && (
@@ -242,16 +242,16 @@ const BookingWidget = memo(function BookingWidget({
           </div>
           <p style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", letterSpacing: ".28em", textTransform: "uppercase", marginBottom: "8px" }}>Booking Confirmed</p>
           <h3 style={{ fontSize: "20px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 6px" }}>You&apos;re all set!</h3>
-          <p style={{ fontSize: "12px", color: "#444", lineHeight: 1.65, margin: "0 0 20px" }}>Show this code at the venue entrance.</p>
+          <p style={{ fontSize: "12px", color: "#777", lineHeight: 1.65, margin: "0 0 20px" }}>Show this code at the venue entrance.</p>
 
           <div className="sd-code-box">
-            <p style={{ fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".22em", textTransform: "uppercase", marginBottom: "8px" }}>Entry Code</p>
+            <p style={{ fontSize: "9px", fontWeight: 900, color: "#666", letterSpacing: ".22em", textTransform: "uppercase", marginBottom: "8px" }}>Entry Code</p>
             <p className="sd-code-val">{confirmedCode}</p>
           </div>
 
           {totalAmt > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", padding: "11px 14px", background: "#0e0e0e", border: "1px solid #181818", borderRadius: "8px" }}>
-              <span style={{ fontSize: "11px", color: "#555", fontWeight: 700 }}>{totalQty} ticket{totalQty > 1 ? "s" : ""}</span>
+              <span style={{ fontSize: "11px", color: "#888", fontWeight: 700 }}>{totalQty} ticket{totalQty > 1 ? "s" : ""}</span>
               <span style={{ fontSize: "16px", fontWeight: 900, color: "#e8e8e8" }}>₹{totalAmt.toLocaleString()}</span>
             </div>
           )}
@@ -329,16 +329,16 @@ const BookingWidget = memo(function BookingWidget({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: "9px", fontWeight: 900, color: "#5a6e1a", textTransform: "uppercase", letterSpacing: ".22em", margin: "0 0 3px" }}>Booked</p>
-              <p style={{ fontSize: "11px", color: "#555", margin: 0, lineHeight: 1.5 }}>You have a ticket. Select more above to add seats.</p>
+              <p style={{ fontSize: "11px", color: "#888", margin: 0, lineHeight: 1.5 }}>You have a ticket. Select more above to add seats.</p>
             </div>
           </div>
         ) : (
           <>
             <div style={{ marginBottom: "16px" }}>
-              <p style={{ fontSize: "9px", fontWeight: 900, color: "#444", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "4px" }}>
+              <p style={{ fontSize: "9px", fontWeight: 900, color: hasTickets ? "#777" : "#666", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "4px" }}>
                 {hasTickets ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "No tickets selected"}
               </p>
-              <p style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, color: hasTickets ? "#e8e8e8" : "#333", margin: 0 }}>
+              <p style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, color: hasTickets ? "#e8e8e8" : "#555", margin: 0 }}>
                 {hasTickets ? `₹${totalAmt.toLocaleString()}` : "—"}
               </p>
             </div>
