@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, memo, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Screening, TicketTier } from "./types";
@@ -33,7 +32,7 @@ function buildThingsToKnow(s: Screening): { text: string; paths: string[]; warn?
   if (s.isIndoor === false) items.push({ text: "Outdoor venue", paths: housePaths });
   if (s.isSeated === true)  items.push({ text: "Seated",             paths: heartPaths });
   if (s.isSeated === false) items.push({ text: "Standing",           paths: heartPaths });
-  if (s.isSeated == null && s.isSeated !== undefined) items.push({ text: "Seated & Standing", paths: heartPaths });
+  if (s.isSeated === null) items.push({ text: "Seated & Standing", paths: heartPaths });
   if (s.kidFriendly === false) items.push({ text: "No kids",      paths: crossCircle, warn: true });
   if (s.petFriendly === false) items.push({ text: "No pets",      paths: crossCircle, warn: true });
   if (s.kidFriendly === true)  items.push({ text: "Kids welcome", paths: globePaths });
@@ -69,17 +68,17 @@ function loadRazorpay(): Promise<void> {
 // ── Stepper ────────────────────────────────────────────────────────────────
 const Stepper = memo(function Stepper({ value, onChange, max = 10 }: { value: number; onChange: (n: number) => void; max?: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center" }}>
+    <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
       <button
         className="sd-step-btn"
-        style={{ borderRadius: "6px 0 0 6px" }}
+        style={{ borderRadius: "8px 0 0 8px" }}
         disabled={value === 0}
         onClick={() => onChange(Math.max(0, value - 1))}
       >−</button>
-      <div className="sd-step-val" style={{ color: value > 0 ? "#c8f135" : "#333" }}>{value}</div>
+      <div className="sd-step-val" style={{ color: value > 0 ? "#c8f135" : "#2a2a2a" }}>{value}</div>
       <button
         className="sd-step-btn"
-        style={{ borderRadius: "0 6px 6px 0" }}
+        style={{ borderRadius: "0 8px 8px 0" }}
         disabled={value >= max}
         onClick={() => onChange(Math.min(max, value + 1))}
       >+</button>
@@ -89,40 +88,69 @@ const Stepper = memo(function Stepper({ value, onChange, max = 10 }: { value: nu
 
 // ── Tier row ───────────────────────────────────────────────────────────────
 const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTier; qty: number; onChange: (n: number) => void }) {
-  const avail   = tier.available ?? 999;
-  const soldOut = avail <= 0;
-  const max     = Math.min(avail, 10);
+  const avail     = tier.available ?? 999;
+  const soldOut   = avail <= 0;
+  const remaining = avail - qty;          // decreases as user picks tickets
+  const scarce    = !soldOut && remaining > 0 && remaining < 5;
+  const max       = Math.min(avail, 10);
+  const isActive  = qty > 0 && !soldOut;
+
   return (
-    <div className={`sd-tier${qty > 0 ? " active" : ""}${soldOut ? " opacity-40" : ""}`} style={soldOut ? { pointerEvents: "none" } : undefined}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "3px" }}>
-            <p style={{ fontSize: "13px", fontWeight: 900, color: qty > 0 ? "#e8e8e8" : "#777", margin: 0 }}>
-              {tier.name}
-            </p>
-            {qty > 0 && (
-              <span style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", background: "rgba(200,241,53,.1)", border: "1px solid rgba(200,241,53,.18)", padding: "2px 7px", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
-                ×{qty}
-              </span>
-            )}
-            {soldOut && (
-              <span style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: ".1em", textTransform: "uppercase" }}>Sold out</span>
-            )}
-            {!soldOut && avail <= 20 && (
-              <span style={{ fontSize: "9px", fontWeight: 900, color: "#f59e0b", letterSpacing: ".1em", textTransform: "uppercase" }}>Only {avail} left</span>
-            )}
-          </div>
-          {tier.description && (
-            <p style={{ fontSize: "11px", color: "#555", margin: "0 0 7px", lineHeight: 1.5 }}>{tier.description}</p>
-          )}
-          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-            <span style={{ fontSize: "15px", fontWeight: 900, color: "#c8f135" }}>
+    <div className={soldOut ? "sd-tier-sold" : isActive ? "sd-tier active" : "sd-tier"}>
+
+      {/* Name + qty badge */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: tier.description ? "6px" : "12px" }}>
+        <span style={{ fontSize: "14px", fontWeight: 800, color: soldOut ? "#2a2a2a" : isActive ? "#f0f0f0" : "#c0c0c0", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+          {tier.name}
+        </span>
+        {isActive && (
+          <span style={{ fontSize: "8px", fontWeight: 900, color: "#c8f135", background: "rgba(200,241,53,.12)", border: "1px solid rgba(200,241,53,.28)", padding: "2px 8px", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase", flexShrink: 0, marginTop: "2px" }}>
+            ×{qty}
+          </span>
+        )}
+      </div>
+
+      {/* Description */}
+      {tier.description && (
+        <p style={{ margin: "0 0 12px", fontSize: "11.5px", color: soldOut ? "#1a1a1a" : "#555", lineHeight: 1.65 }}>
+          {tier.description}
+        </p>
+      )}
+
+      {/* Price + stepper row — always on the same line */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
+            <span style={{ fontSize: "21px", fontWeight: 900, color: soldOut ? "#222" : isActive ? "#c8f135" : "#888", lineHeight: 1 }}>
               {tier.price === 0 ? "Free" : `₹${tier.price.toLocaleString()}`}
             </span>
-            {tier.price > 0 && <span style={{ fontSize: "10px", color: "#555", fontWeight: 600 }}>/ person</span>}
+            {tier.price > 0 && !soldOut && (
+              <span style={{ fontSize: "10px", color: "#333", fontWeight: 600 }}>/ person</span>
+            )}
           </div>
+          {scarce && (
+            <div style={{ marginTop: "5px" }}>
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#d97706", background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.22)", padding: "2px 9px", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+                Only {remaining} left
+              </span>
+            </div>
+          )}
+          {soldOut && (
+            <div style={{ marginTop: "5px" }}>
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#4a1a1a", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.15)", padding: "2px 9px", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+                Sold out
+              </span>
+            </div>
+          )}
         </div>
-        <Stepper value={qty} onChange={onChange} max={max} />
+
+        {soldOut ? (
+          <div style={{ padding: "8px 14px", background: "#0e0e0e", border: "1px solid #1a1a1a", borderRadius: "8px", fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".12em", textTransform: "uppercase", flexShrink: 0 }}>
+            Sold Out
+          </div>
+        ) : (
+          <Stepper value={qty} onChange={onChange} max={max} />
+        )}
       </div>
     </div>
   );
@@ -265,13 +293,16 @@ const BookingWidget = memo(function BookingWidget({
           </div>
         )}
 
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "16px" }}>
-          <p style={{ fontSize: "10px", fontWeight: 900, color: "#444", letterSpacing: ".2em", textTransform: "uppercase", margin: 0 }}>
-            {existingCode ? "Add More Tickets" : "Select Tickets"}
-          </p>
-          <p style={{ fontSize: "11px", color: "#3a3a3a", margin: 0, fontWeight: 600 }}>
-            from <span style={{ color: "#c8f135", fontWeight: 900 }}>₹{screening.startingPrice}</span>
-          </p>
+        <div style={{ marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ fontSize: "10px", fontWeight: 900, color: "#c8f135", letterSpacing: ".22em", textTransform: "uppercase", margin: 0 }}>
+              {existingCode ? "Add More Tickets" : "Select Tickets"}
+            </p>
+            <p style={{ fontSize: "11px", color: "#3a3a3a", margin: 0, fontWeight: 700, flexShrink: 0 }}>
+              from <span style={{ color: "#c8f135", fontWeight: 900 }}>{screening.startingPrice === 0 ? "Free" : `₹${screening.startingPrice.toLocaleString()}`}</span>
+            </p>
+          </div>
+          <div style={{ height: "1px", background: "#151515", margin: "12px 0 0" }} />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "18px" }}>
@@ -497,14 +528,12 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
       {/* ── Hero ── */}
       <div className="sd-hero" style={{ position: "relative" }}>
         {!heroImgErr && screening.image ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={screening.image}
             alt={screening.matchTitle}
-            fill
-            priority
-            sizes="100vw"
-            style={{ objectFit: "cover" }}
             onError={() => setHeroImgErr(true)}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, background: "linear-gradient(160deg, #0d0d1a 0%, #090910 100%)" }}>

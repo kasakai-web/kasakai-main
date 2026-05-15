@@ -2,7 +2,6 @@
 
 import { memo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import type { Screening } from "./types";
 
 function TvFallback() {
@@ -42,14 +41,14 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
       <Link href={`/screening/${screening.id}`} className="no-underline" tabIndex={-1}>
         <div className="relative overflow-hidden flex-shrink-0" style={{ height: "200px", background: "#1a1a1a" }}>
           {!imgErr && screening.image ? (
-            <Image
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={screening.image}
               alt={screening.matchTitle}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
               onError={() => setImgErr(true)}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : (
             <TvFallback />

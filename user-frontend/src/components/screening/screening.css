@@ -113,15 +113,16 @@
 .sd-widget-body { padding:20px 20px 22px; }
 
 /* Tier card */
-.sd-tier       { padding:13px 15px; border-radius:9px; border:1px solid #1a1a1a; background:#0e0e0e; transition:background .15s,border-color .15s; }
-.sd-tier:hover { background:#111; border-color:#222; }
-.sd-tier.active{ background:rgba(200,241,53,.04); border-color:rgba(200,241,53,.2); }
+.sd-tier        { padding:14px 16px; border-radius:12px; border:1px solid #1e1e1e; border-left:3px solid transparent; background:#0a0a0a; transition:background .15s,border-color .15s,box-shadow .15s; }
+.sd-tier:hover  { background:#0e0e0e; border-color:#282828; border-left-color:#282828; }
+.sd-tier.active { background:rgba(200,241,53,.05); border-color:rgba(200,241,53,.22); border-left-color:#c8f135; box-shadow:0 0 0 1px rgba(200,241,53,.06) inset; }
+.sd-tier-sold   { padding:14px 16px; border-radius:12px; border:1px solid #161616; border-left:3px solid #1a1a1a; background:#080808; opacity:.45; }
 
 /* Stepper */
-.sd-step-btn          { width:40px; height:40px; background:#181818; border:1px solid #252525; color:#888; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s,color .12s; user-select:none; }
-.sd-step-btn:hover    { background:#222; color:#e8e8e8; }
-.sd-step-btn:disabled { background:#111; color:#272727; cursor:default; }
-.sd-step-val          { width:40px; height:40px; background:#0d0d0d; border-top:1px solid #252525; border-bottom:1px solid #252525; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; }
+.sd-step-btn          { width:34px; height:34px; background:#161616; border:1px solid #222; color:#666; font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s,color .12s,border-color .12s; user-select:none; }
+.sd-step-btn:hover    { background:#1e1e1e; color:#c8f135; border-color:#333; }
+.sd-step-btn:disabled { background:#0e0e0e; color:#1e1e1e; cursor:default; border-color:#181818; }
+.sd-step-val          { width:34px; height:34px; background:#111; border-top:1px solid #222; border-bottom:1px solid #222; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; }
 
 /* CTA */
 .sd-cta         { width:100%; height:50px; border:none; border-radius:8px; font-size:12px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:background .15s,box-shadow .15s,transform .1s; margin-bottom:12px; }

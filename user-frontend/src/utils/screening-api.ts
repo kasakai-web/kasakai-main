@@ -244,7 +244,7 @@ export function toTicket(t: ApiMyTicket): Ticket {
   return {
     id:          t._id,
     screening,
-    tiers: t.lineItems.map(li => ({
+    tiers: (t.lineItems ?? []).map(li => ({
       tier:     { id: String(li.tierId), name: li.tierName, price: Math.round(li.pricePaise / 100) },
       quantity: li.quantity,
     })),

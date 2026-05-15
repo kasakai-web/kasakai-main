@@ -29,6 +29,9 @@ export type ApiScrTier = {
   capacity: number;
   sold: number;
   description: string;
+  salesEndDate: string | null;
+  isDisabled: boolean;
+  showIds: string[];
 };
 
 export type ApiScrShow = {
@@ -99,7 +102,7 @@ export type CreateScrEventPayload = {
   minAgeEntry: number;
   minAgePaid: number;
   shows: { date: string; startTime: string; endTime: string }[];
-  tiers: { _id?: string; name: string; pricePaise: number; capacity: number; description: string }[];
+  tiers: { _id?: string; name: string; pricePaise: number; capacity: number; description: string; salesEndDate?: string | null; isDisabled?: boolean; showIds?: string[] }[];
   contacts: { name: string; email: string; phone: string }[];
   payout: { gstin: string; accountNumber: string; ifsc: string; accountType: 'savings' | 'current' };
   extraSections: { type: string; content: string }[];
