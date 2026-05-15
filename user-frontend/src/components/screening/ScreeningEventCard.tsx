@@ -25,10 +25,9 @@ function TvFallback() {
 interface Props {
   screening: Screening;
   onBook: (screening: Screening) => void;
-  bookedEntryCode?: string;
 }
 
-export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, bookedEntryCode }: Props) {
+export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }: Props) {
   const [imgErr, setImgErr] = useState(false);
   return (
     <div
@@ -55,7 +54,7 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
           )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #111 0%, rgba(17,17,17,0.4) 45%, transparent 100%)" }} />
 
-          {/* Badge: Cancelled / Booked / Live */}
+          {/* Badge: Cancelled / Live */}
           <div className="absolute top-3 left-3">
             {screening.status === 'cancelled' ? (
               <div className="flex items-center gap-1.5"
@@ -64,14 +63,6 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
                   <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
                 <span style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: "0.18em", textTransform: "uppercase" }}>Cancelled</span>
-              </div>
-            ) : bookedEntryCode ? (
-              <div className="flex items-center gap-1.5"
-                style={{ padding: "5px 10px", background: "rgba(200,241,53,0.15)", backdropFilter: "blur(8px)", border: "1px solid rgba(200,241,53,0.4)", borderRadius: "999px" }}>
-                <svg width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="3" strokeLinecap="round">
-                  <path d="M5 13l4 4L19 7"/>
-                </svg>
-                <span style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.18em", textTransform: "uppercase" }}>Booked</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5"
@@ -149,22 +140,6 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, 
                 Details
               </Link>
             </div>
-          ) : bookedEntryCode ? (
-            <>
-              <div>
-                <span style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.2em", display: "block", marginBottom: "3px" }}>Your Code</span>
-                <span style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.18em" }}>{bookedEntryCode}</span>
-              </div>
-              <Link
-                href={`/screening/${screening.id}`}
-                className="no-underline"
-                style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "rgba(200,241,53,0.08)", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.3)", transition: "background 0.15s" }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(200,241,53,0.14)")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(200,241,53,0.08)")}
-              >
-                View
-              </Link>
-            </>
           ) : (
             <>
               <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>

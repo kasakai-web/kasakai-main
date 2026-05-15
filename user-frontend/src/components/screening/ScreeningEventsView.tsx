@@ -246,7 +246,7 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((s) => (
-              <ScreeningEventCard key={s.id} screening={s} onBook={onBook} bookedEntryCode={bookedMap?.[s.id]} />
+              <ScreeningEventCard key={s.id} screening={s} onBook={onBook} />
             ))}
           </div>
         )}

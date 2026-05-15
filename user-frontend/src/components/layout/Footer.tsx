@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 const quickLinks = [
   { label: "Home", href: "/" },
@@ -19,7 +18,7 @@ export function Footer() {
         borderTop: "1px solid #1a1a1a",
         width: "100vw",
         marginLeft: "calc(50% - 50vw)",
-        padding: "80px 24px 50px",
+        padding: "50px 24px 30px",
       }}
     >
       <div style={{ maxWidth: "1280px", margin: "0 auto", width: "100%", padding: "0 clamp(16px, 4vw, 40px)" }}>
@@ -27,25 +26,36 @@ export function Footer() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.8fr 1.2fr 1.2fr 1.2fr",
+            gridTemplateColumns: "1.8fr 1.2fr 1.2fr",
             gap: "48px",
             marginBottom: "60px",
           }}
         >
           {/* Brand Section */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <Image
-                src="/kasa-kai-logo.svg"
-                alt="Kasa Kai"
-                width={40}
-                height={40}
-                style={{ width: "40px", height: "40px" }}
-              />
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  width: "48px",
+                  height: "48px",
+                  overflow: "hidden",
+                  border: "1.5px solid #333",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "9px", letterSpacing: "0.08em", color: "#000" }}>KASA</span>
+                </div>
+                <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #333" }}>
+                  <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "9px", letterSpacing: "0.08em", color: "var(--white)" }}>KAI</span>
+                </div>
+              </div>
               <h2
                 style={{
                   fontFamily: "var(--cond)",
-                  fontSize: "32px",
+                  fontSize: "38px",
                   fontWeight: 900,
                   letterSpacing: ".08em",
                   color: "white",
@@ -88,23 +98,7 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Support Section */}
-          <div>
-            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".15em", textTransform: "uppercase", color: "var(--lime)", marginBottom: "18px", margin: "0 0 18px 0", fontWeight: 600 }}>
-              Support
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <Link href="/#support" style={{ fontSize: "14px", color: "#ccc", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
-                Help & Support
-              </Link>
-              <Link href="/#about" style={{ fontSize: "14px", color: "#ccc", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
-                About Us
-              </Link>
-              <a href="mailto:contact@kasakai.in" style={{ fontSize: "14px", color: "#ccc", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
-                Contact Us
-              </a>
-            </div>
-          </div>
+          {/* Support Section - REMOVED */}
 
           {/* Contact Info */}
           <div>
@@ -112,12 +106,6 @@ export function Footer() {
               Get In Touch
             </p>
             <div style={{ display: "grid", gap: "16px" }}>
-              <div>
-                <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px", fontWeight: 500 }}>Contact</div>
-                <a href="tel:9930931616" style={{ fontSize: "14px", color: "#f4efe8", textDecoration: "none", fontWeight: 600, transition: "color 0.3s ease" }}>
-                  +91 9930931616
-                </a>
-              </div>
               <div>
                 <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px", fontWeight: 500 }}>Email</div>
                 <a href="mailto:contact@kasakai.in" style={{ fontSize: "14px", color: "#f4efe8", textDecoration: "none", fontWeight: 600, transition: "color 0.3s ease" }}>
@@ -135,19 +123,19 @@ export function Footer() {
             justifyContent: "space-between",
             alignItems: "center",
             borderTop: "1px solid #1a1a1a",
-            paddingTop: "30px",
+            paddingTop: "16px",
             flexWrap: "wrap",
-            gap: "20px",
+            gap: "12px",
           }}
         >
-          <p style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "#555", fontWeight: 500, margin: "0" }}>
+          <p style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", fontWeight: 500, margin: "0" }}>
             © {year} Kasa Kai. All rights reserved.
           </p>
-          <div style={{ display: "flex", gap: "30px", flexWrap: "wrap" }}>
-            <a href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "#888", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+          <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+            <a href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
               Privacy Policy
             </a>
-            <a href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "#888", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+            <a href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
               Terms & Conditions
             </a>
           </div>
@@ -161,10 +149,10 @@ export function Footer() {
 
         @media (max-width: 1200px) {
           footer {
-            padding: 70px 24px 40px !important;
+            padding: 50px 24px 30px !important;
           }
           footer > div > div:first-of-type {
-            grid-template-columns: 1.5fr 1fr 1fr 1fr !important;
+            grid-template-columns: 1.5fr 1fr 1fr !important;
             gap: 40px !important;
             margin-bottom: 50px !important;
           }
@@ -172,7 +160,7 @@ export function Footer() {
 
         @media (max-width: 1024px) {
           footer {
-            padding: 60px 20px 36px !important;
+            padding: 45px 20px 26px !important;
           }
           footer > div > div:first-of-type {
             grid-template-columns: 1fr 1fr !important;
@@ -186,7 +174,7 @@ export function Footer() {
 
         @media (max-width: 768px) {
           footer {
-            padding: 50px 16px 32px !important;
+            padding: 40px 16px 24px !important;
           }
           footer > div > div:first-of-type {
             grid-template-columns: 1fr !important;
@@ -194,7 +182,7 @@ export function Footer() {
             margin-bottom: 36px !important;
           }
           footer > div > div:first-of-type > div:first-child h2 {
-            font-size: 24px !important;
+            font-size: 28px !important;
           }
           footer > div > div:first-of-type > div:first-child p {
             font-size: 13px !important;
@@ -208,7 +196,7 @@ export function Footer() {
 
         @media (max-width: 480px) {
           footer {
-            padding: 40px 12px 28px !important;
+            padding: 30px 12px 20px !important;
           }
           footer > div > div:first-of-type {
             gap: 28px !important;
@@ -218,7 +206,7 @@ export function Footer() {
             gap: 12px !important;
           }
           footer > div > div:first-of-type > div:first-child h2 {
-            font-size: 20px !important;
+            font-size: 24px !important;
           }
           footer > div > div:first-of-type > div:first-child p {
             font-size: 12px !important;
