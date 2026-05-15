@@ -37,37 +37,89 @@ function rowValues(r: ScrExportRow): unknown[] {
     r.cgstPct, r.cgstAmount, r.sgstPct, r.sgstAmount, r.igstPct, r.igstAmount,
     r.tax1Name, r.tax1Amount, r.tax1Pct,
     r.tax2Name, r.tax2Amount, r.tax2Pct,
-    r.basePrice, r.commissionPct, r.commissionAmount,
+    r.basePrice,
+    // commissionPct comes from backend as decimal (0.1 = 10%) — display as whole number
+    typeof r.commissionPct === "number" ? Math.round(r.commissionPct * 100) : r.commissionPct,
+    r.commissionAmount,
     r.transactionSource, r.devicePlatform,
   ];
 }
 
-function escHtml(v: unknown): string {
-  return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function escXml(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string) {
-  const H_BG = "#0f2d4a", H_TEXT = "#5be6b2", R1_BG = "#ffffff", R2_BG = "#f0f7ff", BORDER = "1px solid #c8daea";
-  const tdStyle = (bg: string) =>
-    `background-color:${bg};color:#1a2b40;font-family:Calibri,Arial,sans-serif;font-size:11px;padding:5px 10px;border:${BORDER};white-space:nowrap;`;
-  const headerCells = EXPORT_HEADERS.map(h =>
-    `<td style="background-color:${H_BG};color:${H_TEXT};font-family:Calibri,Arial,sans-serif;font-size:11px;font-weight:bold;padding:6px 12px;border:${BORDER};white-space:nowrap;">${escHtml(h)}</td>`
-  ).join("");
+  // SpreadsheetML XML — opens in Excel without format-mismatch warnings,
+  // and preserves proper Number vs String cell types so values sort/sum correctly.
+  const esc = escXml;
+
+  const styleBlock = `
+  <Styles>
+    <Style ss:ID="H">
+      <Font ss:Bold="1" ss:Color="#5be6b2" ss:Name="Calibri" ss:Size="11"/>
+      <Interior ss:Color="#0f2d4a" ss:Pattern="Solid"/>
+      <Alignment ss:WrapText="0"/>
+      <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#1a4a6e"/></Borders>
+    </Style>
+    <Style ss:ID="R1">
+      <Font ss:Name="Calibri" ss:Size="10" ss:Color="#1a2b40"/>
+      <Interior ss:Color="#ffffff" ss:Pattern="Solid"/>
+    </Style>
+    <Style ss:ID="R2">
+      <Font ss:Name="Calibri" ss:Size="10" ss:Color="#1a2b40"/>
+      <Interior ss:Color="#eef4ff" ss:Pattern="Solid"/>
+    </Style>
+  </Styles>`;
+
+  const makeCell = (v: unknown, rowStyle: string): string => {
+    if (typeof v === "number" && !isNaN(v)) {
+      return `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="Number">${v}</Data></Cell>`;
+    }
+    return `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+  };
+
+  const headerRow = `<Row ss:AutoFitHeight="1">${
+    EXPORT_HEADERS.map(h => `<Cell ss:StyleID="H"><Data ss:Type="String">${esc(h)}</Data></Cell>`).join("")
+  }</Row>`;
+
   const dataRows = rows.map((r, i) => {
-    const bg = i % 2 === 0 ? R1_BG : R2_BG;
-    return `<tr>${rowValues(r).map(v => `<td style="${tdStyle(bg)}">${escHtml(v)}</td>`).join("")}</tr>`;
+    const sty = i % 2 === 0 ? "R1" : "R2";
+    return `<Row>${rowValues(r).map(v => makeCell(v, sty)).join("")}</Row>`;
   }).join("\n");
-  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-<x:Name>Tickets</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-<body><table border="1" cellpadding="0" cellspacing="0">
-<thead><tr>${headerCells}</tr></thead><tbody>${dataRows}</tbody></table></body></html>`;
-  const blob = new Blob(["﻿" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:html="http://www.w3.org/TR/REC-html40">
+  ${styleBlock}
+  <Worksheet ss:Name="Tickets">
+    <Table>
+      ${headerRow}
+      ${dataRows}
+    </Table>
+    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+      <FreezePanes/>
+      <FrozenNoSplit/>
+      <SplitHorizontal>1</SplitHorizontal>
+      <TopRowBottomPane>1</TopRowBottomPane>
+      <ActivePane>2</ActivePane>
+    </WorksheetOptions>
+  </Worksheet>
+</Workbook>`;
+
+  const blob = new Blob(["﻿" + xml], { type: "application/vnd.ms-excel;charset=utf-8" });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
   a.href = url;
-  a.download = `${eventTitle.replace(/[^\w\s-]/g,"").trim()}_tickets_${new Date().toISOString().slice(0,10)}.xls`;
+  a.download = `${eventTitle.replace(/[^\w\s-]/g, "").trim()}_tickets_${new Date().toISOString().slice(0, 10)}.xls`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
