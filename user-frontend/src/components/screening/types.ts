@@ -34,6 +34,7 @@ export interface Screening {
   minAgeEntry?: number;
   minAgePaid?: number;
   gatesOpenBefore?: number;
+  locationUrl?: string;
 }
 
 export type BookingStep = "HOME" | "QUANTITY" | "PAYMENT" | "CONFIRMATION";

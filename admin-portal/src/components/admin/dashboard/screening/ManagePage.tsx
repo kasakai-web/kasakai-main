@@ -28,6 +28,26 @@ const LANGUAGES = [
 
 const AGE_OPTS = ["All ages", ...Array.from({ length: 50 }, (_, i) => String(i + 1))];
 
+// ── time format helpers ───────────────────────────────────────────────────────
+
+function toAmPm(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${((h % 12) || 12).toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
+
+function toHHMM(ampm: string): string {
+  if (!ampm) return "";
+  const clean = ampm.trim().toUpperCase();
+  const isPM = clean.includes("PM");
+  const num = clean.replace(/[APM\s]/g, "");
+  const [hStr, mStr = "0"] = num.split(":");
+  let h = parseInt(hStr) || 0;
+  const m = parseInt(mStr) || 0;
+  if (isPM && h !== 12) h += 12;
+  if (!isPM && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 // ── shared helpers ────────────────────────────────────────────────────────────
 
 function SideCard({ title, accent, children }: { title: string; accent?: string; children: React.ReactNode }) {
@@ -801,9 +821,10 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
 
 // ── Edit Ticket Drawer (slides from LEFT) ────────────────────────────────────
 
-function EditTicketDrawer({ open, onClose, tier, shows, onSave }: {
+function EditTicketDrawer({ open, onClose, tier, shows, onSave, onSaveShows }: {
   open: boolean; onClose: () => void; tier: ApiScrTier | null;
   shows: ApiScrShow[]; onSave: (updated: ApiScrTier) => Promise<void>;
+  onSaveShows?: (updated: { _id: string; date: string; startTime: string; endTime: string }[]) => Promise<void>;
 }) {
   const [step, setStep]               = useState<1 | 2>(1);
   const [name, setName]               = useState("");
@@ -818,6 +839,8 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave }: {
   const [isDisabled, setIsDisabled]   = useState(false);
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState<string | null>(null);
+  // Show time edits: keyed by show._id, values are HH:MM strings for <input type="time">
+  const [showEdits, setShowEdits]     = useState<Record<string, { date: string; startTime: string; endTime: string }>>({});
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -834,9 +857,19 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave }: {
       setHasSalesEnd(!!sd);
       setSalesEndDate(sd ? new Date(sd).toISOString().slice(0, 16) : "");
       setIsDisabled(tier.isDisabled || false);
+      // Initialize show edits from current show data
+      const edits: Record<string, { date: string; startTime: string; endTime: string }> = {};
+      shows.forEach(s => {
+        edits[s._id] = {
+          date: s.date ? new Date(s.date).toISOString().slice(0, 10) : "",
+          startTime: toHHMM(s.startTime),
+          endTime: toHHMM(s.endTime || ""),
+        };
+      });
+      setShowEdits(edits);
       setTimeout(() => nameRef.current?.focus(), 80);
     }
-  }, [open, tier]);
+  }, [open, tier, shows]);
 
   useEffect(() => {
     if (!open) return;
@@ -878,6 +911,15 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave }: {
     if (Object.keys(errs).length) { setErrors(errs); setStep(1); return; }
     setSaving(true); setSaveError(null);
     try {
+      if (onSaveShows && shows.length > 0 && Object.keys(showEdits).length > 0) {
+        const updatedShows = shows.map(s => ({
+          _id: s._id,
+          date: showEdits[s._id]?.date ? new Date(showEdits[s._id].date + "T12:00:00").toISOString() : s.date,
+          startTime: showEdits[s._id]?.startTime ? toAmPm(showEdits[s._id].startTime) : s.startTime,
+          endTime: showEdits[s._id]?.endTime ? toAmPm(showEdits[s._id].endTime) : (s.endTime || ""),
+        }));
+        await onSaveShows(updatedShows);
+      }
       await onSave({
         ...tier,
         name: name.trim(),
@@ -893,7 +935,7 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave }: {
       setSaving(false);
       setSaveError(e instanceof Error ? e.message : "Failed to save. Please try again.");
     }
-  }, [tier, name, priceRs, quantity, description, hasSalesEnd, salesEndDate, isDisabled, showScope, selectedShowIds, onSave, onClose, validateStep1]);
+  }, [tier, name, priceRs, quantity, description, hasSalesEnd, salesEndDate, isDisabled, showScope, selectedShowIds, onSave, onSaveShows, onClose, validateStep1, showEdits, shows]);
 
   const fe = (k: string): React.CSSProperties => ({ ...inp, marginTop: "6px", borderColor: errors[k] ? "rgba(239,68,68,0.6)" : undefined });
 
@@ -974,6 +1016,46 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave }: {
                   {minCapacity > 0 && <> Capacity can&apos;t go below <strong style={{ color: "var(--white)" }}>{minCapacity}</strong> (already sold).</>}
                 </p>
               </div>
+
+              {/* Show time editing */}
+              {shows.length > 0 && (
+                <div>
+                  <div style={{ marginBottom: "10px" }}>
+                    <p style={{ margin: "0 0 2px", fontSize: "12px", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Show Times</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: "var(--muted2)" }}>Update date &amp; time for each show</p>
+                  </div>
+                  {shows.map(s => {
+                    const d = new Date(s.date);
+                    const label = d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+                    const edit = showEdits[s._id] || { date: "", startTime: "", endTime: "" };
+                    return (
+                      <div key={s._id} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "10px", padding: "14px", marginBottom: "8px" }}>
+                        <p style={{ margin: "0 0 10px", fontSize: "12px", fontWeight: 700, color: "var(--white)" }}>{label}</p>
+                        <div>
+                          <OvLabel required>Date</OvLabel>
+                          <input type="date" value={edit.date}
+                            onChange={e => setShowEdits(p => ({ ...p, [s._id]: { ...p[s._id], date: e.target.value } }))}
+                            style={{ ...inp, marginTop: "6px" }} />
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
+                          <div>
+                            <OvLabel required>Start Time</OvLabel>
+                            <input type="time" value={edit.startTime}
+                              onChange={e => setShowEdits(p => ({ ...p, [s._id]: { ...p[s._id], startTime: e.target.value } }))}
+                              style={{ ...inp, marginTop: "6px" }} />
+                          </div>
+                          <div>
+                            <OvLabel>End Time</OvLabel>
+                            <input type="time" value={edit.endTime}
+                              onChange={e => setShowEdits(p => ({ ...p, [s._id]: { ...p[s._id], endTime: e.target.value } }))}
+                              style={{ ...inp, marginTop: "6px" }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -1129,6 +1211,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
   const [subCategories, setSubCats]       = useState<string[]>([]);
   const [venueLocation, setVenueLoc]      = useState("");
   const [venueCity, setVenueCity]         = useState("");
+  const [locationUrl, setLocationUrl]     = useState("");
   const [ownRestaurant, setOwnRest]       = useState<"yes" | "no">("no");
   const [instagramLink, setIgLink]        = useState("");
   const [language, setLanguage]           = useState<string[]>([]);
@@ -1183,6 +1266,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
         setPosterUrl(full.poster || "");
         setVenueLoc(full.venueName || "");
         setVenueCity(full.location || "");
+        setLocationUrl(full.locationUrl || "");
         if (full.contacts?.length) {
           setPocs(full.contacts.map((c, i) => ({ id: `poc-${i}`, name: c.name, email: c.email, phone: c.phone })));
         }
@@ -1303,6 +1387,25 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
     }
   }, [ev.id, fullShows, fullTiers]);
 
+  const handleUpdateShows = useCallback(async (updatedShows: { _id: string; date: string; startTime: string; endTime: string }[]) => {
+    const payload = updatedShows.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime })) as CreateScrEventPayload["shows"];
+    const saved = await scrApi.updateEvent(ev.id, { shows: payload });
+    setFullShows(saved.shows || []);
+    setShows(prev => prev.map(s => {
+      const updated = (saved.shows || []).find(sh => sh._id === s.id);
+      if (!updated) return s;
+      const d = new Date(updated.date);
+      const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      const mons = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return {
+        ...s,
+        dateLabel: `${days[d.getDay()]}, ${d.getDate()} ${mons[d.getMonth()]}`,
+        timeLabel: updated.endTime ? `${updated.startTime} to ${updated.endTime}` : updated.startTime,
+      };
+    }));
+    showTierToast("Show times updated");
+  }, [ev.id, showTierToast]);
+
   // Live sold/capacity from fullTiers — updates immediately after Add Ticket
   const liveCapacity = useMemo(() => fullTiers.reduce((s, t) => s + t.capacity, 0) || (ev.capacity ?? 0), [fullTiers, ev.capacity]);
   const liveSold     = useMemo(() => fullTiers.reduce((s, t) => s + t.sold, 0),    [fullTiers]);
@@ -1338,6 +1441,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
         languages:       language,
         venueName:       venueLocation,
         location:        venueCity,
+        locationUrl:     locationUrl,
         ownRestaurant:   ownRestaurant === "yes",
         venueInstagram:  instagramLink,
         isIndoor:        isIndoorVal,
@@ -1362,7 +1466,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       setSaving(false);
       setTimeout(() => setSaveMsg(null), 3000);
     }
-  }, [ev.id, ev.title, eventName, description, categories, subCategories, language, venueLocation, venueCity, ownRestaurant, instagramLink, venueType, seating, kidFriendly, petFriendly, minAge, ticketAge, gatesOpen, gatesOpenMinutes, pocs, imgUrl, posterUrl, extraSections, extraContent]);
+  }, [ev.id, ev.title, eventName, description, categories, subCategories, language, venueLocation, venueCity, locationUrl, ownRestaurant, instagramLink, venueType, seating, kidFriendly, petFriendly, minAge, ticketAge, gatesOpen, gatesOpenMinutes, pocs, imgUrl, posterUrl, extraSections, extraContent]);
 
   return (
     <>
@@ -1467,9 +1571,9 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                       {shows.map(show => (
                         <div key={show.id} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", marginBottom: "8px", overflow: "hidden" }}>
                           <button type="button" onClick={() => toggleShow(show.id)}
-                            style={{ display: "flex", alignItems: "center", width: "100%", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", gap: "12px" }}>
+                            style={{ display: "flex", alignItems: "center", width: "100%", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", gap: "12px", textAlign: "left" }}>
                             <div style={{ width: 8, height: 8, borderRadius: "50%", background: show.status === "active" ? "#22c55e" : "#444", flexShrink: 0 }} />
-                            <div style={{ flex: 1, textAlign: "left" }}>
+                            <div style={{ flex: 1 }}>
                               <p style={{ margin: "0 0 2px", fontSize: "14px", fontWeight: 700, color: "var(--white)" }}>{show.dateLabel}</p>
                               <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>{show.timeLabel}</p>
                             </div>
@@ -1574,6 +1678,12 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                             </label>
                           ))}
                         </div>
+                      </div>
+                      <div style={{ marginBottom: "14px" }}>
+                        <OvLabel>Google Maps URL</OvLabel>
+                        <input type="url" placeholder="https://maps.google.com/?q=..." value={locationUrl} onChange={e => setLocationUrl(e.target.value)}
+                          style={{ ...inp }} />
+                        <p style={{ margin: "4px 0 0", fontSize: "11px", color: "var(--muted2)" }}>Customers tap this to navigate to the venue</p>
                       </div>
                       <div>
                         <OvLabel>Instagram Link</OvLabel>
@@ -1791,7 +1901,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
 
       <AddShowDrawer open={drawerOpen} onClose={closeDrawer} onSave={handleSaveShow} />
       <AddTicketDrawer open={ticketDrawerOpen} onClose={closeTicketDrawer} onSave={handleSaveTicket} shows={fullShows} />
-      <EditTicketDrawer open={editingTier !== null} onClose={closeEditDrawer} tier={editingTier} shows={fullShows} onSave={handleEditSave} />
+      <EditTicketDrawer open={editingTier !== null} onClose={closeEditDrawer} tier={editingTier} shows={fullShows} onSave={handleEditSave} onSaveShows={handleUpdateShows} />
 
       {/* Success toast */}
       {tierSaveToast && (

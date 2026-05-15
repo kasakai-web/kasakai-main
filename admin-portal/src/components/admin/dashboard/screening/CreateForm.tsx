@@ -44,7 +44,7 @@ type Draft = {
   categories:string[]; subCategory:string;
   gstin:string; accountNumber:string; ifsc:string; accountType:"savings"|"current";
   pocs:Poc[];
-  venueLocation:string; venueCity:string; ownRestaurant:boolean|null; instagramLink:string;
+  venueLocation:string; venueCity:string; venueMapUrl:string; ownRestaurant:boolean|null; instagramLink:string;
   shows:Show[]; gatesOpenBefore:string;
   tiers:Tier[];
   languages:string[]; minAgeEntry:string; minAgePaid:string;
@@ -59,7 +59,7 @@ const INIT: Draft = {
   categories:[], subCategory:"",
   gstin:"", accountNumber:"", ifsc:"", accountType:"savings",
   pocs:[{ name:"", email:"", phone:"" }],
-  venueLocation:"", venueCity:"", ownRestaurant:null, instagramLink:"",
+  venueLocation:"", venueCity:"", venueMapUrl:"", ownRestaurant:null, instagramLink:"",
   shows:[], gatesOpenBefore:"",
   tiers:[],
   languages:[], minAgeEntry:"", minAgePaid:"",
@@ -320,6 +320,12 @@ function S2({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
             </div>
           </div>
           <TriToggle label="Hosting at own restaurant?" value={form.ownRestaurant} onChange={v => set(f => ({ ...f, ownRestaurant:v }))} />
+          <div>
+            <span style={LBL}>Google Maps URL (optional)</span>
+            <input style={inp} type="url" placeholder="https://maps.google.com/?q=..."
+              value={form.venueMapUrl} onChange={e => set(f => ({ ...f, venueMapUrl:e.target.value }))} />
+            <p style={{ margin:"4px 0 0", fontSize:"11px", color:"var(--muted2)" }}>Customers can tap this to navigate to the venue</p>
+          </div>
           <div>
             <span style={LBL}>Venue Instagram (optional)</span>
             <input style={inp} placeholder="https://instagram.com/venuename"
@@ -720,6 +726,7 @@ function buildPayload(form: Draft): CreateScrEventPayload {
     languages:       form.languages,
     venueName:       form.venueLocation,
     location:        form.venueCity,
+    locationUrl:     form.venueMapUrl || '',
     ownRestaurant:   form.ownRestaurant ?? false,
     venueInstagram:  form.instagramLink,
     gatesOpenBefore: Number(form.gatesOpenBefore) || 0,

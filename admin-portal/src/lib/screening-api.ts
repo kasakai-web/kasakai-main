@@ -54,6 +54,7 @@ export type ApiScrEvent = {
   status: 'draft' | 'published' | 'cancelled';
   venueName: string;
   location: string;
+  locationUrl: string;
   categories: string[];
   subCategories: string[];
   languages: string[];
@@ -92,6 +93,7 @@ export type CreateScrEventPayload = {
   languages: string[];
   venueName: string;
   location: string;
+  locationUrl?: string;
   ownRestaurant: boolean | null;
   venueInstagram: string;
   gatesOpenBefore: number;

@@ -36,6 +36,7 @@ export type ApiScrEvent = {
   videoUrl: string;
   venueName: string;
   location: string;
+  locationUrl?: string;
   categories: string[];
   languages: string[];
   tiers: ApiScrTier[];
@@ -221,6 +222,7 @@ export function toScreening(e: ApiScrEvent): Screening {
     minAgeEntry:    e.minAgeEntry || 0,
     minAgePaid:     e.minAgePaid || 0,
     gatesOpenBefore: e.gatesOpenBefore || 0,
+    locationUrl:    e.locationUrl || undefined,
   };
 }
 

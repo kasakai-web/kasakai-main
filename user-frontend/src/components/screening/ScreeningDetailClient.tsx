@@ -666,9 +666,23 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                           {screening.isIndoor ? "Indoor" : "Outdoor"}
                         </span>
                       )}
-                      <span style={{ fontSize: "10px", fontWeight: 800, color: "#888", padding: "4px 11px", background: "#111", border: "1px solid #242424", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
-                        {screening.location.includes(",") ? screening.location.split(",")[1].trim() : screening.location}
-                      </span>
+                      {screening.locationUrl ? (
+                        <a
+                          href={screening.locationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: "10px", fontWeight: 800, color: "#c8f135", padding: "4px 11px", background: "rgba(200,241,53,0.07)", border: "1px solid rgba(200,241,53,0.25)", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "5px" }}
+                        >
+                          <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                          </svg>
+                          {screening.location.includes(",") ? screening.location.split(",")[1].trim() : screening.location}
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: "10px", fontWeight: 800, color: "#888", padding: "4px 11px", background: "#111", border: "1px solid #242424", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+                          {screening.location.includes(",") ? screening.location.split(",")[1].trim() : screening.location}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
