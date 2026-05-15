@@ -7,15 +7,15 @@ function ShieldIcon() {
     <svg width="90" height="107" viewBox="0 0 84 100" fill="none">
       <defs>
         <linearGradient id="rzpSG" x1="42" y1="0" x2="42" y2="100" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#d5e87a" />
-          <stop offset="1" stopColor="#92b02a" />
+          <stop stopColor="#3b82f6" />
+          <stop offset="1" stopColor="#1d4ed8" />
         </linearGradient>
       </defs>
       <path d="M42 0L6 12V46C6 70 42 100 42 100C42 100 78 70 78 46V12L42 0Z" fill="url(#rzpSG)" />
       <path d="M42 3L9 13.5V46C9 68 42 96 42 96C42 96 75 68 75 46V13.5L42 3Z"
-        stroke="white" strokeOpacity="0.15" strokeWidth="1" />
+        stroke="white" strokeOpacity="0.18" strokeWidth="1" />
       {/* Razorpay slash */}
-      <path d="M46.5 32H29.5L24 43H30L21.5 68H30.5L41.5 43H34L46.5 32Z" fill="rgba(0,0,0,0.38)" />
+      <path d="M46.5 32H29.5L24 43H30L21.5 68H30.5L41.5 43H34L46.5 32Z" fill="rgba(255,255,255,0.28)" />
     </svg>
   );
 }
@@ -95,11 +95,13 @@ export function RazorpayTrustSection() {
           align-items: center;
           justify-content: center;
           text-align: center;
-          gap: 18px;
+          gap: 20px;
           padding: 52px 56px;
           border-right: 1px solid var(--border);
           flex-shrink: 0;
           min-width: 240px;
+          background: radial-gradient(circle at 50% 38%, rgba(59,130,246,0.10) 0%, transparent 68%);
+          position: relative;
         }
 
         /* ── Benefits row ── */
@@ -120,7 +122,7 @@ export function RazorpayTrustSection() {
           border-left: none;
         }
         .rzp-benefit:hover {
-          background: rgba(196,213,108,0.03);
+          background: rgba(59,130,246,0.028);
         }
 
         /* ── Fine print ── */
@@ -131,13 +133,36 @@ export function RazorpayTrustSection() {
           font-family: var(--body);
           font-size: 11.5px;
           color: var(--muted);
-          opacity: 0.5;
+          opacity: 0.45;
           letter-spacing: .05em;
         }
 
         /* ── Shield glow ── */
         .rzp-shield-glow {
-          filter: drop-shadow(0 8px 20px rgba(196,213,108,0.3));
+          filter: drop-shadow(0 8px 24px rgba(59,130,246,0.40));
+        }
+
+        /* ── Trusted badge ── */
+        .rzp-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-family: var(--mono);
+          font-size: 9px;
+          font-weight: 600;
+          letter-spacing: .26em;
+          text-transform: uppercase;
+          color: var(--lime);
+          background: rgba(196,213,108,0.07);
+          border: 1px solid rgba(196,213,108,0.22);
+          padding: 5px 11px;
+        }
+        .rzp-badge-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: var(--lime);
+          flex-shrink: 0;
         }
 
         /* ── Responsive ── */
@@ -152,6 +177,7 @@ export function RazorpayTrustSection() {
             gap: 24px;
             min-width: unset;
             justify-content: flex-start;
+            background: radial-gradient(circle at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 65%);
           }
           .rzp-brand-text { align-items: flex-start !important; }
           .rzp-benefit { padding: 32px 24px; }
@@ -163,7 +189,14 @@ export function RazorpayTrustSection() {
           .rzp-brand { flex-direction: column; text-align: center; align-items: center; }
           .rzp-brand-text { align-items: center !important; }
           .rzp-benefits { grid-template-columns: 1fr; }
-          .rzp-benefit { border-left: none; border-top: 1px solid var(--border); flex-direction: row; align-items: flex-start; gap: 18px; padding: 28px 24px; }
+          .rzp-benefit {
+            border-left: none;
+            border-top: 1px solid var(--border);
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 18px;
+            padding: 28px 24px;
+          }
           .rzp-benefit-text { flex: 1; }
           .rzp-fine { font-size: 11px; }
         }
@@ -179,7 +212,7 @@ export function RazorpayTrustSection() {
           </div>
           <div
             className="rzp-brand-text"
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}
           >
             <h3 style={{
               fontFamily: "var(--cond)",
@@ -192,14 +225,8 @@ export function RazorpayTrustSection() {
             }}>
               razorpay
             </h3>
-            <span style={{
-              fontFamily: "var(--mono)",
-              fontSize: "9px",
-              fontWeight: 600,
-              letterSpacing: ".28em",
-              textTransform: "uppercase",
-              color: "var(--lime)",
-            }}>
+            <span className="rzp-badge">
+              <span className="rzp-badge-dot" />
               TRUSTED BUSINESS
             </span>
           </div>
@@ -213,12 +240,12 @@ export function RazorpayTrustSection() {
               {/* Icon + number */}
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{
-                  color: "var(--lime)",
+                  color: "#5b9cf6",
                   width: 48,
                   height: 48,
                   borderRadius: "10px",
-                  background: "rgba(196,213,108,0.07)",
-                  border: "1px solid rgba(196,213,108,0.15)",
+                  background: "rgba(59,130,246,0.07)",
+                  border: "1px solid rgba(59,130,246,0.18)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
