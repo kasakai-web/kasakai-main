@@ -254,8 +254,11 @@ export const scrApi = {
   publishEvent: (id: string) =>
     apiFetch<ApiScrEvent>(`/screening/admin/events/${id}/publish`, { method: 'PATCH' }),
 
-  cancelEvent: (id: string) =>
-    apiFetch<ApiScrEvent>(`/screening/admin/events/${id}/cancel`, { method: 'PATCH' }),
+  cancelEvent: (id: string, reason: string) =>
+    apiFetch<ApiScrEvent>(`/screening/admin/events/${id}/cancel`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    }),
 
   deleteEvent: (id: string) =>
     apiFetch<null>(`/screening/admin/events/${id}`, { method: 'DELETE' }),

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { scrApi, toUIScrEvent, type UIScrEvent } from "@/lib/screening-api";
@@ -28,6 +28,107 @@ function ScrHead({ total, onCreate }: { total: number; onCreate: () => void }) {
   );
 }
 
+type CancelTarget = { id: string; title: string };
+
+function CancelModal({ target, onClose, onConfirm }: {
+  target: CancelTarget;
+  onClose: () => void;
+  onConfirm: (reason: string) => Promise<void>;
+}) {
+  const [reason, setReason]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+  const textareaRef           = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  const handleConfirm = async () => {
+    if (!reason.trim()) { setError("Please enter a cancellation reason."); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm(reason.trim());
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to cancel event");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      {/* Backdrop */}
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)" }} onClick={!loading ? onClose : undefined} />
+      {/* Modal */}
+      <div style={{ position: "relative", width: "100%", maxWidth: "460px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+        {/* Header */}
+        <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", gap: "14px" }}>
+          <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: "10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "var(--white)" }}>Cancel Event?</h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--white)" }}>{target.title}</strong> — all confirmed ticket holders will be refunded and notified by email.
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px" }}>
+          <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#ef4444", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" }}>
+            Cancellation Reason <span style={{ color: "#ef4444" }}>*</span>
+          </label>
+          <textarea
+            ref={textareaRef}
+            value={reason}
+            onChange={e => { setReason(e.target.value); if (error) setError(null); }}
+            placeholder="e.g. The venue is no longer available for this date…"
+            rows={4}
+            style={{
+              width: "100%", boxSizing: "border-box", resize: "vertical",
+              background: "var(--bg)", border: `1.5px solid ${error ? "#ef4444" : "var(--border)"}`,
+              borderRadius: "10px", padding: "12px 14px", fontSize: "13px",
+              color: "var(--white)", fontFamily: "inherit", lineHeight: 1.6,
+              outline: "none", transition: "border-color 0.15s",
+            }}
+            onFocus={e => { if (!error) e.currentTarget.style.borderColor = "rgba(239,68,68,0.5)"; }}
+            onBlur={e => { if (!error) e.currentTarget.style.borderColor = "var(--border)"; }}
+            disabled={loading}
+          />
+          {error && <p style={{ margin: "6px 0 0", fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>{error}</p>}
+
+          <div style={{ marginTop: "14px", padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "9px" }}>
+            <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
+              This reason will be included in the cancellation email sent to all ticket holders. Refunds will be processed to their Kasa Kai wallet within 7 business days.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "0 24px 22px", display: "flex", gap: "10px" }}>
+          <button type="button" onClick={onClose} disabled={loading}
+            style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: loading ? "default" : "pointer", opacity: loading ? 0.5 : 1 }}>
+            Go Back
+          </button>
+          <button type="button" onClick={handleConfirm} disabled={loading || !reason.trim()}
+            style={{ flex: 2, height: "42px", background: (loading || !reason.trim()) ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.15)", border: "1.5px solid rgba(239,68,68,0.4)", borderRadius: "9px", color: "#ef4444", fontSize: "13px", fontWeight: 800, cursor: (loading || !reason.trim()) ? "default" : "pointer", opacity: (loading || !reason.trim()) ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", transition: "all 0.15s" }}>
+            {loading ? "Cancelling…" : (
+              <>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                Cancel Event
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ScrEvents() {
   const router = useRouter();
 
@@ -36,6 +137,7 @@ export function ScrEvents() {
   const [error, setError]           = useState<string | null>(null);
   const [search, setSearch]         = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ScrEvent["status"]>("all");
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -74,15 +176,11 @@ export function ScrEvents() {
     }
   }, [fetchEvents]);
 
-  const handleQuickCancel = useCallback(async (id: string) => {
-    if (!confirm("Cancel this event?")) return;
-    try {
-      await scrApi.cancelEvent(id);
-      await fetchEvents();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to cancel");
-    }
-  }, [fetchEvents]);
+  const handleCancelConfirm = useCallback(async (reason: string) => {
+    if (!cancelTarget) return;
+    await scrApi.cancelEvent(cancelTarget.id, reason);
+    await fetchEvents();
+  }, [cancelTarget, fetchEvents]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this draft event? This cannot be undone.")) return;
@@ -96,6 +194,14 @@ export function ScrEvents() {
 
   return (
     <>
+      {cancelTarget && (
+        <CancelModal
+          target={cancelTarget}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={handleCancelConfirm}
+        />
+      )}
+
       <ScrHead total={events.length} onCreate={handleCreate} />
 
       <div className={styles.toolbar}>
@@ -140,7 +246,7 @@ export function ScrEvents() {
           onViewAnalytics={()  => router.push(`/dashboard/streaming/${ev.id}/analytics`)}
           onViewEvent={()     => router.push(`/dashboard/streaming/${ev.id}`)}
           onPublish={ev.status === "draft" ? () => handleQuickPublish(ev.id) : undefined}
-          onCancel={ev.status !== "cancelled" ? () => handleQuickCancel(ev.id) : undefined}
+          onCancel={ev.status !== "cancelled" ? () => setCancelTarget({ id: ev.id, title: ev.title }) : undefined}
           onDelete={ev.status === "draft" ? () => handleDelete(ev.id) : undefined}
         />
       ))}
