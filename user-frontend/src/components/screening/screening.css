@@ -108,21 +108,21 @@
 @media(min-width:1024px) { .sd-mob-widget { display:none; } }
 
 /* Booking widget */
-.sd-widget      { background:#0c0c0c; border:1px solid #1e1e1e; border-radius:14px; overflow:hidden; }
-.sd-widget-lime { height:2px; background:linear-gradient(to right,transparent,#c8f135 40%,transparent); }
+.sd-widget      { background:#0e0e0e; border:1px solid #252525; border-radius:14px; overflow:hidden; }
+.sd-widget-lime { height:3px; background:linear-gradient(to right,transparent,#c8f135 40%,transparent); }
 .sd-widget-body { padding:20px 20px 22px; }
 
 /* Tier card */
-.sd-tier        { padding:14px 16px; border-radius:12px; border:1px solid #1e1e1e; border-left:3px solid transparent; background:#0a0a0a; transition:background .15s,border-color .15s,box-shadow .15s; }
-.sd-tier:hover  { background:#0e0e0e; border-color:#282828; border-left-color:#282828; }
-.sd-tier.active { background:rgba(200,241,53,.05); border-color:rgba(200,241,53,.22); border-left-color:#c8f135; box-shadow:0 0 0 1px rgba(200,241,53,.06) inset; }
-.sd-tier-sold   { padding:14px 16px; border-radius:12px; border:1px solid #161616; border-left:3px solid #1a1a1a; background:#080808; opacity:.45; }
+.sd-tier        { padding:14px 16px; border-radius:12px; border:1px solid #242424; border-left:3px solid transparent; background:#111; transition:background .15s,border-color .15s,box-shadow .15s; }
+.sd-tier:hover  { background:#151515; border-color:#303030; border-left-color:#303030; }
+.sd-tier.active { background:rgba(200,241,53,.06); border-color:rgba(200,241,53,.28); border-left-color:#c8f135; box-shadow:0 0 0 1px rgba(200,241,53,.07) inset; }
+.sd-tier-sold   { padding:14px 16px; border-radius:12px; border:1px solid #1e1e1e; border-left:3px solid #222; background:#0d0d0d; opacity:.5; }
 
 /* Stepper */
-.sd-step-btn          { width:34px; height:34px; background:#161616; border:1px solid #222; color:#666; font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s,color .12s,border-color .12s; user-select:none; }
-.sd-step-btn:hover    { background:#1e1e1e; color:#c8f135; border-color:#333; }
-.sd-step-btn:disabled { background:#0e0e0e; color:#1e1e1e; cursor:default; border-color:#181818; }
-.sd-step-val          { width:34px; height:34px; background:#111; border-top:1px solid #222; border-bottom:1px solid #222; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; }
+.sd-step-btn          { width:34px; height:34px; background:#181818; border:1px solid #2a2a2a; color:#888; font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s,color .12s,border-color .12s; user-select:none; }
+.sd-step-btn:hover    { background:#222; color:#c8f135; border-color:#3a3a3a; }
+.sd-step-btn:disabled { background:#111; color:#333; cursor:default; border-color:#1e1e1e; }
+.sd-step-val          { width:34px; height:34px; background:#131313; border-top:1px solid #2a2a2a; border-bottom:1px solid #2a2a2a; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; }
 
 /* CTA */
 .sd-cta         { width:100%; height:50px; border:none; border-radius:8px; font-size:12px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:background .15s,box-shadow .15s,transform .1s; margin-bottom:12px; }
@@ -130,7 +130,7 @@
 .sd-cta.lime:hover { background:#d4f545; box-shadow:0 0 30px rgba(200,241,53,.26); }
 .sd-cta.lime:active{ transform:scale(.98); }
 .sd-cta.inactive{ background:#0e0e0e; color:#2a2a2a; border:1px solid #181818; cursor:default; }
-.sd-cta.hint    { background:rgba(200,241,53,0.06); color:#8a9a4a; border:1px solid rgba(200,241,53,0.22); cursor:default; }
+.sd-cta.hint    { background:rgba(200,241,53,0.06); color:#9aac50; border:1px solid rgba(200,241,53,0.28); cursor:default; }
 
 /* Confirmed state */
 .sd-confirmed  { background:#0c0c0c; border:1px solid rgba(200,241,53,.18); border-radius:14px; overflow:hidden; box-shadow:0 0 36px rgba(200,241,53,.04); animation:sd-in .3s cubic-bezier(.22,1,.36,1) both; }
@@ -140,7 +140,7 @@
 /* Trust row */
 .sd-trust       { display:flex; align-items:center; justify-content:center; gap:14px; padding-top:2px; }
 .sd-trust-item  { display:flex; align-items:center; gap:5px; }
-.sd-trust-label { font-size:9px; font-weight:800; color:#666; text-transform:uppercase; letter-spacing:.1em; }
+.sd-trust-label { font-size:9px; font-weight:800; color:#777; text-transform:uppercase; letter-spacing:.1em; }
 
 
 /* 404 page */
@@ -186,8 +186,8 @@
 .sd-terms-list       { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; }
 .sd-terms-item       { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid #161616; }
 .sd-terms-item:last-child { border-bottom:none; }
-.sd-terms-num        { font-size:10px; font-weight:900; color:#3a3a3a; min-width:18px; padding-top:3px; flex-shrink:0; }
-.sd-terms-text       { font-size:13px; color:#666; line-height:1.7; }
+.sd-terms-num        { font-size:10px; font-weight:900; color:#666; min-width:18px; padding-top:3px; flex-shrink:0; }
+.sd-terms-text       { font-size:13px; color:#888; line-height:1.7; }
 
 /* Payment sheet T&C */
 .scr-tc-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 0 0; cursor:pointer; background:none; border:none; }

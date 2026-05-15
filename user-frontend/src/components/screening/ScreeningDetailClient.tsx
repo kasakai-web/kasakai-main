@@ -75,7 +75,7 @@ const Stepper = memo(function Stepper({ value, onChange, max = 10 }: { value: nu
         disabled={value === 0}
         onClick={() => onChange(Math.max(0, value - 1))}
       >−</button>
-      <div className="sd-step-val" style={{ color: value > 0 ? "#c8f135" : "#2a2a2a" }}>{value}</div>
+      <div className="sd-step-val" style={{ color: value > 0 ? "#c8f135" : "#444" }}>{value}</div>
       <button
         className="sd-step-btn"
         style={{ borderRadius: "0 8px 8px 0" }}
@@ -100,7 +100,7 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
 
       {/* Name + qty badge */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: tier.description ? "6px" : "12px" }}>
-        <span style={{ fontSize: "14px", fontWeight: 800, color: soldOut ? "#2a2a2a" : isActive ? "#f0f0f0" : "#c0c0c0", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+        <span style={{ fontSize: "14px", fontWeight: 800, color: soldOut ? "#555" : isActive ? "#f0f0f0" : "#c0c0c0", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
           {tier.name}
         </span>
         {isActive && (
@@ -125,7 +125,7 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
               {tier.price === 0 ? "Free" : `₹${tier.price.toLocaleString()}`}
             </span>
             {tier.price > 0 && !soldOut && (
-              <span style={{ fontSize: "10px", color: "#666", fontWeight: 600 }}>/ person</span>
+              <span style={{ fontSize: "10px", color: "#888", fontWeight: 600 }}>/ person</span>
             )}
           </div>
           {scarce && (
@@ -137,7 +137,7 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
           )}
           {soldOut && (
             <div style={{ marginTop: "5px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 900, color: "#4a1a1a", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.15)", padding: "2px 9px", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.25)", padding: "2px 9px", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
                 Sold out
               </span>
             </div>
@@ -145,7 +145,7 @@ const TierRow = memo(function TierRow({ tier, qty, onChange }: { tier: TicketTie
         </div>
 
         {soldOut ? (
-          <div style={{ padding: "8px 14px", background: "#0e0e0e", border: "1px solid #1a1a1a", borderRadius: "8px", fontSize: "9px", fontWeight: 900, color: "#2a2a2a", letterSpacing: ".12em", textTransform: "uppercase", flexShrink: 0 }}>
+          <div style={{ padding: "8px 14px", background: "#0e0e0e", border: "1px solid #2a2a2a", borderRadius: "8px", fontSize: "9px", fontWeight: 900, color: "#555", letterSpacing: ".12em", textTransform: "uppercase", flexShrink: 0 }}>
             Sold Out
           </div>
         ) : (
@@ -259,9 +259,9 @@ const BookingWidget = memo(function BookingWidget({
           <Link
             href="/screening"
             className="no-underline"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "44px", background: "transparent", color: "#444", border: "1px solid #1e1e1e", borderRadius: "8px", fontSize: "11px", fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", transition: "border-color .15s,color .15s" }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#777"; }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#1e1e1e"; el.style.color = "#444"; }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "44px", background: "transparent", color: "#666", border: "1px solid #2a2a2a", borderRadius: "8px", fontSize: "11px", fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", transition: "border-color .15s,color .15s" }}
+            onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#3a3a3a"; el.style.color = "#999"; }}
+            onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#666"; }}
           >
             Browse More Events
           </Link>
@@ -284,7 +284,7 @@ const BookingWidget = memo(function BookingWidget({
             borderRadius: "8px",
           }}>
             <div>
-              <p style={{ fontSize: "8px", fontWeight: 900, color: "#5a6e1a", textTransform: "uppercase", letterSpacing: ".2em", margin: "0 0 3px" }}>Active Booking</p>
+              <p style={{ fontSize: "8px", fontWeight: 900, color: "#9ab828", textTransform: "uppercase", letterSpacing: ".2em", margin: "0 0 3px" }}>Active Booking</p>
               <p style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135", letterSpacing: ".18em", margin: 0 }}>{existingCode}</p>
             </div>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="rgba(200,241,53,0.5)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -298,7 +298,7 @@ const BookingWidget = memo(function BookingWidget({
             <p style={{ fontSize: "10px", fontWeight: 900, color: "#c8f135", letterSpacing: ".22em", textTransform: "uppercase", margin: 0 }}>
               {existingCode ? "Add More Tickets" : "Select Tickets"}
             </p>
-            <p style={{ fontSize: "11px", color: "#3a3a3a", margin: 0, fontWeight: 700, flexShrink: 0 }}>
+            <p style={{ fontSize: "11px", color: "#777", margin: 0, fontWeight: 700, flexShrink: 0 }}>
               from <span style={{ color: "#c8f135", fontWeight: 900 }}>{screening.startingPrice === 0 ? "Free" : `₹${screening.startingPrice.toLocaleString()}`}</span>
             </p>
           </div>
@@ -328,7 +328,7 @@ const BookingWidget = memo(function BookingWidget({
               </svg>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: "9px", fontWeight: 900, color: "#5a6e1a", textTransform: "uppercase", letterSpacing: ".22em", margin: "0 0 3px" }}>Booked</p>
+              <p style={{ fontSize: "9px", fontWeight: 900, color: "#9ab828", textTransform: "uppercase", letterSpacing: ".22em", margin: "0 0 3px" }}>Booked</p>
               <p style={{ fontSize: "11px", color: "#888", margin: 0, lineHeight: 1.5 }}>You have a ticket. Select more above to add seats.</p>
             </div>
           </div>
@@ -338,7 +338,7 @@ const BookingWidget = memo(function BookingWidget({
               <p style={{ fontSize: "9px", fontWeight: 900, color: hasTickets ? "#777" : "#666", letterSpacing: ".18em", textTransform: "uppercase", marginBottom: "4px" }}>
                 {hasTickets ? `${totalQty} ticket${totalQty > 1 ? "s" : ""}` : "No tickets selected"}
               </p>
-              <p style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, color: hasTickets ? "#e8e8e8" : "#555", margin: 0 }}>
+              <p style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, color: hasTickets ? "#e8e8e8" : "#666", margin: 0 }}>
                 {hasTickets ? `₹${totalAmt.toLocaleString()}` : "—"}
               </p>
             </div>
@@ -387,15 +387,15 @@ const CancelledWidget = memo(function CancelledWidget() {
         </div>
         <p style={{ fontSize: "9px", fontWeight: 900, color: "#ef4444", letterSpacing: ".28em", textTransform: "uppercase", marginBottom: "8px" }}>Event Cancelled</p>
         <h3 style={{ fontSize: "18px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 10px" }}>This event has been cancelled</h3>
-        <p style={{ fontSize: "12px", color: "#555", lineHeight: 1.7, margin: "0 0 22px" }}>
+        <p style={{ fontSize: "12px", color: "#777", lineHeight: 1.7, margin: "0 0 22px" }}>
           Tickets are no longer available. If you had a booking, a refund will be processed automatically.
         </p>
         <Link
           href="/screening"
           className="no-underline"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "44px", background: "transparent", color: "#444", border: "1px solid #1e1e1e", borderRadius: "8px", fontSize: "11px", fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}
-          onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#777"; }}
-          onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#1e1e1e"; el.style.color = "#444"; }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", height: "44px", background: "transparent", color: "#666", border: "1px solid #2a2a2a", borderRadius: "8px", fontSize: "11px", fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}
+          onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#3a3a3a"; el.style.color = "#999"; }}
+          onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = "#666"; }}
         >
           Browse Other Events
         </Link>
@@ -422,7 +422,7 @@ function TCModal({ onClose }: { onClose: () => void }) {
 
         <div className="sd-tc-header">
           <div>
-            <p style={{ fontSize: "9px", fontWeight: 900, color: "#444", letterSpacing: ".22em", textTransform: "uppercase", marginBottom: "4px" }}>Event Policy</p>
+            <p style={{ fontSize: "9px", fontWeight: 900, color: "#777", letterSpacing: ".22em", textTransform: "uppercase", marginBottom: "4px" }}>Event Policy</p>
             <h3 style={{ fontSize: "17px", fontWeight: 900, color: "#e8e8e8", margin: 0 }}>Terms &amp; Conditions</h3>
           </div>
           <button className="sd-tc-close" onClick={onClose}>
@@ -662,11 +662,11 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                     <p style={{ fontSize: "12px", color: "#666", lineHeight: 1.65, marginBottom: "12px" }}>{screening.location}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                       {screening.isIndoor != null && (
-                        <span style={{ fontSize: "10px", fontWeight: 800, color: "#333", padding: "4px 11px", background: "#0e0e0e", border: "1px solid #1c1c1c", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 800, color: "#888", padding: "4px 11px", background: "#111", border: "1px solid #242424", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
                           {screening.isIndoor ? "Indoor" : "Outdoor"}
                         </span>
                       )}
-                      <span style={{ fontSize: "10px", fontWeight: 800, color: "#333", padding: "4px 11px", background: "#0e0e0e", border: "1px solid #1c1c1c", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 800, color: "#888", padding: "4px 11px", background: "#111", border: "1px solid #242424", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
                         {screening.location.includes(",") ? screening.location.split(",")[1].trim() : screening.location}
                       </span>
                     </div>
@@ -683,11 +683,11 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                 {buildThingsToKnow(screening).map(({ text, paths, warn }) => (
                   <div key={text} className="sd-know-cell">
                     <div className="sd-know-icon">
-                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={warn ? "#5a2020" : "#3a3a3a"} strokeWidth="1.8" strokeLinecap="round">
+                      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={warn ? "#e05555" : "#666"} strokeWidth="1.8" strokeLinecap="round">
                         {paths.map((d, i) => <path key={i} d={d} />)}
                       </svg>
                     </div>
-                    <span className="sd-know-text" style={warn ? { color: "#4a2020" } : undefined}>{text}</span>
+                    <span className="sd-know-text" style={warn ? { color: "#e07070" } : undefined}>{text}</span>
                   </div>
                 ))}
               </div>
@@ -705,7 +705,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                       {c.name && (
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <div style={{ width: 32, height: 32, borderRadius: "8px", background: "#111", border: "1px solid #1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#555" strokeWidth="1.8" strokeLinecap="round">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#777" strokeWidth="1.8" strokeLinecap="round">
                               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/>
                             </svg>
                           </div>
@@ -727,7 +727,7 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                       {c.email && (
                         <a href={`mailto:${c.email}`} style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
                           <div style={{ width: 32, height: 32, borderRadius: "8px", background: "#111", border: "1px solid #1e1e1e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#555" strokeWidth="1.8" strokeLinecap="round">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#777" strokeWidth="1.8" strokeLinecap="round">
                               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
                             </svg>
                           </div>
@@ -746,9 +746,9 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
               <button className="sd-tc-btn" onClick={() => setTcModalOpen(true)}>
                 <div>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "#888", margin: 0 }}>View event terms &amp; refund policy</p>
-                  <p style={{ fontSize: "11px", color: "#555", margin: "3px 0 0", fontWeight: 600 }}>{TERMS.length} conditions apply</p>
+                  <p style={{ fontSize: "11px", color: "#777", margin: "3px 0 0", fontWeight: 600 }}>{TERMS.length} conditions apply</p>
                 </div>
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#444" strokeWidth="2.5" strokeLinecap="round">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#666" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M9 18l6-6-6-6"/>
                 </svg>
               </button>
