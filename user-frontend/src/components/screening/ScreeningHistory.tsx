@@ -21,7 +21,7 @@ export function ScreeningHistory({ history, onFindEvents, loading, error }: Prop
           </p>
           <h1 className="text-center sm:text-left" style={{ fontSize: "clamp(26px,5vw,40px)", fontWeight: 900, color: "#f0f0f0", textTransform: "uppercase", letterSpacing: "-0.01em", lineHeight: 1 }}>
             History
-            <span style={{ fontSize: "14px", fontWeight: 900, color: "#333", marginLeft: "12px" }}>
+            <span style={{ fontSize: "14px", fontWeight: 900, color: "#666", marginLeft: "12px" }}>
               {history.length > 0 ? `${history.length} event${history.length !== 1 ? "s" : ""}` : ""}
             </span>
           </h1>
@@ -94,20 +94,20 @@ function HistoryCard({ ticket }: { ticket: Ticket }) {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
           {isCancelled ? (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#5a2020" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#cc5555" strokeWidth="2.5" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
           ) : (
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 12l2 2 4-4M12 2a10 10 0 100 20A10 10 0 0012 2z" />
             </svg>
           )}
-          <span style={{ fontSize: "9px", fontWeight: 900, color: isCancelled ? "#5a2020" : "#555", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+          <span style={{ fontSize: "9px", fontWeight: 900, color: isCancelled ? "#cc5555" : "#666", letterSpacing: "0.2em", textTransform: "uppercase" }}>
             {isCancelled ? "Cancelled" : "Attended"}
           </span>
         </div>
-        <span style={{ fontSize: "9px", fontWeight: 900, color: "#2e2e2e", letterSpacing: "0.14em", textTransform: "uppercase" }}>{ticket.id}</span>
-        <span style={{ fontSize: "9px", fontWeight: 900, color: "#2e2e2e", letterSpacing: "0.1em" }}>{ticket.bookingTime.split(",")[0]}</span>
+        <span style={{ fontSize: "9px", fontWeight: 900, color: "#555", letterSpacing: "0.14em", textTransform: "uppercase" }}>{ticket.id}</span>
+        <span style={{ fontSize: "9px", fontWeight: 900, color: "#555", letterSpacing: "0.1em" }}>{ticket.bookingTime.split(",")[0]}</span>
       </div>
 
       {/* ── Match info row ── */}
@@ -147,18 +147,18 @@ function HistoryCard({ ticket }: { ticket: Ticket }) {
             className="line-clamp-2">{screening.matchTitle}</h3>
 
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#3a3a3a" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round">
               <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
             </svg>
-            <span style={{ fontSize: "10px", fontWeight: 700, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: "0.1em" }}
+            <span style={{ fontSize: "10px", fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em" }}
               className="truncate">{screening.venueName}, {screening.location}</span>
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
             {[`${screening.day}, ${screening.date}`, screening.time].map((label) => (
               <span key={label} style={{
-                fontSize: "9px", fontWeight: 900, color: "#3a3a3a",
-                padding: "3px 8px", background: "#141414", border: "1px solid #1e1e1e",
+                fontSize: "9px", fontWeight: 900, color: "#666",
+                padding: "3px 8px", background: "#141414", border: "1px solid #222",
                 letterSpacing: "0.1em", textTransform: "uppercase",
               }}>{label}</span>
             ))}
@@ -167,8 +167,8 @@ function HistoryCard({ ticket }: { ticket: Ticket }) {
           <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "2px" }}>
             {ticket.tiers.map(({ tier, quantity }) => (
               <span key={tier.id} style={{
-                fontSize: "9px", fontWeight: 700, color: "#333",
-                padding: "2px 7px", background: "#111", border: "1px solid #1a1a1a",
+                fontSize: "9px", fontWeight: 700, color: "#555",
+                padding: "2px 7px", background: "#111", border: "1px solid #222",
               }}>{quantity}× {tier.name}</span>
             ))}
           </div>
@@ -185,18 +185,18 @@ function HistoryCard({ ticket }: { ticket: Ticket }) {
       {/* ── Entry code + amount ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px" }}>
         <div>
-          <span style={{ fontSize: "8px", fontWeight: 900, color: "#2e2e2e", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
+          <span style={{ fontSize: "8px", fontWeight: 900, color: "#555", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
             Entry Code
           </span>
-          <span style={{ fontSize: "18px", fontWeight: 900, color: isCancelled ? "#3a1a1a" : "#333", letterSpacing: "0.22em", lineHeight: 1, display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span style={{ fontSize: "18px", fontWeight: 900, color: isCancelled ? "#cc5555" : "#666", letterSpacing: "0.22em", lineHeight: 1, display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>
             {ticket.entryCode}
           </span>
         </div>
         <div style={{ textAlign: "right" }}>
-          <span style={{ fontSize: "8px", fontWeight: 900, color: "#2e2e2e", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
+          <span style={{ fontSize: "8px", fontWeight: 900, color: "#555", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
             {isCancelled ? "Refunded" : "Total Paid"}
           </span>
-          <span style={{ fontSize: "20px", fontWeight: 900, color: "#555", lineHeight: 1 }}>
+          <span style={{ fontSize: "20px", fontWeight: 900, color: "#777", lineHeight: 1 }}>
             {ticket.totalAmount === 0 ? "Free" : `₹${ticket.totalAmount.toLocaleString()}`}
           </span>
         </div>

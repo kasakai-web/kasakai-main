@@ -309,7 +309,7 @@ function ResendTimer({ onResend }: { onResend: () => void }) {
   const handleResend = () => { setTimer(60); onResend(); };
   if (timer > 0) {
     return (
-      <p style={{ color: "#333", fontSize: "12px", textAlign: "center", fontWeight: 700, letterSpacing: "0.06em" }}>
+      <p style={{ color: "#666", fontSize: "12px", textAlign: "center", fontWeight: 700, letterSpacing: "0.06em" }}>
         Resend code in{" "}
         <span style={{
           color: "#c8f135",
@@ -397,7 +397,7 @@ function CardHeader({ eyebrow, title, subtitle }: { eyebrow: string; title: stri
         {title}
       </h1>
       {subtitle && (
-        <p style={{ color: "#3a3a3a", fontSize: "13px", marginTop: "9px", lineHeight: 1.6, fontWeight: 500 }}>
+        <p style={{ color: "#777", fontSize: "13px", marginTop: "9px", lineHeight: 1.6, fontWeight: 500 }}>
           {subtitle}
         </p>
       )}
@@ -427,7 +427,7 @@ function ScreeningAuthHeader() {
         </Link>
 
         <div style={{ padding: "0 20px", height: "100%", borderRight: "1px solid #181818", display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "center", flexShrink: 0 }}>
-          <span style={{ fontSize: "8px", fontWeight: 900, color: "#333", textTransform: "uppercase", letterSpacing: "0.25em", lineHeight: 1 }}>Kasa Kai</span>
+          <span style={{ fontSize: "8px", fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: "0.25em", lineHeight: 1 }}>Kasa Kai</span>
           <span style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135", textTransform: "uppercase", letterSpacing: "0.18em", lineHeight: 1, marginTop: "5px" }}>Screening</span>
         </div>
 
@@ -755,7 +755,7 @@ function ScreeningAuthFlow() {
           {/* Divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "24px 0" }}>
             <div style={{ flex: 1, height: "1px", background: "#151515" }} />
-            <span style={{ fontSize: "10px", fontWeight: 800, color: "#282828", letterSpacing: "0.1em", textTransform: "uppercase" }}>or</span>
+            <span style={{ fontSize: "10px", fontWeight: 800, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase" }}>or</span>
             <div style={{ flex: 1, height: "1px", background: "#151515" }} />
           </div>
 
@@ -788,11 +788,11 @@ function ScreeningAuthFlow() {
             Create free account
           </button>
 
-          <p style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, color: "#1e1e1e", letterSpacing: "0.08em", textTransform: "uppercase", marginTop: "24px" }}>
+          <p style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginTop: "24px" }}>
             By signing in you agree to our{" "}
-            <Link href="/terms" className="no-underline" style={{ color: "#2e2e2e", textDecoration: "underline" }}>Terms</Link>
+            <Link href="/terms" className="no-underline" style={{ color: "#888", textDecoration: "underline" }}>Terms</Link>
             {" & "}
-            <Link href="/privacy" className="no-underline" style={{ color: "#2e2e2e", textDecoration: "underline" }}>Privacy</Link>
+            <Link href="/privacy" className="no-underline" style={{ color: "#888", textDecoration: "underline" }}>Privacy</Link>
           </p>
         </div>
       </div>
@@ -859,7 +859,7 @@ function ScreeningAuthFlow() {
             </button>
 
             <div style={{ textAlign: "center" }}>
-              <span style={{ color: "#333", fontSize: "13px" }}>Already have an account? </span>
+              <span style={{ color: "#777", fontSize: "13px" }}>Already have an account? </span>
               <button
                 type="button"
                 onClick={() => goTo("login")}
@@ -960,7 +960,7 @@ function ScreeningAuthFlow() {
           </div>
 
           <h1 style={{ fontSize: "24px", fontWeight: 900, color: "#f0f0f0", margin: "0 0 10px", lineHeight: 1.2 }}>You're all set!</h1>
-          <p style={{ color: "#3a3a3a", fontSize: "13px", lineHeight: 1.7, marginBottom: "32px", maxWidth: "280px", margin: "0 auto 32px" }}>
+          <p style={{ color: "#777", fontSize: "13px", lineHeight: 1.7, marginBottom: "32px", maxWidth: "280px", margin: "0 auto 32px" }}>
             Welcome to Kasa Kai Screening,{" "}
             <span style={{ color: "#888", fontWeight: 700 }}>{name}</span>.{" "}
             Your account is ready — sign in to start booking events.

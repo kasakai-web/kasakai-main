@@ -234,7 +234,7 @@ export const ScreeningHeader = memo(function ScreeningHeader({ isLoggedIn }: Pro
               <p style={{ fontSize: "20px", fontWeight: 900, color: "#e8e8e8", margin: "0 0 6px" }}>
                 You&apos;ve been logged out
               </p>
-              <p style={{ fontSize: "12px", color: "#444", margin: 0 }}>
+              <p style={{ fontSize: "12px", color: "#777", margin: 0 }}>
                 Redirecting to screening…
               </p>
             </div>

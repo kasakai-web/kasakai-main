@@ -77,7 +77,7 @@ export function ScreeningLoginModal({ open, onClose, screening }: Props) {
                 Kasa Kai Screening
               </p>
               <h2 style={{ fontSize: "22px", fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>Reserve your spot</h2>
-              <p style={{ color: "#444", fontSize: "13px", marginTop: "8px", lineHeight: 1.5 }}>
+              <p style={{ color: "#777", fontSize: "13px", marginTop: "8px", lineHeight: 1.5 }}>
                 Sign in to book seats at your favourite venue
               </p>
             </div>
@@ -114,7 +114,7 @@ export function ScreeningLoginModal({ open, onClose, screening }: Props) {
                 <p style={{ fontSize: "13px", fontWeight: 800, color: "rgba(200,241,53,0.9)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {screening.matchTitle}
                 </p>
-                <p style={{ fontSize: "11px", color: "#444", fontWeight: 600, marginTop: "3px" }}>
+                <p style={{ fontSize: "11px", color: "#777", fontWeight: 600, marginTop: "3px" }}>
                   {screening.venueName} &middot; {screening.location}
                 </p>
               </div>
@@ -152,7 +152,7 @@ export function ScreeningLoginModal({ open, onClose, screening }: Props) {
                 <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d={icon} />
                 </svg>
-                <span style={{ fontSize: "10px", fontWeight: 800, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</span>
+                <span style={{ fontSize: "10px", fontWeight: 800, color: "#777", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</span>
               </div>
             ))}
           </div>
@@ -234,7 +234,7 @@ export function ScreeningLoginModal({ open, onClose, screening }: Props) {
               style={{
                 background: "none",
                 border: "none",
-                color: "#333",
+                color: "#555",
                 fontSize: "11px",
                 fontWeight: 800,
                 letterSpacing: "0.12em",
@@ -243,19 +243,19 @@ export function ScreeningLoginModal({ open, onClose, screening }: Props) {
                 padding: "6px",
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#555")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#333")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#888")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
             >
               Maybe later
             </button>
           </div>
 
           {/* Fine print */}
-          <p style={{ textAlign: "center", fontSize: "9px", fontWeight: 800, color: "#222", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "16px" }}>
+          <p style={{ textAlign: "center", fontSize: "9px", fontWeight: 800, color: "#666", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "16px" }}>
             By joining you agree to our{" "}
-            <Link href="/terms" className="no-underline" style={{ color: "#333", textDecoration: "underline" }}>Terms</Link>
+            <Link href="/terms" className="no-underline" style={{ color: "#888", textDecoration: "underline" }}>Terms</Link>
             {" & "}
-            <Link href="/privacy" className="no-underline" style={{ color: "#333", textDecoration: "underline" }}>Privacy</Link>
+            <Link href="/privacy" className="no-underline" style={{ color: "#888", textDecoration: "underline" }}>Privacy</Link>
           </p>
         </div>
       </div>

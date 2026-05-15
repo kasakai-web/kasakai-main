@@ -139,7 +139,7 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
           </div>
           <div className="text-right">
             <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block">Payable</span>
-            <span className="text-xl font-black text-[#c8f135]">₹{total}</span>
+            <span className="text-xl font-black text-[#c8f135]">{total === 0 ? "Free" : `₹${total}`}</span>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
         {/* Ticket breakdown */}
         {tierBreakdown.length > 0 && (
           <div style={{ margin: "0 24px", padding: "14px 16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px" }}>
-            <p style={{ fontSize: "9px", fontWeight: 900, color: "#3a3a3a", textTransform: "uppercase", letterSpacing: ".18em", marginBottom: "10px" }}>
+            <p style={{ fontSize: "9px", fontWeight: 900, color: "#777", textTransform: "uppercase", letterSpacing: ".18em", marginBottom: "10px" }}>
               Order Summary
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
@@ -182,7 +182,7 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
             </div>
             {tierBreakdown.length > 1 && (
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: "10px", paddingTop: "10px", display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "11px", fontWeight: 900, color: "#555", textTransform: "uppercase", letterSpacing: ".12em" }}>
+                <span style={{ fontSize: "11px", fontWeight: 900, color: "#777", textTransform: "uppercase", letterSpacing: ".12em" }}>
                   {tierBreakdown.reduce((s, l) => s + l.qty, 0)} tickets total
                 </span>
                 <span style={{ fontSize: "13px", fontWeight: 900, color: "#c8f135" }}>
@@ -241,12 +241,12 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
               onClick={() => setTcOpen((v) => !v)}
               type="button"
             >
-              <span style={{ fontSize: "10px", fontWeight: 800, color: "#444", letterSpacing: ".18em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: "10px", fontWeight: 800, color: "#777", letterSpacing: ".18em", textTransform: "uppercase" }}>
                 Terms &amp; Conditions
               </span>
               <svg
                 width="14" height="14" fill="none" viewBox="0 0 24 24"
-                stroke="#444" strokeWidth="2.5" strokeLinecap="round"
+                stroke="#666" strokeWidth="2.5" strokeLinecap="round"
                 style={{ transform: tcOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}
               >
                 <path d="M6 9l6 6 6-6" />
@@ -257,14 +257,14 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
               <ul className="scr-tc-list">
                 {TC_ITEMS.map((t, i) => (
                   <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#2e2e2e", flexShrink: 0, marginTop: "7px" }} />
-                    <span style={{ fontSize: "11px", color: "#383838", lineHeight: 1.65 }}>{t}</span>
+                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#555", flexShrink: 0, marginTop: "7px" }} />
+                    <span style={{ fontSize: "11px", color: "#888", lineHeight: 1.65 }}>{t}</span>
                   </li>
                 ))}
               </ul>
             )}
 
-            <p style={{ textAlign: "center", fontSize: "9px", fontWeight: 800, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: ".2em", paddingTop: "12px" }}>
+            <p style={{ textAlign: "center", fontSize: "9px", fontWeight: 800, color: "#555", textTransform: "uppercase", letterSpacing: ".2em", paddingTop: "12px" }}>
               By proceeding you agree to the above T&amp;C
             </p>
           </div>

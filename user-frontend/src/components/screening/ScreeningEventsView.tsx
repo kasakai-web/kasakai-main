@@ -179,10 +179,10 @@ export const ScreeningEventsView = memo(function ScreeningEventsView({ screening
         {/* Label row */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span style={{ fontSize: "10px", fontWeight: 900, color: "#444", letterSpacing: "0.22em", textTransform: "uppercase" }}>
+            <span style={{ fontSize: "10px", fontWeight: 900, color: "#777", letterSpacing: "0.22em", textTransform: "uppercase" }}>
               {search || city !== "All" ? "Results" : "All Events"}
             </span>
-            <span style={{ padding: "3px 10px", border: "1px solid #222", fontSize: "9px", fontWeight: 900, color: "#444", letterSpacing: "0.18em", textTransform: "uppercase" }}>
+            <span style={{ padding: "3px 10px", border: "1px solid #2a2a2a", fontSize: "9px", fontWeight: 900, color: "#777", letterSpacing: "0.18em", textTransform: "uppercase" }}>
               {filtered.length} {filtered.length === 1 ? "event" : "events"}
             </span>
           </div>

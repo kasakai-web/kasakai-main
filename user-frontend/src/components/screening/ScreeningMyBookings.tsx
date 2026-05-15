@@ -22,7 +22,7 @@ export function ScreeningMyBookings({ bookings, onFindEvents, loading, error }: 
           <div className="flex flex-col sm:flex-row items-center sm:items-end sm:justify-between gap-4">
             <h1 className="text-center sm:text-left" style={{ fontSize: "clamp(26px,5vw,40px)", fontWeight: 900, color: "#f0f0f0", textTransform: "uppercase", letterSpacing: "-0.01em", lineHeight: 1 }}>
               My Bookings
-              <span style={{ fontSize: "14px", fontWeight: 900, color: "#333", marginLeft: "12px", letterSpacing: "0.04em" }}>
+              <span style={{ fontSize: "14px", fontWeight: 900, color: "#666", marginLeft: "12px", letterSpacing: "0.04em" }}>
                 {bookings.length > 0 ? `${bookings.length} active` : ""}
               </span>
             </h1>
@@ -108,8 +108,8 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#c8f135", display: "inline-block" }} />
           <span style={{ fontSize: "9px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.2em", textTransform: "uppercase" }}>Confirmed</span>
         </div>
-        <span style={{ fontSize: "9px", fontWeight: 900, color: "#3a3a3a", letterSpacing: "0.14em", textTransform: "uppercase" }}>{ticket.id}</span>
-        <span style={{ fontSize: "9px", fontWeight: 900, color: "#3a3a3a", letterSpacing: "0.1em" }}>{ticket.bookingTime.split(",")[0]}</span>
+        <span style={{ fontSize: "9px", fontWeight: 900, color: "#666", letterSpacing: "0.14em", textTransform: "uppercase" }}>{ticket.id}</span>
+        <span style={{ fontSize: "9px", fontWeight: 900, color: "#666", letterSpacing: "0.1em" }}>{ticket.bookingTime.split(",")[0]}</span>
       </div>
 
       {/* ── Match info row ── */}
@@ -184,7 +184,7 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
         padding: "14px 18px",
       }}>
         <div>
-          <span style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
+          <span style={{ fontSize: "8px", fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
             Entry Code
           </span>
           <span style={{ fontSize: "20px", fontWeight: 900, color: "#c8f135", letterSpacing: "0.22em", lineHeight: 1, display: "block", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -192,7 +192,7 @@ const TicketCard = memo(function TicketCard({ ticket }: { ticket: Ticket }) {
           </span>
         </div>
         <div style={{ textAlign: "right" }}>
-          <span style={{ fontSize: "8px", fontWeight: 900, color: "#444", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
+          <span style={{ fontSize: "8px", fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: "0.22em", display: "block", marginBottom: "5px" }}>
             Total Paid
           </span>
           <span style={{ fontSize: "22px", fontWeight: 900, color: "#f0f0f0", lineHeight: 1 }}>
