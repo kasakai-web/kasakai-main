@@ -1187,6 +1187,108 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave, onSaveShows }: {
   );
 }
 
+// ── Edit Venue Drawer ─────────────────────────────────────────────────────────
+
+function EditVenueDrawer({ open, onClose, initialName, initialCity, initialMapUrl, onSave }: {
+  open: boolean; onClose: () => void;
+  initialName: string; initialCity: string; initialMapUrl: string;
+  onSave: (name: string, city: string, mapUrl: string) => Promise<void>;
+}) {
+  const [name, setName]           = useState(initialName);
+  const [city, setCity]           = useState(initialCity);
+  const [mapUrl, setMapUrl]       = useState(initialMapUrl);
+  const [saving, setSaving]       = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setName(initialName); setCity(initialCity); setMapUrl(initialMapUrl);
+      setSaving(false); setSaveError(null);
+      setTimeout(() => nameRef.current?.focus(), 80);
+    }
+  }, [open, initialName, initialCity, initialMapUrl]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true); setSaveError(null);
+    try {
+      await onSave(name.trim(), city.trim(), mapUrl.trim());
+      onClose();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={() => { if (!saving) onClose(); }}
+        style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity 0.25s" }} />
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, width: "min(480px,100vw)", background: "var(--surface)", borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", boxShadow: "-6px 0 40px rgba(0,0,0,0.45)", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+          <div>
+            <p style={{ margin: "0 0 2px", fontSize: "10px", fontWeight: 800, color: "#5be6b2", letterSpacing: "0.16em", textTransform: "uppercase" }}>Venue</p>
+            <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--white)" }}>Edit Venue</h3>
+          </div>
+          <button type="button" onClick={onClose} style={{ width: 32, height: 32, borderRadius: "8px", background: "var(--bg)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "18px" }}>
+          <div>
+            <OvLabel required>Venue Name</OvLabel>
+            <input ref={nameRef} value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. The Local Cafe" style={{ ...inp, marginTop: "6px" }} />
+          </div>
+          <div>
+            <OvLabel required>City / Area</OvLabel>
+            <input value={city} onChange={e => setCity(e.target.value)}
+              placeholder="e.g. Koramangala, Bangalore" style={{ ...inp, marginTop: "6px" }} />
+          </div>
+          <div>
+            <OvLabel>Google Maps URL</OvLabel>
+            <input type="url" value={mapUrl} onChange={e => setMapUrl(e.target.value)}
+              placeholder="https://maps.google.com/?q=..." style={{ ...inp, marginTop: "6px" }} />
+            <p style={{ margin: "5px 0 0", fontSize: "11px", color: "var(--muted2)" }}>Customers tap this to open the venue in Google Maps</p>
+          </div>
+          <div style={{ background: "rgba(91,230,178,0.04)", border: "1px solid rgba(91,230,178,0.12)", borderRadius: "10px", padding: "12px 14px" }}>
+            <p style={{ margin: 0, fontSize: "11px", color: "var(--muted2)", lineHeight: 1.6 }}>
+              Venue changes go live immediately on the customer-facing event page.
+            </p>
+          </div>
+        </div>
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ padding: "16px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: "10px" }}>
+            <button type="button" onClick={onClose} disabled={saving}
+              style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button type="button" onClick={handleSave} disabled={saving || !name.trim()}
+              style={{ flex: 2, height: "42px", background: saving ? "rgba(91,230,178,0.06)" : "rgba(91,230,178,0.12)", border: "1.5px solid rgba(91,230,178,0.45)", borderRadius: "9px", color: "#5be6b2", fontSize: "13px", fontWeight: 800, cursor: saving ? "default" : "pointer", opacity: (saving || !name.trim()) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "7px" }}>
+              {saving ? "Saving…" : "Save Venue"}
+              {!saving && <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>}
+            </button>
+          </div>
+          {saveError && (
+            <div style={{ padding: "0 22px 14px" }}>
+              <p style={{ margin: 0, fontSize: "12px", color: "#ef4444", fontWeight: 600, padding: "9px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px" }}>{saveError}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 type Poc = { id: string; name: string; email: string; phone: string };
@@ -1202,6 +1304,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
   const [drawerOpen, setDrawerOpen]         = useState(false);
   const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
   const [editingTier, setEditingTier]       = useState<ApiScrTier | null>(null);
+  const [venueDrawerOpen, setVenueDrawerOpen] = useState(false);
   const [tierSaveToast, setTierSaveToast]   = useState<string | null>(null);
 
   // Overview tab state — all initialised empty; useEffect populates from API
@@ -1387,6 +1490,14 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
     }
   }, [ev.id, fullShows, fullTiers]);
 
+  const handleSaveVenue = useCallback(async (name: string, city: string, mapUrl: string) => {
+    await scrApi.updateEvent(ev.id, { venueName: name, location: city, locationUrl: mapUrl });
+    setVenueLoc(name);
+    setVenueCity(city);
+    setLocationUrl(mapUrl);
+    showTierToast("Venue updated");
+  }, [ev.id, showTierToast]);
+
   const handleUpdateShows = useCallback(async (updatedShows: { _id: string; date: string; startTime: string; endTime: string }[]) => {
     const payload = updatedShows.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime })) as CreateScrEventPayload["shows"];
     const saved = await scrApi.updateEvent(ev.id, { shows: payload });
@@ -1516,6 +1627,31 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                   </div>
                 ) : (
                   <>
+                    {/* ── Venue ── */}
+                    <div style={{ marginBottom: "24px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: "9px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="2" strokeLinecap="round">
+                            <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: "0 0 2px", fontSize: "13px", fontWeight: 700, color: "var(--white)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {venueLocation || <span style={{ color: "var(--muted2)" }}>No venue set</span>}
+                          </p>
+                          <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>
+                            {venueCity || "No city set"}
+                            {locationUrl && <span style={{ marginLeft: "8px", color: "#5be6b2", fontWeight: 600 }}>· Maps linked</span>}
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => setVenueDrawerOpen(true)}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 13px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.25)", borderRadius: "8px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          Edit Venue
+                        </button>
+                      </div>
+                    </div>
+
                     {/* ── Ticket Types ── */}
                     <div style={{ marginBottom: "24px" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
@@ -1658,13 +1794,13 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
                         <div>
                           <OvLabel required>Venue Name</OvLabel>
-                          <input value={venueLocation} onChange={e => setVenueLoc(e.target.value)} disabled={isLocked}
-                            style={{ ...inp, opacity: isLocked ? 0.55 : 1 }} />
+                          <input value={venueLocation} onChange={e => setVenueLoc(e.target.value)}
+                            style={{ ...inp }} placeholder="e.g. The Local Cafe" />
                         </div>
                         <div>
                           <OvLabel required>City / Area</OvLabel>
-                          <input value={venueCity} onChange={e => setVenueCity(e.target.value)} disabled={isLocked}
-                            style={{ ...inp, opacity: isLocked ? 0.55 : 1 }} placeholder="e.g. Koramangala, Bangalore" />
+                          <input value={venueCity} onChange={e => setVenueCity(e.target.value)}
+                            style={{ ...inp }} placeholder="e.g. Koramangala, Bangalore" />
                         </div>
                       </div>
                       <div style={{ marginBottom: "14px" }}>
@@ -1902,6 +2038,9 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       <AddShowDrawer open={drawerOpen} onClose={closeDrawer} onSave={handleSaveShow} />
       <AddTicketDrawer open={ticketDrawerOpen} onClose={closeTicketDrawer} onSave={handleSaveTicket} shows={fullShows} />
       <EditTicketDrawer open={editingTier !== null} onClose={closeEditDrawer} tier={editingTier} shows={fullShows} onSave={handleEditSave} onSaveShows={handleUpdateShows} />
+      <EditVenueDrawer open={venueDrawerOpen} onClose={() => setVenueDrawerOpen(false)}
+        initialName={venueLocation} initialCity={venueCity} initialMapUrl={locationUrl}
+        onSave={handleSaveVenue} />
 
       {/* Success toast */}
       {tierSaveToast && (

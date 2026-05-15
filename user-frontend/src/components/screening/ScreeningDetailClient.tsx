@@ -652,11 +652,23 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
               <SH>Venue</SH>
               <div className="sd-venue-card">
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "10px", background: "rgba(200,241,53,.06)", border: "1px solid rgba(200,241,53,.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="2" strokeLinecap="round">
-                      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-                    </svg>
-                  </div>
+                  {/* Map pin icon — clickable when Maps URL is set */}
+                  {screening.locationUrl ? (
+                    <a href={screening.locationUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ width: 40, height: 40, borderRadius: "10px", background: "rgba(200,241,53,.12)", border: "1px solid rgba(200,241,53,.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, textDecoration: "none", transition: "background 0.15s" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(200,241,53,.2)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "rgba(200,241,53,.12)")}>
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="2" strokeLinecap="round">
+                        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                      </svg>
+                    </a>
+                  ) : (
+                    <div style={{ width: 40, height: 40, borderRadius: "10px", background: "rgba(200,241,53,.06)", border: "1px solid rgba(200,241,53,.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#c8f135" strokeWidth="2" strokeLinecap="round">
+                        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                      </svg>
+                    </div>
+                  )}
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: "15px", fontWeight: 900, color: "#d0d0d0", marginBottom: "4px" }}>{screening.venueName}</p>
                     <p style={{ fontSize: "12px", color: "#666", lineHeight: 1.65, marginBottom: "12px" }}>{screening.location}</p>
@@ -667,16 +679,12 @@ export function ScreeningDetailClient({ screening }: { screening: Screening | nu
                         </span>
                       )}
                       {screening.locationUrl ? (
-                        <a
-                          href={screening.locationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: "10px", fontWeight: 800, color: "#c8f135", padding: "4px 11px", background: "rgba(200,241,53,0.07)", border: "1px solid rgba(200,241,53,0.25)", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "5px" }}
-                        >
+                        <a href={screening.locationUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: "10px", fontWeight: 800, color: "#c8f135", padding: "4px 11px", background: "rgba(200,241,53,0.07)", border: "1px solid rgba(200,241,53,0.25)", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "5px" }}>
                           <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                             <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
                           </svg>
-                          {screening.location.includes(",") ? screening.location.split(",")[1].trim() : screening.location}
+                          Get Directions
                         </a>
                       ) : (
                         <span style={{ fontSize: "10px", fontWeight: 800, color: "#888", padding: "4px 11px", background: "#111", border: "1px solid #242424", borderRadius: "999px", letterSpacing: ".1em", textTransform: "uppercase" }}>
