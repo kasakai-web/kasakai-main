@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { FAQSection } from "@/components/sections/FAQSection";
+import { RazorpayTrustSection } from "@/components/sections/RazorpayTrustSection";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
@@ -19,7 +19,7 @@ export default function Home() {
       <Header />
       <main>
         <HeroSection />
-        <FAQSection />
+        <RazorpayTrustSection />
       </main>
       <Footer />
     </>
