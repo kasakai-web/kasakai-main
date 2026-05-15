@@ -10,13 +10,22 @@ function authHeaders(): Record<string, string> {
   };
 }
 
+export class ApiError extends Error {
+  details?: unknown;
+  constructor(message: string, details?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.details = details;
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { ...authHeaders(), ...(init?.headers ?? {}) },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'API error');
+  if (!res.ok) throw new ApiError(data.message || 'API error', data.details);
   return data.data as T;
 }
 

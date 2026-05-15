@@ -72,7 +72,7 @@ function CancelModal({ target, onClose, onConfirm }: {
           <div style={{ flex: 1 }}>
             <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "var(--white)" }}>Cancel Event?</h3>
             <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.5 }}>
-              <strong style={{ color: "var(--white)" }}>{target.title}</strong> — all confirmed ticket holders will be refunded and notified by email.
+              <strong style={{ color: "var(--white)" }}>{target.title}</strong> — all confirmed ticket holders will be refunded to their original payment method and notified by email.
             </p>
           </div>
         </div>
@@ -103,7 +103,7 @@ function CancelModal({ target, onClose, onConfirm }: {
 
           <div style={{ marginTop: "14px", padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "9px" }}>
             <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
-              This reason will be included in the cancellation email sent to all ticket holders. Refunds will be processed to their Kasa Kai wallet within 7 business days.
+              This reason will be included in the cancellation email sent to all ticket holders. Refunds will be processed to the original payment method (bank account / UPI / card) within 5–7 business days.
             </p>
           </div>
         </div>

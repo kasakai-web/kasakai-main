@@ -2,14 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { scrApi, type ScrScanResult } from "@/lib/screening-api";
+import { scrApi, ApiError, type ScrScanResult } from "@/lib/screening-api";
 import { backBtnStyle } from "@/components/admin/dashboard/screening/types";
 
 type ScanState =
   | { status: "idle" }
   | { status: "scanning" }
   | { status: "granted"; ticket: ScrScanResult }
-  | { status: "already_used"; ticket: ScrScanResult }
+  | { status: "already_used"; ticket?: ScrScanResult }
   | { status: "error"; message: string };
 
 export default function ScanPage() {
@@ -34,7 +34,10 @@ export default function ScanPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Scan failed";
       if (msg.toLowerCase().includes("already scanned")) {
-        setState({ status: "already_used", ticket: (err as { data?: { ticket: ScrScanResult } }).data?.ticket as ScrScanResult });
+        const ticket = err instanceof ApiError
+          ? (err.details as { ticket?: ScrScanResult } | undefined)?.ticket
+          : undefined;
+        setState({ status: "already_used", ticket });
       } else {
         setState({ status: "error", message: msg });
       }
