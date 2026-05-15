@@ -90,19 +90,6 @@ export function HeroSection() {
         className="hero-inner-visible"
         style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}
       >
-        <div
-          className="hero-badge"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: "10px",
-            fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: ".22em",
-            textTransform: "uppercase", color: "var(--muted)",
-            border: "1px solid var(--border)", padding: "6px 16px",
-          }}
-        >
-          <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--lime)", animation: "blink 2s infinite", display: "inline-block" }} />
-          Now live in your city
-        </div>
-
         <h1
           className="hero-title"
           style={{

@@ -1,17 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const quickLinks = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/#about" },
-  { label: "Features", href: "/#features" },
-  { label: "Pricing", href: "/#pricing" },
-];
-
-const productLinks = [
-  { label: "Player Login", href: "/login?role=player" },
-  { label: "Organiser Login", href: "/login?role=organiser" },
-  { label: "Support / FAQ", href: "/#support" },
-  { label: "How It Works", href: "/#features2" },
+  { label: "Football", href: "/login?role=player" },
+  { label: "Screening Events", href: "/screening" },
+  { label: "Turf Events", href: "/dashboard" },
 ];
 
 export function Footer() {
@@ -20,97 +15,112 @@ export function Footer() {
   return (
     <footer
       style={{
-        background: "radial-gradient(1200px 420px at 10% 0%, rgba(196, 213, 108, 0.08), transparent 55%), #070707",
-        borderTop: "1px solid #1e1e1e",
+        background: "radial-gradient(1400px 500px at 10% -5%, rgba(196, 213, 108, 0.12), transparent 60%), linear-gradient(180deg, rgba(7, 7, 7, 0.4) 0%, #0a0a0a 100%)",
+        borderTop: "1px solid #1a1a1a",
         width: "100vw",
         marginLeft: "calc(50% - 50vw)",
-        padding: "64px 24px 40px",
+        padding: "80px 24px 50px",
       }}
     >
-      <div style={{ maxWidth: "1160px", margin: "0 auto", width: "100%", padding: "0 clamp(16px, 4vw, 40px)" }}>
+      <div style={{ maxWidth: "1280px", margin: "0 auto", width: "100%", padding: "0 clamp(16px, 4vw, 40px)" }}>
+        {/* Main Footer Content */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
-            gap: "32px",
-            marginBottom: "40px",
+            gridTemplateColumns: "1.8fr 1.2fr 1.2fr 1.2fr",
+            gap: "48px",
+            marginBottom: "60px",
           }}
         >
-          <div style={{ border: "1px solid #1b1b1b", background: "#0d0d0d", padding: "20px" }}>
-            <h3
-              style={{
-                fontFamily: "var(--cond)",
-                fontSize: "48px",
-                fontWeight: 900,
-                letterSpacing: ".08em",
-                color: "white",
-                lineHeight: 0.9,
-                marginBottom: "12px",
-              }}
-            >
-              KASA<span style={{ color: "var(--muted)" }}>KAI</span>
-            </h3>
-            <p
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: "10.5px",
-                letterSpacing: ".14em",
-                color: "var(--muted)",
-                marginBottom: "14px",
-                textTransform: "uppercase",
-              }}
-            >
-              Organised football. Every time.
-            </p>
-            <p style={{ color: "#a3a3a3", lineHeight: 1.8, fontSize: "15px", fontWeight: 500 }}>
-              Kasa Kai connects players, organisers, and admins on one system built for real match-day operations.
+          {/* Brand Section */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Image
+                src="/kasa-kai-logo.svg"
+                alt="Kasa Kai"
+                width={40}
+                height={40}
+                style={{ width: "40px", height: "40px" }}
+              />
+              <h2
+                style={{
+                  fontFamily: "var(--cond)",
+                  fontSize: "32px",
+                  fontWeight: 900,
+                  letterSpacing: ".08em",
+                  color: "white",
+                  lineHeight: 1,
+                  margin: 0,
+                }}
+              >
+                KASA<span style={{ color: "var(--lime)" }}>KAI</span>
+              </h2>
+            </div>
+            <p style={{ color: "#999", lineHeight: 1.7, fontSize: "14px", fontWeight: 400, margin: "0" }}>
+              We specialise in organising simple yet fulfilling events around your hobbies. Top event types include screenings, turf meets and open mics across Indian cities
             </p>
           </div>
 
+          {/* Navigation Links */}
           <div>
-            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "14px" }}>
-              Quick Links
+            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".15em", textTransform: "uppercase", color: "var(--lime)", marginBottom: "18px", margin: "0 0 18px 0", fontWeight: 600 }}>
+              Navigate
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {quickLinks.map((link) => (
-                <a key={link.href} href={link.href} style={{ fontSize: "15px", color: "rgba(255,255,255,.75)", textDecoration: "none", fontWeight: 500 }}>
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    fontSize: "14px",
+                    color: "#ccc",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    letterSpacing: ".01em",
+                    transition: "color 0.3s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--lime)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
+                >
                   {link.label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
 
+          {/* Support Section */}
           <div>
-            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "14px" }}>
-              Product
+            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".15em", textTransform: "uppercase", color: "var(--lime)", marginBottom: "18px", margin: "0 0 18px 0", fontWeight: 600 }}>
+              Support
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
-              {productLinks.map((link) => (
-                <a key={link.href} href={link.href} style={{ fontSize: "15px", color: "rgba(255,255,255,.75)", textDecoration: "none", fontWeight: 500 }}>
-                  {link.label}
-                </a>
-              ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <Link href="/#support" style={{ fontSize: "14px", color: "#ccc", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+                Help & Support
+              </Link>
+              <Link href="/#about" style={{ fontSize: "14px", color: "#ccc", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+                About Us
+              </Link>
+              <a href="mailto:contact@kasakai.in" style={{ fontSize: "14px", color: "#ccc", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+                Contact Us
+              </a>
             </div>
           </div>
 
-          <div style={{ border: "1px solid #1f1f1f", background: "rgba(196, 213, 108, 0.05)", padding: "18px" }}>
-            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--lime)", marginBottom: "14px" }}>
-              Contact
+          {/* Contact Info */}
+          <div>
+            <p style={{ fontFamily: "var(--mono)", fontSize: "11px", letterSpacing: ".15em", textTransform: "uppercase", color: "var(--lime)", marginBottom: "18px", margin: "0 0 18px 0", fontWeight: 600 }}>
+              Get In Touch
             </p>
-            <div style={{ display: "grid", gap: "10px" }}>
+            <div style={{ display: "grid", gap: "16px" }}>
               <div>
-                <div style={{ fontSize: "13px", color: "#7f7f7f", marginBottom: "3px" }}>Name</div>
-                <div style={{ fontSize: "16px", color: "#f4efe8", fontWeight: 600 }}>Suneet</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "13px", color: "#7f7f7f", marginBottom: "3px" }}>Phone</div>
-                <a href="tel:9930931616" style={{ fontSize: "16px", color: "#f4efe8", textDecoration: "none", fontWeight: 600 }}>
-                  9930931616
+                <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px", fontWeight: 500 }}>Contact</div>
+                <a href="tel:9930931616" style={{ fontSize: "14px", color: "#f4efe8", textDecoration: "none", fontWeight: 600, transition: "color 0.3s ease" }}>
+                  +91 9930931616
                 </a>
               </div>
               <div>
-                <div style={{ fontSize: "13px", color: "#7f7f7f", marginBottom: "3px" }}>Email</div>
-                <a href="mailto:contact@kasakai.in" style={{ fontSize: "16px", color: "#f4efe8", textDecoration: "none", fontWeight: 600 }}>
+                <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px", fontWeight: 500 }}>Email</div>
+                <a href="mailto:contact@kasakai.in" style={{ fontSize: "14px", color: "#f4efe8", textDecoration: "none", fontWeight: 600, transition: "color 0.3s ease" }}>
                   contact@kasakai.in
                 </a>
               </div>
@@ -118,88 +128,120 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Bottom Section */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            borderTop: "1px solid #1e1e1e",
-            paddingTop: "24px",
+            borderTop: "1px solid #1a1a1a",
+            paddingTop: "30px",
             flexWrap: "wrap",
-            gap: "16px",
+            gap: "20px",
           }}
         >
-          <p style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".08em", color: "#6f6f6f", fontWeight: 500 }}>
+          <p style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "#555", fontWeight: 500, margin: "0" }}>
             © {year} Kasa Kai. All rights reserved.
           </p>
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            <Link href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
-              Company
-            </Link>
-            <Link href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
-              Support
-            </Link>
-            <a href="mailto:contact@kasakai.in" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".06em", color: "#7f7f7f", textDecoration: "none", fontWeight: 500 }}>
-              Contact
+          <div style={{ display: "flex", gap: "30px", flexWrap: "wrap" }}>
+            <a href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "#888", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+              Privacy Policy
+            </a>
+            <a href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "#888", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+              Terms & Conditions
             </a>
           </div>
         </div>
       </div>
 
       <style jsx>{`
+        a:hover {
+          color: var(--lime) !important;
+        }
+
+        @media (max-width: 1200px) {
+          footer {
+            padding: 70px 24px 40px !important;
+          }
+          footer > div > div:first-of-type {
+            grid-template-columns: 1.5fr 1fr 1fr 1fr !important;
+            gap: 40px !important;
+            margin-bottom: 50px !important;
+          }
+        }
+
         @media (max-width: 1024px) {
           footer {
-            padding: 48px 20px 32px !important;
+            padding: 60px 20px 36px !important;
           }
-          footer > div > div:first-child {
+          footer > div > div:first-of-type {
             grid-template-columns: 1fr 1fr !important;
-            gap: 24px !important;
-            margin-bottom: 32px !important;
+            gap: 36px !important;
+            margin-bottom: 40px !important;
           }
-          footer > div > div:first-child > div:first-child {
+          footer > div > div:first-of-type > div:first-child {
             grid-column: 1 / -1 !important;
           }
         }
+
         @media (max-width: 768px) {
           footer {
-            padding: 40px 16px 28px !important;
+            padding: 50px 16px 32px !important;
           }
-          footer > div > div:first-child {
+          footer > div > div:first-of-type {
             grid-template-columns: 1fr !important;
-            gap: 20px !important;
-            margin-bottom: 28px !important;
+            gap: 32px !important;
+            margin-bottom: 36px !important;
           }
-          footer > div > div:first-child > div:first-child {
-            text-align: center !important;
+          footer > div > div:first-of-type > div:first-child h2 {
+            font-size: 24px !important;
           }
-          footer > div > div:first-child > div:first-child h3 {
-            font-size: 36px !important;
-          }
-          footer > div > div:first-child > div:first-child p {
-            font-size: 14px !important;
-          }
-          footer > div > div:last-child {
-            flex-direction: column !important;
-            gap: 16px !important;
-            text-align: center !important;
-          }
-        }
-        @media (max-width: 480px) {
-          footer {
-            padding: 32px 12px 24px !important;
-          }
-          footer > div > div:first-child > div:first-child h3 {
-            font-size: 28px !important;
-          }
-          footer > div > div:first-child > div:first-child p {
+          footer > div > div:first-of-type > div:first-child p {
             font-size: 13px !important;
           }
-          footer > div > div:first-child > div {
-            padding: 16px !important;
+          footer > div > div:last-of-type {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 14px !important;
           }
-          footer > div > div:first-child > div h3 {
-            font-size: 32px !important;
-            margin-bottom: 8px !important;
+        }
+
+        @media (max-width: 480px) {
+          footer {
+            padding: 40px 12px 28px !important;
+          }
+          footer > div > div:first-of-type {
+            gap: 28px !important;
+            margin-bottom: 32px !important;
+          }
+          footer > div > div:first-of-type > div:first-child {
+            gap: 12px !important;
+          }
+          footer > div > div:first-of-type > div:first-child h2 {
+            font-size: 20px !important;
+          }
+          footer > div > div:first-of-type > div:first-child p {
+            font-size: 12px !important;
+            line-height: 1.6 !important;
+          }
+          footer > div > div:first-of-type > div {
+            gap: 10px !important;
+          }
+          footer > div > div:first-of-type > div p {
+            margin-bottom: 12px !important;
+            font-size: 10px !important;
+          }
+          footer > div > div:first-of-type > div a {
+            font-size: 13px !important;
+          }
+          footer > div > div:last-of-type {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            font-size: 11px !important;
+          }
+          footer > div > div:last-of-type > div {
+            gap: 16px !important;
           }
         }
       `}</style>
