@@ -436,10 +436,10 @@ export function RazorpayTrustSection() {
           .rzp-icon-box svg { width: 20px; height: 20px; }
           .rzp-num { font-size: 9px; }
 
-          /* Right column: title + sep + desc */
-          .rzp-benefit-title { font-size: 14px; margin-bottom: 6px; }
-          .rzp-benefit-sep { margin-bottom: 6px; }
-          .rzp-benefit-desc { font-size: 12px; line-height: 1.52; }
+          /* Right column: title only — desc hidden on mobile */
+          .rzp-benefit-title { font-size: 14px; margin-bottom: 0; }
+          .rzp-benefit-sep { display: none; }
+          .rzp-benefit-desc { display: none; }
 
           .rzp-fine { font-size: 9px; padding: 11px 16px; }
 
