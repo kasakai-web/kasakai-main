@@ -49,3 +49,12 @@ export const clearSession = () => {
   localStorage.removeItem("userName");
   localStorage.removeItem("userProfileImage");
 };
+
+// Call this when any authenticated API returns 401 — clears session and
+// broadcasts the change so header/auth-aware components update immediately.
+export const handleAuthExpiry = () => {
+  clearSession();
+  if (isBrowser()) {
+    window.dispatchEvent(new CustomEvent("kk-auth-changed"));
+  }
+};

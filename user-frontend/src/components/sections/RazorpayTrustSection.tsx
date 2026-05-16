@@ -3,7 +3,7 @@
 
 function IconAuth() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M9.5 9.2L11.2 11L14.5 7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M8.5 16.5L6.5 22L12 20L17.5 22L15.5 16.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -13,7 +13,7 @@ function IconAuth() {
 
 function IconShield() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
       <path d="M12 21C12 21 4 17 4 11V5L12 2L20 5V11C20 17 12 21 12 21Z"
         stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M9 11.5L11 13.5L15.5 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -23,7 +23,7 @@ function IconShield() {
 
 function IconClock() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 8V12L14.5 14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -69,15 +69,15 @@ export function RazorpayTrustSection() {
         }
 
         @keyframes rzp-fade-up {
-          from { opacity: 0; transform: translateY(28px); }
+          from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: none; }
         }
-        .rzp-card    { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both; }
-        .rzp-brand   { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.18s both; }
-        .rzp-benefit-1 { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.26s both; }
-        .rzp-benefit-2 { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.34s both; }
-        .rzp-benefit-3 { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both; }
-        .rzp-fine    { animation: rzp-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.48s both; }
+        .rzp-card      { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+        .rzp-brand     { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
+        .rzp-benefit-1 { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.08s both; }
+        .rzp-benefit-2 { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.12s both; }
+        .rzp-benefit-3 { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.16s both; }
+        .rzp-fine      { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.18s both; }
 
         /* ── Page glow — matches Kasakai hero/footer radial style ── */
         .rzp-bg-glow {
@@ -298,8 +298,8 @@ export function RazorpayTrustSection() {
         }
 
         .rzp-icon-box {
-          width: 46px; height: 46px;
-          border-radius: 10px;
+          width: 58px; height: 58px;
+          border-radius: 12px;
           background: rgba(51,149,255,0.08);
           border: 1px solid rgba(51,149,255,0.2);
           display: flex;
@@ -327,13 +327,14 @@ export function RazorpayTrustSection() {
         .rzp-benefit-title {
           font-family: var(--cond);
           font-weight: 900;
-          font-size: clamp(26px, 2.4vw, 34px);
+          font-size: clamp(16px, 1.4vw, 20px);
           letter-spacing: -.01em;
           color: var(--white);
-          line-height: 0.93;
+          line-height: 1.1;
           white-space: pre-line;
           text-transform: uppercase;
-          word-break: break-word;
+          word-break: normal;
+          overflow-wrap: normal;
           margin-bottom: 14px;
         }
 
@@ -395,7 +396,7 @@ export function RazorpayTrustSection() {
           .rzp-brand-inner { align-items: center !important; }
           .rzp-benefits { flex-direction: column; gap: 12px; padding: 16px; }
           .rzp-benefit { padding: 24px 20px; }
-          .rzp-benefit-title { font-size: 26px; }
+          .rzp-benefit-title { font-size: 17px; }
           .rzp-fine { font-size: 9.5px; padding: 13px 20px; }
           /* disable lift on touch screens — no hover intent */
           .rzp-benefit:hover { transform: none; }

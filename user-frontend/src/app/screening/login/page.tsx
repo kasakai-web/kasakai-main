@@ -513,7 +513,7 @@ function ScreeningAuthFlow() {
     if (!validatePassword(loginPassword)) { setError("Password must be at least 8 characters"); return; }
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/auth/login"), {
+      const res = await fetch(buildApiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: loginPhone, password: loginPassword, role: "player" }),
@@ -544,7 +544,7 @@ function ScreeningAuthFlow() {
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/auth/register"), {
+      const res = await fetch(buildApiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), phone: signupPhone, email, password, role: "player" }),
@@ -569,7 +569,7 @@ function ScreeningAuthFlow() {
     if (otpString.length !== 6) { setError("Please enter all 6 digits"); return; }
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/auth/verify-otp"), {
+      const res = await fetch(buildApiUrl("/auth/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, otp: otpString, role: "player", mode: "signup" }),
@@ -597,7 +597,7 @@ function ScreeningAuthFlow() {
   const handleResendSignupOtp = async () => {
     clearError();
     try {
-      await fetch(buildApiUrl("/api/v1/auth/resend-otp"), {
+      await fetch(buildApiUrl("/auth/resend-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, role: "player" }),
@@ -612,7 +612,7 @@ function ScreeningAuthFlow() {
     if (!validatePhone(phone)) { setError("Enter a valid 10-digit phone number (starts with 6–9)"); return; }
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/auth/forgot-password"), {
+      const res = await fetch(buildApiUrl("/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, role: "player" }),
@@ -636,14 +636,14 @@ function ScreeningAuthFlow() {
     if (otpString.length !== 6) { setError("Please enter all 6 digits"); return; }
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/auth/verify-otp"), {
+      const res = await fetch(buildApiUrl("/auth/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, otp: otpString, role: "player", mode: "forgot-password" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Invalid OTP");
-      setVerifiedForgotOtp(otpString);
+      setVerifiedForgotOtp(data.resetToken || "");
       goTo("forgot-newpass");
     } catch (err: any) {
       setError(err.message || "OTP verification failed. Please try again.");
@@ -655,7 +655,7 @@ function ScreeningAuthFlow() {
   const handleResendForgotOtp = async () => {
     clearError();
     try {
-      await fetch(buildApiUrl("/api/v1/auth/forgot-password"), {
+      await fetch(buildApiUrl("/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, role: "player" }),
@@ -671,10 +671,10 @@ function ScreeningAuthFlow() {
     if (newPassword !== confirmNewPassword) { setError("Passwords do not match"); return; }
     setLoading(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/auth/reset-password"), {
+      const res = await fetch(buildApiUrl("/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp: verifiedForgotOtp, newPassword, role: "player" }),
+        body: JSON.stringify({ phone, resetToken: verifiedForgotOtp, newPassword, role: "player" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to reset password");

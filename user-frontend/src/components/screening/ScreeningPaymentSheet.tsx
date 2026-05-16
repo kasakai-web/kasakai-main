@@ -67,6 +67,7 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
       await loadRazorpay();
 
       // 4. Open checkout — wraps in a Promise so we can await it cleanly
+      let paymentDismissed = false;
       await new Promise<void>((resolve, reject) => {
         const options = {
           key:         order.keyId,
@@ -83,7 +84,6 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
             razorpay_signature:  string;
           }) {
             try {
-              // 4. Verify HMAC on backend → get confirmed ticket
               const ticket = await verifyBookingPayment({
                 razorpayOrderId:   response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,
@@ -98,7 +98,7 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
 
           modal: {
             ondismiss: () => {
-              // User closed modal without paying — not an error
+              paymentDismissed = true;
               setLoading(false);
               resolve();
             },
@@ -108,6 +108,11 @@ export function ScreeningPaymentSheet({ total, eventId, tierQuantities, tierBrea
         const RzpClass = (window as unknown as { Razorpay: RzpConstructor }).Razorpay;
         new RzpClass(options).open();
       });
+      if (paymentDismissed) {
+        setError("Payment not completed. Your tickets are still available — try again when ready.");
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
       setLoading(false);

@@ -198,6 +198,7 @@ const BookingWidget = memo(function BookingWidget({
 
       await loadRazorpay();
 
+      let paymentDismissed = false;
       await new Promise<void>((resolve, reject) => {
         const RzpClass = (window as unknown as { Razorpay: RzpConstructor }).Razorpay;
         new RzpClass({
@@ -219,9 +220,14 @@ const BookingWidget = memo(function BookingWidget({
               resolve();
             } catch (e) { reject(e); }
           },
-          modal: { ondismiss: () => { setLoading(false); resolve(); } },
+          modal: { ondismiss: () => { paymentDismissed = true; setLoading(false); resolve(); } },
         }).open();
       });
+      if (paymentDismissed) {
+        setError("Payment not completed. Your tickets are still available — try again when ready.");
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
     } finally {

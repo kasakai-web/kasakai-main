@@ -37,13 +37,13 @@ export function SetNewPasswordForm({ email, phone, otp, onSuccess, onBack }: Set
 
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl("/api/v1/auth/reset-password"), {
+      const response = await fetch(buildApiUrl("/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email,
           phone: email ? undefined : phone,
-          otp: otp,
+          resetToken: otp,
           newPassword: newPassword,
           role: "player"
         }),

@@ -1,59 +1,45 @@
 "use client";
 
-export function HeroSection() {
+import dynamic from "next/dynamic";
 
+// ssr: false — carousel reads localStorage; skipping SSR avoids hydration mismatch
+const ScreeningCarousel = dynamic(
+  () => import("./ScreeningCarousel").then((m) => ({ default: m.ScreeningCarousel })),
+  { ssr: false }
+);
+
+export function HeroSection() {
   return (
     <section
       id="home"
       style={{
-        paddingTop: "66px",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
+        height: "100vh",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      <style>{`
-        @keyframes hero-fade-in {
-          from { opacity: 0; transform: translateY(28px); }
-          to   { opacity: 1; transform: none; }
-        }
-        .hero-inner-visible {
-          animation: hero-fade-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
-        }
-      `}</style>
+      {/* Carousel fills from below fixed header */}
+      <div style={{ position: "absolute", top: "66px", left: 0, right: 0, bottom: 0 }}>
+        <ScreeningCarousel />
+      </div>
 
-      {/* Subtle pitch lines via SVG */}
+      {/* Subtle pitch-line SVG behind the carousel */}
       <svg
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 1 }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0, opacity: 0.025 }}
         viewBox="0 0 1440 900"
         preserveAspectRatio="xMidYMid slice"
       >
-        <g stroke="rgba(255,255,255,0.04)" strokeWidth="1" fill="none">
-          {/* Outer border */}
+        <g stroke="rgba(255,255,255,1)" strokeWidth="1" fill="none">
           <rect x="80" y="60" width="1280" height="780" />
-          {/* Halfway line */}
           <line x1="720" y1="60" x2="720" y2="840" />
-          {/* Centre circle */}
           <circle cx="720" cy="450" r="140" />
-          {/* Centre dot */}
-          <circle cx="720" cy="450" r="5" fill="rgba(255,255,255,0.05)" stroke="none" />
-          {/* Left penalty box */}
+          <circle cx="720" cy="450" r="5" fill="rgba(255,255,255,0.8)" stroke="none" />
           <rect x="80" y="258" width="220" height="384" />
-          {/* Right penalty box */}
           <rect x="1140" y="258" width="220" height="384" />
-          {/* Left goal box */}
           <rect x="80" y="342" width="100" height="216" />
-          {/* Right goal box */}
           <rect x="1260" y="342" width="100" height="216" />
-          {/* Penalty spots */}
-          <circle cx="240" cy="450" r="5" fill="rgba(255,255,255,0.05)" stroke="none" />
-          <circle cx="1200" cy="450" r="5" fill="rgba(255,255,255,0.05)" stroke="none" />
-          {/* Corner arcs */}
+          <circle cx="240" cy="450" r="5" fill="rgba(255,255,255,0.8)" stroke="none" />
+          <circle cx="1200" cy="450" r="5" fill="rgba(255,255,255,0.8)" stroke="none" />
           <path d="M80,60 a28,28 0 0,1 28,28" />
           <path d="M1360,60 a28,28 0 0,0 -28,28" />
           <path d="M80,840 a28,28 0 0,0 28,-28" />
@@ -61,127 +47,17 @@ export function HeroSection() {
         </g>
       </svg>
 
-      {/* Small dark halo ONLY behind the text block so it stays readable */}
-      <div style={{
-        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 3,
-        background: "radial-gradient(ellipse 44% 48% at 50% 50%, rgba(9,9,9,0.72) 0%, transparent 100%)",
-      }} />
-
-      {/* Horizontal rules */}
-      <div className="hero-rules" style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none" }}>
-        <span style={{ top: "28%", position: "absolute", left: 0, right: 0, height: "1px", background: "var(--border)" }} />
-        <span style={{ top: "56%", position: "absolute", left: 0, right: 0, height: "1px", background: "var(--border)" }} />
-        <span style={{ top: "80%", position: "absolute", left: 0, right: 0, height: "1px", background: "var(--border)" }} />
-      </div>
-
+      {/* Side label */}
       <div
-        className="hero-side-label"
         style={{
-          position: "absolute", top: "90px", right: "40px", zIndex: 4,
+          position: "absolute", top: "90px", right: "40px", zIndex: 20,
           fontFamily: "var(--mono)", fontSize: "9.5px", letterSpacing: ".18em",
-          color: "#1e1e1e", writingMode: "vertical-rl", textTransform: "uppercase",
+          color: "rgba(255,255,255,0.12)", writingMode: "vertical-rl", textTransform: "uppercase",
+          pointerEvents: "none",
         }}
       >
         Kasa Kai — 2025
       </div>
-
-      {/* Main content */}
-      <div
-        className="hero-inner-visible"
-        style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}
-      >
-        <h1
-          className="hero-title"
-          style={{
-            fontFamily: "var(--cond)", fontWeight: 900,
-            fontSize: "clamp(80px, 15vw, 168px)", letterSpacing: "-.01em",
-            lineHeight: 0.88, color: "var(--white)",
-          }}
-        >
-          PLAY
-          <br />
-          <span style={{ color: "var(--lime)" }}>SMARTER</span>
-          <br />
-          <span style={{ color: "transparent", WebkitTextStroke: "1.5px rgba(255,255,255,.2)" }}>ORGANISED</span>
-        </h1>
-
-        <p
-          className="hero-sub"
-          style={{
-            fontFamily: "var(--body)", fontSize: "14px", fontWeight: 400,
-            color: "var(--muted)", letterSpacing: ".07em", textTransform: "uppercase",
-            lineHeight: 1.9, maxWidth: "320px",
-          }}
-        >
-        </p>
-
-        <style>{`
-          /* ── Primary CTA — filled lime ── */
-          .hero-btn-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            background: #c8f135;
-            color: #000;
-            font-family: var(--cond);
-            font-size: 13px;
-            font-weight: 900;
-            letter-spacing: .18em;
-            text-transform: uppercase;
-            padding: 0 28px;
-            height: 50px;
-            border: none;
-            box-shadow: 0 0 28px rgba(200,241,53,0.22);
-            transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
-          }
-          .hero-btn-primary:hover {
-            background: #d4f545;
-            box-shadow: 0 0 40px rgba(200,241,53,0.38);
-            transform: translateY(-1px);
-          }
-          .hero-btn-primary:active { transform: scale(0.97); }
-
-          /* ── Secondary CTA — outlined lime ── */
-          .hero-btn-secondary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            background: rgba(200,241,53,0.06);
-            color: #c8f135;
-            font-family: var(--cond);
-            font-size: 13px;
-            font-weight: 900;
-            letter-spacing: .18em;
-            text-transform: uppercase;
-            padding: 0 28px;
-            height: 50px;
-            border: 1.5px solid rgba(200,241,53,0.35);
-            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
-          }
-          .hero-btn-secondary:hover {
-            background: rgba(200,241,53,0.12);
-            border-color: rgba(200,241,53,0.65);
-            box-shadow: 0 0 24px rgba(200,241,53,0.14);
-            transform: translateY(-1px);
-          }
-          .hero-btn-secondary:active { transform: scale(0.97); }
-        `}</style>
-
-        <div className="hero-ctas" style={{ display: "flex", justifyContent: "center", gap: "14px", flexWrap: "wrap", marginTop: "8px" }}>
-          {/* Primary: Football */}
-          <a href="/login" className="hero-btn-primary">
-            Football →
-          </a>
-
-          {/* Secondary: Live Screenings */}
-          <a href="/screening" className="hero-btn-secondary">
-            Screening →
-          </a>
-        </div>
-      </div>
-
     </section>
   );
 }

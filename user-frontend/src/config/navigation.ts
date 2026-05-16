@@ -13,4 +13,10 @@ export const LOGIN_OPTIONS: LoginOption[] = [
     desc: "Access your games & profile",
     icon: "👤",
   },
+  {
+    href: "/screening/login",
+    label: "Login for Screening",
+    desc: "Book tickets & manage screenings",
+    icon: "🎬",
+  },
 ];

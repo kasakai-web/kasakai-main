@@ -24,6 +24,7 @@ export interface Screening {
   startingPrice: number;
   tiers: TicketTier[];
   image: string | null;
+  poster?: string | null;
   status: 'published' | 'cancelled';
   contacts: ScreeningContact[];
   languages?: string[];

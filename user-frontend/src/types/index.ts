@@ -4,7 +4,8 @@ export type NavLink = {
 };
 
 export type LoginOption = {
-  role: "player" | "organiser";
+  role?: "player" | "organiser";
+  href?: string;
   label: string;
   desc: string;
   icon: string;

@@ -55,6 +55,51 @@ function exportCsv(tickets: ScrAdminTicket[], eventTitle: string) {
   URL.revokeObjectURL(url);
 }
 
+function ExportCsvBtn({ event, statusFilter, search, total }: {
+  event: ApiScrEvent;
+  statusFilter: StatusFilter;
+  search: string;
+  total: number;
+}) {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (exporting || total === 0) return;
+    setExporting(true);
+    try {
+      // Fetch all matching tickets in one shot — no page cap on backend when limit is explicit
+      const result = await scrApi.getEventTickets(event._id, {
+        status: statusFilter === "all" ? undefined : statusFilter,
+        search: search || undefined,
+        page: 1,
+        limit: 9999,
+      });
+      exportCsv(result.tickets, event.title);
+    } catch {
+      alert("Export failed — please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleExport}
+      disabled={total === 0 || exporting}
+      style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "9px 16px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.25)", borderRadius: "9px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: (total === 0 || exporting) ? "not-allowed" : "pointer", opacity: (total === 0 || exporting) ? 0.5 : 1, whiteSpace: "nowrap" }}>
+      {exporting ? (
+        <svg className="animate-spin" width="13" height="13" fill="none" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="#5be6b2" strokeWidth="3" strokeOpacity="0.25" />
+          <path d="M12 2a10 10 0 0110 10" stroke="#5be6b2" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      )}
+      {exporting ? "Exporting…" : `Export CSV${total > 0 ? ` (${total})` : ""}`}
+    </button>
+  );
+}
+
 export function ScrAttendeesPage({ event, onBack }: { event: ApiScrEvent; onBack: () => void }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search,       setSearch]       = useState("");
@@ -121,13 +166,7 @@ export function ScrAttendeesPage({ event, onBack }: { event: ApiScrEvent; onBack
             style={{ width: "100%", padding: "9px 12px 9px 34px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--white)", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
           />
         </div>
-        <button
-          onClick={() => exportCsv(tickets, event.title)}
-          disabled={tickets.length === 0}
-          style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "9px 16px", background: "rgba(91,230,178,0.08)", border: "1px solid rgba(91,230,178,0.25)", borderRadius: "9px", color: "#5be6b2", fontSize: "12px", fontWeight: 700, cursor: tickets.length === 0 ? "not-allowed" : "pointer", opacity: tickets.length === 0 ? 0.5 : 1, whiteSpace: "nowrap" }}>
-          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export CSV
-        </button>
+        <ExportCsvBtn event={event} statusFilter={statusFilter} search={debouncedSearch} total={total} />
       </div>
 
       {/* Status tabs */}

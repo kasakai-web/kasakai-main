@@ -1,4 +1,4 @@
-import { buildApiUrl, getSession } from './api';
+import { buildApiUrl, getSession, handleAuthExpiry } from './api';
 import type { Screening, TicketTier, Ticket } from '@/components/screening/types';
 
 /* ── Raw API shapes (what the backend returns) ───────────────────────────── */
@@ -128,6 +128,7 @@ export async function createBookingOrder(
     body:    JSON.stringify({ tierQuantities }),
   });
   const data = await res.json();
+  if (res.status === 401) { handleAuthExpiry(); throw new Error('Session expired. Please log in again.'); }
   if (!res.ok) throw new Error(data.message || 'Failed to create booking');
   return data.data as BookingOrderResponse;
 }
@@ -143,6 +144,7 @@ export async function verifyBookingPayment(params: {
     body:    JSON.stringify(params),
   });
   const data = await res.json();
+  if (res.status === 401) { handleAuthExpiry(); throw new Error('Session expired. Please log in again.'); }
   if (!res.ok) throw new Error(data.message || 'Payment verification failed');
   return data.data as ConfirmedTicketResponse;
 }
@@ -167,6 +169,7 @@ export async function fetchMyTickets(): Promise<MyTicketsResponse> {
     headers: playerHeaders(),
   });
   const data = await res.json();
+  if (res.status === 401) { handleAuthExpiry(); throw new Error('Session expired. Please log in again.'); }
   if (!res.ok) throw new Error(data.message || 'Failed to fetch tickets');
   return data.data as MyTicketsResponse;
 }
@@ -212,6 +215,7 @@ export function toScreening(e: ApiScrEvent): Screening {
     startingPrice,
     tiers,
     image:          e.image || null,
+    poster:         e.poster || null,
     status:         e.status === 'cancelled' ? 'cancelled' : 'published',
     contacts:       (e.contacts || []).map(c => ({ name: c.name, email: c.email, phone: c.phone })),
     languages:      e.languages || [],

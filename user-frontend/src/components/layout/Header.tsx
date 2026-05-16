@@ -167,8 +167,8 @@ export function Header() {
           <div style={{ width: "260px", background: "#111", border: "1px solid var(--border)", padding: "6px", display: "flex", flexDirection: "column", gap: "2px", boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }}>
             {LOGIN_OPTIONS.map((opt) => (
               <a
-                key={opt.role}
-                href={`/login?role=${opt.role}`}
+                key={opt.href ?? opt.role}
+                href={opt.href ?? `/login?role=${opt.role}`}
                 style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", textDecoration: "none", transition: "background .18s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -229,16 +229,31 @@ export function Header() {
               </a>
             ))}
 
-            {/* Login CTA */}
-            <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)" }}>
-              <a
-                href="/login"
-                onClick={closeMobile}
-                className="btn-primary"
-                style={{ display: "block", textAlign: "center" }}
-              >
-                <span>Login / Sign Up</span>
-              </a>
+            {/* Login options */}
+            <div style={{ borderTop: "1px solid var(--border)" }}>
+              {LOGIN_OPTIONS.map((opt) => (
+                <a
+                  key={opt.href ?? opt.role}
+                  href={opt.href ?? `/login?role=${opt.role}`}
+                  onClick={closeMobile}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "14px 24px", textDecoration: "none",
+                    borderBottom: "1px solid var(--border)",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <div style={{ width: "32px", height: "32px", flexShrink: 0, background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px" }}>
+                    {opt.icon}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontFamily: "var(--body)", fontWeight: 700, fontSize: "13.5px", color: "var(--white)", lineHeight: 1.2 }}>{opt.label}</span>
+                    <span style={{ fontFamily: "var(--body)", fontSize: "11.5px", color: "var(--muted)", lineHeight: 1.4, marginTop: "2px" }}>{opt.desc}</span>
+                  </div>
+                </a>
+              ))}
             </div>
           </div>
         </div>

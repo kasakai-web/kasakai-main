@@ -1484,11 +1484,17 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       const saved = await scrApi.updateEvent(ev.id, { shows: updatedShows });
       // Use real _ids from the response to avoid fake-id issues on next save
       setFullShows(saved.shows || []);
+      // Replace the optimistic fake ID with the real MongoDB _id returned by the server
+      const realShow = (saved.shows || []).at(-1);
+      if (realShow) {
+        setShows(p => p.map(s => s.id === newShow.id ? { ...s, id: realShow._id } : s));
+      }
     } catch (err) {
       console.error("[ManagePage] Failed to save show:", err);
       setShows(p => p.filter(s => s.id !== newShow.id));
+      showTierToast("Failed to save show — please try again");
     }
-  }, [ev.id, fullShows, fullTiers]);
+  }, [ev.id, fullShows, fullTiers, showTierToast]);
 
   const handleSaveVenue = useCallback(async (name: string, city: string, mapUrl: string) => {
     await scrApi.updateEvent(ev.id, { venueName: name, location: city, locationUrl: mapUrl });

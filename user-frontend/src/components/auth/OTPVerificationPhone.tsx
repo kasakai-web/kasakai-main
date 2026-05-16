@@ -58,18 +58,18 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
 
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl('/api/v1/auth/verify-otp'), {
+      const response = await fetch(buildApiUrl('/auth/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, email, otp: otpString, role, mode }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Invalid OTP');
+        throw new Error(data.message || 'Invalid OTP');
       }
 
-      onVerified(otpString);
+      onVerified(mode === "forgot-password" ? data.resetToken : otpString);
     } catch (err: any) {
       setError(err.message || "OTP verification failed. Please try again.");
     } finally {
@@ -82,7 +82,7 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
     setOtp(["", "", "", "", "", ""]);
 
     try {
-      const endpoint = mode === "signup" ? "/api/v1/auth/resend-otp" : "/api/v1/auth/forgot-password";
+      const endpoint = mode === "signup" ? "/auth/resend-otp" : "/auth/forgot-password";
       const response = await fetch(buildApiUrl(endpoint), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
