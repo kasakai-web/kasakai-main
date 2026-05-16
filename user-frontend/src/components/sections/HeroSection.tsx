@@ -116,6 +116,26 @@ export function HeroSection() {
           border-color: rgba(200,241,53,0.68);
         }
 
+        /* Strip entrance */
+        @keyframes strip-in {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: none; }
+        }
+        .hero-strip { animation: strip-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.4s both; }
+
+        /* Subtle shimmer sweep on each button after load */
+        .hero-strip-btn { position: relative; overflow: hidden; }
+        .hero-strip-btn::after {
+          content: '';
+          position: absolute;
+          top: 0; bottom: 0;
+          width: 40%;
+          background: linear-gradient(90deg, transparent, rgba(200,241,53,0.12), transparent);
+          left: -80%;
+          animation: btn-shine 2.2s cubic-bezier(0.4,0,0.2,1) 1.2s 1 forwards;
+          pointer-events: none;
+        }
+
         /* Mobile: full-width buttons + shrink hero to fit poster+title+dots */
         @media (max-width: 524px) {
           .hero-section { height: calc(133vw + 152px) !important; }

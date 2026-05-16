@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 
 function IconAuth() {
   return (
@@ -56,6 +57,16 @@ const BENEFITS = [
 /* ── Component ──────────────────────────────────────────────────────────────── */
 
 export function RazorpayTrustSection() {
+  useEffect(() => {
+    const els = document.querySelectorAll(".rzp-benefit-anim");
+    const obs = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("in"); }),
+      { threshold: 0.1 }
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+
   return (
     <section
       id="trust"
@@ -69,16 +80,24 @@ export function RazorpayTrustSection() {
           100% { transform: translateX(260%) skewX(-10deg); }
         }
 
-        @keyframes rzp-fade-up {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: none; }
+        /* Logo pill float */
+        @keyframes rzp-float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-6px); }
         }
-        .rzp-card      { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) both; }
-        .rzp-brand     { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
-        .rzp-benefit-1 { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.08s both; }
-        .rzp-benefit-2 { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.12s both; }
-        .rzp-benefit-3 { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.16s both; }
-        .rzp-fine      { animation: rzp-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) 0.18s both; }
+        .rzp-logo-pill { animation: rzp-float 4s ease-in-out infinite; }
+
+        /* Benefit cards: scale-in on scroll (via .in toggled by IntersectionObserver) */
+        .rzp-benefit-anim {
+          opacity: 0;
+          transform: scale(0.93) translateY(14px);
+          transition: opacity 0.55s cubic-bezier(0.22,1,0.36,1),
+                      transform 0.55s cubic-bezier(0.22,1,0.36,1);
+        }
+        .rzp-benefit-anim.in { opacity: 1; transform: none; }
+        .rzp-benefit-anim.d1 { transition-delay: 0.08s; }
+        .rzp-benefit-anim.d2 { transition-delay: 0.18s; }
+        .rzp-benefit-anim.d3 { transition-delay: 0.28s; }
 
         /* ── Page glow — matches Kasakai hero/footer radial style ── */
         .rzp-bg-glow {
@@ -197,7 +216,7 @@ export function RazorpayTrustSection() {
           border-radius: 50%;
           background: var(--lime);
           flex-shrink: 0;
-          box-shadow: 0 0 8px rgba(196,213,108,0.7);
+          animation: dot-ping 2s ease-in-out infinite;
         }
 
         .rzp-brand-sub {
@@ -454,7 +473,7 @@ export function RazorpayTrustSection() {
 
       <div className="rzp-outer">
 
-        <div className="rzp-card">
+        <div className="rzp-card reveal">
           <div className="rzp-strip">
 
             {/* ── Brand ── */}
@@ -480,7 +499,7 @@ export function RazorpayTrustSection() {
             {/* ── Benefits: 3 individual animated cards ── */}
             <div className="rzp-benefits">
               {BENEFITS.map((b, i) => (
-                <div key={i} className={`rzp-benefit rzp-benefit-${i + 1}`}>
+                <div key={i} className={`rzp-benefit rzp-benefit-anim d${i + 1}`}>
                   <div className="rzp-benefit-top">
                     <div className="rzp-icon-box">{b.icon}</div>
                     <span className="rzp-num">{b.num}</span>
