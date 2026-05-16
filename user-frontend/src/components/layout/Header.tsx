@@ -214,11 +214,11 @@ export function Header() {
                   display: "flex",
                   alignItems: "center",
                   fontFamily: "var(--body)",
-                  fontSize: "15px",
+                  fontSize: "14px",
                   fontWeight: 600,
                   color: "var(--muted)",
                   textDecoration: "none",
-                  padding: "16px 24px",
+                  padding: "11px 20px",
                   borderBottom: i < NAV_LINKS.length - 1 ? "1px solid var(--border)" : "none",
                   transition: "color 0.15s, background 0.15s",
                 }}
@@ -237,20 +237,20 @@ export function Header() {
                   href={opt.href ?? `/login?role=${opt.role}`}
                   onClick={closeMobile}
                   style={{
-                    display: "flex", alignItems: "center", gap: "12px",
-                    padding: "14px 24px", textDecoration: "none",
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "10px 20px", textDecoration: "none",
                     borderBottom: "1px solid var(--border)",
                     transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <div style={{ width: "32px", height: "32px", flexShrink: 0, background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px" }}>
+                  <div style={{ width: "28px", height: "28px", flexShrink: 0, background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px" }}>
                     {opt.icon}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontFamily: "var(--body)", fontWeight: 700, fontSize: "13.5px", color: "var(--white)", lineHeight: 1.2 }}>{opt.label}</span>
-                    <span style={{ fontFamily: "var(--body)", fontSize: "11.5px", color: "var(--muted)", lineHeight: 1.4, marginTop: "2px" }}>{opt.desc}</span>
+                    <span style={{ fontFamily: "var(--body)", fontWeight: 700, fontSize: "13px", color: "var(--white)", lineHeight: 1.2 }}>{opt.label}</span>
+                    <span style={{ fontFamily: "var(--body)", fontSize: "11px", color: "var(--muted)", lineHeight: 1.3, marginTop: "1px" }}>{opt.desc}</span>
                   </div>
                 </a>
               ))}
