@@ -10,8 +10,10 @@ const ScreeningCarousel = dynamic(
 
 export function HeroSection() {
   return (
+    <>
     <section
       id="home"
+      className="hero-section"
       style={{
         height: "100vh",
         position: "relative",
@@ -59,5 +61,69 @@ export function HeroSection() {
         Kasa Kai — 2025
       </div>
     </section>
+
+    {/* Action strip — Football & Screening, all screen sizes */}
+    <div className="hero-strip">
+      <a href="/login"     className="hero-strip-btn hero-strip-football">⚽ Football</a>
+      <a href="/screening" className="hero-strip-btn hero-strip-screening">🎬 Screening</a>
+      <style>{`
+        .hero-strip {
+          display: flex;
+          justify-content: center;
+          gap: 14px;
+          padding: 16px clamp(18px, 5vw, 80px);
+          background: var(--black);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .hero-strip-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          width: 220px;
+          height: 52px;
+          font-family: var(--cond);
+          font-size: 15px;
+          font-weight: 900;
+          letter-spacing: .13em;
+          text-transform: uppercase;
+          text-decoration: none;
+          border-radius: 12px;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.22s cubic-bezier(0.22,1,0.36,1),
+                      box-shadow 0.22s cubic-bezier(0.22,1,0.36,1),
+                      background 0.22s, border-color 0.22s;
+        }
+        .hero-strip-btn:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 28px rgba(200,241,53,0.2), 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .hero-strip-btn:active {
+          transform: translateY(-1px) scale(0.97);
+          box-shadow: 0 3px 10px rgba(200,241,53,0.12);
+        }
+        .hero-strip-football,
+        .hero-strip-screening {
+          background: rgba(200,241,53,0.07);
+          border: 1.5px solid rgba(200,241,53,0.38);
+          color: #c8f135;
+          box-shadow: inset 0 1px 0 rgba(200,241,53,0.08);
+        }
+        .hero-strip-football:hover,
+        .hero-strip-screening:hover {
+          background: rgba(200,241,53,0.13);
+          border-color: rgba(200,241,53,0.68);
+        }
+
+        /* Mobile: full-width buttons + shrink hero to fit poster+title+dots */
+        @media (max-width: 524px) {
+          .hero-section { height: calc(133vw + 152px) !important; }
+          .hero-strip { padding: 12px 16px; gap: 10px; justify-content: stretch; }
+          .hero-strip-btn { width: auto; flex: 1; height: 48px; font-size: 13px; border-radius: 10px; }
+        }
+      `}</style>
+    </div>
+    </>
   );
 }
