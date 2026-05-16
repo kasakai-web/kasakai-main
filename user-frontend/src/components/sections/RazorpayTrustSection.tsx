@@ -399,45 +399,46 @@ export function RazorpayTrustSection() {
           .rzp-card { border-radius: 10px; }
           .rzp-label-rule { max-width: 36px; }
 
-          /* Brand row: stay horizontal, just tighter */
+          /* Brand: column, centred in its box */
           .rzp-brand {
-            flex-direction: row;
-            text-align: left;
+            flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            padding: 18px 18px;
-            gap: 16px;
+            justify-content: center;
+            text-align: center;
+            padding: 22px 18px;
+            gap: 14px;
           }
-          .rzp-brand-inner { align-items: flex-start !important; flex-direction: row !important; gap: 14px !important; }
-          .rzp-logo-pill { padding: 10px 16px; }
-          .rzp-logo-pill img { height: 22px; }
+          .rzp-brand-inner { align-items: center !important; flex-direction: column !important; gap: 12px !important; }
+          .rzp-logo-pill { padding: 10px 18px; }
+          .rzp-logo-pill img { height: 24px; }
+          .rzp-trusted-badge { font-size: 11px; padding: 8px 20px; letter-spacing: .18em; }
           .rzp-brand-sub { display: none; }
 
           /* Benefits list: tighter gaps */
           .rzp-benefits { flex-direction: column; gap: 8px; padding: 12px 12px 14px; }
 
-          /* Each card: horizontal — icon+num on left, title+desc on right */
+          /* Each card: horizontal, vertically centred */
           .rzp-benefit {
             flex-direction: row;
-            align-items: flex-start;
-            padding: 14px 14px;
+            align-items: center;
+            padding: 12px 14px;
             gap: 14px;
           }
 
-          /* Left column: icon stacked above num */
+          /* Left column: just the icon — num hidden on mobile */
           .rzp-benefit-top {
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            gap: 0;
             margin-bottom: 0;
             flex-shrink: 0;
           }
-          .rzp-icon-box { width: 40px; height: 40px; border-radius: 8px; }
-          .rzp-icon-box svg { width: 20px; height: 20px; }
-          .rzp-num { font-size: 9px; }
+          .rzp-icon-box { width: 44px; height: 44px; border-radius: 9px; }
+          .rzp-icon-box svg { width: 22px; height: 22px; }
+          .rzp-num { display: none; }
 
           /* Right column: title only — desc hidden on mobile */
-          .rzp-benefit-title { font-size: 14px; margin-bottom: 0; }
+          .rzp-benefit-title { font-size: 16px; margin-bottom: 0; }
           .rzp-benefit-sep { display: none; }
           .rzp-benefit-desc { display: none; }
 
