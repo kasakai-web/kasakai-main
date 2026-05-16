@@ -298,11 +298,12 @@ export const scrApi = {
   exportTickets: (id: string) =>
     apiFetch<ScrExportResponse>(`/screening/admin/events/${id}/export`),
 
-  getEventTickets: (id: string, params?: { status?: string; search?: string; page?: number }) => {
+  getEventTickets: (id: string, params?: { status?: string; search?: string; page?: number; limit?: number }) => {
     const qs = new URLSearchParams();
     if (params?.status && params.status !== 'all') qs.set('status', params.status);
     if (params?.search) qs.set('search', params.search);
     if (params?.page)   qs.set('page', String(params.page));
+    if (params?.limit)  qs.set('limit', String(params.limit));
     const query = qs.toString() ? `?${qs.toString()}` : '';
     return apiFetch<ScrAdminTicketsResponse>(`/screening/admin/events/${id}/tickets${query}`);
   },
