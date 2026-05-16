@@ -225,11 +225,19 @@ export function Footer() {
           footer > div > div:last-of-type {
             flex-direction: column !important;
             align-items: flex-start !important;
-            gap: 12px !important;
-            font-size: 11px !important;
+            gap: 8px !important;
+          }
+          footer > div > div:last-of-type > p {
+            font-size: 10px !important;
+            white-space: nowrap !important;
           }
           footer > div > div:last-of-type > div {
-            gap: 16px !important;
+            gap: 14px !important;
+            flex-wrap: nowrap !important;
+          }
+          footer > div > div:last-of-type > div > a {
+            font-size: 10px !important;
+            white-space: nowrap !important;
           }
         }
       `}</style>
