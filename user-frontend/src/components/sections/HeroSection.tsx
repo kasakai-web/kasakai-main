@@ -21,7 +21,7 @@ export function HeroSection() {
       }}
     >
       {/* Carousel fills from below fixed header */}
-      <div style={{ position: "absolute", top: "66px", left: 0, right: 0, bottom: 0 }}>
+      <div style={{ position: "absolute", top: "52px", left: 0, right: 0, bottom: 0 }}>
         <ScreeningCarousel />
       </div>
 
@@ -138,7 +138,7 @@ export function HeroSection() {
 
         /* Mobile: full-width buttons + shrink hero to fit poster+title+dots */
         @media (max-width: 524px) {
-          .hero-section { height: calc(133vw + 152px) !important; }
+          .hero-section { height: calc(133vw + 138px) !important; }
           .hero-strip { padding: 12px 16px; gap: 10px; justify-content: stretch; }
           .hero-strip-btn { width: auto; flex: 1; height: 48px; font-size: 13px; border-radius: 10px; }
         }

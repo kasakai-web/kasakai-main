@@ -20,7 +20,7 @@ export function Header() {
         position: "fixed",
         top: 0, left: 0, right: 0,
         zIndex: 500,
-        height: "66px",
+        height: "52px",
         display: "flex",
         alignItems: "center",
         background: "rgba(8,8,8,0.96)",
@@ -37,7 +37,7 @@ export function Header() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            height: "66px",
+            height: "52px",
             width: "64px",
             borderRight: "1px solid var(--border)",
             textDecoration: "none",
@@ -132,7 +132,7 @@ export function Header() {
           className="site-mobile-toggle"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           style={{
-            height: "66px",
+            height: "52px",
             width: "60px",
             borderTop: "none",
             borderRight: "none",
@@ -195,7 +195,7 @@ export function Header() {
           <div
             style={{
               position: "absolute",
-              top: "66px",
+              top: "52px",
               left: 0,
               right: 0,
               background: "#0e0e0e",
