@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   },
   description: "Publish games, track signups, manage payments, and keep every player updated from one clean workspace.",
   keywords: ["football", "organizer", "events", "management", "Kasa Kai"],
+  icons: {
+    icon: "/kasa-kai-logo.svg",
+    shortcut: "/kasa-kai-logo.svg",
+    apple: "/kasa-kai-logo.svg",
+  },
   openGraph: {
     siteName: "Kasa Kai",
     title: "Kasa Kai — Organiser Portal",
