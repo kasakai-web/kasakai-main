@@ -42,6 +42,7 @@ export type ApiScrEvent = {
   tiers: ApiScrTier[];
   shows: ApiScrShow[];
   contacts?: ApiScrContact[];
+  showOrganiser?: boolean;
   status: 'published' | 'cancelled' | 'draft';
   gatesOpenBefore: number;
   isIndoor: boolean | null;
@@ -218,6 +219,7 @@ export function toScreening(e: ApiScrEvent): Screening {
     poster:         e.poster || null,
     status:         e.status === 'cancelled' ? 'cancelled' : 'published',
     contacts:       (e.contacts || []).map(c => ({ name: c.name, email: c.email, phone: c.phone })),
+    showOrganiser:  e.showOrganiser ?? false,
     languages:      e.languages || [],
     isIndoor:       e.isIndoor ?? null,
     isSeated:       e.isSeated ?? null,

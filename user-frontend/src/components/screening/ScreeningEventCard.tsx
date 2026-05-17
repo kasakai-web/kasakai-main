@@ -25,9 +25,10 @@ function TvFallback() {
 interface Props {
   screening: Screening;
   onBook: (screening: Screening) => void;
+  isBooked?: boolean;
 }
 
-export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }: Props) {
+export const ScreeningEventCard = memo(function ScreeningEventCard({ screening, isBooked }: Props) {
   const [imgErr, setImgErr] = useState(false);
   return (
     <div
@@ -145,18 +146,33 @@ export const ScreeningEventCard = memo(function ScreeningEventCard({ screening }
               <span style={{ fontSize: "12px", fontWeight: 700, color: "#888" }}>
                 {screening.tiers.length} {screening.tiers.length === 1 ? "option" : "options"} available
               </span>
-              <Link
-                href={`/screening/${screening.id}`}
-                className="no-underline"
-                style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "transparent", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.4)", transition: "background 0.15s, border-color 0.15s" }}
-                onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "rgba(200,241,53,0.1)"; el.style.borderColor = "rgba(200,241,53,0.75)"; }}
-                onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.borderColor = "rgba(200,241,53,0.4)"; }}
-              >
-                Explore
-                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </Link>
+              {isBooked ? (
+                <Link
+                  href={`/screening/${screening.id}`}
+                  className="no-underline"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "rgba(200,241,53,0.08)", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.35)", transition: "background 0.15s, border-color 0.15s" }}
+                  onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "rgba(200,241,53,0.15)"; el.style.borderColor = "rgba(200,241,53,0.6)"; }}
+                  onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "rgba(200,241,53,0.08)"; el.style.borderColor = "rgba(200,241,53,0.35)"; }}
+                >
+                  <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
+                  Booked
+                </Link>
+              ) : (
+                <Link
+                  href={`/screening/${screening.id}`}
+                  className="no-underline"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "8px 16px", background: "transparent", color: "#c8f135", fontSize: "11px", fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", borderRadius: "8px", border: "1.5px solid rgba(200,241,53,0.4)", transition: "background 0.15s, border-color 0.15s" }}
+                  onMouseEnter={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "rgba(200,241,53,0.1)"; el.style.borderColor = "rgba(200,241,53,0.75)"; }}
+                  onMouseLeave={(e) => { const el = e.currentTarget as HTMLAnchorElement; el.style.background = "transparent"; el.style.borderColor = "rgba(200,241,53,0.4)"; }}
+                >
+                  Book Now
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )}
             </>
           )}
         </div>

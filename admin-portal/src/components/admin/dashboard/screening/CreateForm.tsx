@@ -44,6 +44,7 @@ type Draft = {
   categories:string[]; subCategory:string;
   gstin:string; accountNumber:string; ifsc:string; accountType:"savings"|"current";
   pocs:Poc[];
+  showOrganiser:boolean;
   venueLocation:string; venueCity:string; venueMapUrl:string; ownRestaurant:boolean|null; instagramLink:string;
   shows:Show[]; gatesOpenBefore:string;
   tiers:Tier[];
@@ -59,6 +60,7 @@ const INIT: Draft = {
   categories:[], subCategory:"",
   gstin:"", accountNumber:"", ifsc:"", accountType:"savings",
   pocs:[{ name:"", email:"", phone:"" }],
+  showOrganiser: false,
   venueLocation:"", venueCity:"", venueMapUrl:"", ownRestaurant:null, instagramLink:"",
   shows:[], gatesOpenBefore:"",
   tiers:[],
@@ -284,6 +286,20 @@ function S1({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
             }
           </div>
         ))}
+
+        {/* Show organiser on user side toggle */}
+        <div style={{ marginTop:"16px", padding:"14px 16px", background:"rgba(91,230,178,0.04)", border:"1px solid rgba(91,230,178,0.15)", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px" }}>
+          <div>
+            <p style={{ margin:"0 0 3px", fontSize:"13px", fontWeight:700, color:"var(--white)" }}>Show organiser details to customers</p>
+            <p style={{ margin:0, fontSize:"11px", color:"var(--muted)" }}>If ON, name, email &amp; phone will be visible on the event page</p>
+          </div>
+          <button type="button" onClick={() => set(f => ({ ...f, showOrganiser: !f.showOrganiser }))}
+            style={{ background:"none", border:"none", cursor:"pointer", padding:0, flexShrink:0 }}>
+            <div style={{ width:40, height:22, borderRadius:"999px", background:form.showOrganiser?"#5be6b2":"var(--surface2)", border:`1.5px solid ${form.showOrganiser?"#5be6b2":"var(--border)"}`, position:"relative", transition:"background 0.2s" }}>
+              <div style={{ position:"absolute", top:"2px", left:form.showOrganiser?"20px":"2px", width:"16px", height:"16px", borderRadius:"50%", background:form.showOrganiser?"#000":"var(--muted)", transition:"left 0.2s" }} />
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -744,6 +760,7 @@ function buildPayload(form: Draft): CreateScrEventPayload {
       description: t.desc,
     })),
     contacts:       form.pocs,
+    showOrganiser:  form.showOrganiser,
     payout: {
       gstin:         form.gstin,
       accountNumber: form.accountNumber,

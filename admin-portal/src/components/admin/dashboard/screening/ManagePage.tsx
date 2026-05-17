@@ -1333,6 +1333,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       ? ev.contacts.map((c, i) => ({ id: `poc-${i}`, name: c.name, email: c.email, phone: c.phone }))
       : [{ id: "poc-0", name: "", email: "", phone: "" }]
   );
+  const [showOrganiser, setShowOrganiser] = useState<boolean>(ev.showOrganiser ?? false);
   const [sendCopies, setSendCopies]       = useState(false);
   const [extraSections, setExtraSections] = useState<string[]>([]);
   const [extraContent, setExtraContent]   = useState<Record<string, string>>({});
@@ -1373,6 +1374,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
         if (full.contacts?.length) {
           setPocs(full.contacts.map((c, i) => ({ id: `poc-${i}`, name: c.name, email: c.email, phone: c.phone })));
         }
+        setShowOrganiser(full.showOrganiser ?? false);
         // Populate extra sections from stored data
         const storedSections = (full.extraSections || []).filter(s => s.content);
         if (storedSections.length) {
@@ -1570,6 +1572,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
         minAgePaid:      ticketAgeNum,
         gatesOpenBefore: gatesOpen ? gatesOpenMinutes : 0,
         contacts:        pocs.map(p => ({ name: p.name, email: p.email, phone: p.phone })),
+        showOrganiser,
         ...(imgUrl    ? { image:  imgUrl }    : {}),
         ...(posterUrl ? { poster: posterUrl } : {}),
         extraSections: extraSections.map(sec => ({
@@ -1584,7 +1587,7 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
       setSaving(false);
       setTimeout(() => setSaveMsg(null), 3000);
     }
-  }, [ev.id, ev.title, eventName, description, categories, subCategories, language, venueLocation, venueCity, locationUrl, ownRestaurant, instagramLink, venueType, seating, kidFriendly, petFriendly, minAge, ticketAge, gatesOpen, gatesOpenMinutes, pocs, imgUrl, posterUrl, extraSections, extraContent]);
+  }, [ev.id, ev.title, eventName, description, categories, subCategories, language, venueLocation, venueCity, locationUrl, ownRestaurant, instagramLink, venueType, seating, kidFriendly, petFriendly, minAge, ticketAge, gatesOpen, gatesOpenMinutes, pocs, showOrganiser, imgUrl, posterUrl, extraSections, extraContent]);
 
   return (
     <>
@@ -1957,6 +1960,20 @@ export function ScrManageEventPage({ ev, onBack }: { ev: ScrEvent; onBack: () =>
                         Add POC
                       </button>
                     </OvSection>
+
+                    {/* Show organiser toggle */}
+                    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                      <div>
+                        <p style={{ margin: "0 0 3px", fontSize: "13px", fontWeight: 700, color: "var(--white)" }}>Show organiser details to customers</p>
+                        <p style={{ margin: 0, fontSize: "11px", color: "var(--muted)" }}>If ON, name, email &amp; phone will be visible on the event page</p>
+                      </div>
+                      <button type="button" onClick={() => setShowOrganiser(p => !p)}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
+                        <div style={{ width: 40, height: 22, borderRadius: "999px", background: showOrganiser ? "#5be6b2" : "var(--surface2)", border: `1.5px solid ${showOrganiser ? "#5be6b2" : "var(--border)"}`, position: "relative", transition: "background 0.2s" }}>
+                          <div style={{ position: "absolute", top: "2px", left: showOrganiser ? "20px" : "2px", width: "16px", height: "16px", borderRadius: "50%", background: showOrganiser ? "#000" : "var(--muted)", transition: "left 0.2s" }} />
+                        </div>
+                      </button>
+                    </div>
 
                     {/* Send copy toggle */}
                     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px", marginBottom: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

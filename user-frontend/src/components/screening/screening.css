@@ -120,7 +120,7 @@
 /* Stepper */
 .sd-step-btn          { width:34px; height:34px; background:#181818; border:1px solid #2a2a2a; color:#ffffff; font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s,color .12s,border-color .12s; user-select:none; font-weight:700; }
 .sd-step-btn:hover    { background:#222; color:#c8f135; border-color:#3a3a3a; }
-.sd-step-btn:disabled { background:#111; color:#444; cursor:default; border-color:#1e1e1e; }
+.sd-step-btn:disabled { background:#111; color:#ffffff; opacity:0.28; cursor:default; border-color:#1e1e1e; }
 .sd-step-val          { width:34px; height:34px; background:#131313; border-top:1px solid #2a2a2a; border-bottom:1px solid #2a2a2a; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; }
 
 /* CTA */

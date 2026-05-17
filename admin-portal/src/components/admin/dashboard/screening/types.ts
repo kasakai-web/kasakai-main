@@ -11,6 +11,7 @@ export type ScrEvent = {
   sold?: number;
   pricePaise?: number;
   contacts: { name: string; email: string; phone: string }[];
+  showOrganiser?: boolean;
 };
 
 

@@ -27,6 +27,7 @@ export interface Screening {
   poster?: string | null;
   status: 'published' | 'cancelled';
   contacts: ScreeningContact[];
+  showOrganiser?: boolean;
   languages?: string[];
   isIndoor?: boolean | null;
   isSeated?: boolean | null;

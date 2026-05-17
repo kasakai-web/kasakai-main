@@ -81,6 +81,7 @@ export type ApiScrEvent = {
   gatesOpenBefore: number;
   ownRestaurant: boolean;
   venueInstagram: string;
+  showOrganiser: boolean;
   publishedAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
@@ -121,6 +122,7 @@ export type CreateScrEventPayload = {
   poster: string;
   videoUrl: string;
   galleryImages: string[];
+  showOrganiser?: boolean;
 };
 
 export type ScrTierStat = {
@@ -322,6 +324,7 @@ export type UIScrEvent = {
   sold: number;
   pricePaise: number;
   contacts: { name: string; email: string; phone: string }[];
+  showOrganiser: boolean;
 };
 
 export function toUIScrEvent(e: ApiScrEvent): UIScrEvent {
@@ -345,6 +348,7 @@ export function toUIScrEvent(e: ApiScrEvent): UIScrEvent {
     capacity,
     sold,
     pricePaise,
-    contacts:   e.contacts || [],
+    contacts:      e.contacts || [],
+    showOrganiser: e.showOrganiser ?? false,
   };
 }
