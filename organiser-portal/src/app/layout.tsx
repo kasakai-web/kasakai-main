@@ -14,18 +14,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kasa Kai Organiser Portal - Manage Football Events",
-  description: "Powerful tools for organizers to create, manage, and monitor football events. Track signups, manage payments, and distribute teams automatically.",
-  keywords: ["football", "organizer", "events", "management", "tournament"],
+  metadataBase: new URL("https://kasakai.in"),
+  title: {
+    default: "Kasa Kai — Organiser Portal",
+    template: "%s | Kasa Kai Organiser",
+  },
+  description: "Publish games, track signups, manage payments, and keep every player updated from one clean workspace.",
+  keywords: ["football", "organizer", "events", "management", "Kasa Kai"],
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
-    title: "Kasa Kai Organiser Portal - Run Your Football Community",
-    description: "Publish games, track signups, manage payments, and keep every player updated from one clean workspace.",
+    siteName: "Kasa Kai",
+    title: "Kasa Kai — Organiser Portal",
+    description: "Create and manage football events with powerful organiser tools.",
+    type: "website",
     images: [
       {
         url: "/kasa-kai-logo.svg",
         width: 128,
         height: 128,
-        alt: "Kasa Kai Logo",
+        alt: "Kasa Kai",
       },
     ],
   },

@@ -3,21 +3,37 @@ import "./globals.css";
 import SocketClient from "./SocketClient";
 
 export const metadata: Metadata = {
-  title: "Kasa Kai - Football Event Management Platform",
-  description: "Join football games in your city. Browse events, manage payments, and play with organized teams.",
-  keywords: ["football", "games", "events", "teams", "payments", "sports"],
+  metadataBase: new URL("https://kasakai.in"),
+  title: {
+    default: "Kasa Kai — Live Football Screenings & Events",
+    template: "%s | Kasa Kai",
+  },
+  description: "Book your spot at premium sports bars and venues across India. Live football screenings, organized games, and electric crowds.",
+  keywords: ["football", "live screening", "sports bar", "UCL", "IPL", "events", "India", "Mumbai", "Kasa Kai"],
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
-    title: "Kasa Kai - Organized Football. Every Time.",
-    description: "Join football games in your city. Browse events, manage payments, and play with organized teams.",
+    siteName: "Kasa Kai",
+    title: "Kasa Kai — Live Football Screenings & Events",
+    description: "Book your spot at premium sports bars and venues across India. Live screens · Great food · Electric crowd.",
     url: "https://kasakai.in",
+    type: "website",
     images: [
       {
         url: "/kasa-kai-logo.svg",
         width: 128,
         height: 128,
-        alt: "Kasa Kai Logo",
+        alt: "Kasa Kai",
       },
     ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Kasa Kai — Live Football Screenings",
+    description: "Book your spot at premium sports bars across India.",
+    images: ["/kasa-kai-logo.svg"],
   },
 };
 

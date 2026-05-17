@@ -13,18 +13,28 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Kasa Kai Admin Dashboard - Platform Management",
-  description: "Admin control center for Kasa Kai platform. Monitor events, manage approvals, track payouts, and oversee system operations.",
-  keywords: ["admin", "dashboard", "platform", "management", "monitoring"],
+  metadataBase: new URL("https://kasakai.in"),
+  title: {
+    default: "Kasa Kai — Admin",
+    template: "%s | Kasa Kai Admin",
+  },
+  description: "Kasa Kai admin control centre. Monitor events, manage approvals, track payouts, and oversee platform operations.",
+  keywords: ["admin", "dashboard", "Kasa Kai", "platform"],
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
-    title: "Kasa Kai Admin - Control Center",
-    description: "Monitor approvals, events, payouts, and system health from one command center.",
+    siteName: "Kasa Kai",
+    title: "Kasa Kai — Admin",
+    description: "Platform admin control centre.",
+    type: "website",
     images: [
       {
         url: "/kasa-kai-logo.svg",
         width: 128,
         height: 128,
-        alt: "Kasa Kai Logo",
+        alt: "Kasa Kai",
       },
     ],
   },
