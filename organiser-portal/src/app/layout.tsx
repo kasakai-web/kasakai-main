@@ -14,8 +14,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kasakai Organiser",
-  description: "Kasakai organiser portal",
+  title: "Kasa Kai Organiser Portal - Manage Football Events",
+  description: "Powerful tools for organizers to create, manage, and monitor football events. Track signups, manage payments, and distribute teams automatically.",
+  keywords: ["football", "organizer", "events", "management", "tournament"],
+  openGraph: {
+    title: "Kasa Kai Organiser Portal - Run Your Football Community",
+    description: "Publish games, track signups, manage payments, and keep every player updated from one clean workspace.",
+    images: [
+      {
+        url: "/kasa-kai-logo.svg",
+        width: 128,
+        height: 128,
+        alt: "Kasa Kai Logo",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

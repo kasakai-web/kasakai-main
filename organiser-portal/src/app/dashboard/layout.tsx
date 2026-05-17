@@ -239,12 +239,20 @@ export default function DashboardLayout({
             transition: "background 0.18s",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", width: "32px", height: "32px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "34px",
+            height: "34px",
+            overflow: "hidden",
+            border: "1.5px solid #333",
+            flexShrink: 0,
+          }}>
             <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.5px", letterSpacing: "0.1em", lineHeight: 1, color: "#000" }}>KASA</span>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "8px", letterSpacing: "0.08em", color: "#000" }}>KASA</span>
             </div>
-            <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #2a2a2a" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "8.5px", letterSpacing: "0.1em", lineHeight: 1, color: "var(--white)" }}>KAI</span>
+            <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #333" }}>
+              <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "8px", letterSpacing: "0.08em", color: "var(--white)" }}>KAI</span>
             </div>
           </div>
 

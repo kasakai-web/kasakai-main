@@ -3,9 +3,22 @@ import "./globals.css";
 import SocketClient from "./SocketClient";
 
 export const metadata: Metadata = {
-  title: "Kasakai",
-  description: "List games · manage payments · auto-distribute teams · show up",
-  keywords: ["football", "games", "teams", "payments"],
+  title: "Kasa Kai - Football Event Management Platform",
+  description: "Join football games in your city. Browse events, manage payments, and play with organized teams.",
+  keywords: ["football", "games", "events", "teams", "payments", "sports"],
+  openGraph: {
+    title: "Kasa Kai - Organized Football. Every Time.",
+    description: "Join football games in your city. Browse events, manage payments, and play with organized teams.",
+    url: "https://kasakai.in",
+    images: [
+      {
+        url: "/kasa-kai-logo.svg",
+        width: 128,
+        height: 128,
+        alt: "Kasa Kai Logo",
+      },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
