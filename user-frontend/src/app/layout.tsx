@@ -10,11 +10,6 @@ export const metadata: Metadata = {
   },
   description: "India's football community platform. Watch live match screenings at top venues, join organized 5-a-side games, meet fellow fans, and book your spot — all on Kasa Kai.",
   keywords: ["football", "live screening", "sports bar", "UCL final", "Champions League", "5-a-side", "organized football", "football community", "India", "Mumbai", "Kasa Kai"],
-  icons: {
-    icon: "/kasa-kai-logo.svg",
-    shortcut: "/kasa-kai-logo.svg",
-    apple: "/kasa-kai-logo.svg",
-  },
   openGraph: {
     siteName: "Kasa Kai",
     title: "Kasa Kai — Football Screenings, Games & Community in India",
@@ -29,6 +24,11 @@ export const metadata: Metadata = {
         alt: "Kasa Kai",
       },
     ],
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/favicon.ico",
+    },
   },
   twitter: {
     card: "summary",

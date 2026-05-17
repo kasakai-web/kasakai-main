@@ -34,6 +34,11 @@ export const metadata: Metadata = {
       {
         url: "/kasa-kai-logo.svg",
         width: 128,
+      icons: {
+        icon: "/favicon.ico",
+        shortcut: "/favicon.ico",
+        apple: "/favicon.ico",
+      },
         height: 128,
         alt: "Kasa Kai",
       },
