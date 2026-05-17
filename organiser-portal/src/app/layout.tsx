@@ -34,11 +34,6 @@ export const metadata: Metadata = {
         alt: "Kasa Kai",
       },
     ],
-    icons: {
-      icon: "/favicon.ico",
-      shortcut: "/favicon.ico",
-      apple: "/favicon.ico",
-    },
   },
 };
 
