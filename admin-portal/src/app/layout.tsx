@@ -20,10 +20,6 @@ export const metadata: Metadata = {
   },
   description: "Kasa Kai admin control centre. Monitor events, manage approvals, track payouts, and oversee platform operations.",
   keywords: ["admin", "dashboard", "Kasa Kai", "platform"],
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
-  },
   openGraph: {
     siteName: "Kasa Kai",
     title: "Kasa Kai — Admin",

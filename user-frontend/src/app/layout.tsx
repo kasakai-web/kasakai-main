@@ -10,10 +10,6 @@ export const metadata: Metadata = {
   },
   description: "Book your spot at premium sports bars and venues across India. Live football screenings, organized games, and electric crowds.",
   keywords: ["football", "live screening", "sports bar", "UCL", "IPL", "events", "India", "Mumbai", "Kasa Kai"],
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
-  },
   openGraph: {
     siteName: "Kasa Kai",
     title: "Kasa Kai — Live Football Screenings & Events",
