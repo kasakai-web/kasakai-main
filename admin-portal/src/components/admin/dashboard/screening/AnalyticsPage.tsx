@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import { ScrEvent, backBtnStyle } from "./types";
 import type { ScrAnalyticsData, ScrExportRow } from "@/lib/screening-api";
 import { scrApi } from "@/lib/screening-api";
@@ -9,119 +10,105 @@ import { scrApi } from "@/lib/screening-api";
 
 type BadgeStyle = { label: string; color: string; bg: string; border: string };
 
-const EXPORT_HEADERS = [
-  "Transaction Type","Brand Name","Registered Company Name","Event Name",
-  "Event Show","Event Show Start Time","Event Show End Time","Event Show ID",
-  "Event Category","Event City","Event Venue Name","Billing Email",
-  "User State","Name","Email","Phone","Transaction ID","Shortcode",
-  "Transaction Time","Transaction Last Modified Time","Ticket Group",
-  "Ticket Name","Ticket List Price","Number of Tickets","Seat Number",
-  "Redeemed Status","Printed Status","Gross Amount","Discount","Net Amount",
-  "Discount Type","Discount Coupon","Discount Funded By","Offline Payment",
-  "CGST %","CGST Amount","SGST %","SGST Amount","IGST %","IGST Amount",
-  "Additional Tax 1 Name","Additional Tax 1 Amount","Additional Tax 1 %",
-  "Additional Tax 2 Name","Additional Tax 2 Amount","Additional Tax 2 %",
-  "Base Price","Commission %","Commission Amount","Transaction Source","Device Platform",
-];
+function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string, analytics: ScrAnalyticsData) {
+  const wb = XLSX.utils.book_new();
 
-function rowValues(r: ScrExportRow): unknown[] {
-  return [
-    r.transactionType, r.brandName, r.registeredCompanyName, r.eventName,
-    r.eventShow, r.showStartTime, r.showEndTime, r.showId,
-    r.eventCategory, r.eventCity, r.venueName, r.billingEmail,
-    r.userState, r.name, r.email, r.phone, r.transactionId, r.shortcode,
-    r.transactionTime, r.transactionLastModifiedTime, r.ticketGroup,
-    r.ticketName, r.ticketListPrice, r.numberOfTickets, r.seatNumber,
-    r.redeemedStatus, r.printedStatus, r.grossAmount, r.discount, r.netAmount,
-    r.discountType, r.discountCoupon, r.discountFundedBy, r.offlinePayment,
-    r.cgstPct, r.cgstAmount, r.sgstPct, r.sgstAmount, r.igstPct, r.igstAmount,
-    r.tax1Name, r.tax1Amount, r.tax1Pct,
-    r.tax2Name, r.tax2Amount, r.tax2Pct,
-    r.basePrice,
-    // commissionPct comes from backend as decimal (0.1 = 10%) — display as whole number
-    typeof r.commissionPct === "number" ? Math.round(r.commissionPct * 100) : r.commissionPct,
-    r.commissionAmount,
-    r.transactionSource, r.devicePlatform,
+  /* ── Sheet 1: Attendees ── */
+  const attendeeHeaders = [
+    "#", "Name", "Email", "Phone",
+    "Ticket Type", "Qty", "Amount (₹)",
+    "Entry Code", "Status",
+    "Booked At", "Checked In At",
+    "Transaction ID",
   ];
-}
 
-function escXml(v: unknown): string {
-  return String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
+  const attendeeRows = rows.map((r, i) => [
+    i + 1,
+    r.name || "",
+    r.email || "",
+    r.phone || "",
+    r.ticketName || "",
+    r.numberOfTickets,
+    r.grossAmount,
+    r.shortcode || "",
+    r.redeemedStatus === "Yes" ? "Checked In" : "Confirmed",
+    r.transactionTime || "",
+    r.redeemedStatus === "Yes" ? (r.transactionLastModifiedTime || "") : "",
+    r.transactionId || "",
+  ]);
 
-function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string) {
-  // SpreadsheetML XML — opens in Excel without format-mismatch warnings,
-  // and preserves proper Number vs String cell types so values sort/sum correctly.
-  const esc = escXml;
+  const attendeeSheet = XLSX.utils.aoa_to_sheet([attendeeHeaders, ...attendeeRows]);
 
-  const styleBlock = `
-  <Styles>
-    <Style ss:ID="H">
-      <Font ss:Bold="1" ss:Color="#5be6b2" ss:Name="Calibri" ss:Size="11"/>
-      <Interior ss:Color="#0f2d4a" ss:Pattern="Solid"/>
-      <Alignment ss:WrapText="0"/>
-      <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#1a4a6e"/></Borders>
-    </Style>
-    <Style ss:ID="R1">
-      <Font ss:Name="Calibri" ss:Size="10" ss:Color="#1a2b40"/>
-      <Interior ss:Color="#ffffff" ss:Pattern="Solid"/>
-    </Style>
-    <Style ss:ID="R2">
-      <Font ss:Name="Calibri" ss:Size="10" ss:Color="#1a2b40"/>
-      <Interior ss:Color="#eef4ff" ss:Pattern="Solid"/>
-    </Style>
-  </Styles>`;
+  // Column widths
+  attendeeSheet["!cols"] = [
+    { wch: 4 },   // #
+    { wch: 22 },  // Name
+    { wch: 28 },  // Email
+    { wch: 14 },  // Phone
+    { wch: 18 },  // Ticket Type
+    { wch: 5 },   // Qty
+    { wch: 12 },  // Amount
+    { wch: 12 },  // Entry Code
+    { wch: 12 },  // Status
+    { wch: 18 },  // Booked At
+    { wch: 18 },  // Checked In At
+    { wch: 26 },  // Transaction ID
+  ];
 
-  const makeCell = (v: unknown, rowStyle: string): string => {
-    if (typeof v === "number" && !isNaN(v)) {
-      return `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="Number">${v}</Data></Cell>`;
-    }
-    return `<Cell ss:StyleID="${rowStyle}"><Data ss:Type="String">${esc(v)}</Data></Cell>`;
-  };
+  // Freeze header row
+  attendeeSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 
-  const headerRow = `<Row ss:AutoFitHeight="1">${
-    EXPORT_HEADERS.map(h => `<Cell ss:StyleID="H"><Data ss:Type="String">${esc(h)}</Data></Cell>`).join("")
-  }</Row>`;
+  XLSX.utils.book_append_sheet(wb, attendeeSheet, "Attendees");
 
-  const dataRows = rows.map((r, i) => {
-    const sty = i % 2 === 0 ? "R1" : "R2";
-    return `<Row>${rowValues(r).map(v => makeCell(v, sty)).join("")}</Row>`;
-  }).join("\n");
+  /* ── Sheet 2: Summary ── */
+  const totalSold = analytics.totalTicketsSold;
+  const totalRev  = analytics.totalRevenuePaise / 100;
+  const fillPct   = analytics.totalCapacity > 0
+    ? Math.round((totalSold / analytics.totalCapacity) * 100) : 0;
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:x="urn:schemas-microsoft-com:office:excel"
-  xmlns:html="http://www.w3.org/TR/REC-html40">
-  ${styleBlock}
-  <Worksheet ss:Name="Tickets">
-    <Table>
-      ${headerRow}
-      ${dataRows}
-    </Table>
-    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
-      <FreezePanes/>
-      <FrozenNoSplit/>
-      <SplitHorizontal>1</SplitHorizontal>
-      <TopRowBottomPane>1</TopRowBottomPane>
-      <ActivePane>2</ActivePane>
-    </WorksheetOptions>
-  </Worksheet>
-</Workbook>`;
+  const summaryData: (string | number)[][] = [
+    ["Event Summary"],
+    [],
+    ["Event",             eventTitle],
+    ["Export Date",       new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })],
+    [],
+    ["— Ticket Stats —"],
+    ["Total Capacity",    analytics.totalCapacity],
+    ["Total Sold",        totalSold],
+    ["Available",         analytics.totalCapacity - totalSold],
+    ["Fill %",            `${fillPct}%`],
+    [],
+    ["— Booking Status —"],
+    ["Confirmed",         analytics.confirmedCount],
+    ["Checked In",        analytics.usedCount],
+    ["Cancelled",         analytics.cancelledCount],
+    ["Check-In Rate",     `${analytics.checkInRate}%`],
+    [],
+    ["— Revenue —"],
+    ["Gross Revenue (₹)", totalRev],
+    [],
+    ["— Tier Breakdown —"],
+    ["Tier", "Price (₹)", "Capacity", "Sold", "Available", "Fill %", "Revenue (₹)"],
+    ...analytics.tierStats.map(t => [
+      t.tierName,
+      Math.round(t.pricePaise / 100),
+      t.capacity,
+      t.sold,
+      t.capacity - t.sold,
+      t.capacity > 0 ? `${Math.round((t.sold / t.capacity) * 100)}%` : "—",
+      Math.round(t.revenuePaise / 100),
+    ]),
+  ];
 
-  const blob = new Blob(["﻿" + xml], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url;
-  a.download = `${eventTitle.replace(/[^\w\s-]/g, "").trim()}_tickets_${new Date().toISOString().slice(0, 10)}.xls`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 14 }];
+
+  XLSX.utils.book_append_sheet(wb, summarySheet, "Summary");
+
+  /* ── Download ── */
+  const safeName = eventTitle.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_");
+  const fileName = `${safeName}_tickets_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
 }
 
 /* ── Stat card ──────────────────────────────────────────────────────────── */
@@ -285,7 +272,7 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
     try {
       const data = await scrApi.exportTickets(eventId);
       if (!data.rows.length) { alert("No confirmed ticket data to export."); return; }
-      generateExcelAndDownload(data.rows, data.eventTitle);
+      generateExcelAndDownload(data.rows, data.eventTitle, analytics);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Export failed");
     } finally {
@@ -351,7 +338,7 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
               ? <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="animate-spin"><circle cx="12" cy="12" r="10" strokeOpacity="0.2"/><path d="M12 2a10 10 0 0110 10"/></svg>
               : <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             }
-            {exporting ? "Exporting…" : "Export .xls"}
+            {exporting ? "Exporting…" : "Export .xlsx"}
           </button>
         </div>
       </div>
@@ -538,7 +525,7 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
             color="#60a5fa"
             onClick={() => router.push(`/dashboard/streaming/${eventId}/scan`)}
             icon={<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M17 17h3M17 14h3"/></svg>} />
-          <ActionBtn label="Export Tickets" sub="Download .xls with all bookings"
+          <ActionBtn label="Export Tickets" sub="Download .xlsx with all bookings"
             color="#f59e0b"
             onClick={handleExport}
             icon={<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>} />
