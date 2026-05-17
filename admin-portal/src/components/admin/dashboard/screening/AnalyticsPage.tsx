@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+import type ExcelJS from "exceljs";
 import { ScrEvent, backBtnStyle } from "./types";
 import type { ScrAnalyticsData, ScrExportRow } from "@/lib/screening-api";
 import { scrApi } from "@/lib/screening-api";
@@ -10,105 +10,340 @@ import { scrApi } from "@/lib/screening-api";
 
 type BadgeStyle = { label: string; color: string; bg: string; border: string };
 
-function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string, analytics: ScrAnalyticsData) {
-  const wb = XLSX.utils.book_new();
+// Brand colours
+const C = {
+  green:      "1B8C5A",  // Kasa Kai lime-green (dark)
+  greenLight: "5BE6B2",  // accent teal
+  headerBg:   "0D1F17",  // near-black green
+  rowAlt:     "F0FAF6",  // very light green tint
+  white:      "FFFFFF",
+  black:      "0A0A0A",
+  muted:      "6B7280",
+  border:     "D1D5DB",
+  redBg:      "FFF1F2",
+  redText:    "B91C1C",
+  amberBg:    "FFFBEB",
+  amberText:  "92400E",
+  blueBg:     "EFF6FF",
+  blueText:   "1E40AF",
+};
 
-  /* ── Sheet 1: Attendees ── */
-  const attendeeHeaders = [
-    "#", "Name", "Email", "Phone",
-    "Ticket Type", "Qty", "Amount (₹)",
-    "Entry Code", "Status",
-    "Booked At", "Checked In At",
-    "Transaction ID",
+async function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string, analytics: ScrAnalyticsData) {
+  // Dynamic import — exceljs is large, only load on demand
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator  = "Kasa Kai Admin";
+  wb.created  = new Date();
+
+  // ── Shared style helpers ────────────────────────────────────────────────
+  const hdrFont  = { name: "Calibri", bold: true,  size: 11, color: { argb: "FF" + C.white } };
+  const bodyFont = { name: "Calibri", bold: false, size: 10, color: { argb: "FF" + C.black } };
+  const mutedFont = { name: "Calibri", bold: false, size: 10, color: { argb: "FF" + C.muted } };
+
+  const thinBorder: Partial<ExcelJS.Borders> = {
+    top:    { style: "thin" as const, color: { argb: "FF" + C.border } },
+    left:   { style: "thin" as const, color: { argb: "FF" + C.border } },
+    bottom: { style: "thin" as const, color: { argb: "FF" + C.border } },
+    right:  { style: "thin" as const, color: { argb: "FF" + C.border } },
+  };
+
+  const centerAlign: Partial<ExcelJS.Alignment> = { horizontal: "center", vertical: "middle" };
+  const leftAlign:   Partial<ExcelJS.Alignment> = { horizontal: "left",   vertical: "middle" };
+  const rightAlign:  Partial<ExcelJS.Alignment> = { horizontal: "right",  vertical: "middle" };
+
+  // ── SHEET 1: Attendees ──────────────────────────────────────────────────
+  const ws1 = wb.addWorksheet("Attendees", {
+    views: [{ state: "frozen", ySplit: 3 }],   // freeze rows 1+2 (title + header)
+    pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1 },
+  });
+
+  ws1.columns = [
+    { key: "no",        width: 5  },
+    { key: "name",      width: 24 },
+    { key: "email",     width: 30 },
+    { key: "phone",     width: 16 },
+    { key: "ticket",    width: 20 },
+    { key: "qty",       width: 6  },
+    { key: "amount",    width: 14 },
+    { key: "code",      width: 14 },
+    { key: "status",    width: 14 },
+    { key: "bookedAt",  width: 20 },
+    { key: "checkedIn", width: 20 },
+    { key: "txnId",     width: 28 },
   ];
 
-  const attendeeRows = rows.map((r, i) => [
-    i + 1,
-    r.name || "",
-    r.email || "",
-    r.phone || "",
-    r.ticketName || "",
-    r.numberOfTickets,
-    r.grossAmount,
-    r.shortcode || "",
-    r.redeemedStatus === "Yes" ? "Checked In" : "Confirmed",
-    r.transactionTime || "",
-    r.redeemedStatus === "Yes" ? (r.transactionLastModifiedTime || "") : "",
-    r.transactionId || "",
-  ]);
+  // Row 1 — Title banner
+  ws1.mergeCells("A1:L1");
+  const titleCell1 = ws1.getCell("A1");
+  titleCell1.value          = `${eventTitle}  —  Attendees Export`;
+  titleCell1.font           = { name: "Calibri", bold: true, size: 14, color: { argb: "FF" + C.greenLight } };
+  titleCell1.fill           = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.headerBg } };
+  titleCell1.alignment      = leftAlign;
+  ws1.getRow(1).height      = 32;
 
-  const attendeeSheet = XLSX.utils.aoa_to_sheet([attendeeHeaders, ...attendeeRows]);
+  // Row 2 — export meta right-aligned
+  ws1.mergeCells("A2:H2");
+  const metaLeft = ws1.getCell("A2");
+  metaLeft.value     = `Exported on ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}   ·   ${rows.length} ticket record(s)`;
+  metaLeft.font      = mutedFont;
+  metaLeft.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.headerBg } };
+  metaLeft.alignment = leftAlign;
 
-  // Column widths
-  attendeeSheet["!cols"] = [
-    { wch: 4 },   // #
-    { wch: 22 },  // Name
-    { wch: 28 },  // Email
-    { wch: 14 },  // Phone
-    { wch: 18 },  // Ticket Type
-    { wch: 5 },   // Qty
-    { wch: 12 },  // Amount
-    { wch: 12 },  // Entry Code
-    { wch: 12 },  // Status
-    { wch: 18 },  // Booked At
-    { wch: 18 },  // Checked In At
-    { wch: 26 },  // Transaction ID
+  ws1.mergeCells("I2:L2");
+  const metaRight = ws1.getCell("I2");
+  metaRight.value     = `Total Revenue: ₹${(analytics.totalRevenuePaise / 100).toLocaleString("en-IN")}`;
+  metaRight.font      = { name: "Calibri", bold: true, size: 10, color: { argb: "FF" + C.greenLight } };
+  metaRight.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.headerBg } };
+  metaRight.alignment = rightAlign;
+  ws1.getRow(2).height = 20;
+
+  // Row 3 — Column headers
+  const hdrs1 = ["#", "Name", "Email", "Phone", "Ticket Type", "Qty", "Amount (₹)", "Entry Code", "Status", "Booked At", "Checked In At", "Transaction ID"];
+  const hdrRow1 = ws1.getRow(3);
+  hdrRow1.height = 24;
+  hdrs1.forEach((h, i) => {
+    const cell = hdrRow1.getCell(i + 1);
+    cell.value     = h;
+    cell.font      = hdrFont;
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.green } };
+    cell.alignment = i === 0 ? centerAlign : leftAlign;
+    cell.border    = thinBorder;
+  });
+
+  // Data rows
+  const totalRevCheck = rows.reduce((s, r) => s + r.grossAmount, 0);
+  rows.forEach((r, i) => {
+    const isCheckedIn = r.redeemedStatus === "Yes";
+    const rowNum      = i + 4;
+    const isAlt       = i % 2 === 1;
+    const fillColor   = isAlt ? "FF" + C.rowAlt : "FFFFFFFF";
+    const dataRow     = ws1.getRow(rowNum);
+    dataRow.height    = 20;
+
+    const vals = [
+      i + 1,
+      r.name     || "",
+      r.email    || "",
+      r.phone    || "",
+      r.ticketName || "",
+      r.numberOfTickets,
+      r.grossAmount,
+      r.shortcode || "",
+      isCheckedIn ? "✓ Checked In" : "Confirmed",
+      r.transactionTime || "",
+      isCheckedIn ? (r.transactionLastModifiedTime || "") : "",
+      r.transactionId || "",
+    ];
+
+    vals.forEach((v, ci) => {
+      const cell = dataRow.getCell(ci + 1);
+      cell.value     = v;
+      cell.font      = bodyFont;
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: fillColor } };
+      cell.border    = thinBorder;
+      cell.alignment = (ci === 0 || ci === 5) ? centerAlign : leftAlign;
+
+      // Format amount as number
+      if (ci === 6 && typeof v === "number") {
+        cell.numFmt = "#,##0";
+      }
+
+      // Status cell — colour-coded
+      if (ci === 8) {
+        cell.font = {
+          name: "Calibri", size: 10, bold: true,
+          color: { argb: isCheckedIn ? "FF" + C.green : "FF" + C.blueText },
+        };
+      }
+    });
+  });
+
+  // Totals row
+  const totRow     = ws1.getRow(rows.length + 4);
+  totRow.height    = 22;
+  const totLabels  = ["", "TOTAL", "", "", "", rows.reduce((s, r) => s + r.numberOfTickets, 0), totalRevCheck, "", "", "", "", ""];
+  totLabels.forEach((v, ci) => {
+    const cell = totRow.getCell(ci + 1);
+    cell.value  = v;
+    cell.font   = { name: "Calibri", bold: true, size: 10, color: { argb: "FF" + C.white } };
+    cell.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.green } };
+    cell.border = thinBorder;
+    cell.alignment = (ci === 5 || ci === 6) ? centerAlign : leftAlign;
+    if (ci === 6) cell.numFmt = "#,##0";
+  });
+
+  // Auto-filter on header row
+  ws1.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: 12 } };
+
+  // ── SHEET 2: Summary ────────────────────────────────────────────────────
+  const ws2 = wb.addWorksheet("Summary", {
+    views: [{ showGridLines: false }],
+  });
+
+  ws2.columns = [
+    { key: "label", width: 28 },
+    { key: "value", width: 20 },
+    { key: "pad",   width: 4  },
+    { key: "l2",    width: 18 },
+    { key: "v2",    width: 14 },
   ];
 
-  // Freeze header row
-  attendeeSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
-
-  XLSX.utils.book_append_sheet(wb, attendeeSheet, "Attendees");
-
-  /* ── Sheet 2: Summary ── */
   const totalSold = analytics.totalTicketsSold;
   const totalRev  = analytics.totalRevenuePaise / 100;
-  const fillPct   = analytics.totalCapacity > 0
-    ? Math.round((totalSold / analytics.totalCapacity) * 100) : 0;
+  const fillPct   = analytics.totalCapacity > 0 ? Math.round((totalSold / analytics.totalCapacity) * 100) : 0;
 
-  const summaryData: (string | number)[][] = [
-    ["Event Summary"],
-    [],
-    ["Event",             eventTitle],
-    ["Export Date",       new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })],
-    [],
-    ["— Ticket Stats —"],
-    ["Total Capacity",    analytics.totalCapacity],
-    ["Total Sold",        totalSold],
-    ["Available",         analytics.totalCapacity - totalSold],
-    ["Fill %",            `${fillPct}%`],
-    [],
-    ["— Booking Status —"],
-    ["Confirmed",         analytics.confirmedCount],
-    ["Checked In",        analytics.usedCount],
-    ["Cancelled",         analytics.cancelledCount],
-    ["Check-In Rate",     `${analytics.checkInRate}%`],
-    [],
-    ["— Revenue —"],
-    ["Gross Revenue (₹)", totalRev],
-    [],
-    ["— Tier Breakdown —"],
-    ["Tier", "Price (₹)", "Capacity", "Sold", "Available", "Fill %", "Revenue (₹)"],
-    ...analytics.tierStats.map(t => [
+  function addSectionHeader(ws: ExcelJS.Worksheet, row: number, label: string, cols: number) {
+    ws.mergeCells(row, 1, row, cols);
+    const cell = ws.getCell(row, 1);
+    cell.value     = label;
+    cell.font      = { name: "Calibri", bold: true, size: 10, color: { argb: "FF" + C.greenLight } };
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.headerBg } };
+    cell.alignment = leftAlign;
+    cell.border    = thinBorder;
+    ws.getRow(row).height = 22;
+  }
+
+  function addKV(ws: ExcelJS.Worksheet, row: number, label: string, value: string | number, bold = false, highlight = false) {
+    const lc = ws.getCell(row, 1);
+    lc.value     = label;
+    lc.font      = mutedFont;
+    lc.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAFAFA" } };
+    lc.border    = thinBorder;
+    lc.alignment = leftAlign;
+
+    const vc = ws.getCell(row, 2);
+    vc.value     = value;
+    vc.font      = { name: "Calibri", bold, size: 11, color: { argb: highlight ? "FF" + C.green : "FF" + C.black } };
+    vc.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAFAFA" } };
+    vc.border    = thinBorder;
+    vc.alignment = leftAlign;
+    if (typeof value === "number") vc.numFmt = "#,##0";
+    ws.getRow(row).height = 20;
+  }
+
+  let r = 1;
+
+  // Title
+  ws2.mergeCells(r, 1, r, 5);
+  const t2 = ws2.getCell(r, 1);
+  t2.value     = `${eventTitle}  —  Event Summary`;
+  t2.font      = { name: "Calibri", bold: true, size: 15, color: { argb: "FF" + C.greenLight } };
+  t2.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.headerBg } };
+  t2.alignment = leftAlign;
+  ws2.getRow(r).height = 36;
+  r++;
+
+  ws2.mergeCells(r, 1, r, 5);
+  const sub2 = ws2.getCell(r, 1);
+  sub2.value     = `Generated on ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", weekday: "long" })}`;
+  sub2.font      = mutedFont;
+  sub2.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.headerBg } };
+  sub2.alignment = leftAlign;
+  ws2.getRow(r).height = 20;
+  r++; r++;
+
+  // — Overview —
+  addSectionHeader(ws2, r, "  OVERVIEW", 2); r++;
+  addKV(ws2, r, "Total Capacity",     analytics.totalCapacity);              r++;
+  addKV(ws2, r, "Tickets Sold",       totalSold,  true, true);               r++;
+  addKV(ws2, r, "Remaining Seats",    analytics.totalCapacity - totalSold);  r++;
+  addKV(ws2, r, "Fill Rate",          `${fillPct}%`, true);                  r++;
+  r++;
+
+  // — Booking Status —
+  addSectionHeader(ws2, r, "  BOOKING STATUS", 2); r++;
+  addKV(ws2, r, "Confirmed",          analytics.confirmedCount); r++;
+  addKV(ws2, r, "Checked In",         analytics.usedCount, true, true); r++;
+  addKV(ws2, r, "Cancelled",          analytics.cancelledCount); r++;
+  addKV(ws2, r, "Check-In Rate",      `${analytics.checkInRate}%`, true); r++;
+  r++;
+
+  // — Revenue —
+  addSectionHeader(ws2, r, "  REVENUE", 2); r++;
+  addKV(ws2, r, "Gross Revenue",      totalRev, true, true); r++;
+  r++; r++;
+
+  // — Tier Breakdown table —
+  addSectionHeader(ws2, r, "  TIER BREAKDOWN", 7); r++;
+
+  // Tier table headers
+  const tierHdrs = ["Ticket Type", "Price (₹)", "Capacity", "Sold", "Available", "Fill %", "Revenue (₹)"];
+  const thRow    = ws2.getRow(r);
+  thRow.height   = 22;
+  tierHdrs.forEach((h, ci) => {
+    const cell = thRow.getCell(ci + 1);
+    cell.value     = h;
+    cell.font      = hdrFont;
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.green } };
+    cell.alignment = ci === 0 ? leftAlign : centerAlign;
+    cell.border    = thinBorder;
+  });
+  r++;
+
+  analytics.tierStats.forEach((t, ti) => {
+    const fp      = t.capacity > 0 ? Math.round((t.sold / t.capacity) * 100) : 0;
+    const isAlt   = ti % 2 === 1;
+    const fgColor = isAlt ? "FF" + C.rowAlt : "FFFFFFFF";
+    const tr      = ws2.getRow(r);
+    tr.height     = 20;
+
+    const vals = [
       t.tierName,
       Math.round(t.pricePaise / 100),
       t.capacity,
       t.sold,
       t.capacity - t.sold,
-      t.capacity > 0 ? `${Math.round((t.sold / t.capacity) * 100)}%` : "—",
+      `${fp}%`,
       Math.round(t.revenuePaise / 100),
-    ]),
+    ];
+    vals.forEach((v, ci) => {
+      const cell = tr.getCell(ci + 1);
+      cell.value     = v;
+      cell.font      = bodyFont;
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: fgColor } };
+      cell.alignment = ci === 0 ? leftAlign : centerAlign;
+      cell.border    = thinBorder;
+      if (ci === 1 || ci === 6) cell.numFmt = "#,##0";
+    });
+    r++;
+  });
+
+  // Totals row for tier table
+  const totals2Row = ws2.getRow(r);
+  totals2Row.height = 22;
+  const totals2Vals = [
+    "TOTAL",
+    "",
+    analytics.totalCapacity,
+    totalSold,
+    analytics.totalCapacity - totalSold,
+    `${fillPct}%`,
+    Math.round(totalRev),
   ];
+  totals2Vals.forEach((v, ci) => {
+    const cell = totals2Row.getCell(ci + 1);
+    cell.value     = v;
+    cell.font      = { name: "Calibri", bold: true, size: 10, color: { argb: "FF" + C.white } };
+    cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + C.green } };
+    cell.alignment = ci === 0 ? leftAlign : centerAlign;
+    cell.border    = thinBorder;
+    if (ci === 2 || ci === 3 || ci === 4 || ci === 6) cell.numFmt = "#,##0";
+  });
 
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  summarySheet["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 14 }];
-
-  XLSX.utils.book_append_sheet(wb, summarySheet, "Summary");
-
-  /* ── Download ── */
+  // ── Download ────────────────────────────────────────────────────────────
   const safeName = eventTitle.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_");
   const fileName = `${safeName}_tickets_${new Date().toISOString().slice(0, 10)}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob   = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement("a");
+  a.href       = url;
+  a.download   = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /* ── Stat card ──────────────────────────────────────────────────────────── */
@@ -272,7 +507,7 @@ export function ScrAnalyticsPage({ ev, eventId, analytics, badge, onBack, onRefr
     try {
       const data = await scrApi.exportTickets(eventId);
       if (!data.rows.length) { alert("No confirmed ticket data to export."); return; }
-      generateExcelAndDownload(data.rows, data.eventTitle, analytics);
+      await generateExcelAndDownload(data.rows, data.eventTitle, analytics);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Export failed");
     } finally {
