@@ -5,15 +5,15 @@ import SocketClient from "./SocketClient";
 export const metadata: Metadata = {
   metadataBase: new URL("https://kasakai.in"),
   title: {
-    default: "Kasa Kai — Live Football Screenings & Events",
+    default: "Kasa Kai — Football Screenings, Games & Community in India",
     template: "%s | Kasa Kai",
   },
-  description: "Book your spot at premium sports bars and venues across India. Live football screenings, organized games, and electric crowds.",
-  keywords: ["football", "live screening", "sports bar", "UCL", "IPL", "events", "India", "Mumbai", "Kasa Kai"],
+  description: "India's football community platform. Watch live match screenings at top venues, join organized 5-a-side games, meet fellow fans, and book your spot — all on Kasa Kai.",
+  keywords: ["football", "live screening", "sports bar", "UCL final", "Champions League", "5-a-side", "organized football", "football community", "India", "Mumbai", "Kasa Kai"],
   openGraph: {
     siteName: "Kasa Kai",
-    title: "Kasa Kai — Live Football Screenings & Events",
-    description: "Book your spot at premium sports bars and venues across India. Live screens · Great food · Electric crowd.",
+    title: "Kasa Kai — Football Screenings, Games & Community in India",
+    description: "Watch live match screenings at top venues, join organized football games, and connect with players across India. All on Kasa Kai.",
     url: "https://kasakai.in",
     type: "website",
     images: [
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Kasa Kai — Live Football Screenings",
-    description: "Book your spot at premium sports bars across India.",
+    title: "Kasa Kai — Football Screenings, Games & Community",
+    description: "Watch live screenings, join organized football games, and meet fellow fans across India.",
     images: ["/kasa-kai-logo.svg"],
   },
 };
