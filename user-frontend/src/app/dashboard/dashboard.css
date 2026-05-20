@@ -533,11 +533,11 @@ body::after {
   display: inline-flex;
   align-items: center;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 5px 9px;
+  padding: 6px 11px;
   border-radius: 20px;
   border: 1px solid rgba(255, 193, 7, 0.4);
   background: rgba(255, 193, 7, 0.08);
@@ -565,14 +565,14 @@ body::after {
 
 .registered-badge {
   display: inline-block;
-  padding: 6px 10px;
+  padding: 6px 11px;
   background: rgba(200, 255, 62, 0.15);
   color: var(--lime);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-radius: 4px;
+  border-radius: 20px;
 }
 
 .card-price {
@@ -587,7 +587,7 @@ body::after {
 }
 
 .price-rupee {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--lime);
   opacity: 0.85;
@@ -595,7 +595,7 @@ body::after {
 
 .price-amount {
   font-family: var(--cond);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--white);
   line-height: 1;
@@ -610,7 +610,7 @@ body::after {
 
 .card-title {
   font-family: var(--cond);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 900;
   letter-spacing: 0.04em;
   color: var(--white);
@@ -634,7 +634,7 @@ body::after {
 }
 
 .card-venue {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: #bbb;
   overflow: hidden;
@@ -644,15 +644,15 @@ body::after {
 }
 
 .card-loc-sep {
-  font-size: 11px;
+  font-size: 13px;
   color: #333;
-  padding: 0 6px;
+  padding: 0 7px;
   flex-shrink: 0;
   line-height: 1;
 }
 
 .card-city {
-  font-size: 12px;
+  font-size: 14px;
   color: #777;
   flex-shrink: 0;
   white-space: nowrap;
@@ -672,9 +672,9 @@ body::after {
 .detail-item {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   align-items: center;
-  padding: 10px 8px;
+  padding: 12px 8px;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -684,14 +684,14 @@ body::after {
 
 .detail-label {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   color: #555;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
 .detail-value {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--white);
   letter-spacing: 0.01em;
@@ -736,14 +736,14 @@ body::after {
   gap: 3px;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: #555;
 }
 
 .players-count {
   font-weight: 700;
   color: #ccc;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .total-slots {
@@ -890,9 +890,9 @@ body::after {
 
 .card-btn {
   flex: 1;
-  padding: 11px 14px;
+  padding: 12px 14px;
   font-family: var(--body);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -3021,22 +3021,22 @@ body::after {
   .price-amount { font-size: 17px; }
 
   /* Venue — title medium, location line compact */
-  .card-title { font-size: 16px; letter-spacing: 0.03em; padding-bottom: 7px; }
-  .card-venue { font-size: 11px; }
-  .card-city  { font-size: 11px; }
+  .card-title { font-size: 19px; letter-spacing: 0.03em; padding-bottom: 7px; }
+  .card-venue { font-size: 13px; }
+  .card-city  { font-size: 13px; }
 
   /* Detail grid: 3 cols — Date / Time / Format in a row */
   .card-details-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-  .detail-item { padding: 9px 6px; }
-  .detail-label { font-size: 8px; }
-  .detail-value { font-size: 12px; }
+  .detail-item { padding: 10px 6px; }
+  .detail-label { font-size: 9.5px; }
+  .detail-value { font-size: 14px; }
 
   /* Capacity bar */
   .capacity-section { gap: 8px; }
-  .capacity-text { font-size: 10px; }
-  .players-count { font-size: 12px; }
+  .capacity-text { font-size: 11px; }
+  .players-count { font-size: 13px; }
 
   /* Action buttons: full-width stack */
   .card-actions { flex-direction: column; gap: 6px; }
@@ -3107,14 +3107,14 @@ body::after {
   .registered-badge { font-size: 8px; padding: 3px 6px; }
 
   /* Venue text */
-  .card-title { font-size: 14px; padding-bottom: 6px; }
-  .card-venue { font-size: 10.5px; }
-  .card-city  { font-size: 10.5px; }
+  .card-title { font-size: 17px; padding-bottom: 6px; }
+  .card-venue { font-size: 12px; }
+  .card-city  { font-size: 12px; }
 
   /* Detail grid — 3 cols, tighter */
-  .detail-item { padding: 8px 4px; }
-  .detail-label { font-size: 7.5px; }
-  .detail-value { font-size: 11px; }
+  .detail-item { padding: 9px 4px; }
+  .detail-label { font-size: 9px; }
+  .detail-value { font-size: 13px; }
 
   /* Buttons slim */
   .card-btn { padding: 11px 8px; font-size: 11.5px; }
