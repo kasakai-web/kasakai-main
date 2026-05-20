@@ -1195,14 +1195,6 @@ export default function PlayerDashboard() {
                         borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
                       }}>Organiser</span>
                     );
-                    const guestChip = (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
-                        textTransform: "uppercase" as const, color: "#94a3b8",
-                        background: "rgba(148,163,184,0.10)", border: "1px solid rgba(148,163,184,0.2)",
-                        borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
-                      }}>Guest</span>
-                    );
 
                     const renderRow = (name: string, chip: React.ReactNode, key: string) => (
                       <div key={key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1220,14 +1212,14 @@ export default function PlayerDashboard() {
                             {orgGuests.length > 0 && (
                               <div className="pd-player-guest-group">
                                 {orgGuests.map((r: any, i: number) =>
-                                  renderRow(r.plusOneName, guestChip, `og-${r._id || i}`)
+                                  renderRow(r.plusOneName, null, `og-${r._id || i}`)
                                 )}
                               </div>
                             )}
                           </div>
                         )}
                         {!detailGame.organiserIsPlaying && orgGuests.map((r: any, i: number) =>
-                          renderRow(r.plusOneName, guestChip, `og-${r._id || i}`)
+                          renderRow(r.plusOneName, null, `og-${r._id || i}`)
                         )}
                         {mainRegs.map((reg: any, idx: number) => {
                           const pId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
@@ -1238,7 +1230,7 @@ export default function PlayerDashboard() {
                               {myGsts.length > 0 && (
                                 <div className="pd-player-guest-group">
                                   {myGsts.map((gr: any, gi: number) =>
-                                    renderRow(gr.plusOneName, guestChip, `pg-${gr._id || gi}`)
+                                    renderRow(gr.plusOneName, null, `pg-${gr._id || gi}`)
                                   )}
                                 </div>
                               )}
