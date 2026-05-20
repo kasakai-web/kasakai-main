@@ -33,7 +33,7 @@ interface BookingModalProps {
     teamPreference: string,
     willingIfFormatChange: boolean,
     waitlistGuests?: Guest[],
-  ) => void;
+  ) => Promise<void> | void;
   walletBalance: number;
   playerPositions?: string[];
   playerId?: string;
@@ -204,8 +204,6 @@ export function BookingModal({
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
   const [guests, setGuests] = useState<Guest[]>([]);
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
-  const [success, setSuccess] = useState(false);
-  const [notification, setNotification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [photoError, setPhotoError] = useState(false);
 
@@ -249,26 +247,17 @@ export function BookingModal({
     setPhotoError(false);
     setIsLoading(true);
     try {
-      // Split guests: first spotsForGuests go as confirmed, remainder as waitlist
       const confirmedGuests = isWaitlist ? guests : guests.slice(0, spotsForGuests);
       const overflowGuests  = isWaitlist ? []     : guests.slice(spotsForGuests);
-      onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setSuccess(true);
-      setNotification(true);
-      setTimeout(() => setNotification(false), 4000);
-    } catch (error) {
-      console.error("Registration error:", error);
+      await onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests);
     } finally {
       setIsLoading(false);
     }
   };
 
   const closeAll = () => {
-    setSuccess(false);
     setGuests([]);
     setWillingIfFormatChange(true);
-    setNotification(false);
     setIsLoading(false);
     onClose();
   };
@@ -278,8 +267,7 @@ export function BookingModal({
       <div className="overlay show" onClick={closeAll} />
 
       <div className="booking-modal show">
-        {!success ? (
-          <div id="bookingForm">
+        <div id="bookingForm">
             <div className="bm-header">
               <div className="bm-title-group">
                 <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : "Book"}</div>
@@ -493,33 +481,8 @@ export function BookingModal({
                 <span>{isLoading ? "Processing..." : isWaitlist ? "Join Waitlist — No Charge Yet" : `Confirm & Pay ₹${totalFee}`}</span>
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="success-state show">
-            <div className="success-icon">{isWaitlist ? "📋" : "✓"}</div>
-            <div className="success-title">{isWaitlist ? "You're on the Waitlist!" : "You're In!"}</div>
-            <div className="success-sub">
-              {isWaitlist
-                ? `You've joined the waitlist for ${venueName}.`
-                : `Registered for ${venueName}. ₹${totalFee} deducted from your wallet.${guests.length > 0 ? ` ${guests.length} guest${guests.length > 1 ? "s" : ""} added.` : ""}`}
-            </div>
-            <button className="bm-confirm-btn" style={{ maxWidth: "240px", marginTop: "8px" }} onClick={closeAll} type="button">
-              <span>View My Games</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {notification && (
-        <div className="notification-toast success">
-          <div className="notification-content">
-            <span className="notification-icon">✓</span>
-            <span className="notification-text">
-              Registered for {venueName}!{guests.length > 0 ? ` +${guests.length} guest${guests.length > 1 ? "s" : ""}` : ""}
-            </span>
-          </div>
         </div>
-      )}
+      </div>
     </>
   );
 }
