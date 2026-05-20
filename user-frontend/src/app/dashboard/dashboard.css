@@ -357,7 +357,7 @@ body::after {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 16px;
 }
@@ -469,14 +469,13 @@ body::after {
 .events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1px;
-  background: var(--border);
+  gap: 20px;
 }
 
 .event-card {
   background: var(--grey);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -1776,7 +1775,7 @@ body::after {
 
 /* responsive (legacy rules — kept minimal; full responsive is below) */
 @media(max-width:600px) {
-  .events-grid { grid-template-columns: 1fr; }
+  .events-grid { grid-template-columns: 1fr; gap: 14px; }
   .bm-game-info { grid-template-columns: 1fr; }
 }
 
@@ -2757,6 +2756,7 @@ body::after {
   }
   .events-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
   }
   .page-title {
     font-size: clamp(24px, 3vw, 32px);
@@ -2864,6 +2864,7 @@ body::after {
 
   .events-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .page-header {
@@ -2914,9 +2915,10 @@ body::after {
 
   /* ── Event cards on mobile ── */
   .event-card {
-    border-radius: 10px;
-    padding: 14px;
-    gap: 10px;
+    border-radius: 14px;
+    padding: 16px;
+    gap: 12px;
+    border-color: rgba(255, 255, 255, 0.09);
   }
 
   /* Header: let badges wrap under price if needed */
@@ -3005,16 +3007,12 @@ body::after {
 
   /* Space between tabs and cards */
   .events-grid {
-    margin-top: 4px;
+    margin-top: 12px;
   }
 
   /* Card improvements on mobile */
-  .event-card {
-    border-radius: 12px;
-    border-color: rgba(255,255,255,0.08);
-  }
   .event-card.registered {
-    border-color: rgba(200, 255, 62, 0.25);
+    border-color: rgba(200, 255, 62, 0.3);
   }
 
   /* Page header stacks on mobile */
@@ -3034,7 +3032,8 @@ body::after {
 
 /* ── Very small phones (≤ 400px) ── */
 @media (max-width: 400px) {
-  .event-card { padding: 12px; gap: 8px; }
+  .events-grid { gap: 10px; }
+  .event-card { padding: 14px; gap: 10px; }
 
   /* Stack header completely: badges first, price second */
   .card-header { flex-direction: column; gap: 6px; }

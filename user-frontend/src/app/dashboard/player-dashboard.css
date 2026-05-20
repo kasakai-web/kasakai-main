@@ -2,6 +2,11 @@
    PLAYER DASHBOARD — full stylesheet
 ═══════════════════════════════════════════════ */
 
+/* ── Tighten spacing between tabs and card grid ── */
+.player-dashboard-container .tabs-section {
+  margin-bottom: 14px;
+}
+
 /* ── Container & background ── */
 .player-dashboard-container {
   min-height: 100vh;
@@ -10,7 +15,7 @@
     radial-gradient(ellipse 60% 40% at 100% 80%, rgba(111, 200, 218, 0.04) 0%, transparent 55%),
     #070709;
   color: var(--white);
-  padding: 32px 24px 80px;
+  padding: 0 0 80px;
 }
 
 /* ── Page shell ── */
@@ -894,7 +899,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .player-dashboard-container { padding: 16px 12px 60px; }
+  .player-dashboard-container { padding: 0 0 60px; }
   .profile-hero { padding: 28px 20px 24px; }
   .profile-title { font-size: 36px; }
   .pd-stats-grid { grid-template-columns: 1fr 1fr; }
@@ -993,7 +998,7 @@
 
   .tabs-section {
     position: relative;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
 }
 
