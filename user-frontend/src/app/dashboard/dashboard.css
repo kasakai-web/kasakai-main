@@ -473,28 +473,38 @@ body::after {
 }
 
 .event-card {
-  background: var(--grey);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 20px;
+  background: linear-gradient(150deg, #141414 0%, #0e0e0e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.28s ease;
   animation: cardIn .5s cubic-bezier(.22, 1, .36, 1) both;
 }
 
 .event-card:hover {
-  background: #1a1a1a;
-  border-color: var(--lime);
-  transform: translateY(-2px);
+  background: linear-gradient(150deg, #191919 0%, #131313 100%);
+  border-color: rgba(200, 255, 62, 0.2);
+  border-left-color: rgba(200, 255, 62, 0.55);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 
 .event-card.registered {
-  border-color: rgba(200, 255, 62, 0.3);
+  border-left-color: rgba(200, 255, 62, 0.5);
+  background: linear-gradient(150deg, #131713 0%, #0e100e 100%);
 }
+
+/* Status-based left accent */
+.event-card.confirmed { border-left-color: rgba(200, 255, 62, 0.5); }
+.event-card.full      { border-left-color: rgba(255, 80,  80,  0.55); }
+.event-card.cancelled { border-left-color: rgba(120, 120, 120, 0.3); }
+.event-card.open      { border-left-color: rgba(200, 255, 62, 0.3); }
 
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(16px); }
@@ -520,35 +530,37 @@ body::after {
 }
 
 .status-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-family: var(--mono);
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.status-badge {
-  background: var(--amber);
-  color: #000;
+  padding: 5px 9px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  background: rgba(255, 193, 7, 0.08);
+  color: var(--amber);
+  white-space: nowrap;
 }
 
 .event-card.full .status-badge {
-  background: var(--coral);
-  color: #000;
+  border-color: rgba(255, 80, 80, 0.4);
+  background: rgba(255, 80, 80, 0.08);
+  color: #ff7070;
 }
 
 .event-card.confirmed .status-badge {
-  background: var(--lime);
-  color: #000;
+  border-color: rgba(200, 255, 62, 0.4);
+  background: rgba(200, 255, 62, 0.07);
+  color: var(--lime);
 }
 
 .event-card.cancelled .status-badge {
-  background: #333;
-  color: var(--muted);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #555;
 }
 
 .registered-badge {
@@ -566,86 +578,99 @@ body::after {
 .card-price {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  background: linear-gradient(135deg, rgba(200, 255, 62, 0.1), rgba(200, 255, 62, 0.05));
-  padding: 8px 12px;
-  border-radius: 6px;
+  gap: 2px;
+  background: rgba(200, 255, 62, 0.07);
+  border: 1px solid rgba(200, 255, 62, 0.18);
+  padding: 5px 10px;
+  border-radius: 20px;
+  flex-shrink: 0;
 }
 
 .price-rupee {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--lime);
+  opacity: 0.85;
 }
 
 .price-amount {
   font-family: var(--cond);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 900;
   color: var(--white);
+  line-height: 1;
 }
 
 /* ─── Venue Section ─── */
 .card-venue-section {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .card-title {
   font-family: var(--cond);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   color: var(--white);
   margin: 0;
-  line-height: 1.1;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-venue {
-  font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  color: #aaa;
+  color: #c0c0c0;
   margin: 0;
 }
 
 .card-city {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  color: #666;
+  letter-spacing: 0.01em;
 }
 
 /* ─── Details Grid ─── */
 .card-details-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 12px;
+  gap: 0;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
 }
 
 .detail-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
+  padding: 10px 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-item:last-child {
+  border-right: none;
 }
 
 .detail-label {
   font-family: var(--mono);
-  font-size: 9px;
-  color: var(--muted);
+  font-size: 8px;
+  color: #555;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 .detail-value {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--white);
+  letter-spacing: 0.01em;
 }
 
 /* ─── Capacity Section ─── */
@@ -657,9 +682,9 @@ body::after {
 
 .capacity-bar {
   flex: 1;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -684,21 +709,21 @@ body::after {
 .capacity-text {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 3px;
   white-space: nowrap;
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--muted);
+  color: #555;
 }
 
 .players-count {
-  font-weight: 600;
-  color: var(--white);
-  font-size: 13px;
+  font-weight: 700;
+  color: #ccc;
+  font-size: 12px;
 }
 
 .total-slots {
-  color: var(--muted);
+  color: #555;
 }
 
 /* ─── Players Preview ─── */
@@ -841,18 +866,21 @@ body::after {
 
 .card-btn {
   flex: 1;
-  padding: 12px 16px;
+  padding: 11px 14px;
   font-family: var(--body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
   color: var(--white);
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-btn:hover:not(:disabled) {
@@ -918,8 +946,9 @@ body::after {
 
 .details-btn {
   background: transparent;
-  border-color: #3a3a3a;
-  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #888;
+  font-size: 11px;
 }
 
 .cancel-reason-section {
@@ -976,8 +1005,9 @@ body::after {
 }
 
 .details-btn:hover:not(:disabled) {
-  border-color: #7d7d7d;
-  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ccc;
 }
 
 .share-btn {
@@ -993,9 +1023,6 @@ body::after {
 }
 
 @media (max-width: 768px) {
-  .card-details-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .players-grid {
     grid-template-columns: 1fr;
   }
@@ -2930,9 +2957,9 @@ body::after {
   /* ── Event cards on mobile ── */
   .event-card {
     border-radius: 14px;
-    padding: 16px;
+    padding: 15px 14px;
     gap: 12px;
-    border-color: rgba(255, 255, 255, 0.09);
+    border-left-width: 3px;
   }
 
   /* Header: force single row — scale fonts down instead of wrapping */
@@ -2963,31 +2990,24 @@ body::after {
 
   /* Price — compact pill in top-right */
   .card-price {
-    padding: 5px 10px;
+    padding: 4px 9px;
     flex-shrink: 0;
   }
-  .price-rupee { font-size: 12px; }
-  .price-amount { font-size: 18px; }
+  .price-rupee { font-size: 10px; }
+  .price-amount { font-size: 17px; }
 
-  /* Venue */
-  .card-title { font-size: 17px; }
-  .card-venue { font-size: 12px; }
-  .card-city { font-size: 11px; }
+  /* Venue — game name medium, turf smaller */
+  .card-title { font-size: 16px; letter-spacing: 0.02em; }
+  .card-venue { font-size: 13px; }
+  .card-city  { font-size: 11px; }
 
-  /* Detail grid: 2 equal columns, readable labels */
+  /* Detail grid: 3 cols — Date / Time / Format in a row */
   .card-details-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
-    padding: 10px;
+    grid-template-columns: repeat(3, 1fr);
   }
-  .detail-label {
-    font-size: 10px;
-    letter-spacing: 0.06em;
-  }
-  .detail-value {
-    font-size: 13px;
-    font-weight: 700;
-  }
+  .detail-item { padding: 9px 6px; }
+  .detail-label { font-size: 8px; }
+  .detail-value { font-size: 12px; }
 
   /* Capacity bar */
   .capacity-section { gap: 8px; }
@@ -3052,27 +3072,25 @@ body::after {
 /* ── Very small phones (≤ 400px) ── */
 @media (max-width: 400px) {
   .events-grid { gap: 10px; }
-  .event-card { padding: 14px; gap: 10px; }
+  .event-card { padding: 13px 12px; gap: 10px; }
 
   /* Header stays one row — shrink badges further on tiny phones */
   .card-header { flex-wrap: nowrap; gap: 4px; align-items: center; }
-  .card-price {
-    flex-shrink: 0;
-    padding: 3px 7px;
-  }
-  .price-rupee { font-size: 10px; }
-  .price-amount { font-size: 15px; }
-  .status-badge { font-size: 8.5px; padding: 3px 6px; }
-  .registered-badge { font-size: 8.5px; padding: 3px 6px; }
+  .card-price { flex-shrink: 0; padding: 3px 7px; }
+  .price-rupee { font-size: 9px; }
+  .price-amount { font-size: 14px; }
+  .status-badge { font-size: 8px; padding: 3px 6px; }
+  .registered-badge { font-size: 8px; padding: 3px 6px; }
 
-  /* Detail grid still 2-col but even tighter */
-  .card-details-grid { padding: 8px; gap: 5px; }
-  .detail-label { font-size: 9.5px; }
-  .detail-value { font-size: 12px; }
+  /* Venue text */
+  .card-title { font-size: 14px; }
+  .card-venue { font-size: 12px; }
+  .card-city  { font-size: 10px; }
 
-  /* Tighter venue text */
-  .card-title { font-size: 15px; }
-  .card-venue { font-size: 11px; }
+  /* Detail grid — 3 cols, tighter */
+  .detail-item { padding: 8px 4px; }
+  .detail-label { font-size: 7.5px; }
+  .detail-value { font-size: 11px; }
 
   /* Buttons slim */
   .card-btn { padding: 11px 8px; font-size: 11.5px; }
