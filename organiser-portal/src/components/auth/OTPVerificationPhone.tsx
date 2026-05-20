@@ -64,12 +64,17 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
         body: JSON.stringify({ phone, email, otp: otpString, role, mode }),
       });
 
+      const resData = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Invalid OTP');
+        throw new Error(resData.message || 'Invalid OTP');
       }
 
-      onVerified(otpString);
+      // For forgot-password mode the backend exchanges the OTP for a secure
+      // resetToken — pass that through so SetNewPasswordForm can use it.
+      const tokenToPass = (mode === "forgot-password" && resData.resetToken)
+        ? resData.resetToken
+        : otpString;
+      onVerified(tokenToPass);
     } catch (err: any) {
       setError(err.message || "OTP verification failed. Please try again.");
     } finally {

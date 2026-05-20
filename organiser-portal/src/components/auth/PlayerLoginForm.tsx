@@ -159,7 +159,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick }: PlayerLoginFor
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              autoComplete="new-password"
+              autoComplete="current-password"
               spellCheck={false}
               style={{
                 flex: 1,

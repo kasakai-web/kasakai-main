@@ -29,7 +29,7 @@ function AuthFlow() {
     phone: "",
     email: "",
     firstName: "",
-    otp: "",
+    resetToken: "",
     profileImageDataUrl: "",
     devOtp: "",
   });
@@ -144,8 +144,8 @@ function AuthFlow() {
           role="organiser"
           mode="forgot-password"
           devOtp={userData.devOtp}
-          onVerified={(otpVal: string) => {
-            setUserData((prev) => ({ ...prev, otp: otpVal }));
+          onVerified={(token: string) => {
+            setUserData((prev) => ({ ...prev, resetToken: token }));
             setStep("forgot-newpass");
           }}
           onBack={() => setStep("forgot-step1")}
@@ -156,7 +156,7 @@ function AuthFlow() {
       {step === "forgot-newpass" && (
         <SetNewPasswordForm
           phone={userData.phone}
-          otp={userData.otp}
+          resetToken={userData.resetToken}
           onSuccess={() => {
             setStep("login");
             alert("Password changed successfully! Please login with new password.");

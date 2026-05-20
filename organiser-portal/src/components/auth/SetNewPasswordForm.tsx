@@ -7,12 +7,12 @@ import { buildApiUrl } from "@/utils/api";
 interface SetNewPasswordFormProps {
   email?: string;
   phone?: string;
-  otp: string;
+  resetToken: string;
   onSuccess: () => void;
   onBack: () => void;
 }
 
-export function SetNewPasswordForm({ email, phone, otp, onSuccess, onBack }: SetNewPasswordFormProps) {
+export function SetNewPasswordForm({ email, phone, resetToken, onSuccess, onBack }: SetNewPasswordFormProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,9 +43,9 @@ export function SetNewPasswordForm({ email, phone, otp, onSuccess, onBack }: Set
         body: JSON.stringify({
           email: email,
           phone: email ? undefined : phone,
-          otp: otp,
+          resetToken: resetToken,
           newPassword: newPassword,
-          role: "organiser"
+          role: "organiser",
         }),
       });
       
