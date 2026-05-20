@@ -605,33 +605,57 @@ body::after {
 .card-venue-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .card-title {
   font-family: var(--cond);
   font-size: 18px;
   font-weight: 900;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--white);
   margin: 0;
   line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Combined venue + city on one line */
+.card-location {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .card-venue {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  color: #c0c0c0;
-  margin: 0;
+  color: #bbb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.card-loc-sep {
+  font-size: 11px;
+  color: #333;
+  padding: 0 6px;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .card-city {
   font-size: 12px;
-  color: #666;
-  letter-spacing: 0.01em;
+  color: #777;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* ─── Details Grid ─── */
@@ -2996,9 +3020,9 @@ body::after {
   .price-rupee { font-size: 10px; }
   .price-amount { font-size: 17px; }
 
-  /* Venue — game name medium, turf smaller */
-  .card-title { font-size: 16px; letter-spacing: 0.02em; }
-  .card-venue { font-size: 13px; }
+  /* Venue — title medium, location line compact */
+  .card-title { font-size: 16px; letter-spacing: 0.03em; padding-bottom: 7px; }
+  .card-venue { font-size: 11px; }
   .card-city  { font-size: 11px; }
 
   /* Detail grid: 3 cols — Date / Time / Format in a row */
@@ -3083,9 +3107,9 @@ body::after {
   .registered-badge { font-size: 8px; padding: 3px 6px; }
 
   /* Venue text */
-  .card-title { font-size: 14px; }
-  .card-venue { font-size: 12px; }
-  .card-city  { font-size: 10px; }
+  .card-title { font-size: 14px; padding-bottom: 6px; }
+  .card-venue { font-size: 10.5px; }
+  .card-city  { font-size: 10.5px; }
 
   /* Detail grid — 3 cols, tighter */
   .detail-item { padding: 8px 4px; }

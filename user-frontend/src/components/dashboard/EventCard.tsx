@@ -107,8 +107,11 @@ export function EventCard({
       {/* Venue Information */}
       <div className="card-venue-section">
         {title && <h3 className="card-title">{title}</h3>}
-        <p className="card-venue">🏟️ {venue}</p>
-        <p className="card-city">📍 {city}</p>
+        <p className="card-location">
+          <span className="card-venue">🏟️ {venue}</span>
+          <span className="card-loc-sep">·</span>
+          <span className="card-city">📍 {city}</span>
+        </p>
       </div>
 
       {/* Key Details Grid */}
