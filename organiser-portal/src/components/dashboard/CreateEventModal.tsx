@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./CreateEventModal.css";
 import { buildApiUrl, getSession } from "@/utils/api";
 
@@ -53,12 +53,16 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const [turf, setTurf]             = useState(lastEvent?.turf?._id || (typeof lastEvent?.turf === "string" ? lastEvent.turf : ""));
   const [date, setDate]             = useState("");
   const [time, setTime]             = useState(lastEvent ? (() => { const d = new Date(lastEvent.scheduledAt); return `${String(d.getHours()).padStart(2,"0")}:${d.getMinutes() >= 30 ? "30" : "00"}`; })() : "18:00");
-  const [format, setFormat]         = useState<Format>((lastEvent?.format as Format) ?? "5v5");
+  const initialFormat = (lastEvent?.format as Format) ?? "5v5";
+  const [format, setFormat]         = useState<Format>(initialFormat);
   const [durationMins, setDuration] = useState(lastEvent?.durationMins ?? 60);
   const [feeInRs, setFeeInRs]       = useState(lastEvent?.feeInPaise ? String(lastEvent.feeInPaise / 100) : "");
   const [reportingMins, setReporting] = useState(lastEvent?.reportingMinsBeforeGame ?? 30);
-  const [minPlayers, setMinPlayers] = useState<string>(lastEvent?.minPlayers ? String(lastEvent.minPlayers) : "");
-  const [maxPlayers, setMaxPlayers] = useState<string>(lastEvent?.totalSlots ? String(lastEvent.totalSlots) : "");
+  const [minPlayers, setMinPlayers] = useState<string>(
+    lastEvent?.minPlayers ? String(lastEvent.minPlayers) : String(Math.ceil(slotsFromFormat(initialFormat) / 2))
+  );
+  const [maxPlayers, setMaxPlayers] = useState<string>(lastEvent?.totalSlots ? String(lastEvent.totalSlots) : String(slotsFromFormat(initialFormat)));
+  const minPlayersEdited = useRef(!!lastEvent?.minPlayers);
 
   // Format change
   const [allowSizeChange, setAllowSizeChange] = useState(lastEvent?.allowSizeChange ?? false);
@@ -79,7 +83,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const maxGuests       = Math.max(0, hardCap - organiserSlot); // can't bring more guests than remaining cap
 
   useEffect(() => {
-    fetch(buildApiUrl("/api/v1/turfs"))
+    const { token } = getSession();
+    fetch(buildApiUrl("/api/v1/turfs"), token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
       .then(r => r.json())
       .then(d => {
         if (d.success) {
@@ -90,11 +95,11 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       .catch(console.error);
   }, []);
 
-  // Update min/max when format changes
+  // Update max when format changes; only reset min if not manually edited
   useEffect(() => {
     const slots = slotsFromFormat(format);
     if (!maxPlayers) setMaxPlayers(String(slots));
-    if (!minPlayers) setMinPlayers(String(slots));
+    if (!minPlayersEdited.current) setMinPlayers(String(Math.ceil(slots / 2)));
   }, [format]);
 
   const handleCreate = async () => {
@@ -106,9 +111,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       newErrors.date = "Game must be scheduled in the future";
     if (!feeInRs || isNaN(Number(feeInRs)) || Number(feeInRs) < 0)
       newErrors.feeInRs = "Valid fee is required";
-    const formatSlots = slotsFromFormat(format);
-    if (minPlayers && Number(minPlayers) < formatSlots)
-      newErrors.minMax = `Min players must be at least ${formatSlots} for a ${format} game`;
+    if (minPlayers && Number(minPlayers) < 2)
+      newErrors.minMax = "Min players required must be at least 2";
     if (minPlayers && maxPlayers && Number(maxPlayers) < Number(minPlayers))
       newErrors.minMax = "Max players allowed cannot be less than min players required";
     // Capacity check: organiser + guests must not exceed totalSlots
@@ -300,8 +304,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                     const f = e.target.value as Format;
                     setFormat(f);
                     const s = slotsFromFormat(f);
-                    setMinPlayers(String(s));
                     setMaxPlayers(String(s));
+                    if (!minPlayersEdited.current) setMinPlayers(String(Math.ceil(s / 2)));
                   }}
                   className="form-select"
                 >
@@ -334,21 +338,21 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <label className="form-label"><span className="label-text">Min Players Required</span></label>
                 <input
                   type="number"
-                  min={String(slotsFromFormat(format))}
+                  min="2"
                   max={maxPlayers || undefined}
                   value={minPlayers}
                   onChange={(e) => {
+                    minPlayersEdited.current = true;
                     const val = e.target.value;
-                    const floorVal = slotsFromFormat(format);
                     const max = Number(maxPlayers);
-                    if (Number(val) < floorVal) setMinPlayers(String(floorVal));
+                    if (Number(val) < 2) setMinPlayers("2");
                     else if (max && Number(val) > max) setMinPlayers(String(max));
                     else setMinPlayers(val);
                   }}
                   placeholder={String(slotsFromFormat(format))}
                   className={`form-input ${errors.minMax ? "error" : ""}`}
                 />
-                <div className="field-hint">Must be ≥ {slotsFromFormat(format)} (full {format} lineup)</div>
+                <div className="field-hint">Minimum registrations to confirm the game</div>
               </div>
 
               <div className="form-group">

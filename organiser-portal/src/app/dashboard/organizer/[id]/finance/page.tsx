@@ -111,6 +111,7 @@ export default function OrgFinancePage() {
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [games, setGames]     = useState<GameFinance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [filter, setFilter]   = useState("all");
 
@@ -118,16 +119,23 @@ export default function OrgFinancePage() {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch(buildApiUrl("/api/v1/games/organisers/financial-summary"), {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const d = await res.json();
-        if (d.success) { setSummary(d.data.summary); setGames(d.data.games || []); }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message || `HTTP ${res.status}`);
       }
-    } catch { /* non-critical */ }
-    finally { setLoading(false); }
+      const d = await res.json();
+      if (d.success) { setSummary(d.data.summary); setGames(d.data.games || []); }
+      else throw new Error(d.message || "Failed to load financials");
+    } catch (err: any) {
+      setFetchError(err.message || "Failed to load financial data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
 
   useEffect(() => {
@@ -157,6 +165,13 @@ export default function OrgFinancePage() {
 
       {loading ? (
         <div className="loading-container"><div className="spinner" /><p>Loading…</p></div>
+      ) : fetchError ? (
+        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "16px 20px", color: "#f87171", fontSize: 14 }}>
+          ⚠️ {fetchError}
+          <button onClick={fetchData} style={{ marginLeft: 12, background: "transparent", border: "1px solid #f87171", color: "#f87171", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>
+            Retry
+          </button>
+        </div>
       ) : (
         <>
           {/* ── Summary section ── */}

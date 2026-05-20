@@ -6,7 +6,7 @@ import { buildApiUrl } from "@/utils/api";
 
 interface ForgotPasswordStep1Props {
   onBack: () => void;
-  onContinue: (phone: string, devOtp?: string) => void;
+  onContinue: (phone: string) => void;
 }
 
 export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1Props) {
@@ -36,7 +36,7 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
         throw new Error(data.message || "Failed to send reset OTP.");
       }
 
-      onContinue(phone, data.dev_otp);
+      onContinue(phone);
     } catch (err: any) {
       setError(err.message || "Failed to send OTP. Please try again.");
     } finally {

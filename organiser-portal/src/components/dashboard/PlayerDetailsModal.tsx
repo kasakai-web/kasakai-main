@@ -117,7 +117,6 @@ export function PlayerDetailsModal({
 }: PlayerDetailsModalProps) {
 
   const [teams, setTeams] = useState<any>(null);
-  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -203,30 +202,6 @@ export function PlayerDetailsModal({
       showStatus("error", "Failed to add player");
     } finally {
       setAddingPlayerId(null);
-    }
-  };
-
-  const handleUploadPlayerImage = async (playerId: string, file: File) => {
-    setUploadingImageId(playerId);
-    try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
-      const formData = new FormData();
-      formData.append("profileImage", file);
-      const res = await fetch(buildApiUrl(`/api/v1/organisers/me/players/${playerId}/profile-image`), {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        showStatus("error", data.message || "Image upload failed");
-        return;
-      }
-      onRefresh?.();
-    } catch {
-      showStatus("error", "Image upload failed");
-    } finally {
-      setUploadingImageId(null);
     }
   };
 
@@ -667,8 +642,13 @@ export function PlayerDetailsModal({
                                 ? async () => {
                                     const doRemove = async () => {
                                       setProcessingId(regId);
-                                      await onRemoveRegistration(regId);
-                                      setProcessingId(null);
+                                      try {
+                                        await onRemoveRegistration(regId);
+                                      } catch {
+                                        showStatus("error", "Failed to remove player. Please try again.");
+                                      } finally {
+                                        setProcessingId(null);
+                                      }
                                     };
                                     setConfirmMessage(`Remove ${reg.plusOneName} from your guest list?`);
                                     confirmActionRef.current = doRemove;

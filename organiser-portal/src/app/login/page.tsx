@@ -31,7 +31,6 @@ function AuthFlow() {
     firstName: "",
     resetToken: "",
     profileImageDataUrl: "",
-    devOtp: "",
   });
 
 
@@ -71,8 +70,7 @@ function AuthFlow() {
         <PlayerSignUpStep2
           userData={userData}
           onBack={() => setStep("signup-form")}
-          onSuccess={(password, devOtp) => {
-            setUserData((prev) => ({ ...prev, password, devOtp: devOtp || "" }));
+          onSuccess={() => {
             setStep("signup-otp");
           }}
         />
@@ -84,7 +82,6 @@ function AuthFlow() {
           phone={userData.phone}
           role="organiser"
           mode="signup"
-          devOtp={userData.devOtp}
           onVerified={() => setStep("signup-success")}
           onBack={() => setStep("signup-confirm")}
         />
@@ -130,8 +127,8 @@ function AuthFlow() {
       {step === "forgot-step1" && (
         <ForgotPasswordStep1
           onBack={() => setStep("login")}
-          onContinue={(phone: string, devOtp?: string) => {
-            setUserData((prev) => ({ ...prev, phone, devOtp: devOtp || "" }));
+          onContinue={(phone: string) => {
+            setUserData((prev) => ({ ...prev, phone }));
             setStep("forgot-otp");
           }}
         />
@@ -143,7 +140,6 @@ function AuthFlow() {
           phone={userData.phone}
           role="organiser"
           mode="forgot-password"
-          devOtp={userData.devOtp}
           onVerified={(token: string) => {
             setUserData((prev) => ({ ...prev, resetToken: token }));
             setStep("forgot-newpass");

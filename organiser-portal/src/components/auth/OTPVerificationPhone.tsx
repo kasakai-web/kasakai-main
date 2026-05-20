@@ -14,7 +14,7 @@ interface OTPVerificationPhoneProps {
   devOtp?: string;
 }
 
-export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack }: OTPVerificationPhoneProps) {
+export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack, devOtp }: OTPVerificationPhoneProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

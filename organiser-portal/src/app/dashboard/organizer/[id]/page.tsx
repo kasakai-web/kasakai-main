@@ -47,7 +47,7 @@ export default function OrganizerDashboard() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterFormat, setFilterFormat] = useState('all');
   const [sortBy, setSortBy] = useState('date-asc');
-  const { toast, showToast } = useToast();
+  const { toast, showToast, hideToast } = useToast();
 
   const fetchWithLocalFallback = useCallback(
     async (url: string, init?: RequestInit): Promise<Response> => {
@@ -220,22 +220,26 @@ export default function OrganizerDashboard() {
   const handleRemoveRegistration = async (gameId: string, regId: string) => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
-    const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/registrations/${regId}`), {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
-    // Refresh games and keep the modal open with updated data
-    const { token: t2 } = getSession();
-    const refreshed = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
-      headers: { Authorization: `Bearer ${t2}` },
-    });
-    const refreshedData = await refreshed.json();
-    if (refreshedData.success) {
-      const updatedGames: any[] = refreshedData.data;
-      setGames(updatedGames);
-      setSelectedGame((prev: any) => updatedGames.find((g) => g._id === prev?._id) ?? prev);
+    try {
+      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/registrations/${regId}`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
+      // Refresh games and keep the modal open with updated data
+      const { token: t2 } = getSession();
+      const refreshed = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
+        headers: { Authorization: `Bearer ${t2}` },
+      });
+      const refreshedData = await refreshed.json();
+      if (refreshedData.success) {
+        const updatedGames: any[] = refreshedData.data;
+        setGames(updatedGames);
+        setSelectedGame((prev: any) => updatedGames.find((g) => g._id === prev?._id) ?? prev);
+      }
+    } catch (err: any) {
+      throw err;
     }
   };
 
@@ -355,7 +359,7 @@ export default function OrganizerDashboard() {
 
   return (
     <div className="organizer-dashboard-container">
-      {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
+      {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={hideToast} />}
 
       {/* Header */}
       <div className="dashboard-header-section">
@@ -620,7 +624,7 @@ export default function OrganizerDashboard() {
                           </svg>
                           <span className="btn-label">Edit</span>
                         </button>
-                        {['open','tentative'].includes(game.status) && game.registrations?.length >= game.minPlayers && (
+                        {['open','tentative'].includes(game.status) && getTotalPlayers(game) >= game.minPlayers && (
                           <button
                             className="btn-action btn-confirm"
                             onClick={() => handleConfirmGame(game._id)}

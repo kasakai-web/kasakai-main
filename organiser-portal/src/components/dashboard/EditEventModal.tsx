@@ -81,7 +81,8 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
   const [organiserIsPlaying, setOrganiserIsPlaying] = useState(Boolean(initialData.organiserIsPlaying));
 
   useEffect(() => {
-    fetch(buildApiUrl("/api/v1/turfs"))
+    const { token } = getSession();
+    fetch(buildApiUrl("/api/v1/turfs"), token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
       .then((r) => r.json())
       .then((d) => { if (d.success) setTurfs(d.data || []); })
       .catch(console.error);

@@ -434,6 +434,17 @@ export default function OrganiserProfilePage() {
         onCancel={() => setShowLogoutConfirm(false)}
       />
 
+      <ConfirmationModal
+        open={deleteStep === 1}
+        title="Delete Account"
+        message="Are you sure you want to permanently delete your organiser account? This action cannot be undone and all your game data will be lost."
+        confirmLabel="Yes, Delete Account"
+        cancelLabel="Cancel"
+        loading={deleting}
+        onConfirm={handleDeleteProfile}
+        onCancel={() => setDeleteStep(0)}
+      />
+
       {loading && (
         <div className="loading-container">
           <div className="spinner"></div>

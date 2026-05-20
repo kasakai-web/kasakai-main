@@ -430,7 +430,7 @@ export default function DashboardLayout({
               </button>
               <button
                 type="button"
-                onClick={() => setShowPhotoReminder(false)}
+                onClick={() => { setShowPhotoReminder(false); localStorage.removeItem("requirePhotoUpload"); }}
                 aria-label="Dismiss"
                 style={{
                   background: "none", border: "none", color: "var(--muted)",
