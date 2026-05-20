@@ -61,7 +61,7 @@ const POS_LABEL: Record<string, string> = {
 };
 
 function posLabel(raw?: string) {
-  if (!raw) return null;
+  if (!raw || raw === "any") return null;
   return POS_LABEL[raw.toLowerCase()] ?? raw.toUpperCase();
 }
 
@@ -306,11 +306,21 @@ export function PlayerDetailsModal({
   const mainRegs  = players.filter((r) => !r.plusOneName);
   const guestRegs = players.filter((r) => !!r.plusOneName);
 
-  // Organiser's own guests (plusOneName set, player null — organiser is not in Player collection)
-  const organiserGuests = players.filter((r) => !!r.plusOneName && !r.player);
-  // Player guests grouped by their owner's player ID
+  // Robust organiser-guest detection: covers both populated (player=null) and
+  // unpopulated (player=organiser ObjectId string) states from the API.
+  const loggedInOrgId = typeof window !== "undefined" ? (localStorage.getItem("userId") || "") : "";
+  const organiserGuests = players.filter((r) => {
+    if (!r.plusOneName) return false;
+    if (!r.player) return true;
+    return String((r.player as any)?._id ?? (r.player as any) ?? "") === loggedInOrgId;
+  });
+  // Player guests grouped by their owner's player ID (exclude organiser guests)
   const guestsByPlayer = new Map<string, Registration[]>();
-  players.filter((r) => !!r.plusOneName && !!r.player).forEach((r) => {
+  players.filter((r) => {
+    if (!r.plusOneName || !r.player) return false;
+    const pid = String((r.player as any)?._id ?? (r.player as any) ?? "");
+    return pid && pid !== loggedInOrgId;
+  }).forEach((r) => {
     const k = (r.player as any)?._id?.toString() ?? (r.player as any)?.toString() ?? "";
     if (k) {
       if (!guestsByPlayer.has(k)) guestsByPlayer.set(k, []);
@@ -1060,6 +1070,21 @@ function PlayerCard({
           </div>
         </div>
 
+        {/* Preferences row — shown for ALL registrations with pos or team set */}
+        {(pos || team) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+            {pos && (
+              <span className="pdm-pos-tag">{pos}</span>
+            )}
+            {team && (
+              <span className={`pdm-team-tag ${team.cls}`}>{team.label}</span>
+            )}
+          </div>
+        )}
+        {isGuest && !pos && !team && (
+          <div style={{ fontSize: 10, color: "#444", marginTop: 4 }}>No preferences set</div>
+        )}
+
         {!isGuest && (reg.player?.phone || reg.player?.email) && (
           <div className="pdm-card-contact">
             {reg.player?.phone && (
@@ -1078,8 +1103,6 @@ function PlayerCard({
         )}
 
         <div className="pdm-card-tags">
-          {pos  && <span className="pdm-pos-tag">{pos}</span>}
-          {team && <span className={`pdm-team-tag ${team.cls}`}>{team.label}</span>}
           {date && <span className="pdm-date-tag">{date}</span>}
         </div>
       </div>

@@ -41,6 +41,23 @@ const TEAM_LABELS: Record<string, string> = {
   red: "Red Team", blue: "Blue Team",
 };
 
+// Module-level so it can be called in useState initialiser
+function extractOrgGuests(game: any): GuestReg[] {
+  const orgId = String(game.organiser?._id ?? game.organiser ?? "");
+  return (game.registrations || [])
+    .filter((r: any) => {
+      if (!r.plusOneName) return false;
+      if (!r.player) return true; // populated → null means organiser guest
+      return String(r.player?._id ?? r.player ?? "") === orgId;
+    })
+    .map((r: any) => ({
+      _id: String(r._id),
+      plusOneName: r.plusOneName,
+      preferredPosition: r.preferredPosition,
+      teamPreference: r.teamPreference,
+    }));
+}
+
 interface EditEventModalProps {
   gameId: string;
   initialData: any; // full game object from API
@@ -49,12 +66,7 @@ interface EditEventModalProps {
 }
 
 export function EditEventModal({ gameId, initialData, onClose, onSuccess }: EditEventModalProps) {
-  // Derive organiser's existing guest registrations from initialData
-  const [guests, setGuests] = useState<GuestReg[]>(() =>
-    (initialData.registrations || []).filter(
-      // player is null after population = organiser's guest (organiser ID doesn't exist in Player collection)
-      (r: any) => r.plusOneName && !r.player
-    ).map((r: any) => ({ _id: r._id?.toString?.() ?? r._id, plusOneName: r.plusOneName }))
+  const [guests, setGuests] = useState<GuestReg[]>(() => extractOrgGuests(initialData)
   );
   const [guestLoading, setGuestLoading]       = useState(false);
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
@@ -101,23 +113,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
       .catch(console.error);
   }, []);
 
-  const deriveGuests = (game: any): GuestReg[] => {
-    const organiserIdStr = String(game.organiser?._id ?? game.organiser ?? "");
-    return (game.registrations || [])
-      .filter((r: any) => {
-        if (!r.plusOneName) return false;
-        // After populate, organiser guests have r.player = null (organiser ID isn't in Player collection)
-        // Before populate, r.player is the raw organiser ObjectId string
-        if (!r.player) return true;
-        return String(r.player?._id ?? r.player ?? "") === organiserIdStr;
-      })
-      .map((r: any) => ({
-        _id: String(r._id),
-        plusOneName: r.plusOneName,
-        preferredPosition: r.preferredPosition,
-        teamPreference: r.teamPreference,
-      }));
-  };
+  const deriveGuests = (game: any): GuestReg[] => extractOrgGuests(game);
 
   const showGuestSuccess = (msg: string) => {
     setGuestSuccess(msg);
@@ -362,15 +358,28 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
 
           {/* ── Your Participation ── */}
           <Section title="Your Participation">
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={organiserIsPlaying}
-                onChange={(e) => setOrganiserIsPlaying(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: "#c8ff3e" }}
-              />
-              <span style={{ fontSize: 14, color: "#ddd" }}>I want to play in this game (uses 1 slot)</span>
-            </label>
+            {(() => {
+              const canJoin = organiserIsPlaying || openSlots > 0;
+              return (
+                <>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: canJoin ? "pointer" : "not-allowed", opacity: canJoin ? 1 : 0.6 }}>
+                    <input
+                      type="checkbox"
+                      checked={organiserIsPlaying}
+                      onChange={(e) => setOrganiserIsPlaying(e.target.checked)}
+                      disabled={!canJoin}
+                      style={{ width: 16, height: 16, accentColor: "#c8ff3e" }}
+                    />
+                    <span style={{ fontSize: 14, color: "#ddd" }}>I want to play in this game (uses 1 slot)</span>
+                  </label>
+                  {!canJoin && (
+                    <p style={{ margin: "6px 0 0 26px", fontSize: 12, color: "#f87171" }}>
+                      Game is full — no slot available for you to join.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Capacity summary */}
             <div style={{
@@ -420,38 +429,48 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
 
             {guests.map((g, idx) => {
               const isRemoving = removingGuestId === g._id;
-              const posLabel = g.preferredPosition ? POSITION_LABELS[g.preferredPosition] : null;
+              const posLabel = g.preferredPosition && g.preferredPosition !== "any"
+                ? POSITION_LABELS[g.preferredPosition] ?? g.preferredPosition.toUpperCase()
+                : null;
               const teamLabel = g.teamPreference ? TEAM_LABELS[g.teamPreference] : null;
+              const hasPref = !!(posLabel || teamLabel);
               return (
                 <div key={g._id} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   background: "rgba(200,255,62,0.04)", border: "1px solid #2a2a2a",
-                  borderRadius: 8, padding: "8px 12px",
+                  borderRadius: 8, padding: "10px 12px",
                   opacity: isRemoving ? 0.5 : 1,
                   transition: "opacity 0.15s",
                 }}>
-                  <div>
-                    <span style={{ fontSize: 13, color: "#ddd" }}>
-                      <span style={{ color: "#c8ff3e", fontWeight: 600, marginRight: 8 }}>#{idx + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: "#ddd", fontWeight: 500 }}>
+                      <span style={{ color: "#c8ff3e", fontWeight: 700, marginRight: 8 }}>#{idx + 1}</span>
                       {g.plusOneName}
-                    </span>
-                    {(posLabel || teamLabel) && (
-                      <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                    </div>
+                    {hasPref ? (
+                      <div style={{ display: "flex", gap: 5, marginTop: 5, flexWrap: "wrap" }}>
                         {posLabel && (
-                          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "rgba(200,255,62,0.12)", color: "#c8ff3e", fontWeight: 600 }}>
+                          <span style={{
+                            fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
+                            background: "rgba(147,197,253,0.12)", color: "#93c5fd",
+                            border: "1px solid rgba(147,197,253,0.25)",
+                          }}>
                             {posLabel}
                           </span>
                         )}
                         {teamLabel && (
                           <span style={{
-                            fontSize: 10, padding: "1px 6px", borderRadius: 4, fontWeight: 600,
-                            background: g.teamPreference === "red" ? "rgba(220,38,38,0.15)" : "rgba(59,130,246,0.15)",
-                            color: g.teamPreference === "red" ? "#f87171" : "#60a5fa",
+                            fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
+                            background: g.teamPreference === "red" ? "rgba(231,76,60,0.12)" : "rgba(52,152,219,0.12)",
+                            color: g.teamPreference === "red" ? "#ff6b6b" : "#74b9ff",
+                            border: `1px solid ${g.teamPreference === "red" ? "rgba(231,76,60,0.3)" : "rgba(52,152,219,0.3)"}`,
                           }}>
                             {teamLabel}
                           </span>
                         )}
                       </div>
+                    ) : (
+                      <div style={{ fontSize: 10, color: "#444", marginTop: 4 }}>No preferences set</div>
                     )}
                   </div>
                   <button
