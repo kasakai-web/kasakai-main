@@ -69,7 +69,12 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
 
   // Organiser playing + guests
   const [organiserIsPlaying, setOrganiserPlaying] = useState(lastEvent?.organiserIsPlaying ?? false);
-  const [organiserGuestCount, setOrganiserGuestCount] = useState(0);
+  const [organiserGuests, setOrganiserGuests] = useState<{ name: string; position: string; teamPreference: string }[]>([]);
+  const [guestPrefOpen, setGuestPrefOpen] = useState(false);
+  const [guestPrefName, setGuestPrefName] = useState("");
+  const [guestPrefPosition, setGuestPrefPosition] = useState("Any");
+  const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
+  const organiserGuestCount = organiserGuests.length;
 
   // Derived times
   const reportingTime = subtractMins(time, date, reportingMins);
@@ -146,7 +151,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
         reportingMinsBeforeGame: Number(reportingMins),
         allowSizeChange,
         organiserIsPlaying,
-        organiserGuestCount,
+        organiserGuests,
         community: null,
       };
 
@@ -405,7 +410,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                     setOrganiserPlaying(e.target.checked);
                     // If unchecking and guest count now exceeds cap, clamp it
                     if (!e.target.checked && organiserGuestCount > hardCap) {
-                      setOrganiserGuestCount(hardCap);
+                      setOrganiserGuests((prev) => prev.slice(0, hardCap));
                     }
                   }}
                   className="toggle-checkbox"
@@ -421,24 +426,37 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
               <label className="form-label">
                 <span className="label-text">Guests you&apos;re bringing</span>
               </label>
-              <div className="guest-stepper">
-                <button
-                  type="button"
-                  className="stepper-btn"
-                  onClick={() => setOrganiserGuestCount((n) => Math.max(0, n - 1))}
-                  disabled={organiserGuestCount === 0}
-                >−</button>
-                <span className="stepper-val">{organiserGuestCount}</span>
-                <button
-                  type="button"
-                  className="stepper-btn"
-                  onClick={() => setOrganiserGuestCount((n) => Math.min(maxGuests, n + 1))}
-                  disabled={organiserGuestCount >= maxGuests}
-                >+</button>
-                {organiserGuestCount > 0 && (
-                  <span className="stepper-hint">
-                    {organiserGuestCount} guest slot{organiserGuestCount > 1 ? "s" : ""} reserved
-                  </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {organiserGuests.map((g, idx) => {
+                  const posLabel = ({ GK:"GK",DEF:"DEF",MID:"MID",FWD:"FWD" } as Record<string,string>)[g.position];
+                  const teamColor = g.teamPreference === "Red Team" ? { bg:"rgba(220,38,38,0.15)", color:"#f87171" } : g.teamPreference === "Blue Team" ? { bg:"rgba(59,130,246,0.15)", color:"#60a5fa" } : null;
+                  return (
+                    <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"rgba(200,255,62,0.04)", border:"1px solid #2a2a2a", borderRadius:8, padding:"8px 12px" }}>
+                      <div>
+                        <span style={{ fontSize:13, color:"#ddd" }}>
+                          <span style={{ color:"#c8ff3e", fontWeight:600, marginRight:8 }}>#{idx+1}</span>
+                          {g.name || `Guest ${idx+1}`}
+                        </span>
+                        {(posLabel || teamColor) && (
+                          <div style={{ display:"flex", gap:4, marginTop:3 }}>
+                            {posLabel && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:4, background:"rgba(200,255,62,0.12)", color:"#c8ff3e", fontWeight:600 }}>{posLabel}</span>}
+                            {teamColor && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:4, fontWeight:600, background:teamColor.bg, color:teamColor.color }}>{g.teamPreference}</span>}
+                          </div>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => setOrganiserGuests((prev) => prev.filter((_, i) => i !== idx))}
+                        style={{ background:"rgba(220,38,38,0.12)", border:"1px solid rgba(220,38,38,0.3)", color:"#f87171", borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", minWidth:64, flexShrink:0 }}>
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+                {organiserGuestCount < maxGuests && (
+                  <button type="button"
+                    onClick={() => { setGuestPrefName(""); setGuestPrefPosition("Any"); setGuestPrefTeam("No Preference"); setGuestPrefOpen(true); }}
+                    style={{ width:"100%", padding:"9px 0", background:"rgba(200,255,62,0.06)", border:"1px dashed rgba(200,255,62,0.3)", borderRadius:8, color:"#c8ff3e", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                    + Add Guest
+                  </button>
                 )}
               </div>
               <div className="field-hint">Each guest uses 1 slot from the total capacity</div>
@@ -481,6 +499,70 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
           </div>
         </form>
       </div>
+
+      {/* ── Guest Preferences Mini-Modal ── */}
+      {guestPrefOpen && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+          onClick={() => setGuestPrefOpen(false)}>
+          <div style={{ background:"#0f0f1e", border:"1px solid #333", borderRadius:12, padding:"24px 20px", width:"100%", maxWidth:360 }}
+            onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ color:"#c8ff3e", margin:"0 0 4px", fontSize:17 }}>Add Guest</h3>
+            <p style={{ color:"#666", fontSize:12, margin:"0 0 20px" }}>Set guest name, position and team preference.</p>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ color:"#aaa", fontSize:11, display:"block", marginBottom:6, textTransform:"uppercase" as const, letterSpacing:"0.08em" }}>
+                Guest Name <span style={{ color:"#555", textTransform:"none" as const }}>(optional)</span>
+              </label>
+              <input type="text" value={guestPrefName} onChange={(e) => setGuestPrefName(e.target.value)}
+                placeholder="e.g. Rahul" maxLength={40}
+                style={{ width:"100%", background:"#1a1a2e", border:"1px solid #444", borderRadius:7, padding:"9px 12px", color:"white", fontSize:14, outline:"none", boxSizing:"border-box" as const }}
+                onFocus={(e) => (e.target.style.borderColor="#c8ff3e")}
+                onBlur={(e) => (e.target.style.borderColor="#444")} />
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ color:"#aaa", fontSize:11, display:"block", marginBottom:8, textTransform:"uppercase" as const, letterSpacing:"0.08em" }}>Position</label>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" as const }}>
+                {["Any","GK","DEF","MID","FWD"].map((pos) => (
+                  <button key={pos} type="button" onClick={() => setGuestPrefPosition(pos)} style={{
+                    padding:"5px 12px", borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer",
+                    background: guestPrefPosition===pos ? "rgba(200,255,62,0.18)" : "rgba(255,255,255,0.04)",
+                    color: guestPrefPosition===pos ? "#c8ff3e" : "#888",
+                    border: `1px solid ${guestPrefPosition===pos ? "rgba(200,255,62,0.5)" : "rgba(255,255,255,0.08)"}`,
+                  }}>{pos}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:20 }}>
+              <label style={{ color:"#aaa", fontSize:11, display:"block", marginBottom:8, textTransform:"uppercase" as const, letterSpacing:"0.08em" }}>Team</label>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" as const }}>
+                {["No Preference","Red Team","Blue Team"].map((t) => (
+                  <button key={t} type="button" onClick={() => setGuestPrefTeam(t)} style={{
+                    padding:"5px 12px", borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer",
+                    background: guestPrefTeam===t ? (t==="Red Team"?"rgba(220,38,38,0.18)":t==="Blue Team"?"rgba(59,130,246,0.18)":"rgba(255,255,255,0.08)") : "rgba(255,255,255,0.04)",
+                    color: guestPrefTeam===t ? (t==="Red Team"?"#f87171":t==="Blue Team"?"#60a5fa":"#c8ff3e") : "#888",
+                    border: `1px solid ${guestPrefTeam===t ? (t==="Red Team"?"rgba(220,38,38,0.4)":t==="Blue Team"?"rgba(59,130,246,0.4)":"rgba(200,255,62,0.4)") : "rgba(255,255,255,0.08)"}`,
+                  }}>{t==="No Preference"?"No Pref":t}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:8 }}>
+              <button type="button" onClick={() => setGuestPrefOpen(false)}
+                style={{ flex:1, padding:"10px", borderRadius:7, background:"transparent", border:"1px solid #444", color:"#888", fontSize:14, cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => {
+                setOrganiserGuests((prev) => [...prev, { name: guestPrefName.trim(), position: guestPrefPosition, teamPreference: guestPrefTeam }]);
+                setGuestPrefOpen(false);
+              }} style={{ flex:2, padding:"10px", borderRadius:7, background:"#c8ff3e", color:"#000", fontSize:14, fontWeight:700, border:"none", cursor:"pointer" }}>
+                Add Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

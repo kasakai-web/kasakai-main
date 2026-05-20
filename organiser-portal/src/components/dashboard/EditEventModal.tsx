@@ -30,7 +30,16 @@ const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, idx) => {
 interface GuestReg {
   _id: string;
   plusOneName: string;
+  preferredPosition?: string;
+  teamPreference?: string;
 }
+
+const POSITION_LABELS: Record<string, string> = {
+  goalkeeper: "GK", defender: "DEF", midfielder: "MID", forward: "FWD",
+};
+const TEAM_LABELS: Record<string, string> = {
+  red: "Red Team", blue: "Blue Team",
+};
 
 interface EditEventModalProps {
   gameId: string;
@@ -51,6 +60,10 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
   const [guestError, setGuestError]           = useState("");
   const [guestSuccess, setGuestSuccess]       = useState("");
+  const [prefOpen, setPrefOpen]               = useState(false);
+  const [prefName, setPrefName]               = useState("");
+  const [prefPosition, setPrefPosition]       = useState("Any");
+  const [prefTeam, setPrefTeam]               = useState("No Preference");
 
   const initialDateTime = useMemo(() => {
     const scheduled = initialData.scheduledAt ? new Date(initialData.scheduledAt) : null;
@@ -98,7 +111,12 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
         if (!r.player) return true;
         return String(r.player?._id ?? r.player ?? "") === organiserIdStr;
       })
-      .map((r: any) => ({ _id: String(r._id), plusOneName: r.plusOneName }));
+      .map((r: any) => ({
+        _id: String(r._id),
+        plusOneName: r.plusOneName,
+        preferredPosition: r.preferredPosition,
+        teamPreference: r.teamPreference,
+      }));
   };
 
   const showGuestSuccess = (msg: string) => {
@@ -106,16 +124,20 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
     setTimeout(() => setGuestSuccess(""), 3000);
   };
 
-  const addGuest = async () => {
+  const addGuest = async (name: string, position: string, teamPreference: string) => {
     setGuestError("");
     setGuestSuccess("");
     const { token } = getSession();
     if (!token) return;
     setGuestLoading(true);
+    setPrefOpen(false);
     try {
+      const body: Record<string, string> = { position, teamPreference };
+      if (name.trim()) body.guestName = name.trim();
       const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-guest`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setGuestError(data.message || "Failed to add guest"); return; }
@@ -398,6 +420,8 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
 
             {guests.map((g, idx) => {
               const isRemoving = removingGuestId === g._id;
+              const posLabel = g.preferredPosition ? POSITION_LABELS[g.preferredPosition] : null;
+              const teamLabel = g.teamPreference ? TEAM_LABELS[g.teamPreference] : null;
               return (
                 <div key={g._id} style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -406,10 +430,30 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
                   opacity: isRemoving ? 0.5 : 1,
                   transition: "opacity 0.15s",
                 }}>
-                  <span style={{ fontSize: 13, color: "#ddd" }}>
-                    <span style={{ color: "#c8ff3e", fontWeight: 600, marginRight: 8 }}>#{idx + 1}</span>
-                    {g.plusOneName}
-                  </span>
+                  <div>
+                    <span style={{ fontSize: 13, color: "#ddd" }}>
+                      <span style={{ color: "#c8ff3e", fontWeight: 600, marginRight: 8 }}>#{idx + 1}</span>
+                      {g.plusOneName}
+                    </span>
+                    {(posLabel || teamLabel) && (
+                      <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                        {posLabel && (
+                          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "rgba(200,255,62,0.12)", color: "#c8ff3e", fontWeight: 600 }}>
+                            {posLabel}
+                          </span>
+                        )}
+                        {teamLabel && (
+                          <span style={{
+                            fontSize: 10, padding: "1px 6px", borderRadius: 4, fontWeight: 600,
+                            background: g.teamPreference === "red" ? "rgba(220,38,38,0.15)" : "rgba(59,130,246,0.15)",
+                            color: g.teamPreference === "red" ? "#f87171" : "#60a5fa",
+                          }}>
+                            {teamLabel}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeGuest(g._id)}
@@ -418,7 +462,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
                       background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)",
                       color: "#f87171", borderRadius: 6, padding: "4px 10px", fontSize: 12,
                       cursor: (isRemoving || !!removingGuestId || guestLoading) ? "not-allowed" : "pointer",
-                      minWidth: 64,
+                      minWidth: 64, flexShrink: 0,
                     }}
                   >
                     {isRemoving ? "…" : "Remove"}
@@ -429,7 +473,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
 
             <button
               type="button"
-              onClick={addGuest}
+              onClick={() => { setPrefName(""); setPrefPosition("Any"); setPrefTeam("No Preference"); setPrefOpen(true); }}
               disabled={guestLoading || !!removingGuestId}
               style={{
                 marginTop: 4, width: "100%", padding: "9px 0",
@@ -442,6 +486,73 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
               {guestLoading ? "Adding…" : "+ Add Guest"}
             </button>
           </Section>
+
+          {/* ── Guest Preferences Mini-Modal ── */}
+          {prefOpen && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+              onClick={() => setPrefOpen(false)}>
+              <div style={{ background: "#0f0f1e", border: "1px solid #333", borderRadius: 12, padding: "24px 20px", width: "100%", maxWidth: 360 }}
+                onClick={(e) => e.stopPropagation()}>
+                <h3 style={{ color: "#c8ff3e", margin: "0 0 4px", fontSize: 17 }}>Add Guest</h3>
+                <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>Set guest name, position and team preference.</p>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ color: "#aaa", fontSize: 11, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Guest Name <span style={{ color: "#555", textTransform: "none" }}>(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={prefName}
+                    onChange={(e) => setPrefName(e.target.value)}
+                    placeholder="e.g. Rahul"
+                    maxLength={40}
+                    style={{ width: "100%", background: "#1a1a2e", border: "1px solid #444", borderRadius: 7, padding: "9px 12px", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                    onFocus={(e) => (e.target.style.borderColor = "#c8ff3e")}
+                    onBlur={(e) => (e.target.style.borderColor = "#444")}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ color: "#aaa", fontSize: 11, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Position</label>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                    {["Any","GK","DEF","MID","FWD"].map((pos) => (
+                      <button key={pos} type="button" onClick={() => setPrefPosition(pos)} style={{
+                        padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        background: prefPosition === pos ? "rgba(200,255,62,0.18)" : "rgba(255,255,255,0.04)",
+                        color: prefPosition === pos ? "#c8ff3e" : "#888",
+                        border: `1px solid ${prefPosition === pos ? "rgba(200,255,62,0.5)" : "rgba(255,255,255,0.08)"}`,
+                      }}>{pos}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ color: "#aaa", fontSize: 11, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Team</label>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                    {["No Preference","Red Team","Blue Team"].map((t) => (
+                      <button key={t} type="button" onClick={() => setPrefTeam(t)} style={{
+                        padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        background: prefTeam === t ? (t === "Red Team" ? "rgba(220,38,38,0.18)" : t === "Blue Team" ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.08)") : "rgba(255,255,255,0.04)",
+                        color: prefTeam === t ? (t === "Red Team" ? "#f87171" : t === "Blue Team" ? "#60a5fa" : "#c8ff3e") : "#888",
+                        border: `1px solid ${prefTeam === t ? (t === "Red Team" ? "rgba(220,38,38,0.4)" : t === "Blue Team" ? "rgba(59,130,246,0.4)" : "rgba(200,255,62,0.4)") : "rgba(255,255,255,0.08)"}`,
+                      }}>{t === "No Preference" ? "No Pref" : t}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={() => setPrefOpen(false)}
+                    style={{ flex: 1, padding: "10px", borderRadius: 7, background: "transparent", border: "1px solid #444", color: "#888", fontSize: 14, cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={() => addGuest(prefName, prefPosition, prefTeam)}
+                    style={{ flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                    Add Guest
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="form-actions" style={{ marginTop: 24 }}>
             <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>Cancel</button>
