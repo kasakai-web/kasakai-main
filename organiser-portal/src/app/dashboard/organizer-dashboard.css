@@ -2076,13 +2076,166 @@
   padding: 11px 16px;
 }
 
+/* ── PDM header action buttons (shared) ─────────────────────────── */
+.pdm-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.pdm-hdr-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* ── PDM tablet (≤ 640px) ───────────────────────────────────────── */
 @media (max-width: 640px) {
-  .pdm-stats-strip { gap: 4px; padding: 12px 16px; }
-  .pdm-stat-val { font-size: 18px; }
-  .pdm-card { padding: 12px; gap: 10px; }
-  .pdm-avatar { width: 34px; height: 34px; font-size: 11px; }
-  .pdm-card-name { font-size: 13px; }
+  .pdm-stats-strip  { gap: 4px; padding: 12px 16px; }
+  .pdm-stat-val     { font-size: 18px; }
+  .pdm-card         { padding: 12px; gap: 10px; }
+  .pdm-avatar       { width: 34px; height: 34px; font-size: 11px; }
+  .pdm-card-name    { font-size: 13px; }
+  .pdm-email-item   { display: none; }
+}
+
+/* ── PDM mobile (≤ 480px) ───────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Modal — full-width on mobile */
+  .pdm-modal {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 94dvh;
+    border-radius: 12px;
+  }
+
+  /* Header — allow buttons to wrap onto a second line */
+  .pdm-modal .modal-header {
+    padding: 12px 14px 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .pdm-modal .modal-header h2 {
+    font-size: 15px;
+  }
+
+  .pdm-modal .modal-header .modal-subtitle {
+    font-size: 11px;
+  }
+
+  /* Action buttons — wrap below title, shrink to icon-only */
+  .pdm-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .pdm-hdr-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  /* Hide the text labels — show emoji/icon only on mobile */
+  .pdm-btn-label {
+    display: none;
+  }
+
+  /* Stats strip — wrap into 2 rows of 3 */
+  .pdm-stats-strip {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 8px 0;
+    justify-content: space-around;
+  }
+
+  .pdm-stat-div {
+    display: none; /* dividers don't make sense when wrapped */
+  }
+
+  .pdm-stat {
+    min-width: 20%;
+  }
+
+  .pdm-stat-val { font-size: 16px; }
+  .pdm-stat-lbl { font-size: 9px; }
+
+  /* Cards */
+  .pdm-cards-scroll { padding: 10px 12px 8px; }
+
+  .pdm-card {
+    padding: 10px 10px;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .pdm-slot-num {
+    min-width: 18px;
+    font-size: 10px;
+    padding-top: 3px;
+  }
+
+  .pdm-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 10px;
+  }
+
+  /* Card top — stack name on its own line, badges below */
+  .pdm-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  /* Allow name to wrap — critical fix */
+  .pdm-card-name {
+    font-size: 13px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  /* Badges row — keep tight */
+  .pdm-card-top > div {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .pdm-type-chip {
+    font-size: 8px;
+    padding: 2px 6px;
+  }
+
+  /* Guest indent — smaller on mobile */
+  .pdm-guest-group {
+    padding-left: 12px;
+    margin-left: 14px;
+  }
+
+  /* Contact — phone only */
   .pdm-email-item { display: none; }
+
+  .pdm-contact-item { font-size: 11px; }
+
+  /* Tags */
+  .pdm-pos-tag, .pdm-team-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .pdm-date-tag { font-size: 9px; }
 }
 
 /* ─────────────────────────────────────────────

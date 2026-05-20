@@ -346,60 +346,49 @@ export function PlayerDetailsModal({
             <h2>Registered Players</h2>
             <p className="modal-subtitle">{gameName}</p>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="pdm-header-actions">
             {onRefresh && (
               <button
                 onClick={onRefresh}
                 disabled={isRefreshing}
+                className="pdm-hdr-btn"
                 style={{
                   background: "rgba(255,255,255,0.06)",
                   border: "1px solid #333",
                   color: isRefreshing ? "#555" : "#ccc",
-                  padding: "6px 12px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  cursor: isRefreshing ? "not-allowed" : "pointer",
-                  fontWeight: 600,
-                  transition: "all 0.2s",
                 }}
                 title="Refresh player list"
               >
-                {isRefreshing ? "↻ Refreshing…" : "↻ Refresh"}
+                <span className="pdm-btn-icon">{isRefreshing ? "↻" : "↻"}</span>
+                <span className="pdm-btn-label">{isRefreshing ? " Refreshing…" : " Refresh"}</span>
               </button>
             )}
             <button
               onClick={handleCopyList}
+              className="pdm-hdr-btn"
               style={{
                 background: copied ? "rgba(200,255,62,0.15)" : "rgba(255,255,255,0.06)",
                 border: `1px solid ${copied ? "rgba(200,255,62,0.4)" : "#333"}`,
                 color: copied ? "#c8ff3e" : "#ccc",
-                padding: "6px 12px",
-                borderRadius: 6,
-                fontSize: 12,
-                cursor: "pointer",
-                fontWeight: 600,
-                transition: "all 0.2s",
               }}
               title="Copy player list to clipboard"
             >
-              {copied ? "✓ Copied!" : "📋 Copy List"}
+              <span className="pdm-btn-icon">{copied ? "✓" : "📋"}</span>
+              <span className="pdm-btn-label">{copied ? " Copied!" : " Copy List"}</span>
             </button>
             <button
-            onClick={handleDistribute}
-            style={{
-              background: "rgba(59,130,246,0.15)",
-              border: "1px solid rgba(59,130,246,0.3)",
-              color: "#3b82f6",
-              padding: "6px 12px",
-              borderRadius: 6,
-              fontSize: 12,
-              cursor: "pointer",
-              fontWeight: 600,
-              transition: "all 0.2s",
-            }}
-            title="Auto distribute teams">
-              ⚽ Distribute Teams
-              </button>
+              onClick={handleDistribute}
+              className="pdm-hdr-btn"
+              style={{
+                background: "rgba(59,130,246,0.15)",
+                border: "1px solid rgba(59,130,246,0.3)",
+                color: "#3b82f6",
+              }}
+              title="Auto distribute teams"
+            >
+              <span className="pdm-btn-icon">⚽</span>
+              <span className="pdm-btn-label"> Distribute</span>
+            </button>
             <button className="close-btn" onClick={onClose}>✕</button>
           </div>
         </div>
