@@ -505,13 +505,18 @@ body::after {
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
 .header-top {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .status-badge {
@@ -584,21 +589,30 @@ body::after {
 .card-venue-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+}
+
+.card-title {
+  font-family: var(--cond);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--white);
+  margin: 0;
+  line-height: 1.1;
 }
 
 .card-venue {
-  font-family: var(--cond);
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--white);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: #aaa;
   margin: 0;
 }
 
 .card-city {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.02em;
 }
@@ -2921,26 +2935,30 @@ body::after {
     border-color: rgba(255, 255, 255, 0.09);
   }
 
-  /* Header: let badges wrap under price if needed */
+  /* Header: force single row — scale fonts down instead of wrapping */
   .card-header {
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-items: center;
   }
   .header-top {
-    flex-wrap: wrap;
-    gap: 5px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    gap: 4px;
     flex: 1;
     min-width: 0;
   }
   .status-badge {
-    font-size: 10px;
-    padding: 5px 9px;
+    font-size: 9px;
+    padding: 4px 8px;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .registered-badge {
-    font-size: 10px;
-    padding: 5px 8px;
+    font-size: 9px;
+    padding: 4px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   /* Price — compact pill in top-right */
@@ -2952,7 +2970,8 @@ body::after {
   .price-amount { font-size: 18px; }
 
   /* Venue */
-  .card-venue { font-size: 15px; }
+  .card-title { font-size: 17px; }
+  .card-venue { font-size: 12px; }
   .card-city { font-size: 11px; }
 
   /* Detail grid: 2 equal columns, readable labels */
@@ -3035,13 +3054,16 @@ body::after {
   .events-grid { gap: 10px; }
   .event-card { padding: 14px; gap: 10px; }
 
-  /* Stack header completely: badges first, price second */
-  .card-header { flex-direction: column; gap: 6px; }
+  /* Header stays one row — shrink badges further on tiny phones */
+  .card-header { flex-wrap: nowrap; gap: 4px; align-items: center; }
   .card-price {
-    align-self: flex-start;
-    padding: 4px 8px;
+    flex-shrink: 0;
+    padding: 3px 7px;
   }
-  .price-amount { font-size: 16px; }
+  .price-rupee { font-size: 10px; }
+  .price-amount { font-size: 15px; }
+  .status-badge { font-size: 8.5px; padding: 3px 6px; }
+  .registered-badge { font-size: 8.5px; padding: 3px 6px; }
 
   /* Detail grid still 2-col but even tighter */
   .card-details-grid { padding: 8px; gap: 5px; }
@@ -3049,7 +3071,8 @@ body::after {
   .detail-value { font-size: 12px; }
 
   /* Tighter venue text */
-  .card-venue { font-size: 14px; }
+  .card-title { font-size: 15px; }
+  .card-venue { font-size: 11px; }
 
   /* Buttons slim */
   .card-btn { padding: 11px 8px; font-size: 11.5px; }

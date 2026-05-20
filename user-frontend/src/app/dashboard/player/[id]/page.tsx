@@ -946,6 +946,7 @@ export default function PlayerDashboard() {
               <EventCard
                 key={game._id}
                   id={game._id}
+                  title={game.title}
                   status={game.status as EventStatus}
                   venue={game.turf?.name || 'TBC'}
                   city={game.turf?.address?.city || 'TBC'}

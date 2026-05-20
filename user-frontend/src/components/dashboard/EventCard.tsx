@@ -6,6 +6,7 @@ export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "op
 
 export interface EventCardProps {
   id: string;
+  title?: string;
   venue: string;
   city: string;
   status: EventStatus;
@@ -27,6 +28,7 @@ export interface EventCardProps {
 
 export function EventCard({
   id,
+  title,
   venue,
   city,
   status,
@@ -104,7 +106,8 @@ export function EventCard({
 
       {/* Venue Information */}
       <div className="card-venue-section">
-        <h3 className="card-venue">🏟️ {venue}</h3>
+        {title && <h3 className="card-title">{title}</h3>}
+        <p className="card-venue">🏟️ {venue}</p>
         <p className="card-city">📍 {city}</p>
       </div>
 
