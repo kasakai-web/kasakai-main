@@ -612,88 +612,118 @@ export default function WalletPage() {
               {/* ── Step: terms & conditions ── */}
               {modalStep === "terms" && (
                 <>
+                  {/* Back */}
                   <button
                     onClick={() => { setModalStep("amount"); setModalError(null); }}
                     style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
                       background: "none", border: "none", color: "#555", cursor: "pointer",
-                      fontSize: 12, marginBottom: 16, padding: 0,
+                      fontSize: 12, marginBottom: 20, padding: 0,
                     }}
                   >
-                    ← Back
+                    <span style={{ fontSize: 14, lineHeight: 1 }}>←</span> Back
                   </button>
 
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
-                    Review &amp; Pay
-                  </div>
-                  <div style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>
-                    You are about to add <strong style={{ color: "#c8ff3e" }}>₹{amountStr}</strong> to your wallet.
-                  </div>
-
-                  {/* Summary box */}
+                  {/* Amount hero */}
                   <div style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid #222",
-                    borderRadius: 10,
-                    padding: "16px",
-                    marginBottom: 20,
+                    textAlign: "center",
+                    background: "linear-gradient(160deg, #141414, #0e0e0e)",
+                    border: "1px solid #1f1f1f",
+                    borderRadius: 14,
+                    padding: "20px 16px",
+                    marginBottom: 16,
                   }}>
-                    <Row label="Amount" value={`₹${amountStr}`} />
-                    <Row label="Payment via" value="Razorpay (UPI / Card / Net Banking)" />
-                    <Row label="Credited to" value="Kasa Kai Wallet" highlight />
-                    <Row label="Refund policy" value="Wallet credit only — not to bank" />
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#555", marginBottom: 6 }}>
+                      Adding to Wallet
+                    </div>
+                    <div style={{ fontSize: 38, fontWeight: 900, color: "#c8ff3e", letterSpacing: "-1px", lineHeight: 1 }}>
+                      ₹{amountStr}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>Kasa Kai Wallet</div>
                   </div>
 
-                  {/* Legal checkbox */}
+                  {/* Summary rows */}
+                  <div style={{
+                    border: "1px solid #1a1a1a",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    marginBottom: 14,
+                  }}>
+                    {[
+                      { icon: "💳", label: "Payment via", value: "UPI / Card / Net Banking" },
+                      { icon: "⚡", label: "Processed by", value: "Razorpay" },
+                      { icon: "🔒", label: "Non-refundable", value: "to bank account" },
+                    ].map(({ icon, label, value }, i, arr) => (
+                      <div key={label} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "11px 14px",
+                        borderBottom: i < arr.length - 1 ? "1px solid #1a1a1a" : "none",
+                        background: "#0d0d0d",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 14 }}>{icon}</span>
+                          <span style={{ fontSize: 12, color: "#666" }}>{label}</span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#aaa" }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Terms checkbox */}
                   <label style={{
                     display: "flex", alignItems: "flex-start", gap: 10,
-                    cursor: "pointer", marginBottom: 20,
+                    cursor: "pointer", marginBottom: 16,
+                    padding: "12px 14px",
+                    background: termsAccepted ? "rgba(200,255,62,0.04)" : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${termsAccepted ? "rgba(200,255,62,0.2)" : "#1f1f1f"}`,
+                    borderRadius: 8,
+                    transition: "border-color 0.2s, background 0.2s",
                   }}>
                     <input
                       type="checkbox"
                       checked={termsAccepted}
                       onChange={(e) => { setTermsAccepted(e.target.checked); setModalError(null); }}
-                      style={{ marginTop: 2, accentColor: "#c8ff3e", width: 16, height: 16, flexShrink: 0 }}
+                      style={{ marginTop: 1, accentColor: "#c8ff3e", width: 15, height: 15, flexShrink: 0 }}
                     />
-                    <span style={{ fontSize: 12, color: "#888", lineHeight: 1.6 }}>
-                      I have read and agree to the{" "}
-                      <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e" }}>
-                        Terms &amp; Conditions
-                      </a>
+                    <span style={{ fontSize: 11, color: "#666", lineHeight: 1.6 }}>
+                      I agree to the{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e", textDecoration: "none" }}>Terms</a>
                       ,{" "}
-                      <a href="/refund-policy" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e" }}>
-                        Refund Policy
-                      </a>
-                      , and{" "}
-                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e" }}>
-                        Privacy Policy
-                      </a>
-                      . I understand that wallet top-ups are non-refundable to my bank account.
+                      <a href="/refund-policy" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e", textDecoration: "none" }}>Refund Policy</a>
+                      {" "}&amp;{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#c8ff3e", textDecoration: "none" }}>Privacy Policy</a>
                     </span>
                   </label>
 
                   {modalError && (
-                    <div style={{ color: "#f87171", fontSize: 12, marginBottom: 14 }}>{modalError}</div>
+                    <div style={{ color: "#f87171", fontSize: 12, marginBottom: 12 }}>{modalError}</div>
                   )}
 
+                  {/* Pay button */}
                   <button
                     onClick={handleProceedToPayment}
                     disabled={!termsAccepted}
                     style={{
                       width: "100%",
-                      background: termsAccepted ? "#c8ff3e" : "#222",
-                      color: termsAccepted ? "#000" : "#555",
-                      border: `1px solid ${termsAccepted ? "transparent" : "#333"}`,
-                      borderRadius: 8, padding: "14px",
-                      fontSize: 14, fontWeight: 700,
+                      background: termsAccepted ? "#c8ff3e" : "#161616",
+                      color: termsAccepted ? "#000" : "#444",
+                      border: `1px solid ${termsAccepted ? "transparent" : "#222"}`,
+                      borderRadius: 10, padding: "14px",
+                      fontSize: 14, fontWeight: 800,
                       cursor: termsAccepted ? "pointer" : "not-allowed",
-                      letterSpacing: "0.03em",
+                      letterSpacing: "0.02em",
+                      transition: "background 0.2s, color 0.2s",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     }}
                   >
-                    Pay ₹{amountStr} via Razorpay
+                    <span>Pay ₹{amountStr}</span>
+                    {termsAccepted && <span style={{ fontSize: 12, opacity: 0.7, fontWeight: 500 }}>via Razorpay →</span>}
                   </button>
 
-                  <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "#444" }}>
-                    Secured by Razorpay · 256-bit SSL encryption
+                  {/* Security line */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 12 }}>
+                    <span style={{ fontSize: 10, color: "#333" }}>🔒</span>
+                    <span style={{ fontSize: 10, color: "#333", letterSpacing: "0.04em" }}>256-bit SSL · Secured by Razorpay</span>
                   </div>
                 </>
               )}
