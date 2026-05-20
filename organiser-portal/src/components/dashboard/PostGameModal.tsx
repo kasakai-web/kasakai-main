@@ -34,6 +34,7 @@ interface PlayerRatingDraft {
   playWith: string[];
   playAgainst: string[];
   notes: string;
+  team: "A" | "B" | null;
 }
 
 interface Props {
@@ -158,6 +159,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
           playWith:          [],
           playAgainst:       [],
           notes:             "",
+          team:              null,
         };
       }
 
@@ -183,6 +185,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
                 playWith:          r.playWith?.map((x: any) => x.toString()) ?? [],
                 playAgainst:       r.playAgainst?.map((x: any) => x.toString()) ?? [],
                 notes:             r.notes || "",
+                team:              (r.team === "A" || r.team === "B") ? r.team : null,
               };
             }
           }
@@ -214,6 +217,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
         playWith:          r.playWith,
         playAgainst:       r.playAgainst,
         notes:             r.notes || null,
+        team:              r.team ?? null,
       }));
 
       if (payload.length > 0) {
@@ -243,6 +247,22 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
 
   const updateRating = (pid: string, field: keyof PlayerRatingDraft, value: any) => {
     setRatings((prev) => ({ ...prev, [pid]: { ...prev[pid], [field]: value } }));
+  };
+
+  const assignTeam = (pid: string, team: "A" | "B" | null) => {
+    setRatings((prev) => ({ ...prev, [pid]: { ...prev[pid], team } }));
+  };
+
+  const autoSplitTeams = () => {
+    const ids = ratingList.map((r) => r.playerId);
+    const half = Math.ceil(ids.length / 2);
+    setRatings((prev) => {
+      const next = { ...prev };
+      ids.forEach((pid, i) => {
+        next[pid] = { ...next[pid], team: i < half ? "A" : "B" };
+      });
+      return next;
+    });
   };
 
   const togglePlayerPreference = (
@@ -418,6 +438,35 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
               </div>
             </div>
 
+            {/* Team breakdown */}
+            {(ratingList.some((r) => r.team === "A") || ratingList.some((r) => r.team === "B")) && (
+              <div style={{ padding: "0 24px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#888", marginBottom: 8 }}>
+                  Match Teams
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {(["A", "B"] as const).map((t) => {
+                    const teamPlayers = ratingList.filter((r) => r.team === t);
+                    if (teamPlayers.length === 0) return null;
+                    return (
+                      <div key={t} style={{
+                        background: t === "A" ? "rgba(59,130,246,0.07)" : "rgba(239,68,68,0.07)",
+                        border: `1px solid ${t === "A" ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)"}`,
+                        borderRadius: 8, padding: "10px 12px",
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: t === "A" ? "#60a5fa" : "#f87171", marginBottom: 6 }}>
+                          Team {t} · {teamPlayers.length} players
+                        </div>
+                        {teamPlayers.map((p) => (
+                          <div key={p.playerId} style={{ fontSize: 12, color: "#ccc", padding: "2px 0" }}>{p.name}</div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="pgm-footer">
               <button className="pgm-btn-secondary" onClick={() => setStep("ratings")}>← Back</button>
               <button className="pgm-btn-primary" onClick={onDone}>Done ✓</button>
@@ -434,6 +483,113 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
               </div>
             ) : (
               <div className="pgm-rating-list">
+
+                {/* ── Team Assignment ────────────────────────────────────── */}
+                <div style={{
+                  background: "#111114",
+                  border: "1px solid #1e1e22",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  marginBottom: 16,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#888" }}>
+                        Team Assignment
+                      </div>
+                      <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+                        Record who played on which team — used for future team balancing
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={autoSplitTeams}
+                      style={{
+                        fontSize: 11, fontWeight: 600, padding: "5px 12px",
+                        background: "rgba(200,255,62,0.08)", color: "#c8ff3e",
+                        border: "1px solid rgba(200,255,62,0.25)", borderRadius: 6,
+                        cursor: "pointer", whiteSpace: "nowrap",
+                      }}
+                    >
+                      Auto Split
+                    </button>
+                  </div>
+
+                  {/* Two-column summary */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                    {(["A", "B"] as const).map((t) => {
+                      const teamPlayers = ratingList.filter((r) => r.team === t);
+                      return (
+                        <div key={t} style={{
+                          background: t === "A" ? "rgba(59,130,246,0.07)" : "rgba(239,68,68,0.07)",
+                          border: `1px solid ${t === "A" ? "rgba(59,130,246,0.2)" : "rgba(239,68,68,0.2)"}`,
+                          borderRadius: 7, padding: "8px 10px", minHeight: 48,
+                        }}>
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em",
+                            color: t === "A" ? "#60a5fa" : "#f87171", marginBottom: 6,
+                          }}>
+                            Team {t} · {teamPlayers.length}
+                          </div>
+                          {teamPlayers.length === 0 ? (
+                            <div style={{ fontSize: 11, color: "#444", fontStyle: "italic" }}>No players yet</div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              {teamPlayers.map((p) => (
+                                <div key={p.playerId} style={{ fontSize: 11, color: "#ccc" }}>{p.name}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Per-player row */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {ratingList.map((r) => (
+                      <div key={r.playerId} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "7px 10px",
+                        background: "rgba(255,255,255,0.02)",
+                        borderRadius: 7,
+                        border: r.team === "A"
+                          ? "1px solid rgba(59,130,246,0.25)"
+                          : r.team === "B"
+                          ? "1px solid rgba(239,68,68,0.25)"
+                          : "1px solid rgba(255,255,255,0.05)",
+                      }}>
+                        <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 500 }}>{r.name}</span>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => assignTeam(r.playerId, r.team === "A" ? null : "A")}
+                            style={{
+                              fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 5,
+                              background: r.team === "A" ? "rgba(59,130,246,0.25)" : "rgba(255,255,255,0.04)",
+                              color: r.team === "A" ? "#60a5fa" : "#666",
+                              border: r.team === "A" ? "1px solid rgba(59,130,246,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                              cursor: "pointer",
+                            }}
+                          >A</button>
+                          <button
+                            type="button"
+                            onClick={() => assignTeam(r.playerId, r.team === "B" ? null : "B")}
+                            style={{
+                              fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 5,
+                              background: r.team === "B" ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.04)",
+                              color: r.team === "B" ? "#f87171" : "#666",
+                              border: r.team === "B" ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                              cursor: "pointer",
+                            }}
+                          >B</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* ── End Team Assignment ─────────────────────────────────── */}
+
                 {ratingList.map((r) => {
                   const otherAttended = attendedPlayers.filter(
                     (p) => p.player!._id !== r.playerId

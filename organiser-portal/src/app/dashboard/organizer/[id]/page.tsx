@@ -7,6 +7,7 @@ import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
 import { PostGameModal } from "@/components/dashboard/PostGameModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Toast, useToast } from "@/components/ui/Toast";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -46,6 +47,7 @@ export default function OrganizerDashboard() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterFormat, setFilterFormat] = useState('all');
   const [sortBy, setSortBy] = useState('date-asc');
+  const { toast, showToast } = useToast();
 
   const fetchWithLocalFallback = useCallback(
     async (url: string, init?: RequestInit): Promise<Response> => {
@@ -184,10 +186,11 @@ export default function OrganizerDashboard() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
       const data = await res.json();
-      if (!res.ok || !data.success) { alert(data.message || 'Failed to confirm game'); return; }
+      if (!res.ok || !data.success) { showToast("error", data.message || "Failed to confirm game"); return; }
+      showToast("success", "Game Confirmed!", "Players have been notified.");
       fetchGames({ silent: true });
     } catch (err) {
-      alert('Failed to confirm game. Please try again.');
+      showToast("error", "Failed to confirm game. Please try again.");
     }
   };
 
@@ -201,10 +204,11 @@ export default function OrganizerDashboard() {
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         });
         const data = await res.json();
-        if (!res.ok || !data.success) { alert(data.message || 'Failed to withdraw'); return; }
+        if (!res.ok || !data.success) { showToast("error", data.message || "Failed to withdraw"); return; }
+        showToast("success", "Withdrawn", "You've been removed from this game.");
         fetchGames({ silent: true });
       } catch (err) {
-        alert('Failed to withdraw. Please try again.');
+        showToast("error", "Failed to withdraw. Please try again.");
       }
     };
 
@@ -268,18 +272,18 @@ export default function OrganizerDashboard() {
       }
 
       if (!response.ok || !data.success) {
-        alert(`Failed to cancel event: ${data.message || `HTTP ${response.status}`}`);
+        showToast("error", data.message || `Failed to cancel event`);
         return;
       }
 
       setShowCancelModal(false);
       setCancelTargetGame(null);
       setCancelMessage("");
-      // Refresh the games list
+      showToast("success", "Event Cancelled", "All players have been notified.");
       fetchGames({ silent: true });
     } catch (error) {
       console.error('Error cancelling event:', error);
-      alert(`Failed to cancel event. Please try again. ${(error as Error).message || ''}`);
+      showToast("error", "Failed to cancel event. Please try again.");
     } finally {
       setCancellingId(null);
     }
@@ -351,6 +355,8 @@ export default function OrganizerDashboard() {
 
   return (
     <div className="organizer-dashboard-container">
+      {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
+
       {/* Header */}
       <div className="dashboard-header-section">
         <div className="header-left">
@@ -838,6 +844,7 @@ export default function OrganizerDashboard() {
           }
           onClose={() => setShowCreateModal(false)}
           onCreate={() => {
+            showToast("success", "Game Created!", "Your event is now live.");
             fetchGames({ silent: true });
           }}
           onSuccess={() => {
@@ -889,6 +896,7 @@ export default function OrganizerDashboard() {
           onDone={() => {
             setShowPostGameModal(false);
             setPostGameTarget(null);
+            showToast("success", "Ratings Saved!", "Post-game report complete.");
             fetchGames({ silent: true });
           }}
         />

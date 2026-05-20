@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Toast, useToast } from "@/components/ui/Toast";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -49,14 +49,10 @@ export default function PlayerDashboard() {
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const [confirmTitle, setConfirmTitle] = useState<string>("Are you sure?");
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
-  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [popupNotif, setPopupNotif] = useState<{ type: "success" | "error"; message: string; subtitle?: string } | null>(null);
+  const { toast, showToast } = useToast();
   const removingGuestIds = useRef<Set<string>>(new Set());
   // Local set of reg IDs removed this session — prevents any background refresh re-showing a removed guest
   const [removedGuestIds, setRemovedGuestIds] = useState<Set<string>>(new Set());
-  // Inline banner shown inside the Event Details modal
-  const [detailNotif, setDetailNotif] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const detailNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [playerPositions, setPlayerPositions] = useState<string[]>([]);
@@ -65,7 +61,6 @@ export default function PlayerDashboard() {
   const [pendingFeedback, setPendingFeedback] = useState<any[]>([]);
   const [feedbackTargetGame, setFeedbackTargetGame] = useState<any>(null);
   const [popupFeedbackGame, setPopupFeedbackGame] = useState<any>(null);
-  const [selectedGamePlayers, setSelectedGamePlayers] = useState<{ name: string; id?: string }[]>([]);
   // Per-game feedback I already submitted — loaded when opening a completed game detail
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [addingGuest, setAddingGuest] = useState(false);
@@ -389,32 +384,9 @@ export default function PlayerDashboard() {
       spots: Math.max(0, spotsLeft),
       waitlist: isFull,
     };
-    const players = (game.registrations || [])
-      .filter((r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus))
-      .map((r: any) => ({
-        name: r.plusOneName || r.player?.name || 'Player',
-        id:   r._id,
-      }))
-      .filter((p: any) => p.name && p.name !== 'Player');
-    setSelectedGamePlayers(players);
     setSelectedGame(formattedGame);
   };
 
-  const showNotification = (type: "success" | "error", message: string, duration: number = 3500) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), duration);
-  };
-
-  const showPopupNotification = (type: "success" | "error", message: string, duration: number = 2000, subtitle?: string) => {
-    setPopupNotif({ type, message, subtitle });
-    setTimeout(() => setPopupNotif(null), duration);
-  };
-
-  const showDetailNotif = (type: "success" | "error", message: string, duration = 2000) => {
-    if (detailNotifTimer.current) clearTimeout(detailNotifTimer.current);
-    setDetailNotif({ type, message });
-    detailNotifTimer.current = setTimeout(() => setDetailNotif(null), duration);
-  };
 
   const handleCancelRegistration = async (game: any) => {
     const doCancel = async () => {
@@ -434,11 +406,11 @@ export default function PlayerDashboard() {
         const data = await res.json();
 
         if (!res.ok || !data.success) {
-          showNotification("error", data.message || "Unable to cancel registration right now.");
+          showToast("error", data.message || "Unable to cancel registration right now.");
           return;
         }
 
-        showNotification("success", data.message || "Registration cancelled successfully.");
+        showToast("success", "Registration cancelled", data.message || "You've been removed from this game.");
         setDetailGame(null);
         fetchDashboardData();
         setActiveTab("my-games");
@@ -447,7 +419,7 @@ export default function PlayerDashboard() {
         }
       } catch (error) {
         console.error("Failed to cancel registration", error);
-        showNotification("error", "Cancellation failed. Please try again.");
+        showToast("error", "Cancellation failed. Please try again.");
       } finally {
         setCancellingGameId(null);
       }
@@ -463,8 +435,6 @@ export default function PlayerDashboard() {
     guests: BookingGuest[],
     teamPreference: string,
     willingIfFormatChange: boolean,
-    playWith: string[],
-    playAgainst: string[],
     waitlistGuests?: BookingGuest[],
   ) => {
     try {
@@ -483,8 +453,6 @@ export default function PlayerDashboard() {
       const body: any = {
         teamPreference,
         positions: playerPositions,
-        playWith,
-        playAgainst,
         guests: guests.map((g, index) => {
           const fallbackName = `Guest ${index + 1}`;
           return {
@@ -518,7 +486,7 @@ export default function PlayerDashboard() {
         // Refresh wallet balance after a successful registration
         fetchWalletBalance();
         if (isWaitlist) {
-          showNotification("success", "You've joined the waitlist! We'll notify you when a spot opens.");
+          showToast("success", "Joined Waitlist!", "We'll notify you when a spot opens.");
           setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
         } else {
           const autoGuests: string[] = data.autoConfirmedGuests || [];
@@ -534,7 +502,7 @@ export default function PlayerDashboard() {
             const wlLine = `${waitlistAdded} guest${waitlistAdded > 1 ? 's' : ''} added to waitlist`;
             subtitle = subtitle ? `${subtitle} · ${wlLine}` : wlLine;
           }
-          showPopupNotification("success", msg, 3000, subtitle);
+          showToast("success", msg, subtitle);
           setActiveTab("my-games");
           if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
           setTimeout(() => { fetchDashboardData(); if (waitlistAdded > 0) fetchMyWaitlist(); }, 500);
@@ -542,25 +510,22 @@ export default function PlayerDashboard() {
       } else {
         if (data.code === "INSUFFICIENT_BALANCE") {
           setSelectedGame(null);
-          showNotification(
-            "error",
-            "Insufficient wallet balance. Please recharge your wallet to sign up."
-          );
+          showToast("error", "Insufficient balance", "Please recharge your wallet to sign up.");
           if (playerId) {
             setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
           }
         } else if (data.code === "RACE_REFUND_FAILED") {
           setSelectedGame(null);
-          showNotification("error", "The spot was taken and we couldn't auto-refund. Please contact support.");
+          showToast("error", "Spot taken", "We couldn't auto-refund. Please contact support.");
         } else {
-          showNotification("error", data.message || (isWaitlist ? "Waitlist failed." : "Registration failed."));
+          showToast("error", data.message || (isWaitlist ? "Waitlist failed." : "Registration failed."));
           setSelectedGame(null);
           // Backend debited then refunded on a race loss — re-sync wallet balance
           if (res.status === 409) fetchWalletBalance();
         }
       }
     } catch {
-      showNotification("error", "An error occurred. Please try again.");
+      showToast("error", "An error occurred. Please try again.");
       setSelectedGame(null);
     }
   };
@@ -576,15 +541,15 @@ export default function PlayerDashboard() {
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
-          showNotification("error", data.message || "Failed to leave waitlist.");
+          showToast("error", data.message || "Failed to leave waitlist.");
           return;
         }
-        showNotification("success", "Removed from waitlist.");
+        showToast("success", "Removed from waitlist");
         setDetailGame(null);
         fetchMyWaitlist();
         fetchAllGames();
       } catch {
-        showNotification("error", "Failed to leave waitlist. Please try again.");
+        showToast("error", "Failed to leave waitlist. Please try again.");
       }
     };
 
@@ -605,12 +570,12 @@ export default function PlayerDashboard() {
       const data = await res.json();
       if (!res.ok || !data.success) {
         if (data.code === "INSUFFICIENT_BALANCE") {
-          showNotification("error", "Insufficient wallet balance.");
+          showToast("error", "Insufficient wallet balance");
           if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
         } else if (data.code === "RACE_REFUND_FAILED") {
-          showNotification("error", "The spot was taken and we couldn't auto-refund. Please contact support.");
+          showToast("error", "Spot taken", "We couldn't auto-refund. Please contact support.");
         } else {
-          showNotification("error", data.message || "Failed to add guest.");
+          showToast("error", data.message || "Failed to add guest.");
         }
         return;
       }
@@ -618,12 +583,12 @@ export default function PlayerDashboard() {
       fetchWalletBalance();
       fetchMyGames();
       if (data.waitlisted) {
-        showPopupNotification("success", "Added to Waitlist", 1000, "You'll be notified when a spot opens.");
+        showToast("success", "Added to Waitlist", "You'll be notified when a spot opens.");
       } else {
-        showPopupNotification("success", data.message || "Guest Added!", 1000);
+        showToast("success", "Guest Added!", data.message || undefined);
       }
     } catch {
-      showNotification("error", "Failed to add guest. Please try again.");
+      showToast("error", "Failed to add guest. Please try again.");
     } finally {
       setAddingGuest(false);
     }
@@ -641,12 +606,12 @@ export default function PlayerDashboard() {
       const data = await res.json();
       if (!res.ok || !data.success) {
         if (data.code === "INSUFFICIENT_BALANCE") {
-          showNotification("error", "Insufficient wallet balance.");
+          showToast("error", "Insufficient wallet balance");
           if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
         } else if (data.code === "RACE_REFUND_FAILED") {
-          showNotification("error", "Slot was taken and we couldn't auto-refund your payment. Please contact support.");
+          showToast("error", "Slot taken", "We couldn't auto-refund your payment. Please contact support.");
         } else {
-          showDetailNotif("error", data.message || "Could not confirm guest.");
+          showToast("error", data.message || "Could not confirm guest.");
           if (res.status === 409) {
             // Slot was taken — backend reset status to 'waiting' and refunded; re-sync both
             fetchWalletBalance();
@@ -668,9 +633,9 @@ export default function PlayerDashboard() {
       fetchWalletBalance();
       fetchMyGames();
       const feeAmt = detailGame?.feeInPaise || 0;
-      showDetailNotif("success", `Guest confirmed!${feeAmt > 0 ? ` ₹${Math.round(feeAmt / 100)} debited from your wallet.` : ""}`, 3000);
+      showToast("success", "Guest Confirmed!", feeAmt > 0 ? `₹${Math.round(feeAmt / 100)} debited from your wallet.` : undefined);
     } catch {
-      showNotification("error", "Failed to confirm guest. Please try again.");
+      showToast("error", "Failed to confirm guest. Please try again.");
     } finally {
       setConfirmingGwId(null);
     }
@@ -687,13 +652,13 @@ export default function PlayerDashboard() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        if (!res.ok || !data.success) { showNotification("error", data.message || "Failed to remove from waitlist."); return; }
+        if (!res.ok || !data.success) { showToast("error", data.message || "Failed to remove from waitlist."); return; }
         setDetailGame(data.data);
         fetchMyGames();
         fetchMyWaitlist();
-        showNotification("success", `${guestName} removed from waitlist.`);
+        showToast("success", `${guestName} removed from waitlist`);
       } catch {
-        showNotification("error", "Failed to remove from waitlist.");
+        showToast("error", "Failed to remove from waitlist.");
       } finally {
         setCancellingGwId(null);
       }
@@ -723,7 +688,7 @@ export default function PlayerDashboard() {
       if (!res.ok || !data.success) {
         // Rollback: make the guest reappear
         setRemovedGuestIds((prev) => { const s = new Set(prev); s.delete(regId); return s; });
-        showDetailNotif("error", data.message || "Failed to remove guest.");
+        showToast("error", data.message || "Failed to remove guest.");
         return;
       }
       // Confirm server state
@@ -731,10 +696,10 @@ export default function PlayerDashboard() {
       fetchWalletBalance();
       fetchMyGames();
       const refundAmt = data.refundAmountPaise || 0;
-      showPopupNotification("success", "Guest removed.", 2000, refundAmt > 0 ? `₹${Math.round(refundAmt / 100)} will be refunded shortly.` : undefined);
+      showToast("success", "Guest Removed", refundAmt > 0 ? `₹${Math.round(refundAmt / 100)} will be refunded shortly.` : undefined);
     } catch {
       setRemovedGuestIds((prev) => { const s = new Set(prev); s.delete(regId); return s; });
-      showDetailNotif("error", "Failed to remove guest. Please try again.");
+      showToast("error", "Failed to remove guest. Please try again.");
     } finally {
       setRemovingGuestId(null);
       removingGuestIds.current.delete(regId);
@@ -813,15 +778,9 @@ export default function PlayerDashboard() {
     { label: "Venue", value: detailGame.turf?.name || "TBC" },
     { label: "City", value: detailGame.turf?.address?.city || "TBC" },
     { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
-    { label: "Game Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+    { label: "Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
     {
-      label: "Players Report",
-      value: detailGame.reportingMinsBeforeGame
-        ? `${detailGame.reportingMinsBeforeGame} mins before game`
-        : "30 mins before game",
-    },
-    {
-      label: "Report Time",
+      label: "Report By",
       value: (() => {
         const scheduled = new Date(detailGame.scheduledAt);
         const reportMins = Number(detailGame.reportingMinsBeforeGame ?? 30);
@@ -832,10 +791,7 @@ export default function PlayerDashboard() {
         });
       })(),
     },
-    {
-      label: "Duration",
-      value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins",
-    },
+    { label: "Duration", value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins" },
     { label: "Format", value: detailGame.format || "TBC" },
     { label: "Fee", value: `₹${(detailGame.feeInPaise || 0) / 100}` },
     { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
@@ -901,89 +857,8 @@ export default function PlayerDashboard() {
 
   return (
     <div className="player-dashboard-container">
-      {notification && (
-        <div className={`pd-inline-notice ${notification.type === "success" ? "success" : "error"}`}>
-          {notification.message}
-        </div>
-      )}
+      {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 
-      {/* Pop-up Notification — rendered via portal so it always floats above every modal */}
-      {popupNotif && typeof document !== "undefined" && createPortal(
-        <div style={{
-          position: "fixed",
-          top: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 99999,
-          animation: "popupFadeIn 0.25s ease-out",
-          pointerEvents: "none",
-        }}>
-          <div style={{
-            background: "#1a1a1a",
-            color: "#fff",
-            padding: "14px 20px",
-            borderRadius: 12,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.07)",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            minWidth: 240,
-            maxWidth: 340,
-            border: popupNotif.type === "success"
-              ? "1px solid rgba(74,222,128,0.25)"
-              : "1px solid rgba(248,113,113,0.25)",
-          }}>
-            {/* Icon circle */}
-            <div style={{
-              flexShrink: 0,
-              width: 32, height: 32,
-              borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: popupNotif.type === "success" ? "rgba(74,222,128,0.15)" : "rgba(248,113,113,0.15)",
-              border: popupNotif.type === "success" ? "1px solid rgba(74,222,128,0.4)" : "1px solid rgba(248,113,113,0.4)",
-              fontSize: 14, fontWeight: 700,
-              color: popupNotif.type === "success" ? "#4ade80" : "#f87171",
-            }}>
-              {popupNotif.type === "success" ? "✓" : "✕"}
-            </div>
-            {/* Text */}
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: popupNotif.type === "success" ? "#4ade80" : "#f87171", lineHeight: 1.3 }}>
-                {popupNotif.message}
-              </div>
-              {popupNotif.subtitle && (
-                <div style={{ fontSize: 12, color: "#aaa", marginTop: 2, lineHeight: 1.4 }}>
-                  {popupNotif.subtitle}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      <style>{`
-        @keyframes popupFadeIn {
-          from {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-          }
-        }
-        @keyframes popupFadeOut {
-          from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.9);
-          }
-        }
-      `}</style>
 
       <div className="page-header">
         <div className="page-title-group">
@@ -1121,7 +996,7 @@ export default function PlayerDashboard() {
           onSubmit={() => {
             markPopupShown(popupFeedbackGame._id);
             setPopupFeedbackGame(null);
-            showNotification("success", "Feedback submitted — thank you!");
+            showToast("success", "Feedback submitted!", "Thank you for your response.");
             fetchPendingFeedback();
           }}
         />
@@ -1134,7 +1009,7 @@ export default function PlayerDashboard() {
           onSkip={() => setFeedbackTargetGame(null)}
           onSubmit={() => {
             setFeedbackTargetGame(null);
-            showNotification("success", "Feedback submitted — thank you!");
+            showToast("success", "Feedback submitted!", "Thank you for your response.");
             fetchPendingFeedback();
           }}
         />
@@ -1148,7 +1023,6 @@ export default function PlayerDashboard() {
           onConfirm={handleConfirmBooking}
           playerPositions={playerPositions}
           playerId={playerId}
-          registeredPlayers={selectedGamePlayers}
         />
       )}
 
@@ -1178,7 +1052,7 @@ export default function PlayerDashboard() {
       />
 
       {detailGame && (
-        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setDetailNotif(null); }}>
+        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); }}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -1192,39 +1066,18 @@ export default function PlayerDashboard() {
               </div>
             </div>
 
-            {/* Inline banner — top of modal, auto-dismisses */}
-            {detailNotif && (
-              <div style={{
-                padding: "10px 20px",
-                background: detailNotif.type === "success" ? "rgba(74,222,128,0.1)" : "rgba(239,68,68,0.1)",
-                borderBottom: `1px solid ${detailNotif.type === "success" ? "rgba(74,222,128,0.2)" : "rgba(239,68,68,0.2)"}`,
-                color: detailNotif.type === "success" ? "#4ade80" : "#f87171",
-                fontSize: 13,
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: detailNotif.type === "success" ? "rgba(74,222,128,0.15)" : "rgba(239,68,68,0.15)",
-                  fontSize: 11,
-                }}>
-                  {detailNotif.type === "success" ? "✓" : "✕"}
-                </span>
-                {detailNotif.message}
-              </div>
-            )}
 
             <div className="pd-event-detail-grid">
               {detailRows.map((row) => (
-                <div key={row.label} className="pd-event-detail-card">
-                  <div className="pd-event-detail-label">
-                    {row.label}
+                <div
+                  key={row.label}
+                  className="pd-event-detail-card"
+                  style={row.label === "Status" ? { gridColumn: "1 / -1" } : undefined}
+                >
+                  <div className="pd-event-detail-label">{row.label}</div>
+                  <div className={`pd-event-detail-value${row.label === "Status" ? " pd-event-detail-status" : ""}`}>
+                    {row.value}
                   </div>
-                  <div className="pd-event-detail-value">{row.value}</div>
                 </div>
               ))}
             </div>
@@ -1322,7 +1175,6 @@ export default function PlayerDashboard() {
               ) : (
                 <div className="pd-event-player-list">
                   {(() => {
-                    // Use liveRegistrations so removed guests never re-flash here either
                     const regs = liveRegistrations;
                     const orgGuests = regs.filter((r: any) => r.plusOneName && !r.player);
                     const guestsByPlayerId = new Map<string, any[]>();
@@ -1362,7 +1214,6 @@ export default function PlayerDashboard() {
 
                     return (
                       <>
-                        {/* Organiser group */}
                         {detailGame.organiserIsPlaying && (
                           <div className="pd-player-group">
                             {renderRow(detailGame.organiser?.name || "Organiser", orgChip, "organiser")}
@@ -1375,11 +1226,9 @@ export default function PlayerDashboard() {
                             )}
                           </div>
                         )}
-                        {/* Organiser guests when organiser not playing */}
                         {!detailGame.organiserIsPlaying && orgGuests.map((r: any, i: number) =>
                           renderRow(r.plusOneName, guestChip, `og-${r._id || i}`)
                         )}
-                        {/* Each player + their guests */}
                         {mainRegs.map((reg: any, idx: number) => {
                           const pId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
                           const myGsts = guestsByPlayerId.get(pId) ?? [];

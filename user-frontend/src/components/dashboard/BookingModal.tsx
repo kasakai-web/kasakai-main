@@ -24,8 +24,6 @@ type Guest = {
 
 export type BookingGuest = Guest;
 
-type RegisteredPlayer = { name: string; id?: string };
-
 interface BookingModalProps {
   game: BookingGame | null;
   onClose: () => void;
@@ -34,14 +32,11 @@ interface BookingModalProps {
     guests: Guest[],
     teamPreference: string,
     willingIfFormatChange: boolean,
-    playWith: string[],
-    playAgainst: string[],
     waitlistGuests?: Guest[],
   ) => void;
   walletBalance: number;
   playerPositions?: string[];
   playerId?: string;
-  registeredPlayers?: RegisteredPlayer[];
 }
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"] as const;
@@ -205,13 +200,10 @@ export function BookingModal({
   walletBalance,
   playerPositions = [],
   playerId,
-  registeredPlayers = [],
 }: BookingModalProps) {
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
   const [guests, setGuests] = useState<Guest[]>([]);
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
-  const [playWith, setPlayWith] = useState<string[]>([]);
-  const [playAgainst, setPlayAgainst] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
   const [notification, setNotification] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -251,10 +243,6 @@ export function BookingModal({
     setGuests((previous) => previous.map((guest, currentIndex) => (currentIndex === index ? { ...guest, ...patch } : guest)));
   };
 
-  const togglePref = (list: string[], setList: (v: string[]) => void, name: string) => {
-    setList(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]);
-  };
-
   const handleConfirm = async () => {
     const hasPhoto = typeof window !== "undefined" && !!localStorage.getItem("userProfileImage");
     if (!hasPhoto) { setPhotoError(true); return; }
@@ -264,7 +252,7 @@ export function BookingModal({
       // Split guests: first spotsForGuests go as confirmed, remainder as waitlist
       const confirmedGuests = isWaitlist ? guests : guests.slice(0, spotsForGuests);
       const overflowGuests  = isWaitlist ? []     : guests.slice(spotsForGuests);
-      onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, playWith, playAgainst, overflowGuests);
+      onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests);
       await new Promise((resolve) => setTimeout(resolve, 500));
       setSuccess(true);
       setNotification(true);
@@ -280,8 +268,6 @@ export function BookingModal({
     setSuccess(false);
     setGuests([]);
     setWillingIfFormatChange(true);
-    setPlayWith([]);
-    setPlayAgainst([]);
     setNotification(false);
     setIsLoading(false);
     onClose();
@@ -391,44 +377,6 @@ export function BookingModal({
                   {willingIfFormatChange ? "Yes" : "No"}
                 </button>
               </div>
-
-              {registeredPlayers.length > 0 && (
-                <div>
-                  <div className="bm-section-title">Play With / Against</div>
-                  <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--muted,#666)" }}>
-                    Optional — helps the organiser balance teams.
-                  </p>
-                  <div className="bm-player-pref-list">
-                    {registeredPlayers.map((p) => {
-                      const withSelected    = playWith.includes(p.name);
-                      const againstSelected = playAgainst.includes(p.name);
-                      return (
-                        <div key={p.id ?? p.name} className="bm-player-pref-row">
-                          <span className="bm-player-pref-name">{p.name}</span>
-                          <div className="bm-player-pref-btns">
-                            <button
-                              type="button"
-                              className={`bm-pref-btn bm-pref-with${withSelected ? " active" : ""}`}
-                              onClick={() => {
-                                if (againstSelected) togglePref(playAgainst, setPlayAgainst, p.name);
-                                togglePref(playWith, setPlayWith, p.name);
-                              }}
-                            >With</button>
-                            <button
-                              type="button"
-                              className={`bm-pref-btn bm-pref-vs${againstSelected ? " active" : ""}`}
-                              onClick={() => {
-                                if (withSelected) togglePref(playWith, setPlayWith, p.name);
-                                togglePref(playAgainst, setPlayAgainst, p.name);
-                              }}
-                            >vs</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               <div className="bm-guests-section">
                 <div className="bm-guests-header">
