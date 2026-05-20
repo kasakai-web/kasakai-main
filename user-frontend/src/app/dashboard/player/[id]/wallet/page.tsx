@@ -652,7 +652,6 @@ export default function WalletPage() {
                     {[
                       { icon: "💳", label: "Payment via", value: "UPI / Card / Net Banking" },
                       { icon: "⚡", label: "Processed by", value: "Razorpay" },
-                      { icon: "🔒", label: "Non-refundable", value: "to bank account" },
                     ].map(({ icon, label, value }, i, arr) => (
                       <div key={label} style={{
                         display: "flex", alignItems: "center", justifyContent: "space-between",

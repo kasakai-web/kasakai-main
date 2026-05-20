@@ -11,6 +11,7 @@ import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";
 import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
 import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";
 import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
+import { buildApiUrl } from "@/utils/api";
 
 function AuthFlow() {
   const router = useRouter();
@@ -102,12 +103,48 @@ function AuthFlow() {
           role="player"
           mode="signup"
           devOtp={userData.devOtp}
-          onVerified={() => setStep("signup-success")}
+          onVerified={async (_otpVal, authData) => {
+            if (authData?.token && authData?.user) {
+              const uid = authData.user.id || authData.user._id;
+              localStorage.setItem("authToken", authData.token);
+              localStorage.setItem("userRole", "player");
+              localStorage.setItem("userId", uid);
+              localStorage.setItem("userName", authData.user.name || "User");
+              window.dispatchEvent(new CustomEvent("kk-auth-changed"));
+
+              // Upload profile photo chosen during signup
+              if (userData.profileImageDataUrl) {
+                try {
+                  const blob = await (await fetch(userData.profileImageDataUrl)).blob();
+                  const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+                  const formData = new FormData();
+                  formData.append("profileImage", blob, `profile.${ext}`);
+                  const imgRes = await fetch(buildApiUrl("/api/v1/players/me/profile-image"), {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${authData.token}` },
+                    body: formData,
+                  });
+                  if (imgRes.ok) {
+                    const imgData = await imgRes.json();
+                    if (imgData.data?.profileImage) {
+                      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
+                      localStorage.setItem("userProfileImage", `${base}${imgData.data.profileImage}`);
+                    }
+                  }
+                } catch { /* non-critical */ }
+              }
+
+              localStorage.setItem("showProfileBanner", "true");
+              router.replace(`/dashboard/player/${uid}/profile`);
+            } else {
+              setStep("signup-success");
+            }
+          }}
           onBack={() => setStep("signup-confirm")}
         />
       )}
 
-      {/* SIGNUP SUCCESS */}
+      {/* SIGNUP SUCCESS — fallback if auto-login data is missing */}
       {step === "signup-success" && (
         <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333", textAlign: "center" }}>
           <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
@@ -116,7 +153,7 @@ function AuthFlow() {
             Welcome to Kasakai, <strong style={{ color: "white" }}>{userData.firstName}</strong>!
           </p>
           <p style={{ color: "#999", fontSize: "13px", marginBottom: "28px", lineHeight: 1.6 }}>
-            Your account is ready. After logging in, we recommend completing your profile — add your city and WhatsApp number to get notified about games near you.
+            Your account is ready. Please log in to continue.
           </p>
           <button
             onClick={() => {

@@ -71,6 +71,7 @@ export default function PlayerDashboard() {
   const [guestPrefGame, setGuestPrefGame] = useState<any>(null);
   const [guestPrefPosition, setGuestPrefPosition] = useState("Any");
   const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
+  const [guestPrefName, setGuestPrefName] = useState("");
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -566,19 +567,22 @@ export default function PlayerDashboard() {
     setGuestPrefGame(game);
     setGuestPrefPosition("Any");
     setGuestPrefTeam("No Preference");
+    setGuestPrefName("");
     setGuestPrefOpen(true);
   };
 
-  const handleAddGuest = async (game: any, position = "Any", teamPreference = "No Preference") => {
+  const handleAddGuest = async (game: any, position = "Any", teamPreference = "No Preference", guestName = "") => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
     setAddingGuest(true);
     setGuestPrefOpen(false);
     try {
+      const body: Record<string, string> = { position, teamPreference };
+      if (guestName.trim()) body.guestName = guestName.trim();
       const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/add-guest`), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ position, teamPreference }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -1076,7 +1080,24 @@ export default function PlayerDashboard() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ color: "#c8ff3e", margin: "0 0 4px", fontSize: 17 }}>Add Guest</h3>
-            <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>Set your guest's preferred position and team.</p>
+            <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>Set your guest's name, position and team.</p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: "#aaa", fontSize: 12, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Guest Name <span style={{ color: "#555", textTransform: "none" }}>(optional)</span></label>
+              <input
+                type="text"
+                value={guestPrefName}
+                onChange={(e) => setGuestPrefName(e.target.value)}
+                placeholder="e.g. Rahul"
+                maxLength={40}
+                style={{
+                  width: "100%", background: "#1a1a2e", border: "1px solid #444", borderRadius: 7,
+                  padding: "10px 12px", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#c8ff3e")}
+                onBlur={(e) => (e.target.style.borderColor = "#444")}
+              />
+            </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ color: "#aaa", fontSize: 12, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Position</label>
@@ -1124,7 +1145,7 @@ export default function PlayerDashboard() {
               >Cancel</button>
               <button
                 type="button"
-                onClick={() => handleAddGuest(guestPrefGame, guestPrefPosition, guestPrefTeam)}
+                onClick={() => handleAddGuest(guestPrefGame, guestPrefPosition, guestPrefTeam, guestPrefName)}
                 style={{ flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}
               >
                 {guestPrefGame?.spotsRemaining === 0 ? "Join Waitlist" : "Add Guest"}

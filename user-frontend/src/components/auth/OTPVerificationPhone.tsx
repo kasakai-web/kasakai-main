@@ -9,7 +9,7 @@ interface OTPVerificationPhoneProps {
   email?: string;
   role: "player" | "organiser";
   mode: "signup" | "forgot-password";
-  onVerified: (otpString: string) => void;
+  onVerified: (value: string, authData?: { token: string; user: any }) => void;
   onBack: () => void;
   devOtp?: string;
 }
@@ -69,7 +69,11 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
         throw new Error(data.message || 'Invalid OTP');
       }
 
-      onVerified(mode === "forgot-password" ? data.resetToken : otpString);
+      if (mode === "signup") {
+        onVerified(otpString, { token: data.token, user: data.user });
+      } else {
+        onVerified(data.resetToken);
+      }
     } catch (err: any) {
       setError(err.message || "OTP verification failed. Please try again.");
     } finally {
