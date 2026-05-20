@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { validatePhone, validateEmail } from "@/utils/auth";
+import { buildApiUrl } from "@/utils/api";
 
 interface PlayerSignUpStep1Props {
   onBack: () => void;
@@ -14,6 +15,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const [email, setEmail] = useState("");
   const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checking, setChecking] = useState<{ phone?: boolean; email?: boolean }>({});
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
@@ -48,6 +50,33 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const stopStream = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
   const closeCamera = () => { stopStream(); setCameraOpen(false); };
   const flipCamera = () => setCameraFacing((f) => f === "user" ? "environment" : "user");
+
+  // Check phone or email availability against the DB (only verified accounts count)
+  const checkField = async (field: "phone" | "email", value: string) => {
+    setChecking((prev) => ({ ...prev, [field]: true }));
+    try {
+      const body: Record<string, string> = { role: "player" };
+      body[field] = value;
+      const res = await fetch(buildApiUrl("/api/v1/auth/check-availability"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (field === "phone" && data.data.phoneExists) {
+          setErrors((prev) => ({ ...prev, phone: "This phone number is already registered. Please login or use a different number." }));
+        }
+        if (field === "email" && data.data.emailExists) {
+          setErrors((prev) => ({ ...prev, email: "This email is already registered. Please login or use a different email." }));
+        }
+      }
+    } catch {
+      // non-critical — will be caught at submit if still duplicate
+    } finally {
+      setChecking((prev) => ({ ...prev, [field]: false }));
+    }
+  };
 
   const handleTakePhoto = () => { setShowPhotoPicker(false); setCameraOpen(true); };
   const handleChooseGallery = () => { setShowPhotoPicker(false); fileInputRef.current?.click(); };
@@ -85,7 +114,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     reader.readAsDataURL(file);
   };
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -96,6 +125,33 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      return;
+    }
+
+    // Re-run availability check on submit in case blur was skipped (autofill, paste, etc.)
+    // If errors already showing from blur, skip re-check
+    if (!errors.phone && !errors.email) {
+      try {
+        const res = await fetch(buildApiUrl("/api/v1/auth/check-availability"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, email, role: "player" }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          const submitErrors: Record<string, string> = {};
+          if (data.data.phoneExists) submitErrors.phone = "This phone number is already registered. Please login or use a different number.";
+          if (data.data.emailExists) submitErrors.email = "This email is already registered. Please login or use a different email.";
+          if (Object.keys(submitErrors).length > 0) {
+            setErrors(submitErrors);
+            return;
+          }
+        }
+      } catch {
+        // network failure — let the register call handle it in step 3
+      }
+    } else if (errors.phone || errors.email) {
+      // existing availability errors still showing — block submit
       return;
     }
 
@@ -256,9 +312,14 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
               onBlur={(e) => {
                 const container = e.currentTarget.parentElement;
                 if (container) container.style.borderColor = errors.phone ? "#ff6b6b" : "#444";
+                const val = e.currentTarget.value.replace(/\D/g, "");
+                if (validatePhone(val)) checkField("phone", val);
               }}
             />
           </div>
+          {checking.phone && !errors.phone && (
+            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "4px" }}>Checking availability…</small>
+          )}
           {errors.phone && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.phone}</small>}
         </div>
 
@@ -275,29 +336,36 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
             placeholder="your@email.com"
             style={inputStyle}
             onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
-            onBlur={(e) => (e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444")}
+            onBlur={(e) => {
+              e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444";
+              if (validateEmail(e.target.value)) checkField("email", e.target.value);
+            }}
           />
+          {checking.email && !errors.email && (
+            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "4px" }}>Checking availability…</small>
+          )}
           {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
         </div>
 
         <button
           type="submit"
+          disabled={checking.phone || checking.email}
           style={{
             width: "100%",
-            background: "var(--yellow)",
-            color: "black",
+            background: (checking.phone || checking.email) ? "#666" : "var(--yellow)",
+            color: (checking.phone || checking.email) ? "#999" : "black",
             border: "none",
             padding: "12px",
             borderRadius: "6px",
             fontSize: "16px",
             fontWeight: "600",
-            cursor: "pointer",
+            cursor: (checking.phone || checking.email) ? "not-allowed" : "pointer",
             transition: "background 0.3s ease",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#ffd700")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--yellow)")}
+          onMouseEnter={(e) => !(checking.phone || checking.email) && (e.currentTarget.style.background = "#ffd700")}
+          onMouseLeave={(e) => !(checking.phone || checking.email) && (e.currentTarget.style.background = "var(--yellow)")}
         >
-          Continue
+          {(checking.phone || checking.email) ? "Checking…" : "Continue"}
         </button>
       </form>
     </div>
