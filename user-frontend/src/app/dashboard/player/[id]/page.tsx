@@ -67,6 +67,10 @@ export default function PlayerDashboard() {
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
   const [confirmingGwId, setConfirmingGwId] = useState<string | null>(null);
   const [cancellingGwId, setCancellingGwId] = useState<string | null>(null);
+  const [guestPrefOpen, setGuestPrefOpen] = useState(false);
+  const [guestPrefGame, setGuestPrefGame] = useState<any>(null);
+  const [guestPrefPosition, setGuestPrefPosition] = useState("Any");
+  const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -558,14 +562,23 @@ export default function PlayerDashboard() {
     setConfirmVisible(true);
   };
 
-  const handleAddGuest = async (game: any) => {
+  const promptAddGuest = (game: any) => {
+    setGuestPrefGame(game);
+    setGuestPrefPosition("Any");
+    setGuestPrefTeam("No Preference");
+    setGuestPrefOpen(true);
+  };
+
+  const handleAddGuest = async (game: any, position = "Any", teamPreference = "No Preference") => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
     setAddingGuest(true);
+    setGuestPrefOpen(false);
     try {
       const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/add-guest`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ position, teamPreference }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -1052,6 +1065,75 @@ export default function PlayerDashboard() {
         }}
       />
 
+      {/* ── Add Guest Preferences Mini-Modal ── */}
+      {guestPrefOpen && guestPrefGame && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setGuestPrefOpen(false)}
+        >
+          <div
+            style={{ background: "#0f0f1e", border: "1px solid #333", borderRadius: 12, padding: "24px 20px", width: "100%", maxWidth: 360 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ color: "#c8ff3e", margin: "0 0 4px", fontSize: 17 }}>Add Guest</h3>
+            <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>Set your guest's preferred position and team.</p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: "#aaa", fontSize: 12, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Position</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {(["Any", "GK", "DEF", "MID", "FWD"] as const).map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => setGuestPrefPosition(pos)}
+                    style={{
+                      padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      background: guestPrefPosition === pos ? "rgba(200,255,62,0.18)" : "rgba(255,255,255,0.04)",
+                      color: guestPrefPosition === pos ? "#c8ff3e" : "#888",
+                      border: `1px solid ${guestPrefPosition === pos ? "rgba(200,255,62,0.5)" : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  >{pos}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ color: "#aaa", fontSize: 12, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Team</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(["No Preference", "Red Team", "Blue Team"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setGuestPrefTeam(t)}
+                    style={{
+                      padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      background: guestPrefTeam === t ? (t === "Red Team" ? "rgba(220,38,38,0.18)" : t === "Blue Team" ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.08)") : "rgba(255,255,255,0.04)",
+                      color: guestPrefTeam === t ? (t === "Red Team" ? "#f87171" : t === "Blue Team" ? "#60a5fa" : "#c8ff3e") : "#888",
+                      border: `1px solid ${guestPrefTeam === t ? (t === "Red Team" ? "rgba(220,38,38,0.4)" : t === "Blue Team" ? "rgba(59,130,246,0.4)" : "rgba(200,255,62,0.4)") : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  >{t === "No Preference" ? "No Pref" : t}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setGuestPrefOpen(false)}
+                style={{ flex: 1, padding: "10px", borderRadius: 7, background: "transparent", border: "1px solid #444", color: "#888", fontSize: 14, cursor: "pointer" }}
+              >Cancel</button>
+              <button
+                type="button"
+                onClick={() => handleAddGuest(guestPrefGame, guestPrefPosition, guestPrefTeam)}
+                style={{ flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}
+              >
+                {guestPrefGame?.spotsRemaining === 0 ? "Join Waitlist" : "Add Guest"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detailGame && (
         <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); }}>
           <div
@@ -1260,7 +1342,7 @@ export default function PlayerDashboard() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleAddGuest(detailGame)}
+                    onClick={() => promptAddGuest(detailGame)}
                     disabled={addingGuest}
                     style={{
                       background: addingGuest ? "rgba(200,255,62,0.05)" : "rgba(200,255,62,0.12)",
@@ -1280,25 +1362,41 @@ export default function PlayerDashboard() {
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {myGuests.map((reg: any) => (
-                      <div key={reg._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 7, border: "1px solid rgba(255,255,255,0.07)" }}>
-                        <span style={{ fontSize: 13, color: "#e5e7eb" }}>{reg.plusOneName}</span>
-                        <button
-                          type="button"
-                          onClick={() => promptRemoveGuest(detailGame, reg._id, reg.plusOneName)}
-                          disabled={removingGuestId === reg._id}
-                          style={{
-                            background: "rgba(220,38,38,0.10)",
-                            border: "1px solid rgba(220,38,38,0.25)",
-                            color: removingGuestId === reg._id ? "rgba(248,113,113,0.4)" : "#f87171",
-                            borderRadius: 6, padding: "3px 10px", fontSize: 11,
-                            fontWeight: 600, cursor: removingGuestId === reg._id ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {removingGuestId === reg._id ? "…" : "Remove"}
-                        </button>
-                      </div>
-                    ))}
+                    {myGuests.map((reg: any) => {
+                      const posLabel: Record<string, string> = { goalkeeper: "GK", defender: "DEF", midfielder: "MID", forward: "FWD", any: "Any" };
+                      const teamLabel: Record<string, string> = { red: "Red Team", blue: "Blue Team", none: "No Pref", same: "Same", opposite: "Opp." };
+                      const pos = posLabel[reg.preferredPosition] || "Any";
+                      const team = teamLabel[reg.teamPreference] || "No Pref";
+                      return (
+                        <div key={reg._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 7, border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div>
+                            <span style={{ fontSize: 13, color: "#e5e7eb" }}>{reg.plusOneName}</span>
+                            <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                              {pos !== "Any" && (
+                                <span style={{ fontSize: 10, background: "rgba(200,255,62,0.12)", color: "#c8ff3e", borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>{pos}</span>
+                              )}
+                              {reg.teamPreference && reg.teamPreference !== "none" && (
+                                <span style={{ fontSize: 10, background: reg.teamPreference === "red" ? "rgba(220,38,38,0.15)" : "rgba(59,130,246,0.15)", color: reg.teamPreference === "red" ? "#f87171" : "#60a5fa", borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>{team}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => promptRemoveGuest(detailGame, reg._id, reg.plusOneName)}
+                            disabled={removingGuestId === reg._id}
+                            style={{
+                              background: "rgba(220,38,38,0.10)",
+                              border: "1px solid rgba(220,38,38,0.25)",
+                              color: removingGuestId === reg._id ? "rgba(248,113,113,0.4)" : "#f87171",
+                              borderRadius: 6, padding: "3px 10px", fontSize: 11,
+                              fontWeight: 600, cursor: removingGuestId === reg._id ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {removingGuestId === reg._id ? "…" : "Remove"}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
