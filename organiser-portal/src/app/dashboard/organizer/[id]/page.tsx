@@ -875,6 +875,7 @@ export default function OrganizerDashboard() {
           onSuccess={() => {
             fetchGames({ silent: true });
           }}
+          onParticipationChange={() => fetchGames({ silent: true })}
         />
       )}
 
