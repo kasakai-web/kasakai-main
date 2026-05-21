@@ -200,7 +200,13 @@ export default function OrganizerDashboard() {
       const data = await res.json();
       if (!res.ok || !data.success) { showToast("error", data.message || "Failed to confirm game"); return; }
       showToast("success", "Game Confirmed!", "Players have been notified.");
-      fetchGames({ silent: true });
+      if (data.data) {
+        const updated = data.data;
+        setGames((prev) => prev.map((g) => g._id === updated._id ? updated : g));
+        setSelectedGame((prev: any) => prev?._id === updated._id ? updated : prev);
+      } else {
+        setGames((prev) => prev.map((g) => g._id === gameId ? { ...g, status: "confirmed" } : g));
+      }
     } catch (err) {
       showToast("error", "Failed to confirm game. Please try again.");
     }
@@ -218,7 +224,13 @@ export default function OrganizerDashboard() {
         const data = await res.json();
         if (!res.ok || !data.success) { showToast("error", data.message || "Failed to withdraw"); return; }
         showToast("success", "Withdrawn", "You've been removed from this game.");
-        fetchGames({ silent: true });
+        if (data.data) {
+          const updated = data.data;
+          setGames((prev) => prev.map((g) => g._id === updated._id ? updated : g));
+          setSelectedGame((prev: any) => prev?._id === updated._id ? updated : prev);
+        } else {
+          setGames((prev) => prev.map((g) => g._id === gameId ? { ...g, organiserIsPlaying: false } : g));
+        }
       } catch (err) {
         showToast("error", "Failed to withdraw. Please try again.");
       }
