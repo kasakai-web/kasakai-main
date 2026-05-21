@@ -180,6 +180,9 @@
   font-family: inherit;
   transition: all 0.2s;
   appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .form-input::placeholder {
@@ -286,6 +289,7 @@
   background: transparent;
   padding-left: 8px;
   flex: 1;
+  width: auto;
 }
 
 .input-with-prefix .form-input:focus,
@@ -495,6 +499,17 @@
     font-size: 13px;
     justify-content: center;
   }
+
+  .stepper-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+
+  .stepper-input {
+    font-size: 15px;
+    padding: 9px 6px;
+  }
 }
 
 /* ── Toggle checkbox row ── */
@@ -574,6 +589,33 @@
 /* ── Template row ── */
 .template-row { display: flex; gap: 8px; }
 .template-save-row { display: flex; flex-direction: column; gap: 6px; }
+
+/* ── Number field stepper (duration / min / max players) ── */
+.stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stepper-unit {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
 
 /* ── Guest stepper ── */
 .guest-stepper {

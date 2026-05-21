@@ -100,11 +100,15 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       .catch(console.error);
   }, []);
 
-  // Update max when format changes; only reset min if not manually edited
+  // When format changes: max must be ≥ format slots, min must be ≤ format slots
   useEffect(() => {
     const slots = slotsFromFormat(format);
-    if (!maxPlayers) setMaxPlayers(String(slots));
-    if (!minPlayersEdited.current) setMinPlayers(String(Math.ceil(slots / 2)));
+    setMaxPlayers((prev) => (Number(prev) >= slots ? prev : String(slots)));
+    if (!minPlayersEdited.current) {
+      setMinPlayers(String(Math.ceil(slots / 2)));
+    } else {
+      setMinPlayers((prev) => String(Math.min(Number(prev), slots)));
+    }
   }, [format]);
 
   const handleCreate = async () => {
@@ -116,10 +120,15 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       newErrors.date = "Game must be scheduled in the future";
     if (!feeInRs || isNaN(Number(feeInRs)) || Number(feeInRs) < 0)
       newErrors.feeInRs = "Valid fee is required";
-    if (minPlayers && Number(minPlayers) < 2)
+    const formatSlots = slotsFromFormat(format);
+    if (Number(minPlayers) < 2)
       newErrors.minMax = "Min players required must be at least 2";
-    if (minPlayers && maxPlayers && Number(maxPlayers) < Number(minPlayers))
-      newErrors.minMax = "Max players allowed cannot be less than min players required";
+    else if (Number(minPlayers) > formatSlots)
+      newErrors.minMax = `Min players cannot exceed ${formatSlots} (total slots for ${format})`;
+    else if (Number(maxPlayers) < formatSlots)
+      newErrors.minMax = `Max players must be at least ${formatSlots} for ${format}`;
+    else if (Number(maxPlayers) < Number(minPlayers))
+      newErrors.minMax = "Max players cannot be less than min players";
     // Capacity check: organiser + guests must not exceed totalSlots
     const cap = Number(maxPlayers) || slotsFromFormat(format);
     const orgSlot = organiserIsPlaying ? 1 : 0;
@@ -279,16 +288,21 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
 
               <div className="form-group">
                 <label className="form-label"><span className="label-text">Duration</span></label>
-                <div className="input-with-unit">
+                <div className="stepper-row">
+                  <button type="button" className="stepper-btn"
+                    onClick={() => setDuration((v) => Math.max(15, Number(v) - 15))}
+                    disabled={Number(durationMins) <= 15}
+                  >−</button>
                   <input
-                    type="number"
-                    min="15"
-                    step="15"
+                    type="number" min="15" step="15"
                     value={durationMins}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    className="form-input"
+                    onChange={(e) => setDuration(Math.max(15, Number(e.target.value) || 15))}
+                    className="form-input stepper-input"
                   />
-                  <span className="input-unit">min</span>
+                  <span className="stepper-unit">min</span>
+                  <button type="button" className="stepper-btn"
+                    onClick={() => setDuration((v) => Number(v) + 15)}
+                  >+</button>
                 </div>
                 {endTime && date && (
                   <div className="field-hint">Game ends at <strong>{endTime}</strong></div>
@@ -341,42 +355,56 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label"><span className="label-text">Min Players Required</span></label>
-                <input
-                  type="number"
-                  min="2"
-                  max={maxPlayers || undefined}
-                  value={minPlayers}
-                  onChange={(e) => {
-                    minPlayersEdited.current = true;
-                    const val = e.target.value;
-                    const max = Number(maxPlayers);
-                    if (Number(val) < 2) setMinPlayers("2");
-                    else if (max && Number(val) > max) setMinPlayers(String(max));
-                    else setMinPlayers(val);
-                  }}
-                  placeholder={String(slotsFromFormat(format))}
-                  className={`form-input ${errors.minMax ? "error" : ""}`}
-                />
-                <div className="field-hint">Minimum registrations to confirm the game</div>
+                <div className="stepper-row">
+                  <button type="button" className="stepper-btn"
+                    onClick={() => { minPlayersEdited.current = true; setMinPlayers((v) => String(Math.max(2, Number(v) - 1))); }}
+                    disabled={Number(minPlayers) <= 2}
+                  >−</button>
+                  <input
+                    type="number" min="2" max={slotsFromFormat(format)}
+                    value={minPlayers}
+                    onChange={(e) => {
+                      minPlayersEdited.current = true;
+                      const val = Number(e.target.value);
+                      const cap = slotsFromFormat(format);
+                      if (val < 2) setMinPlayers("2");
+                      else if (val > cap) setMinPlayers(String(cap));
+                      else setMinPlayers(e.target.value);
+                    }}
+                    className={`form-input stepper-input ${errors.minMax ? "error" : ""}`}
+                  />
+                  <button type="button" className="stepper-btn"
+                    onClick={() => { minPlayersEdited.current = true; setMinPlayers((v) => String(Math.min(slotsFromFormat(format), Number(v) + 1))); }}
+                    disabled={Number(minPlayers) >= slotsFromFormat(format)}
+                  >+</button>
+                </div>
+                <div className="field-hint">Min to confirm · max {slotsFromFormat(format)} for {format}</div>
               </div>
 
               <div className="form-group">
                 <label className="form-label"><span className="label-text">Max Players Allowed</span></label>
-                <input
-                  type="number"
-                  min={minPlayers || String(slotsFromFormat(format))}
-                  value={maxPlayers}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const floor = Number(minPlayers) || slotsFromFormat(format);
-                    if (Number(val) < floor) setMaxPlayers(String(floor));
-                    else setMaxPlayers(val);
-                  }}
-                  placeholder={String(slotsFromFormat(format))}
-                  className={`form-input ${errors.minMax ? "error" : ""}`}
-                />
+                <div className="stepper-row">
+                  <button type="button" className="stepper-btn"
+                    onClick={() => setMaxPlayers((v) => String(Math.max(slotsFromFormat(format), Number(v) - 1)))}
+                    disabled={Number(maxPlayers) <= slotsFromFormat(format)}
+                  >−</button>
+                  <input
+                    type="number" min={slotsFromFormat(format)}
+                    value={maxPlayers}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const floor = slotsFromFormat(format);
+                      if (val < floor) setMaxPlayers(String(floor));
+                      else setMaxPlayers(e.target.value);
+                    }}
+                    className={`form-input stepper-input ${errors.minMax ? "error" : ""}`}
+                  />
+                  <button type="button" className="stepper-btn"
+                    onClick={() => setMaxPlayers((v) => String(Number(v) + 1))}
+                  >+</button>
+                </div>
                 {errors.minMax && <div className="field-error">{errors.minMax}</div>}
-                <div className="field-hint">Must be ≥ min players required</div>
+                <div className="field-hint">Must be ≥ {slotsFromFormat(format)} (format slots)</div>
               </div>
             </div>
           </div>
