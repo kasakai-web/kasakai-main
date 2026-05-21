@@ -290,7 +290,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <label className="form-label"><span className="label-text">Duration</span></label>
                 <div className="stepper-row">
                   <button type="button" className="stepper-btn"
-                    onClick={() => setDuration((v) => Math.max(15, Number(v) - 15))}
+                    onClick={() => setDuration((v: number) => Math.max(15, v - 15))}
                     disabled={Number(durationMins) <= 15}
                   >−</button>
                   <input
@@ -301,7 +301,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                   />
                   <span className="stepper-unit">min</span>
                   <button type="button" className="stepper-btn"
-                    onClick={() => setDuration((v) => Number(v) + 15)}
+                    onClick={() => setDuration((v: number) => v + 15)}
                   >+</button>
                 </div>
                 {endTime && date && (
@@ -357,7 +357,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <label className="form-label"><span className="label-text">Min Players Required</span></label>
                 <div className="stepper-row">
                   <button type="button" className="stepper-btn"
-                    onClick={() => { minPlayersEdited.current = true; setMinPlayers((v) => String(Math.max(2, Number(v) - 1))); }}
+                    onClick={() => { minPlayersEdited.current = true; setMinPlayers((v: string) => String(Math.max(2, Number(v) - 1))); }}
                     disabled={Number(minPlayers) <= 2}
                   >−</button>
                   <input
@@ -374,7 +374,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                     className={`form-input stepper-input ${errors.minMax ? "error" : ""}`}
                   />
                   <button type="button" className="stepper-btn"
-                    onClick={() => { minPlayersEdited.current = true; setMinPlayers((v) => String(Math.min(slotsFromFormat(format), Number(v) + 1))); }}
+                    onClick={() => { minPlayersEdited.current = true; setMinPlayers((v: string) => String(Math.min(slotsFromFormat(format), Number(v) + 1))); }}
                     disabled={Number(minPlayers) >= slotsFromFormat(format)}
                   >+</button>
                 </div>
@@ -385,7 +385,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 <label className="form-label"><span className="label-text">Max Players Allowed</span></label>
                 <div className="stepper-row">
                   <button type="button" className="stepper-btn"
-                    onClick={() => setMaxPlayers((v) => String(Math.max(slotsFromFormat(format), Number(v) - 1)))}
+                    onClick={() => setMaxPlayers((v: string) => String(Math.max(slotsFromFormat(format), Number(v) - 1)))}
                     disabled={Number(maxPlayers) <= slotsFromFormat(format)}
                   >−</button>
                   <input
@@ -400,7 +400,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                     className={`form-input stepper-input ${errors.minMax ? "error" : ""}`}
                   />
                   <button type="button" className="stepper-btn"
-                    onClick={() => setMaxPlayers((v) => String(Number(v) + 1))}
+                    onClick={() => setMaxPlayers((v: string) => String(Number(v) + 1))}
                   >+</button>
                 </div>
                 {errors.minMax && <div className="field-error">{errors.minMax}</div>}
