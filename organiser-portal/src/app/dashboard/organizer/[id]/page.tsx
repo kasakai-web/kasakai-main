@@ -239,16 +239,11 @@ export default function OrganizerDashboard() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || `HTTP ${res.status}`);
-      // Refresh games and keep the modal open with updated data
-      const { token: t2 } = getSession();
-      const refreshed = await fetch(buildApiUrl("/api/v1/games/organisers/my-games"), {
-        headers: { Authorization: `Bearer ${t2}` },
-      });
-      const refreshedData = await refreshed.json();
-      if (refreshedData.success) {
-        const updatedGames: any[] = refreshedData.data;
-        setGames(updatedGames);
-        setSelectedGame((prev: any) => updatedGames.find((g) => g._id === prev?._id) ?? prev);
+      // Patch immediately from response — no second fetch needed
+      if (data.data) {
+        const updated = data.data;
+        setGames((prev) => prev.map((g) => g._id === updated._id ? updated : g));
+        setSelectedGame((prev: any) => prev?._id === updated._id ? updated : prev);
       }
     } catch (err: any) {
       throw err;
@@ -906,6 +901,10 @@ export default function OrganizerDashboard() {
             await handleRemoveRegistration(selectedGame._id, regId);
           }}
           onRefresh={() => refreshSelectedGame(false)}
+          onGameUpdate={(updated) => {
+            setGames((prev) => prev.map((g) => g._id === updated._id ? updated : g));
+            setSelectedGame((prev: any) => prev?._id === updated._id ? updated : prev);
+          }}
           isRefreshing={modalRefreshing}
           onClose={() => {
             setShowPlayersModal(false);

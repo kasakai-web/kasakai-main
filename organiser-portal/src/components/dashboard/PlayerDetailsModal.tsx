@@ -53,6 +53,7 @@ interface PlayerDetailsModalProps {
   onToggleOrganiserPlaying?: () => void;
   onRemoveRegistration?: (regId: string) => Promise<void>;
   onRefresh?: () => void;
+  onGameUpdate?: (game: any) => void;
   isRefreshing?: boolean;
 }
 
@@ -118,6 +119,7 @@ export function PlayerDetailsModal({
   onToggleOrganiserPlaying,
   onRemoveRegistration,
   onRefresh,
+  onGameUpdate,
   isRefreshing = false,
 }: PlayerDetailsModalProps) {
 
@@ -148,7 +150,7 @@ export function PlayerDetailsModal({
         return;
       }
       showStatus("success", "Player approved — they'll be notified when a slot opens.");
-      onRefresh?.();
+      if (data.data) onGameUpdate?.(data.data); else onRefresh?.();
     } catch {
       showStatus("error", "Failed to approve. Please try again.");
     } finally {
@@ -201,7 +203,7 @@ export function PlayerDetailsModal({
       setSearchQuery("");
       setSearchResults([]);
       showStatus("success", "Player added successfully");
-      onRefresh?.();
+      if (data.data) onGameUpdate?.(data.data); else onRefresh?.();
     } catch (error) {
       console.error("Add player failed:", error);
       showStatus("error", "Failed to add player");
@@ -225,7 +227,7 @@ export function PlayerDetailsModal({
         return;
       }
       showStatus("success", "Guest slot added");
-      onRefresh?.();
+      if (data.data) onGameUpdate?.(data.data); else onRefresh?.();
     } catch {
       showStatus("error", "Failed to add guest");
     } finally {

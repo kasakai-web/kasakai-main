@@ -600,8 +600,12 @@ export default function PlayerDashboard() {
         }
         if (isWaitlist) {
           showToast("success", "Joined Waitlist!", "We'll notify you when a spot opens.");
-          fetchMyWaitlist();
-          fetchAllGames();
+          // Patch myWaitlist immediately from response — no round-trip needed
+          if (data.data) {
+            const wg = { ...data.data, _isWaitlisted: true, _waitlistStatus: 'waiting', _myWaitlistStatus: data.data._myWaitlistStatus || 'waiting' };
+            setMyWaitlist((prev) => [...prev.filter((x) => x._id !== wg._id), wg]);
+          }
+          fetchMyWaitlist(); // background sync
         } else {
           const autoGuests: string[] = data.autoConfirmedGuests || [];
           const waitlistAdded: number = data.waitlistGuestsAdded || 0;
@@ -662,8 +666,12 @@ export default function PlayerDashboard() {
         }
         showToast("success", "Removed from waitlist");
         setDetailGame(null);
-        fetchMyWaitlist();
-        fetchAllGames();
+        // Remove from myWaitlist immediately — no round-trip
+        setMyWaitlist((prev) => prev.filter((x) => x._id !== game._id));
+        if (data.data) {
+          setGames((prev) => prev.map((x) => x._id === data.data._id ? { ...x, spotsRemaining: data.data.spotsRemaining, totalSlots: data.data.totalSlots } : x));
+        }
+        fetchMyWaitlist(); // background sync
       } catch {
         showToast("error", "Failed to leave waitlist. Please try again.");
       }
