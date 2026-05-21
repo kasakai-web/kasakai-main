@@ -150,6 +150,18 @@ export default function OrganizerDashboard() {
     return () => window.removeEventListener('kk-new-notification', onSocketNotif);
   }, [silentFetch]);
 
+  // Real-time game count: patch spotsRemaining + totalSlots instantly when backend
+  // broadcasts a player joining, leaving, or a guest being added/removed.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { gameId, spotsRemaining, totalSlots } = (e as CustomEvent<{ gameId: string; spotsRemaining: number; totalSlots: number }>).detail;
+      const patch = (g: any) => g._id === gameId ? { ...g, spotsRemaining, totalSlots } : g;
+      setGames((prev) => prev.map(patch));
+    };
+    window.addEventListener('kk-game-update', handler);
+    return () => window.removeEventListener('kk-game-update', handler);
+  }, []);
+
   // Tick every 5 s to update "Updated X ago" text
   useEffect(() => {
     function formatRelativeTime(d: Date) {

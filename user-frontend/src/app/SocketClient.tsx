@@ -46,6 +46,15 @@ export default function SocketClient() {
         window.dispatchEvent(new CustomEvent("kk-new-notification", { detail: data }));
       });
 
+      // Game count changed (register/opt-out/guest add/remove/organiser toggle) →
+      // broadcast so any open dashboard can patch its state immediately.
+      socket.on(
+        "game-update",
+        (data: { gameId: string; spotsRemaining: number; totalSlots: number }) => {
+          window.dispatchEvent(new CustomEvent("kk-game-update", { detail: data }));
+        },
+      );
+
       socketRef.current = socket;
     };
 

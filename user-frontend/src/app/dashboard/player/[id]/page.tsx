@@ -270,6 +270,21 @@ export default function PlayerDashboard() {
     return () => window.removeEventListener("kk-wallet-update", handler);
   }, []);
 
+  // Real-time game count: patch spotsRemaining + totalSlots in state immediately
+  // when any player joins/leaves/adds or removes a guest on any game.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { gameId, spotsRemaining, totalSlots } = (e as CustomEvent<{ gameId: string; spotsRemaining: number; totalSlots: number }>).detail;
+      const patch = (g: any) => g._id === gameId ? { ...g, spotsRemaining, totalSlots } : g;
+      setGames((prev) => prev.map(patch));
+      setMyGames((prev) => prev.map(patch));
+      setMyWaitlist((prev) => prev.map(patch));
+      setDetailGame((prev: any) => prev?._id === gameId ? { ...prev, spotsRemaining, totalSlots } : prev);
+    };
+    window.addEventListener("kk-game-update", handler);
+    return () => window.removeEventListener("kk-game-update", handler);
+  }, []);
+
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab === "my-games") {

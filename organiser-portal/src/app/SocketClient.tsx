@@ -35,6 +35,14 @@ export default function SocketClient() {
         window.dispatchEvent(new CustomEvent("kk-new-notification", { detail: data }));
       });
 
+      // Game count changed → relay so organiser dashboard can patch counts instantly
+      socket.on(
+        "game-update",
+        (data: { gameId: string; spotsRemaining: number; totalSlots: number }) => {
+          window.dispatchEvent(new CustomEvent("kk-game-update", { detail: data }));
+        },
+      );
+
       socketRef.current = socket;
     };
 
