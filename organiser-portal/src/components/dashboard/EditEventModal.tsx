@@ -476,7 +476,7 @@ export function EditEventModal({
                   ? "⚠️ All slots filled"
                   : `✓ ${openSlots} open slot${openSlots !== 1 ? "s" : ""} remaining`}
               <span style={{ color: "#555", fontWeight: 400, marginLeft: 8 }}>
-                cap {hardCap} · filled {Math.min(filled, hardCap)}
+                cap {hardCap} · filled {filled}
               </span>
             </div>
           </Section>
