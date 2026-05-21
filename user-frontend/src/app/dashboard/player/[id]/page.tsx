@@ -375,9 +375,8 @@ export default function PlayerDashboard() {
 
   const handleBook = (game: any) => {
     const organiserCount = getOrganiserCount(game);
-    const totalRegistered = game.registrations?.length || 0;
-    // organiserCount is NOT in the registrations array — subtract it separately
-    const spotsLeft = game.totalSlots - totalRegistered - organiserCount;
+    // Exclude opted-out and refunded/forfeited regs from slot count
+    const spotsLeft = game.totalSlots - getActiveRegs(game) - organiserCount;
     const isFull = spotsLeft <= 0;
     const formattedGame = {
       id: game._id,
@@ -780,7 +779,10 @@ export default function PlayerDashboard() {
     return Number.isFinite(scheduledAt) && scheduledAt < Date.now();
   });
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
-  const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
+  const getActiveRegs = (game: any) => (game.registrations || []).filter(
+    (r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
+  ).length;
+  const getTotalPlayers = (game: any) => getActiveRegs(game) + getOrganiserCount(game);
   // In "My Games" tab, merge registered + waitlisted games; exclude cancelled and completed games
   const myGamesWithWaitlist = [
     ...myGames.filter((g) => {
@@ -996,11 +998,9 @@ export default function PlayerDashboard() {
       ) : (
         <div className="events-grid">
           {orderedGames.length > 0 ? orderedGames.map(game => {
-            // totalSlots is the hard cap for ALL people (registrations + organiser if playing)
-            const totalRegistered = game.registrations?.length || 0;
+            // Exclude opted-out and refunded/forfeited regs from slot count
             const organiserCount = getOrganiserCount(game);
-            const spotsTotal = game.totalSlots;
-            const spotsLeft = spotsTotal - totalRegistered - organiserCount;
+            const spotsLeft = game.totalSlots - getActiveRegs(game) - organiserCount;
             return (
               <EventCard
                 key={game._id}
@@ -1013,7 +1013,7 @@ export default function PlayerDashboard() {
                   time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
                   fee={game.feeInPaise / 100}
-                  spotsTotal={spotsTotal}
+                  spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={myGames.some(myGame => myGame._id === game._id)}
                   isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
@@ -1410,21 +1410,26 @@ export default function PlayerDashboard() {
               }}>
                 <label style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  cursor: optingOut ? "not-allowed" : "pointer",
-                  opacity: optingOut ? 0.6 : 1,
+                  cursor: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? "not-allowed" : "pointer",
+                  opacity: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? 0.6 : 1,
                 }}>
                   <input
                     type="checkbox"
                     checked={!isOptedOut}
                     onChange={(e) => handleOptOut(e.target.checked)}
-                    disabled={optingOut}
+                    disabled={optingOut || (isOptedOut && detailSpotsLeft === 0)}
                     style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
                   />
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
                       {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
                     </div>
-                    {isOptedOut && (
+                    {isOptedOut && detailSpotsLeft === 0 && (
+                      <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 1.4 }}>
+                        Game is full — no slots available to rejoin.
+                      </div>
+                    )}
+                    {isOptedOut && detailSpotsLeft > 0 && (
                       <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
                         Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
                       </div>

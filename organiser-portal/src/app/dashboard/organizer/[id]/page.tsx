@@ -317,7 +317,10 @@ export default function OrganizerDashboard() {
   });
 
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
-  const getTotalPlayers = (game: any) => (game.registrations?.length || 0) + getOrganiserCount(game);
+  const getActiveRegs = (game: any) => (game.registrations || []).filter(
+    (r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
+  ).length;
+  const getTotalPlayers = (game: any) => getActiveRegs(game) + getOrganiserCount(game);
 
   const allFormats = [...new Set(games.map((g: any) => g.format).filter(Boolean))] as string[];
 
@@ -590,9 +593,8 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-players">
                       {(() => {
-                        const regs = game.registrations || [];
                         const organiserCount = getOrganiserCount(game);
-                        const total = regs.length + organiserCount;
+                        const total = getActiveRegs(game) + organiserCount;
                         return (
                           <div className="players-info">
                             <div className="players-count">{total}/{game.totalSlots}</div>

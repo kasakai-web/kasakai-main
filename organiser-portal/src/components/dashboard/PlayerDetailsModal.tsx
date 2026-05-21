@@ -288,7 +288,7 @@ export function PlayerDetailsModal({
       return `${index + 1}. ${name}${pos ? ` [${pos}]` : ""}`;
     });
 
-    const footer = `*Total:* ${players.length} / ${totalSlots}`;
+    const footer = `*Total:* ${activeRegs.length} / ${totalSlots}${mainRegs.some(r => r.optedOut) ? ` (${mainRegs.filter(r => r.optedOut).length} opted out)` : ''}`;
 
     const fullMessage = [
       header,
@@ -329,7 +329,11 @@ export function PlayerDetailsModal({
       guestsByPlayer.get(k)!.push(r);
     }
   });
-  const spotsLeft = Math.max(0, totalSlots - players.length - organiserCount);
+  // Only regs that actually occupy a slot (not opted-out, not refunded/forfeited)
+  const activeRegs = players.filter(
+    (r) => !r.optedOut && !['refunded', 'forfeited'].includes(r.paymentStatus || '')
+  );
+  const spotsLeft = Math.max(0, totalSlots - activeRegs.length - organiserCount);
   const totalCollectedPaise = players.reduce(
     (sum, r) => sum + (r.paymentStatus === "paid" || r.paymentStatus === "wallet_locked" ? (r.amountPaidPaise || 0) : 0),
     0
@@ -398,12 +402,12 @@ export function PlayerDetailsModal({
         {/* Stats Strip */}
         <div className="pdm-stats-strip">
           <div className="pdm-stat">
-            <span className="pdm-stat-val">{players.length}</span>
-            <span className="pdm-stat-lbl">Registered</span>
+            <span className="pdm-stat-val">{activeRegs.length}</span>
+            <span className="pdm-stat-lbl">Attending</span>
           </div>
           <div className="pdm-stat-div" />
           <div className="pdm-stat">
-            <span className="pdm-stat-val">{mainRegs.length}</span>
+            <span className="pdm-stat-val">{mainRegs.filter(r => !r.optedOut).length}</span>
             <span className="pdm-stat-lbl">Players</span>
           </div>
           <div className="pdm-stat-div" />
@@ -411,6 +415,17 @@ export function PlayerDetailsModal({
             <span className="pdm-stat-val">{guestRegs.length}</span>
             <span className="pdm-stat-lbl">Guests</span>
           </div>
+          {mainRegs.some(r => r.optedOut) && (
+            <>
+              <div className="pdm-stat-div" />
+              <div className="pdm-stat">
+                <span className="pdm-stat-val" style={{ color: "#f59e0b" }}>
+                  {mainRegs.filter(r => r.optedOut).length}
+                </span>
+                <span className="pdm-stat-lbl">Opted Out</span>
+              </div>
+            </>
+          )}
           <div className="pdm-stat-div" />
           <div className="pdm-stat">
             <span className="pdm-stat-val">{totalSlots}</span>
