@@ -442,29 +442,59 @@ export default function PlayerDashboard() {
     setConfirmVisible(true);
   };
 
-  const handleOptOut = async (wantToPlay: boolean) => {
+  const handleOptOut = (wantToPlay: boolean) => {
     if (!detailGame) return;
-    const endpoint = wantToPlay ? "opt-back-in" : "opt-out";
-    setOptingOut(true);
-    try {
-      const { token } = getSession();
-      if (!token) { clearSession(); router.replace("/login?role=player"); return; }
-      const res = await fetch(buildApiUrl(`/api/v1/games/${detailGame._id}/${endpoint}`), {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        showToast("error", data.message || "Unable to update attendance.");
-        return;
-      }
-      showToast("success", wantToPlay ? "You're back in!" : "Opted out — your guests remain registered.", data.message);
-      fetchDashboardData();
-    } catch {
-      showToast("error", "Something went wrong. Please try again.");
-    } finally {
-      setOptingOut(false);
+
+    // Build confirmation copy
+    if (wantToPlay) {
+      setConfirmTitle("Rejoin this game?");
+      const feeMsg = detailGame.feeInPaise > 0
+        ? ` ₹${detailGame.feeInPaise / 100} will be debited from your wallet.`
+        : "";
+      setConfirmMessage(`You'll be marked as attending again.${feeMsg}`);
+    } else {
+      setConfirmTitle("Skip this game?");
+      const guestCount = (detailGame.registrations || []).filter((r: any) =>
+        r.plusOneName && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
+      ).length;
+      const guestMsg = guestCount > 0
+        ? ` Your ${guestCount} guest${guestCount > 1 ? "s" : ""} will remain registered.`
+        : "";
+      const feeMsg = detailGame.feeInPaise > 0
+        ? ` ₹${detailGame.feeInPaise / 100} will be refunded to your wallet.`
+        : "";
+      setConfirmMessage(`You'll be marked as not attending.${guestMsg}${feeMsg}`);
     }
+
+    confirmActionRef.current = async () => {
+      const endpoint = wantToPlay ? "opt-back-in" : "opt-out";
+      setOptingOut(true);
+      try {
+        const { token } = getSession();
+        if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+        const res = await fetch(buildApiUrl(`/api/v1/games/${detailGame._id}/${endpoint}`), {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          showToast("error", data.message || "Unable to update attendance.");
+          return;
+        }
+        // Instant update — use the returned game data, no full re-fetch needed
+        if (data.data) {
+          setDetailGame(data.data);
+          setMyGames((prev: any[]) => prev.map((g: any) => g._id === data.data._id ? data.data : g));
+        }
+        showToast("success", wantToPlay ? "You're back in!" : "Opted out — your guests remain registered.", data.message);
+      } catch {
+        showToast("error", "Something went wrong. Please try again.");
+      } finally {
+        setOptingOut(false);
+      }
+    };
+
+    setConfirmVisible(true);
   };
 
   const handleConfirmBooking = async (
@@ -1399,46 +1429,6 @@ export default function PlayerDashboard() {
               )}
             </div>
 
-            {/* ── Attending toggle — only for registered, active games ── */}
-            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
-              <div style={{
-                margin: "0 0 12px",
-                padding: "12px 16px",
-                background: isOptedOut ? "rgba(245,158,11,0.06)" : "rgba(74,222,128,0.05)",
-                border: `1px solid ${isOptedOut ? "rgba(245,158,11,0.25)" : "rgba(74,222,128,0.15)"}`,
-                borderRadius: 10,
-              }}>
-                <label style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  cursor: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? "not-allowed" : "pointer",
-                  opacity: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? 0.6 : 1,
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={!isOptedOut}
-                    onChange={(e) => handleOptOut(e.target.checked)}
-                    disabled={optingOut || (isOptedOut && detailSpotsLeft === 0)}
-                    style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
-                  />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
-                      {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
-                    </div>
-                    {isOptedOut && detailSpotsLeft === 0 && (
-                      <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 1.4 }}>
-                        Game is full — no slots available to rejoin.
-                      </div>
-                    )}
-                    {isOptedOut && detailSpotsLeft > 0 && (
-                      <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
-                        Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
-                      </div>
-                    )}
-                  </div>
-                </label>
-              </div>
-            )}
-
             {/* ── My Guests (CRUD section — only when registered and game active) ── */}
             {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
               <div style={{
@@ -1517,6 +1507,46 @@ export default function PlayerDashboard() {
                     Game is full — tap + Add Guest to join the waitlist. You pay only when a slot opens and you confirm.
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ── Attending toggle — after My Guests, only for registered active games ── */}
+            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
+              <div style={{
+                margin: "0 0 12px",
+                padding: "12px 16px",
+                background: isOptedOut ? "rgba(245,158,11,0.06)" : "rgba(74,222,128,0.05)",
+                border: `1px solid ${isOptedOut ? "rgba(245,158,11,0.25)" : "rgba(74,222,128,0.15)"}`,
+                borderRadius: 10,
+              }}>
+                <label style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  cursor: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? "not-allowed" : "pointer",
+                  opacity: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? 0.6 : 1,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={!isOptedOut}
+                    onChange={(e) => handleOptOut(e.target.checked)}
+                    disabled={optingOut || (isOptedOut && detailSpotsLeft === 0)}
+                    style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
+                      {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
+                    </div>
+                    {isOptedOut && detailSpotsLeft === 0 && (
+                      <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 1.4 }}>
+                        Game is full — no slots available to rejoin.
+                      </div>
+                    )}
+                    {isOptedOut && detailSpotsLeft > 0 && (
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
+                        Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
+                      </div>
+                    )}
+                  </div>
+                </label>
               </div>
             )}
 
