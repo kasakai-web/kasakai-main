@@ -433,11 +433,18 @@ export default function PlayerDashboard() {
 
         showToast("success", "Registration cancelled", data.message || "You've been removed from this game.");
         setDetailGame(null);
-        fetchDashboardData();
         setActiveTab("my-games");
         if (playerId) {
           router.replace(`/dashboard/player/${playerId}?tab=my-games`);
         }
+        // Patch counts immediately from response, then background-sync
+        if (data.data) {
+          const bg = data.data;
+          setGames((prev) => prev.map((x) => x._id === bg._id ? { ...x, spotsRemaining: bg.spotsRemaining, totalSlots: bg.totalSlots } : x));
+          setMyGames((prev) => prev.filter((x) => x._id !== bg._id));
+        }
+        fetchMyGames();
+        fetchWalletBalance();
       } catch (error) {
         console.error("Failed to cancel registration", error);
         showToast("error", "Cancellation failed. Please try again.");
@@ -580,11 +587,21 @@ export default function PlayerDashboard() {
 
       if (data.success) {
         setSelectedGame(null);
-        // Refresh wallet balance after a successful registration
         fetchWalletBalance();
+        // Patch state immediately from the response — no setTimeout, no full re-fetch
+        if (data.data) {
+          const g = data.data;
+          const countPatch = { spotsRemaining: g.spotsRemaining, totalSlots: g.totalSlots };
+          setGames((prev) => prev.map((x) => x._id === g._id ? { ...x, ...countPatch } : x));
+          setMyGames((prev) => {
+            const has = prev.some((x) => x._id === g._id);
+            return has ? prev.map((x) => x._id === g._id ? g : x) : [...prev, g];
+          });
+        }
         if (isWaitlist) {
           showToast("success", "Joined Waitlist!", "We'll notify you when a spot opens.");
-          setTimeout(() => { fetchMyWaitlist(); fetchAllGames(); }, 500);
+          fetchMyWaitlist();
+          fetchAllGames();
         } else {
           const autoGuests: string[] = data.autoConfirmedGuests || [];
           const waitlistAdded: number = data.waitlistGuestsAdded || 0;
@@ -602,7 +619,9 @@ export default function PlayerDashboard() {
           showToast("success", msg, subtitle);
           setActiveTab("my-games");
           if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
-          setTimeout(() => { fetchDashboardData(); if (waitlistAdded > 0) fetchMyWaitlist(); }, 500);
+          // Background sync (no delay needed — state already updated from response above)
+          fetchMyGames();
+          if (waitlistAdded > 0) fetchMyWaitlist();
         }
       } else {
         if (data.code === "INSUFFICIENT_BALANCE") {
@@ -688,9 +707,11 @@ export default function PlayerDashboard() {
         }
         return;
       }
-      setDetailGame(data.data);
+      const g = data.data;
+      setDetailGame(g);
+      setMyGames((prev) => prev.map((x) => x._id === g._id ? g : x));
+      setGames((prev) => prev.map((x) => x._id === g._id ? { ...x, spotsRemaining: g.spotsRemaining, totalSlots: g.totalSlots } : x));
       fetchWalletBalance();
-      fetchMyGames();
       if (data.waitlisted) {
         showToast("success", "Added to Waitlist", "You'll be notified when a spot opens.");
       } else {
@@ -738,9 +759,11 @@ export default function PlayerDashboard() {
         }
         return;
       }
-      setDetailGame(data.data);
+      const cg = data.data;
+      setDetailGame(cg);
+      setMyGames((prev) => prev.map((x) => x._id === cg._id ? cg : x));
+      setGames((prev) => prev.map((x) => x._id === cg._id ? { ...x, spotsRemaining: cg.spotsRemaining, totalSlots: cg.totalSlots } : x));
       fetchWalletBalance();
-      fetchMyGames();
       const feeAmt = detailGame?.feeInPaise || 0;
       showToast("success", "Guest Confirmed!", feeAmt > 0 ? `₹${Math.round(feeAmt / 100)} debited from your wallet.` : undefined);
     } catch {
@@ -762,8 +785,9 @@ export default function PlayerDashboard() {
         });
         const data = await res.json();
         if (!res.ok || !data.success) { showToast("error", data.message || "Failed to remove from waitlist."); return; }
-        setDetailGame(data.data);
-        fetchMyGames();
+        const wg = data.data;
+        setDetailGame(wg);
+        setMyGames((prev) => prev.map((x) => x._id === wg._id ? wg : x));
         fetchMyWaitlist();
         showToast("success", `${guestName} removed from waitlist`);
       } catch {
@@ -800,10 +824,12 @@ export default function PlayerDashboard() {
         showToast("error", data.message || "Failed to remove guest.");
         return;
       }
-      // Confirm server state
-      setDetailGame(data.data);
+      // Confirm server state with immediate patch — no re-fetch needed
+      const rg = data.data;
+      setDetailGame(rg);
+      setMyGames((prev) => prev.map((x) => x._id === rg._id ? rg : x));
+      setGames((prev) => prev.map((x) => x._id === rg._id ? { ...x, spotsRemaining: rg.spotsRemaining, totalSlots: rg.totalSlots } : x));
       fetchWalletBalance();
-      fetchMyGames();
       const refundAmt = data.refundAmountPaise || 0;
       showToast("success", "Guest Removed", refundAmt > 0 ? `₹${Math.round(refundAmt / 100)} will be refunded shortly.` : undefined);
     } catch {
