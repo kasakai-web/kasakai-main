@@ -291,7 +291,7 @@ export function PlayerDetailsModal({
       return `${index + 1}. ${name}${pos ? ` [${pos}]` : ""}`;
     });
 
-    const footer = `*Total:* ${activeRegs.length} / ${totalSlots}${mainRegs.some(r => r.optedOut) ? ` (${mainRegs.filter(r => r.optedOut).length} opted out)` : ''}`;
+    const footer = `*Total:* ${activeRegs.length + organiserCount} / ${totalSlots}${mainRegs.some(r => r.optedOut) ? ` (${mainRegs.filter(r => r.optedOut).length} opted out)` : ''}`;
 
     const fullMessage = [
       header,
@@ -407,12 +407,12 @@ export function PlayerDetailsModal({
         {/* Stats Strip */}
         <div className="pdm-stats-strip">
           <div className="pdm-stat">
-            <span className="pdm-stat-val">{activeRegs.length}</span>
+            <span className="pdm-stat-val">{activeRegs.length + organiserCount}</span>
             <span className="pdm-stat-lbl">Attending</span>
           </div>
           <div className="pdm-stat-div" />
           <div className="pdm-stat">
-            <span className="pdm-stat-val">{mainRegs.filter(r => !r.optedOut).length}</span>
+            <span className="pdm-stat-val">{mainRegs.filter(r => !r.optedOut).length + organiserCount}</span>
             <span className="pdm-stat-lbl">Players</span>
           </div>
           <div className="pdm-stat-div" />
