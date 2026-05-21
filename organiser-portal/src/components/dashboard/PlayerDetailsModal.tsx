@@ -47,6 +47,7 @@ interface PlayerDetailsModalProps {
   waitlist?: WaitlistEntry[];
   guestWaitlist?: GuestWaitlistEntry[];
   totalSlots: number;
+  spotsRemaining?: number;
   onClose: () => void;
   organiserIsPlaying?: boolean;
   onToggleOrganiserPlaying?: () => void;
@@ -111,6 +112,7 @@ export function PlayerDetailsModal({
   waitlist = [],
   guestWaitlist = [],
   totalSlots,
+  spotsRemaining: spotsRemainingProp,
   onClose,
   organiserIsPlaying = false,
   onToggleOrganiserPlaying,
@@ -334,7 +336,9 @@ export function PlayerDetailsModal({
   const activeRegs = players.filter(
     (r) => !r.optedOut && !['refunded', 'forfeited'].includes(r.paymentStatus || '')
   );
-  const spotsLeft = Math.max(0, totalSlots - activeRegs.length - organiserCount);
+  const spotsLeft = typeof spotsRemainingProp === 'number'
+    ? spotsRemainingProp
+    : Math.max(0, totalSlots - activeRegs.length - organiserCount);
   const totalCollectedPaise = players.reduce(
     (sum, r) => sum + (r.paymentStatus === "paid" || r.paymentStatus === "wallet_locked" ? (r.amountPaidPaise || 0) : 0),
     0

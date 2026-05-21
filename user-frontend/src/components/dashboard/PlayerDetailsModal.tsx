@@ -15,11 +15,15 @@ interface PlayerDetailsModalProps {
   gameName: string;
   players: any[];
   totalSlots: number;
+  spotsRemaining?: number;
   onClose: () => void;
 }
 
-export function PlayerDetailsModal({ gameName, players, totalSlots, onClose }: PlayerDetailsModalProps) {
-  const spotsLeft = totalSlots - (players?.length || 0);
+export function PlayerDetailsModal({ gameName, players, totalSlots, spotsRemaining, onClose }: PlayerDetailsModalProps) {
+  const activePlayers = (players || []).filter(
+    (p: any) => !p.optedOut && !['refunded', 'forfeited'].includes(p.paymentStatus || '')
+  );
+  const spotsLeft = typeof spotsRemaining === 'number' ? spotsRemaining : totalSlots - activePlayers.length;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -34,7 +38,7 @@ export function PlayerDetailsModal({ gameName, players, totalSlots, onClose }: P
 
         <div className="players-stats">
           <div className="stat-box">
-            <div className="stat-number">{players?.length || 0}</div>
+            <div className="stat-number">{activePlayers.length}</div>
             <div className="stat-name">Registered</div>
           </div>
           <div className="stat-box">

@@ -593,8 +593,9 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-players">
                       {(() => {
-                        const organiserCount = getOrganiserCount(game);
-                        const total = getActiveRegs(game) + organiserCount;
+                        const total = typeof game.spotsRemaining === 'number'
+                          ? game.totalSlots - game.spotsRemaining
+                          : getActiveRegs(game) + getOrganiserCount(game);
                         return (
                           <div className="players-info">
                             <div className="players-count">{total}/{game.totalSlots}</div>
@@ -881,6 +882,7 @@ export default function OrganizerDashboard() {
           waitlist={selectedGame.waitlist || []}
           guestWaitlist={selectedGame.guestWaitlist || []}
           totalSlots={selectedGame.totalSlots}
+          spotsRemaining={typeof selectedGame.spotsRemaining === 'number' ? selectedGame.spotsRemaining : undefined}
           organiserIsPlaying={Boolean(selectedGame.organiserIsPlaying)}
           onToggleOrganiserPlaying={() => handleOrganiserWithdraw(selectedGame._id)}
           onRemoveRegistration={async (regId) => {

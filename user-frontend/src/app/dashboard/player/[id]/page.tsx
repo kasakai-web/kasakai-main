@@ -375,8 +375,9 @@ export default function PlayerDashboard() {
 
   const handleBook = (game: any) => {
     const organiserCount = getOrganiserCount(game);
-    // Exclude opted-out and refunded/forfeited regs from slot count
-    const spotsLeft = game.totalSlots - getActiveRegs(game) - organiserCount;
+    const spotsLeft = typeof game.spotsRemaining === 'number'
+      ? game.spotsRemaining
+      : game.totalSlots - getActiveRegs(game) - organiserCount;
     const isFull = spotsLeft <= 0;
     const formattedGame = {
       id: game._id,
@@ -1043,9 +1044,10 @@ export default function PlayerDashboard() {
       ) : (
         <div className="events-grid">
           {orderedGames.length > 0 ? orderedGames.map(game => {
-            // Exclude opted-out and refunded/forfeited regs from slot count
             const organiserCount = getOrganiserCount(game);
-            const spotsLeft = game.totalSlots - getActiveRegs(game) - organiserCount;
+            const spotsLeft = typeof game.spotsRemaining === 'number'
+              ? game.spotsRemaining
+              : game.totalSlots - getActiveRegs(game) - organiserCount;
             return (
               <EventCard
                 key={game._id}
