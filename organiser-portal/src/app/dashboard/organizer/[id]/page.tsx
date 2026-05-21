@@ -743,7 +743,11 @@ export default function OrganizerDashboard() {
                       <div className="fee-value">₹{game.feeInPaise ? game.feeInPaise / 100 : 0}</div>
                     </div>
                     <div className="col col-players">
-                      <div className="players-count">{getTotalPlayers(game)}</div>
+                      <div className="players-count">
+                        {typeof game.spotsRemaining === 'number'
+                          ? game.totalSlots - game.spotsRemaining
+                          : getTotalPlayers(game)}
+                      </div>
                     </div>
                     <div className="col col-postgame">
                       {game.status === 'completed' ? (

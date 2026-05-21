@@ -231,8 +231,11 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
 
   const hardCap       = Number(totalSlots);
   const organiserSlot = organiserIsPlaying ? 1 : 0;
-  const currentRegs   = (initialData.registrations?.length || 0);
-  const openSlots     = Math.max(0, hardCap - currentRegs - organiserSlot);
+  const currentRegs   = (initialData.registrations || []).filter(
+    (r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
+  ).length;
+  const filledSlots   = currentRegs + organiserSlot;
+  const openSlots     = Math.max(0, hardCap - filledSlots);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -392,11 +395,13 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
               color: openSlots === 0 ? "#f87171" : "#c8ff3e",
               fontWeight: 600,
             }}>
-              {openSlots === 0
-                ? "⚠️ All slots are currently filled"
-                : `✓ ${openSlots} open slot${openSlots !== 1 ? "s" : ""} remaining`}
+              {filledSlots > hardCap
+                ? `⚠️ Over capacity — ${filledSlots} of ${hardCap} slots used`
+                : openSlots === 0
+                  ? "⚠️ All slots are currently filled"
+                  : `✓ ${openSlots} open slot${openSlots !== 1 ? "s" : ""} remaining`}
               <span style={{ color: "#777", fontWeight: 400, marginLeft: 8 }}>
-                (cap: {hardCap} · registered: {currentRegs}{organiserSlot ? " · you: 1" : ""})
+                (cap: {hardCap} · filled: {Math.min(filledSlots, hardCap)}{filledSlots > hardCap ? ` · ⚠️ ${filledSlots - hardCap} over` : ""})
               </span>
             </div>
 

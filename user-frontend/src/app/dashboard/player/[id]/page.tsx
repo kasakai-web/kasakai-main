@@ -449,7 +449,10 @@ export default function PlayerDashboard() {
     // Build confirmation copy
     if (wantToPlay) {
       const gameFull = detailSpotsLeft === 0;
-      if (gameFull) {
+      if (gameFull && myGuestCount > 0) {
+        setConfirmTitle("Attend with your guest?");
+        setConfirmMessage("The game is full, but your guest is registered. You'll attend alongside your guest — no extra slot or charge needed.");
+      } else if (gameFull) {
         setConfirmTitle("Join waitlist to rejoin?");
         setConfirmMessage("The game is full. We'll add you to the waitlist and notify you when a slot opens. Your guests are still registered — no charge now.");
       } else {
@@ -495,6 +498,8 @@ export default function PlayerDashboard() {
         }
         if (data.code === "JOINED_WAITLIST") {
           showToast("success", "Added to waitlist", "We'll notify you when a spot opens. Your guests are still registered.");
+        } else if (data.code === "REJOINED_WITH_GUEST") {
+          showToast("success", "You're back!", "You're attending alongside your registered guest.");
         } else {
           showToast("success", wantToPlay ? "You're back in!" : "Opted out — your guests remain registered.", data.message);
         }
@@ -889,7 +894,11 @@ export default function PlayerDashboard() {
     { label: "Format", value: detailGame.format || "TBC" },
     { label: "Fee", value: `₹${(detailGame.feeInPaise || 0) / 100}` },
     { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
-    { label: "Players", value: String(getTotalPlayers(detailGame)) },
+    { label: "Players", value: String(
+      typeof detailGame.spotsRemaining === 'number'
+        ? detailGame.totalSlots - detailGame.spotsRemaining
+        : getTotalPlayers(detailGame)
+    ) },
     { label: "Status", value: String(detailGame.status || "open") },
   ] : [];
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
@@ -1583,12 +1592,38 @@ export default function PlayerDashboard() {
                 {isOnRejoinWaitlist ? (
                   /* ── Waitlist-to-rejoin state ── */
                   <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa" }}>📋 On waitlist to rejoin</span>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: detailSpotsLeft > 0 ? "#c8ff3e" : myGuestCount > 0 ? "#f59e0b" : "#a78bfa" }}>
+                        {detailSpotsLeft > 0 ? "🟢 A slot just opened!" : myGuestCount > 0 ? "👥 Game full — guest is in" : "📋 On waitlist to rejoin"}
+                      </span>
+                      {(detailSpotsLeft > 0 || myGuestCount > 0) && (
+                        <button
+                          onClick={() => handleOptOut(true)}
+                          disabled={optingOut}
+                          style={{
+                            padding: "5px 14px",
+                            background: detailSpotsLeft > 0 ? "#c8ff3e" : "#f59e0b",
+                            color: "#000",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: optingOut ? "not-allowed" : "pointer",
+                            opacity: optingOut ? 0.6 : 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {optingOut ? "Rejoining…" : detailSpotsLeft > 0 ? "Rejoin Now" : "Attend with Guest"}
+                        </button>
+                      )}
                     </div>
                     <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>
-                      Game was full when you tried to rejoin. We'll notify you when a slot opens.
-                      {myGuestCount > 0 && (
+                      {detailSpotsLeft > 0
+                        ? `Tap "Rejoin Now" to take the open slot${detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.`
+                        : myGuestCount > 0
+                          ? "Game is full, but your guest is registered. You can attend alongside your guest — no extra slot or charge."
+                          : "Game was full when you tried to rejoin. We'll notify you when a slot opens."}
+                      {myGuestCount > 0 && detailSpotsLeft > 0 && (
                         <span style={{ color: "#c8ff3e", fontWeight: 600 }}>
                           {" "}Your {myGuestCount} guest{myGuestCount > 1 ? "s are" : " is"} still registered.
                         </span>
@@ -1615,8 +1650,10 @@ export default function PlayerDashboard() {
                       </div>
                       {isOptedOut && detailSpotsLeft === 0 && (
                         <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
-                          Game is full — tap to join the waitlist and rejoin when a slot opens.
-                          {myGuestCount > 0 && <span style={{ color: "#c8ff3e" }}> Your guests are still registered.</span>}
+                          {myGuestCount > 0
+                            ? "Game is full — tick to attend alongside your guest (no extra slot or charge needed)."
+                            : "Game is full — tap to join the waitlist and rejoin when a slot opens."}
+                          {myGuestCount > 0 && <span style={{ color: "#c8ff3e" }}> Your guest is still registered.</span>}
                         </div>
                       )}
                       {isOptedOut && detailSpotsLeft > 0 && (
