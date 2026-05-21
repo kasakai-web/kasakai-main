@@ -786,10 +786,11 @@ export default function PlayerDashboard() {
   };
 
   const promptRemoveGuest = (game: any, regId: string, guestName: string) => {
+    const fee = game?.feeInPaise || 0;
+    const refundMsg = fee > 0 ? ` ₹${Math.round(fee / 100)} will be refunded to your wallet.` : "";
     setConfirmTitle("Remove Guest");
-    setConfirmMessage(`Remove ${guestName} from this game?`);
+    setConfirmMessage(`Remove ${guestName} from this game?${refundMsg}`);
     confirmActionRef.current = async () => {
-      // Immediately mark as removed — no background refresh can bring it back
       setRemovedGuestIds((prev) => new Set(prev).add(regId));
       await handleRemoveGuest(game, regId);
     };
@@ -1209,6 +1210,37 @@ export default function PlayerDashboard() {
               </div>
             </div>
 
+            {/* Fee warning */}
+            {guestPrefGame?.spotsRemaining === 0 ? (
+              <div style={{
+                background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)",
+                borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#f59e0b" }}>Game is full — joining waitlist</div>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                  {(guestPrefGame?.feeInPaise || 0) > 0
+                    ? `₹${Math.round(guestPrefGame.feeInPaise / 100)} will only be charged if a spot opens and you confirm.`
+                    : "You'll be notified when a slot opens."}
+                </div>
+              </div>
+            ) : (guestPrefGame?.feeInPaise || 0) > 0 ? (
+              <div style={{
+                background: "rgba(200,255,62,0.05)", border: "1px solid rgba(200,255,62,0.2)",
+                borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+                display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <div style={{ fontSize: 22, lineHeight: 1 }}>₹</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8ff3e" }}>
+                    ₹{Math.round(guestPrefGame.feeInPaise / 100)} will be deducted from your wallet
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                    Charged immediately when you add the guest.
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 type="button"
@@ -1220,7 +1252,11 @@ export default function PlayerDashboard() {
                 onClick={() => handleAddGuest(guestPrefGame, guestPrefPosition, guestPrefTeam, guestPrefName)}
                 style={{ flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}
               >
-                {guestPrefGame?.spotsRemaining === 0 ? "Join Waitlist" : "Add Guest"}
+                {guestPrefGame?.spotsRemaining === 0
+                  ? "Join Waitlist"
+                  : (guestPrefGame?.feeInPaise || 0) > 0
+                    ? `Add Guest (₹${Math.round(guestPrefGame.feeInPaise / 100)})`
+                    : "Add Guest"}
               </button>
             </div>
           </div>
