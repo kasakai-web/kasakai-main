@@ -916,12 +916,17 @@ export default function PlayerDashboard() {
     (w: any) => w._isMine && w.source === 'opted_out_rejoin' && ['waiting', 'notified'].includes(w.status)
   );
 
-  // Compute live spots remaining — opted-out players free their personal slot
-  const detailSpotsLeft = detailGame ? Math.max(0,
-    detailGame.totalSlots
-    - (liveRegistrations.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus) && !r.optedOut).length)
-    - (detailGame.organiserIsPlaying ? 1 : 0)
-  ) : 0;
+  // Prefer backend spotsRemaining (always present after the fix); local filter as fallback
+  const detailSpotsLeft = detailGame
+    ? typeof detailGame.spotsRemaining === 'number'
+      ? detailGame.spotsRemaining
+      : Math.max(0,
+          detailGame.totalSlots
+          - (liveRegistrations.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus) && !r.optedOut).length)
+          - (detailGame.organiserIsPlaying ? 1 : 0)
+        )
+    : 0;
+  const detailFilledSlots = detailGame ? detailGame.totalSlots - detailSpotsLeft : 0;
   const organiserEntry = detailGame?.organiserIsPlaying
     ? [{ key: "organiser", regId: null, name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false, isOrganiser: true, canRemove: false }]
     : [];
@@ -1310,7 +1315,7 @@ export default function PlayerDashboard() {
               ))}
             </div>
 
-            {detailIsWaitlisted && detailSpotsLeft > 0 && !detailIsCancelled && (
+            {detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft > 0 && !detailIsCancelled && (
               <div style={{
                 border: "1px solid rgba(74,222,128,0.4)",
                 padding: "14px 16px",
@@ -1351,7 +1356,7 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            {detailIsWaitlisted && detailSpotsLeft === 0 && !detailIsCancelled && (
+            {detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft === 0 && !detailIsCancelled && (
               <div style={{
                 border: myWaitlistStatus === "approved" ? "1px solid rgba(74,222,128,0.35)" : "1px solid rgba(245,158,11,0.3)",
                 padding: "12px 16px",
@@ -1396,7 +1401,7 @@ export default function PlayerDashboard() {
             <div className="pd-event-player-section">
               <div className="pd-event-player-section-head">
                 <span className="pd-event-player-title">Player Details</span>
-                <span className="pd-event-player-total">Total: {detailPlayers.length}</span>
+                <span className="pd-event-player-total">Total: {detailFilledSlots}</span>
               </div>
               {detailPlayers.length === 0 ? (
                 <div style={{ color: "#888", fontSize: 13 }}>No players registered yet.</div>
@@ -1869,7 +1874,7 @@ export default function PlayerDashboard() {
                 ) : null}
 
                 {/* Waitlisted User Actions */}
-                {detailIsWaitlisted && !detailIsCancelled ? (
+                {detailIsWaitlisted && !isOnRejoinWaitlist && !detailIsCancelled ? (
                   <>
                     {detailSpotsLeft > 0 && (
                       <button
