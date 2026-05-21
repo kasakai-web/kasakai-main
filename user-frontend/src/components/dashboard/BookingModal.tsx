@@ -206,6 +206,7 @@ export function BookingModal({
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [photoError, setPhotoError] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   if (!game || !game.venue) return null;
 
@@ -306,64 +307,91 @@ export function BookingModal({
             </div>
 
             <div className="bm-body">
-              <div className="bm-pos-team-row">
-                <div className="bm-pos-col">
-                  <div className="bm-section-title">Your Position</div>
-                  {hasPositions ? (
-                    <>
-                      <div className="bm-pos-badge">
-                        <span className="bm-pos-badge-code">{playerPositions[0]}</span>
-                        {POSITION_LABELS[playerPositions[0]] && playerPositions[0] !== "ANY" && (
-                          <span className="bm-pos-badge-label">{POSITION_LABELS[playerPositions[0]]}</span>
-                        )}
-                      </div>
-                      <p className="bm-pos-hint">
-                        <span style={{ color: "var(--lime,#c4d56c)" }}>ⓘ</span>{" "}
-                        {playerId ? (
-                          <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
-                            Update profile
-                          </Link>
-                        ) : "Update profile"} to change.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="bm-pos-hint">
-                      No position.{" "}
-                      {playerId && (
-                        <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)", textDecoration: "underline" }}>
-                          Add in profile
-                        </Link>
-                      )}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bm-team-col">
-                  <div className="bm-section-title">Your Team Preference</div>
-                  <select
-                    value={teamPreference}
-                    onChange={(e) => setTeamPreference(e.target.value)}
-                    className={`bm-team-select${teamPreference === "Red Team" ? " bm-team-select--red" : teamPreference === "Blue Team" ? " bm-team-select--blue" : ""}`}
-                  >
-                    <option value="No Preference">No Preference</option>
-                    <option value="Red Team">Red Team</option>
-                    <option value="Blue Team">Blue Team</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="bm-format-toggle-row">
-                <div>
-                  <div className="bm-section-title" style={{ marginBottom: 2 }}>Format Changes</div>
-                  <p className="bm-format-toggle-sub">Still willing to play if the organiser changes format</p>
-                </div>
+              {/* ── Preferences accordion ── */}
+              <div className="bm-prefs-accordion">
                 <button
                   type="button"
-                  className={`bm-toggle-pill${willingIfFormatChange ? " on" : ""}`}
-                  onClick={() => setWillingIfFormatChange(!willingIfFormatChange)}
+                  className="bm-prefs-trigger"
+                  onClick={() => setPrefsOpen((v) => !v)}
+                  aria-expanded={prefsOpen}
                 >
-                  {willingIfFormatChange ? "Yes" : "No"}
+                  <span className="bm-prefs-label">Preferences</span>
+                  {!prefsOpen && (
+                    <span className="bm-prefs-chips">
+                      <span className="bm-pref-chip bm-pref-chip--pos">
+                        {hasPositions ? playerPositions[0] : "ANY"}
+                      </span>
+                      <span className={`bm-pref-chip${teamPreference === "Red Team" ? " bm-pref-chip--red" : teamPreference === "Blue Team" ? " bm-pref-chip--blue" : ""}`}>
+                        {teamPreference === "No Preference" ? "No Pref" : teamPreference}
+                      </span>
+                      <span className={`bm-pref-chip${willingIfFormatChange ? " bm-pref-chip--on" : " bm-pref-chip--off"}`}>
+                        {willingIfFormatChange ? "Format ✓" : "Format ✗"}
+                      </span>
+                    </span>
+                  )}
+                  <svg className={`bm-chevron ${prefsOpen ? "up" : "down"}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
                 </button>
+
+                {prefsOpen && (
+                  <div className="bm-prefs-panel">
+                    {/* Position */}
+                    <div className="bm-pref-row">
+                      <div className="bm-pref-row-label">Position</div>
+                      <div className="bm-pref-row-val">
+                        <span className="bm-pref-chip bm-pref-chip--pos" style={{ fontSize: 12, padding: "3px 10px" }}>
+                          {hasPositions ? playerPositions[0] : "ANY"}
+                        </span>
+                        <span className="bm-prefs-hint">
+                          {playerId ? (
+                            <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)" }}>
+                              Edit in profile →
+                            </Link>
+                          ) : "Set in profile"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Team preference */}
+                    <div className="bm-pref-row">
+                      <div className="bm-pref-row-label">Team</div>
+                      <div className="bm-pref-row-val">
+                        {(["No Preference", "Red Team", "Blue Team"] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setTeamPreference(opt)}
+                            className={`bm-pref-opt${teamPreference === opt ? " selected" : ""}${opt === "Red Team" ? " bm-pref-opt--red" : opt === "Blue Team" ? " bm-pref-opt--blue" : ""}`}
+                          >
+                            {opt === "No Preference" ? "None" : opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Format change */}
+                    <div className="bm-pref-row">
+                      <div className="bm-pref-row-label">Format change</div>
+                      <div className="bm-pref-row-val">
+                        <button
+                          type="button"
+                          onClick={() => setWillingIfFormatChange(true)}
+                          className={`bm-pref-opt${willingIfFormatChange ? " selected" : ""}`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWillingIfFormatChange(false)}
+                          className={`bm-pref-opt${!willingIfFormatChange ? " selected" : ""}`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="bm-guests-section">
