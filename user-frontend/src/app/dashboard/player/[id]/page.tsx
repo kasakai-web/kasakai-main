@@ -50,6 +50,7 @@ export default function PlayerDashboard() {
   const [confirmTitle, setConfirmTitle] = useState<string>("Are you sure?");
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const { toast, showToast } = useToast();
+  const [optingOut, setOptingOut] = useState(false);
   const removingGuestIds = useRef<Set<string>>(new Set());
   // Local set of reg IDs removed this session — prevents any background refresh re-showing a removed guest
   const [removedGuestIds, setRemovedGuestIds] = useState<Set<string>>(new Set());
@@ -430,9 +431,41 @@ export default function PlayerDashboard() {
       }
     };
 
-    setConfirmMessage("Do you want to cancel your registration for this event?");
+    const guestCount = (game.registrations || []).filter((r: any) => {
+      if (!r.plusOneName) return false;
+      return r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId;
+    }).length;
+    const guestWarning = guestCount > 0
+      ? ` Your ${guestCount} guest${guestCount > 1 ? "s" : ""} will also be removed.`
+      : "";
+    setConfirmMessage(`Do you want to cancel your registration for this event?${guestWarning}`);
     confirmActionRef.current = doCancel;
     setConfirmVisible(true);
+  };
+
+  const handleOptOut = async (wantToPlay: boolean) => {
+    if (!detailGame) return;
+    const endpoint = wantToPlay ? "opt-back-in" : "opt-out";
+    setOptingOut(true);
+    try {
+      const { token } = getSession();
+      if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+      const res = await fetch(buildApiUrl(`/api/v1/games/${detailGame._id}/${endpoint}`), {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showToast("error", data.message || "Unable to update attendance.");
+        return;
+      }
+      showToast("success", wantToPlay ? "You're back in!" : "Opted out — your guests remain registered.", data.message);
+      fetchDashboardData();
+    } catch {
+      showToast("error", "Something went wrong. Please try again.");
+    } finally {
+      setOptingOut(false);
+    }
   };
 
   const handleConfirmBooking = async (
@@ -826,10 +859,19 @@ export default function PlayerDashboard() {
     (r: any) => !removedGuestIds.has(String(r._id))
   );
 
-  // Compute live spots remaining for the detail game
+  // Player's own (non-guest) registration in the detail game
+  const myOwnReg = (detailIsRegistered && detailGame)
+    ? (detailGame.registrations || []).find((r: any) => {
+        if (r.plusOneName) return false;
+        return r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId;
+      })
+    : null;
+  const isOptedOut = myOwnReg?.optedOut === true;
+
+  // Compute live spots remaining — opted-out players free their personal slot
   const detailSpotsLeft = detailGame ? Math.max(0,
     detailGame.totalSlots
-    - (liveRegistrations.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus)).length)
+    - (liveRegistrations.filter((r: any) => !['refunded','forfeited'].includes(r.paymentStatus) && !r.optedOut).length)
     - (detailGame.organiserIsPlaying ? 1 : 0)
   ) : 0;
   const organiserEntry = detailGame?.organiserIsPlaying
@@ -1300,10 +1342,19 @@ export default function PlayerDashboard() {
                       }}>Organiser</span>
                     );
 
-                    const renderRow = (name: string, chip: React.ReactNode, key: string) => (
-                      <div key={key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    const notAttendingChip = (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
+                        textTransform: "uppercase" as const, color: "#f59e0b",
+                        background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)",
+                        borderRadius: 4, padding: "2px 6px",
+                      }}>Not Attending</span>
+                    );
+
+                    const renderRow = (name: string, chip: React.ReactNode, key: string, optedOutRow = false) => (
+                      <div key={key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", opacity: optedOutRow ? 0.55 : 1 }}>
                         <div className="pd-event-player-name" style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                          {name}{chip}
+                          {name}{chip}{optedOutRow && notAttendingChip}
                         </div>
                       </div>
                     );
@@ -1330,7 +1381,7 @@ export default function PlayerDashboard() {
                           const myGsts = guestsByPlayerId.get(pId) ?? [];
                           return (
                             <div className="pd-player-group" key={reg._id || idx}>
-                              {renderRow(reg.player?.name || "Player", null, `p-${reg._id || idx}`)}
+                              {renderRow(reg.player?.name || "Player", null, `p-${reg._id || idx}`, !!reg.optedOut)}
                               {myGsts.length > 0 && (
                                 <div className="pd-player-guest-group">
                                   {myGsts.map((gr: any, gi: number) =>
@@ -1347,6 +1398,41 @@ export default function PlayerDashboard() {
                 </div>
               )}
             </div>
+
+            {/* ── Attending toggle — only for registered, active games ── */}
+            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
+              <div style={{
+                margin: "0 0 12px",
+                padding: "12px 16px",
+                background: isOptedOut ? "rgba(245,158,11,0.06)" : "rgba(74,222,128,0.05)",
+                border: `1px solid ${isOptedOut ? "rgba(245,158,11,0.25)" : "rgba(74,222,128,0.15)"}`,
+                borderRadius: 10,
+              }}>
+                <label style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  cursor: optingOut ? "not-allowed" : "pointer",
+                  opacity: optingOut ? 0.6 : 1,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={!isOptedOut}
+                    onChange={(e) => handleOptOut(e.target.checked)}
+                    disabled={optingOut}
+                    style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
+                      {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
+                    </div>
+                    {isOptedOut && (
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
+                        Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* ── My Guests (CRUD section — only when registered and game active) ── */}
             {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (

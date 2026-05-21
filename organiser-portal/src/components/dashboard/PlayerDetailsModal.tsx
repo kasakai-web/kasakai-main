@@ -16,6 +16,8 @@ interface Registration {
   signedUpAt?: string;
   paymentStatus?: string;
   amountPaidPaise?: number;
+  optedOut?: boolean;
+  optedOutAt?: string;
 }
 
 interface WaitlistEntry {
@@ -1037,8 +1039,10 @@ function PlayerCard({
     : null;
   const [imgFailed, setImgFailed] = React.useState(false);
 
+  const optedOut = !isGuest && reg.optedOut === true;
+
   return (
-    <div className={`pdm-card ${isGuest ? "pdm-card-guest" : "pdm-card-player"}`}>
+    <div className={`pdm-card ${isGuest ? "pdm-card-guest" : "pdm-card-player"}`} style={optedOut ? { opacity: 0.6 } : undefined}>
       {slotNum !== undefined && <div className="pdm-slot-num">#{slotNum}</div>}
 
       <div className={`pdm-avatar ${isGuest ? "pdm-avatar-g" : "pdm-avatar-p"}`} style={{ padding: 0, overflow: "hidden" }}>
@@ -1052,7 +1056,16 @@ function PlayerCard({
         <div className="pdm-card-top">
           <div className="pdm-card-name">{name}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <PaymentBadge status={reg.paymentStatus} amountPaise={reg.amountPaidPaise} />
+            {optedOut ? (
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
+                textTransform: "uppercase", padding: "3px 8px", borderRadius: 20,
+                background: "rgba(245,158,11,0.12)", color: "#f59e0b",
+                border: "1px solid rgba(245,158,11,0.3)",
+              }}>Not Attending</span>
+            ) : (
+              <PaymentBadge status={reg.paymentStatus} amountPaise={reg.amountPaidPaise} />
+            )}
             <span className={`pdm-type-chip ${isGuest ? "pdm-chip-guest" : "pdm-chip-player"}`}>
               {isGuest ? "Guest" : "Player"}
             </span>
