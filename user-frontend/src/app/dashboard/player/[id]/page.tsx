@@ -447,11 +447,17 @@ export default function PlayerDashboard() {
 
     // Build confirmation copy
     if (wantToPlay) {
-      setConfirmTitle("Rejoin this game?");
-      const feeMsg = detailGame.feeInPaise > 0
-        ? ` ₹${detailGame.feeInPaise / 100} will be debited from your wallet.`
-        : "";
-      setConfirmMessage(`You'll be marked as attending again.${feeMsg}`);
+      const gameFull = detailSpotsLeft === 0;
+      if (gameFull) {
+        setConfirmTitle("Join waitlist to rejoin?");
+        setConfirmMessage("The game is full. We'll add you to the waitlist and notify you when a slot opens. Your guests are still registered — no charge now.");
+      } else {
+        setConfirmTitle("Rejoin this game?");
+        const feeMsg = detailGame.feeInPaise > 0
+          ? ` ₹${detailGame.feeInPaise / 100} will be debited from your wallet.`
+          : "";
+        setConfirmMessage(`You'll be marked as attending again.${feeMsg}`);
+      }
     } else {
       setConfirmTitle("Skip this game?");
       const guestCount = (detailGame.registrations || []).filter((r: any) =>
@@ -486,7 +492,11 @@ export default function PlayerDashboard() {
           setDetailGame(data.data);
           setMyGames((prev: any[]) => prev.map((g: any) => g._id === data.data._id ? data.data : g));
         }
-        showToast("success", wantToPlay ? "You're back in!" : "Opted out — your guests remain registered.", data.message);
+        if (data.code === "JOINED_WAITLIST") {
+          showToast("success", "Added to waitlist", "We'll notify you when a spot opens. Your guests are still registered.");
+        } else {
+          showToast("success", wantToPlay ? "You're back in!" : "Opted out — your guests remain registered.", data.message);
+        }
       } catch {
         showToast("error", "Something went wrong. Please try again.");
       } finally {
@@ -900,6 +910,10 @@ export default function PlayerDashboard() {
       })
     : null;
   const isOptedOut = myOwnReg?.optedOut === true;
+  // Player opted out AND is now on the waitlist to rejoin (game was full when they tried)
+  const isOnRejoinWaitlist = isOptedOut && !!(detailGame?.waitlist || []).find(
+    (w: any) => w._isMine && w.source === 'opted_out_rejoin' && ['waiting', 'notified'].includes(w.status)
+  );
 
   // Compute live spots remaining — opted-out players free their personal slot
   const detailSpotsLeft = detailGame ? Math.max(0,
@@ -1551,38 +1565,61 @@ export default function PlayerDashboard() {
               <div style={{
                 margin: "0 0 12px",
                 padding: "12px 16px",
-                background: isOptedOut ? "rgba(245,158,11,0.06)" : "rgba(74,222,128,0.05)",
-                border: `1px solid ${isOptedOut ? "rgba(245,158,11,0.25)" : "rgba(74,222,128,0.15)"}`,
+                background: isOnRejoinWaitlist
+                  ? "rgba(167,139,250,0.06)"
+                  : isOptedOut
+                    ? "rgba(245,158,11,0.06)"
+                    : "rgba(74,222,128,0.05)",
+                border: `1px solid ${isOnRejoinWaitlist ? "rgba(167,139,250,0.3)" : isOptedOut ? "rgba(245,158,11,0.25)" : "rgba(74,222,128,0.15)"}`,
                 borderRadius: 10,
               }}>
-                <label style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  cursor: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? "not-allowed" : "pointer",
-                  opacity: (optingOut || (isOptedOut && detailSpotsLeft === 0)) ? 0.6 : 1,
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={!isOptedOut}
-                    onChange={(e) => handleOptOut(e.target.checked)}
-                    disabled={optingOut || (isOptedOut && detailSpotsLeft === 0)}
-                    style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
-                  />
+                {isOnRejoinWaitlist ? (
+                  /* ── Waitlist-to-rejoin state ── */
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
-                      {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa" }}>📋 On waitlist to rejoin</span>
                     </div>
-                    {isOptedOut && detailSpotsLeft === 0 && (
-                      <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2, lineHeight: 1.4 }}>
-                        Game is full — no slots available to rejoin.
-                      </div>
-                    )}
-                    {isOptedOut && detailSpotsLeft > 0 && (
-                      <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
-                        Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
-                      </div>
-                    )}
+                    <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>
+                      Game was full when you tried to rejoin. We'll notify you when a slot opens.
+                      {myGuestCount > 0 && (
+                        <span style={{ color: "#c8ff3e", fontWeight: 600 }}>
+                          {" "}Your {myGuestCount} guest{myGuestCount > 1 ? "s are" : " is"} still registered.
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </label>
+                ) : (
+                  /* ── Normal attend / opted-out toggle ── */
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    cursor: optingOut ? "not-allowed" : "pointer",
+                    opacity: optingOut ? 0.6 : 1,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={!isOptedOut}
+                      onChange={(e) => handleOptOut(e.target.checked)}
+                      disabled={optingOut}
+                      style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
+                    />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
+                        {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
+                      </div>
+                      {isOptedOut && detailSpotsLeft === 0 && (
+                        <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
+                          Game is full — tap to join the waitlist and rejoin when a slot opens.
+                          {myGuestCount > 0 && <span style={{ color: "#c8ff3e" }}> Your guests are still registered.</span>}
+                        </div>
+                      )}
+                      {isOptedOut && detailSpotsLeft > 0 && (
+                        <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
+                          Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                )}
               </div>
             )}
 

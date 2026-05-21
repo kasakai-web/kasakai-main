@@ -28,6 +28,7 @@ interface WaitlistEntry {
   status?: string;
   preferredPosition?: string;
   teamPreference?: string;
+  source?: string;
 }
 
 interface GuestWaitlistEntry {
@@ -748,6 +749,11 @@ export function PlayerDetailsModal({
                         (g) => g.player?._id === playerId && ["waiting", "notified"].includes(g.status || "waiting")
                       ).length
                     : 0;
+                  const registeredGc = playerId
+                    ? (players || []).filter(
+                        (p) => p.player?._id === playerId && p.plusOneName
+                      ).length
+                    : 0;
                   return (
                     <WaitlistCard
                       key={entry._id || idx}
@@ -756,6 +762,7 @@ export function PlayerDetailsModal({
                       onApprove={entry.status === "waiting" && entry._id ? () => approveWaitlistEntry(entry._id!) : undefined}
                       isApproving={approvingId === entry._id}
                       guestCount={gc}
+                      registeredGuestCount={registeredGc}
                     />
                   );
                 })}
@@ -856,15 +863,19 @@ const WAITLIST_STATUS_CFG: Record<string, { label: string; bg: string; color: st
   registered:{ label: "Registered",bg: "rgba(96,165,250,0.08)", color: "#60a5fa", border: "rgba(96,165,250,0.2)", leftBorder: "#60a5fa" },
 };
 
-function WaitlistCard({ entry, position, onApprove, isApproving, guestCount }: {
+function WaitlistCard({ entry, position, onApprove, isApproving, guestCount, registeredGuestCount }: {
   entry: WaitlistEntry;
   position: number;
   onApprove?: () => void;
   isApproving?: boolean;
   guestCount?: number;
+  registeredGuestCount?: number;
 }) {
   const status  = entry.status || "waiting";
-  const cfg     = WAITLIST_STATUS_CFG[status] ?? WAITLIST_STATUS_CFG.waiting;
+  const isRejoin = entry.source === "opted_out_rejoin";
+  const cfg     = isRejoin
+    ? { bg: "rgba(167,139,250,0.06)", color: "#a78bfa", border: "rgba(167,139,250,0.25)", leftBorder: "#a78bfa", label: "Opted Out — Rejoining" }
+    : (WAITLIST_STATUS_CFG[status] ?? WAITLIST_STATUS_CFG.waiting);
   const name    = entry.player?.name || "Unknown";
   const pos     = posLabel(entry.preferredPosition);
   const isNotified = status === "notified";
@@ -910,6 +921,18 @@ function WaitlistCard({ entry, position, onApprove, isApproving, guestCount }: {
           </div>
         </div>
 
+        {isRejoin && (
+          <div style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>↩</span>
+            <span>Opted out — waiting to rejoin when a slot opens</span>
+          </div>
+        )}
+        {isRejoin && (registeredGuestCount ?? 0) > 0 && (
+          <div style={{ fontSize: 11, color: "#c8ff3e", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>⚽</span>
+            <span>{registeredGuestCount} guest{(registeredGuestCount ?? 0) > 1 ? "s" : ""} already registered in game</span>
+          </div>
+        )}
         {isNotified && (
           <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
             <span>🔔</span>
