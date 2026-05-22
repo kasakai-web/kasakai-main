@@ -316,19 +316,6 @@ export function BookingModal({
                   aria-expanded={prefsOpen}
                 >
                   <span className="bm-prefs-label">Preferences</span>
-                  {!prefsOpen && (
-                    <span className="bm-prefs-chips">
-                      <span className="bm-pref-chip bm-pref-chip--pos">
-                        {hasPositions ? playerPositions[0] : "ANY"}
-                      </span>
-                      <span className={`bm-pref-chip${teamPreference === "Red Team" ? " bm-pref-chip--red" : teamPreference === "Blue Team" ? " bm-pref-chip--blue" : ""}`}>
-                        {teamPreference === "No Preference" ? "No Pref" : teamPreference}
-                      </span>
-                      <span className={`bm-pref-chip${willingIfFormatChange ? " bm-pref-chip--on" : " bm-pref-chip--off"}`}>
-                        {willingIfFormatChange ? "Format ✓" : "Format ✗"}
-                      </span>
-                    </span>
-                  )}
                   <svg className={`bm-chevron ${prefsOpen ? "up" : "down"}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
