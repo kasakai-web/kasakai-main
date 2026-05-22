@@ -319,13 +319,51 @@ export default function PlayerDashboard() {
 
 
   const openGameDetail = async (game: any) => {
-    // Prefer the annotated version from myGames (has _isMyReg flags) when available
-    const annotated = myGames.find((g: any) => g._id === game._id);
+    // Prefer the annotated version from myGames/myWaitlist (has _isMyReg flags) when available
+    const annotated =
+      myGames.find((g: any) => g._id === game._id) ||
+      myWaitlist.find((g: any) => g._id === game._id);
     setDetailGame(annotated || game);
     setDetailGameFeedback(null);
-    if (game.status !== "completed") return;
+
     const { token } = getSession();
     if (!token) return;
+
+    // Silent background refresh — show cached data instantly, update arrays from fresh response
+    fetch(buildApiUrl(`/api/v1/games/${game._id}`), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d.success || !d.data) return;
+        const fresh = d.data;
+        setDetailGame((prev: any) => {
+          if (!prev || prev._id !== fresh._id) return prev;
+          return {
+            ...fresh,
+            _isWaitlisted: prev._isWaitlisted,
+            _waitlistStatus: prev._waitlistStatus,
+            _myWaitlistStatus: prev._myWaitlistStatus,
+          };
+        });
+        setGames((prev: any[]) =>
+          prev.map((g) =>
+            g._id === fresh._id
+              ? { ...g, spotsRemaining: fresh.spotsRemaining, totalSlots: fresh.totalSlots }
+              : g
+          )
+        );
+        setMyGames((prev: any[]) =>
+          prev.map((g) => (g._id === fresh._id ? { ...g, ...fresh } : g))
+        );
+        setMyWaitlist((prev: any[]) =>
+          prev.map((g) => (g._id === fresh._id ? { ...g, ...fresh } : g))
+        );
+      })
+      .catch(() => {});
+
+    if (game.status !== "completed") return;
     try {
       const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/feedback`), {
         headers: { Authorization: `Bearer ${token}` },
