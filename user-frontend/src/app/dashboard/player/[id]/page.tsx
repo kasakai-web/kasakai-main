@@ -1752,7 +1752,7 @@ export default function PlayerDashboard() {
             )}
 
             {/* ── Guest Waitlist ── */}
-            {(detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && (
+            {(detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -1995,7 +1995,7 @@ export default function PlayerDashboard() {
                 ) : null}
 
                 {/* Waitlisted User Actions */}
-                {detailIsWaitlisted && !isOnRejoinWaitlist && !detailIsCancelled ? (
+                {detailIsWaitlisted && !isOnRejoinWaitlist && !detailIsCancelled && detailGame.status !== "completed" ? (
                   <>
                     {detailSpotsLeft > 0 && (
                       <button
