@@ -1743,22 +1743,22 @@ export default function PlayerDashboard() {
                       <div key={gw._id} style={{
                         display: "flex", alignItems: "center", justifyContent: "space-between",
                         padding: "10px 12px",
-                        background: isNotified ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.02)",
+                        background: detailSpotsLeft > 0 ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.02)",
                         borderRadius: 7,
-                        border: `1px solid ${isNotified ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.07)"}`,
+                        border: `1px solid ${detailSpotsLeft > 0 ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.07)"}`,
                       }}>
                         <div>
                           <div style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 600 }}>{gw.plusOneName}</div>
-                          <div style={{ fontSize: 11, marginTop: 2, color: isNotified && detailSpotsLeft > 0 ? "#f59e0b" : "#666" }}>
+                          <div style={{ fontSize: 11, marginTop: 2, color: detailSpotsLeft > 0 ? "#f59e0b" : "#666" }}>
                             {detailIsWaitlisted
                               ? "Waitlisted with you — auto-confirmed when you register"
-                              : isNotified && detailSpotsLeft > 0
+                              : detailSpotsLeft > 0
                                 ? "Seat available — confirm now!"
                                 : "Waiting for a slot to open"}
                           </div>
                         </div>
                         <div style={{ display: "flex", gap: 6 }}>
-                          {detailIsRegistered && isNotified && detailSpotsLeft > 0 && (
+                          {detailIsRegistered && detailSpotsLeft > 0 && (
                             <button
                               type="button"
                               onClick={() => handleConfirmGuestWaitlist(detailGame, gw._id)}
