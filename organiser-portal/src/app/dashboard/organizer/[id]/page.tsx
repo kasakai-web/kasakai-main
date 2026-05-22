@@ -902,6 +902,7 @@ export default function OrganizerDashboard() {
         <PlayerDetailsModal
           gameId={selectedGame._id}
           gameName={selectedGame.title}
+          gameStatus={selectedGame.status}
           players={selectedGame.registrations || []}
           waitlist={selectedGame.waitlist || []}
           guestWaitlist={selectedGame.guestWaitlist || []}
