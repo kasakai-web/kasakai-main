@@ -43,7 +43,6 @@ interface GuestWaitlistEntry {
 interface PlayerDetailsModalProps {
   gameId: string;
   gameName: string;
-  gameStatus?: string;
   players: Registration[];
   waitlist?: WaitlistEntry[];
   guestWaitlist?: GuestWaitlistEntry[];
@@ -110,7 +109,6 @@ function mapPosition(pos?: string) {
 export function PlayerDetailsModal({
   gameId,
   gameName,
-  gameStatus,
   players,
   waitlist = [],
   guestWaitlist = [],
@@ -124,7 +122,6 @@ export function PlayerDetailsModal({
   onGameUpdate,
   isRefreshing = false,
 }: PlayerDetailsModalProps) {
-  const isLocked = gameStatus === 'completed' || gameStatus === 'cancelled';
 
   const [teams, setTeams] = useState<any>(null);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -625,7 +622,7 @@ export function PlayerDetailsModal({
                           </span>
                         </div>
                       </div>
-                      {onToggleOrganiserPlaying && !isLocked && (
+                      {onToggleOrganiserPlaying && (
                         <button
                           onClick={onToggleOrganiserPlaying}
                           title="Withdraw from game"
@@ -664,7 +661,7 @@ export function PlayerDetailsModal({
                             type="guest"
                             isProcessing={processingId === regId}
                             onRemove={
-                              onRemoveRegistration && regId && !isLocked
+                              onRemoveRegistration && regId
                                 ? async () => {
                                     const doRemove = async () => {
                                       setProcessingId(regId);
@@ -768,7 +765,7 @@ export function PlayerDetailsModal({
                       key={entry._id || idx}
                       entry={entry}
                       position={idx + 1}
-                      onApprove={entry.status === "waiting" && entry._id && !isLocked ? () => approveWaitlistEntry(entry._id!) : undefined}
+                      onApprove={entry.status === "waiting" && entry._id ? () => approveWaitlistEntry(entry._id!) : undefined}
                       isApproving={approvingId === entry._id}
                       guestCount={gc}
                       registeredGuestCount={registeredGc}
