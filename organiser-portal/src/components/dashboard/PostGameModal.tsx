@@ -348,9 +348,9 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
                 <div key={reg._id} className="pgm-attendance-row">
                   <div className="pgm-player-info">
                     <span className="pgm-player-avatar">
-                      {(reg.player!.name || "P").substring(0, 2).toUpperCase()}
+                      {(reg.player?.name || "P").substring(0, 2).toUpperCase()}
                     </span>
-                    <span className="pgm-player-name">{reg.player!.name}</span>
+                    <span className="pgm-player-name">{reg.player?.name}</span>
                   </div>
                   <div className="pgm-attendance-btns">
                     <button
@@ -598,7 +598,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
                     <div key={r.playerId} className="pgm-rating-card">
                       <div className="pgm-rating-card-header">
                         <span className="pgm-player-avatar">
-                          {r.name.substring(0, 2).toUpperCase()}
+                          {(r.name || "P").substring(0, 2).toUpperCase()}
                         </span>
                         <span className="pgm-player-name">{r.name}</span>
                       </div>
