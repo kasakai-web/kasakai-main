@@ -1005,10 +1005,13 @@ export default function PlayerDashboard() {
       })
     : null;
   const isOptedOut = myOwnReg?.optedOut === true;
-  // Player opted out AND is now on the waitlist to rejoin (game was full when they tried)
-  const isOnRejoinWaitlist = isOptedOut && !!(detailGame?.waitlist || []).find(
-    (w: any) => w._isMine && w.source === 'opted_out_rejoin' && ['waiting', 'notified'].includes(w.status)
-  );
+  // Player opted out AND is now on the waitlist to rejoin (game was full when they tried).
+  // Use _isMine when present (set by getMyGames); fall back to direct ID compare for data
+  // from getGameById (lean, no annotation) so the state survives the background refresh.
+  const isOnRejoinWaitlist = isOptedOut && !!(detailGame?.waitlist || []).find((w: any) => {
+    const wPid = w.player?._id?.toString() ?? w.player?.toString() ?? '';
+    return (w._isMine || wPid === playerId) && w.source === 'opted_out_rejoin' && ['waiting', 'notified'].includes(w.status);
+  });
 
   // Prefer backend spotsRemaining (always present after the fix); local filter as fallback
   const detailSpotsLeft = detailGame
