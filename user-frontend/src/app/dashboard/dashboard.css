@@ -1410,7 +1410,7 @@ body::after {
 .bm-prefs-panel {
   border-top: 1px solid #1a1a1a;
   background: #0a0a0a;
-  padding: 10px 14px;
+  padding: 10px 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1418,8 +1418,8 @@ body::after {
 .bm-pref-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 30px;
+  gap: 8px;
+  min-height: 28px;
 }
 .bm-pref-row-label {
   font-family: var(--mono);
@@ -1427,28 +1427,34 @@ body::after {
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--muted, #666);
-  width: 90px;
+  width: 82px;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .bm-pref-row-val {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
+  flex-wrap: nowrap;
   flex: 1;
 }
 .bm-pref-opt {
-  padding: 5px 12px;
+  padding: 4px 9px;
   border: 1px solid #2a2a2a;
   border-radius: 5px;
   background: transparent;
   color: var(--muted, #666);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: .04em;
   cursor: pointer;
   transition: all .12s;
+  white-space: nowrap;
+}
+@media (max-width: 359px) {
+  .bm-pref-row-label { width: 66px; font-size: 8px; }
+  .bm-pref-opt { padding: 3px 6px; font-size: 8px; }
 }
 .bm-pref-opt:hover { border-color: #444; color: var(--white); }
 .bm-pref-opt.selected {
