@@ -505,7 +505,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
               <div style={{ fontWeight: 600, color: openSlots === 0 ? "#f87171" : "#c8ff3e" }}>
                 {openSlots === 0
                   ? "⚠️ No open slots — all capacity is reserved"
-                  : `✓ ${openSlots} open slot${openSlots !== 1 ? "s" : ""} for players to book seats`}
+                  : `✓ ${openSlots} open slot${openSlots !== 1 ? "s" : ""} for players to book slots`}
               </div>
               <div style={{ color: "#888", fontSize: 12 }}>
                 Total cap: {hardCap}

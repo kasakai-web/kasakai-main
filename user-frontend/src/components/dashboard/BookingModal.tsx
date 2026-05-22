@@ -131,7 +131,7 @@ function GuestCard({
         <div className="bm-guest-fields">
           <div className="bm-guest-meta">
             {isWaitlisted
-              ? <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>Waitlist — no charge until seat opens</span>
+              ? <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 600 }}>Waitlist — no charge until slot opens</span>
               : <span className="bm-guest-fee">+₹{gameFee}</span>
             }
           </div>
@@ -402,7 +402,7 @@ export function BookingModal({
                       {guests.length === 0
                         ? spotsForGuests > 0 || isWaitlist
                           ? isWaitlist
-                            ? `Add guests — no charge until a seat opens`
+                            ? `Add guests — no charge until a slot opens`
                             : `Add up to ${spotsForGuests} confirmed guest${spotsForGuests !== 1 ? "s" : ""} — each adds ₹${game.fee}`
                           : "Game is full — guests will join the waitlist"
                         : confirmedGuestCount > 0 && waitlistGuestCount > 0

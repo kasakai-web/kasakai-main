@@ -1429,7 +1429,7 @@ export default function PlayerDashboard() {
                     A spot just opened up — be first to claim it!
                   </div>
                   <div style={{ color: "#a3e6bf", fontSize: 12, lineHeight: 1.5 }}>
-                    First to register gets the seat. No payment charged until you confirm.
+                    First to register gets the slot. No payment charged until you confirm.
                   </div>
                 </div>
                 <button
@@ -1767,12 +1767,12 @@ export default function PlayerDashboard() {
                   <span style={{ fontSize: 11, color: "#888" }}>
                     {detailIsWaitlisted
                       ? "Will auto-confirm when you register"
-                      : "First to confirm gets the seat"}
+                      : "First to confirm gets the slot"}
                   </span>
                 </div>
                 {detailIsWaitlisted && (
                   <div style={{ fontSize: 11, color: "#a78bfa", marginBottom: 10, lineHeight: 1.5 }}>
-                    These guests are waitlisted with you. When a slot opens and you register, your guests will be auto-confirmed in order — up to available seats.
+                    These guests are waitlisted with you. When a slot opens and you register, your guests will be auto-confirmed in order — up to available slots.
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1794,7 +1794,7 @@ export default function PlayerDashboard() {
                             {detailIsWaitlisted
                               ? "Waitlisted with you — auto-confirmed when you register"
                               : detailSpotsLeft > 0
-                                ? "Seat available — confirm now!"
+                                ? "Slot available — confirm now!"
                                 : "Waiting for a slot to open"}
                           </div>
                         </div>
