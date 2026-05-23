@@ -56,6 +56,11 @@ interface PlayerDetailsModalProps {
   onRefresh?: () => void;
   onGameUpdate?: (game: any) => void;
   isRefreshing?: boolean;
+  scheduledAt?: string;
+  venue?: string;
+  location?: string;
+  feeInPaise?: number;
+  format?: string;
 }
 
 const POS_LABEL: Record<string, string> = {
@@ -123,6 +128,11 @@ export function PlayerDetailsModal({
   onRefresh,
   onGameUpdate,
   isRefreshing = false,
+  scheduledAt,
+  venue,
+  location,
+  feeInPaise,
+  format,
 }: PlayerDetailsModalProps) {
   const isLocked = gameStatus === 'completed' || gameStatus === 'cancelled';
 
@@ -283,31 +293,91 @@ export function PlayerDetailsModal({
   const organiserCount = organiserIsPlaying ? 1 : 0;
 
   const handleCopyList = () => {
-    const organiserName = typeof window !== "undefined" ? localStorage.getItem("userName") : "N/A";
+    const organiserName = (typeof window !== "undefined" ? localStorage.getItem("userName") : null) || "Organiser";
+    const lines: string[] = [];
 
-    const header = `*${gameName}*`;
-    const organiserLine = `*Organiser:* ${organiserName}`;
+    // ── Event header ──────────────────────────────────────────────────────────
+    lines.push(`*${gameName}*`);
+    if (scheduledAt) {
+      const d = new Date(scheduledAt);
+      const dateStr = d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+      lines.push(`📅 ${dateStr} at ${timeStr}`);
+    }
+    const venueParts = [venue, location].filter(Boolean);
+    if (venueParts.length)    lines.push(`📍 ${venueParts.join(", ")}`);
+    if (format)               lines.push(`⚽ Format: ${format}`);
+    if (feeInPaise != null)   lines.push(`💰 Fee: ₹${feeInPaise / 100} per player`);
 
-    const playerLines = players.map((r, index) => {
-      const name = r.plusOneName
-        ? `${r.plusOneName} (Guest)`
-        : (r.player?.name || "Unknown");
-      const pos = posLabel(r.preferredPosition);
-      return `${index + 1}. ${name}${pos ? ` [${pos}]` : ""}`;
+    // helper: push one indented line per guest (plain, no arrows)
+    const pushGuests = (guests: Array<{ plusOneName?: string | null }>) => {
+      guests.forEach(g => lines.push(`   ${g.plusOneName || "Guest"}`));
+    };
+
+    // ── Organiser + their guests ───────────────────────────────────────────────
+    lines.push("");
+    lines.push(`*${organiserName}*`);
+    pushGuests(organiserGuests);
+
+    // ── Players in game ───────────────────────────────────────────────────────
+    const totalInGame = activeRegs.length + organiserCount;
+    let num = 1;
+    const optedOutWithGuests: Registration[] = [];
+    const optedOutNoGuests: Registration[]   = [];
+
+    mainRegs.forEach(reg => {
+      const pid      = (reg.player as any)?._id?.toString() ?? "";
+      const myGuests = pid ? (guestsByPlayer.get(pid) ?? []) : [];
+
+      if (reg.optedOut) {
+        if (myGuests.length > 0) optedOutWithGuests.push(reg);
+        else                     optedOutNoGuests.push(reg);
+        return;
+      }
+      const name = reg.player?.name || "Unknown";
+      const pos  = posLabel(reg.preferredPosition);
+      lines.push(`${num++}. *${name}*${pos ? ` [${pos}]` : ""}`);
+      pushGuests(myGuests);
     });
 
-    const footer = `*Total:* ${activeRegs.length + organiserCount} / ${totalSlots}${mainRegs.some(r => r.optedOut) ? ` (${mainRegs.filter(r => r.optedOut).length} opted out)` : ''}`;
+    // ── Player not attending but their guest is still playing ─────────────────
+    if (optedOutWithGuests.length > 0) {
+      lines.push("");
+      lines.push(`*Not Attending — Guest Still Playing*`);
+      optedOutWithGuests.forEach(reg => {
+        const name     = reg.player?.name || "Unknown";
+        const pid      = (reg.player as any)?._id?.toString() ?? "";
+        const myGuests = pid ? (guestsByPlayer.get(pid) ?? []) : [];
+        lines.push(`*${name}*`);
+        pushGuests(myGuests);
+      });
+    }
 
-    const fullMessage = [
-      header,
-      organiserLine,
-      "─".repeat(20),
-      ...playerLines,
-      "─".repeat(20),
-      footer,
-    ].join("\n");
+    // ── Opted out with no guests (brief, at the end) ──────────────────────────
+    if (optedOutNoGuests.length > 0) {
+      lines.push("");
+      lines.push(`*Not Attending*`);
+      optedOutNoGuests.forEach(r => lines.push(r.player?.name || "Unknown"));
+    }
 
-    navigator.clipboard.writeText(fullMessage).then(() => {
+    // ── Waitlist ───────────────────────────────────────────────────────────────
+    const activeWl = waitlist.filter(w => !["declined", "expired"].includes(w.status || ""));
+    const activeGwl = guestWaitlist.filter(g => ["waiting", "notified"].includes(g.status || "waiting"));
+    if (activeWl.length > 0 || activeGwl.length > 0) {
+      lines.push("");
+      lines.push(`*Waitlist*`);
+      activeWl.forEach(w => lines.push(w.player?.name || "Unknown"));
+      activeGwl.forEach(g => lines.push(g.plusOneName  || "Unknown"));
+    }
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    lines.push("");
+    lines.push("─".repeat(30));
+    const spotsLabel = spotsLeft === 0 ? "Full 🔴" : `${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} remaining 🟢`;
+    lines.push(`📊 ${totalInGame} / ${totalSlots} filled · ${spotsLabel}`);
+    if (activeWl.length > 0) lines.push(`⏳ ${activeWl.length} on waitlist`);
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

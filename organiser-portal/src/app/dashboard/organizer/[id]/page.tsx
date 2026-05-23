@@ -909,6 +909,11 @@ export default function OrganizerDashboard() {
           totalSlots={selectedGame.totalSlots}
           spotsRemaining={typeof selectedGame.spotsRemaining === 'number' ? selectedGame.spotsRemaining : undefined}
           organiserIsPlaying={Boolean(selectedGame.organiserIsPlaying)}
+          scheduledAt={selectedGame.scheduledAt}
+          venue={selectedGame.turf?.name}
+          location={selectedGame.turf?.address?.city || selectedGame.turf?.location || ''}
+          feeInPaise={selectedGame.feeInPaise}
+          format={selectedGame.format}
           onToggleOrganiserPlaying={() => handleOrganiserWithdraw(selectedGame._id)}
           onRemoveRegistration={async (regId) => {
             await handleRemoveRegistration(selectedGame._id, regId);
