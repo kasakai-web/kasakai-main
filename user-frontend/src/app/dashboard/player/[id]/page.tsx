@@ -52,6 +52,7 @@ export default function PlayerDashboard() {
   const { toast, showToast } = useToast();
   const [optingOut, setOptingOut] = useState(false);
   const removingGuestIds = useRef<Set<string>>(new Set());
+  const detailGameIdRef = useRef<string | null>(null);
   // Local set of reg IDs removed this session — prevents any background refresh re-showing a removed guest
   const [removedGuestIds, setRemovedGuestIds] = useState<Set<string>>(new Set());
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -66,6 +67,7 @@ export default function PlayerDashboard() {
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [addingGuest, setAddingGuest] = useState(false);
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
+  const [showFormatTip, setShowFormatTip] = useState(false);
   const [confirmingGwId, setConfirmingGwId] = useState<string | null>(null);
   const [cancellingGwId, setCancellingGwId] = useState<string | null>(null);
   const [guestPrefOpen, setGuestPrefOpen] = useState(false);
@@ -270,8 +272,11 @@ export default function PlayerDashboard() {
     return () => window.removeEventListener("kk-wallet-update", handler);
   }, []);
 
+  useEffect(() => { detailGameIdRef.current = detailGame?._id ?? null; }, [detailGame]);
+
   // Real-time game count: patch spotsRemaining + totalSlots in state immediately
   // when any player joins/leaves/adds or removes a guest on any game.
+  // If the modal is open for this game, also trigger a full refresh so waitlist statuses stay current.
   useEffect(() => {
     const handler = (e: Event) => {
       const { gameId, spotsRemaining, totalSlots } = (e as CustomEvent<{ gameId: string; spotsRemaining: number; totalSlots: number }>).detail;
@@ -280,6 +285,25 @@ export default function PlayerDashboard() {
       setMyGames((prev) => prev.map(patch));
       setMyWaitlist((prev) => prev.map(patch));
       setDetailGame((prev: any) => prev?._id === gameId ? { ...prev, spotsRemaining, totalSlots } : prev);
+
+      if (detailGameIdRef.current === gameId) {
+        const { token } = getSession();
+        if (!token) return;
+        fetch(buildApiUrl(`/api/v1/games/${gameId}`), {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then(async (res) => {
+            if (!res.ok) return;
+            const d = await res.json();
+            if (!d.success || !d.data) return;
+            const fresh = d.data;
+            setDetailGame((prev: any) => {
+              if (!prev || prev._id !== fresh._id) return prev;
+              return { ...fresh, _isWaitlisted: prev._isWaitlisted, _waitlistStatus: prev._waitlistStatus, _myWaitlistStatus: prev._myWaitlistStatus };
+            });
+          })
+          .catch(() => {});
+      }
     };
     window.addEventListener("kk-game-update", handler);
     return () => window.removeEventListener("kk-game-update", handler);
@@ -475,12 +499,26 @@ export default function PlayerDashboard() {
         if (playerId) {
           router.replace(`/dashboard/player/${playerId}?tab=my-games`);
         }
-        // Patch counts immediately from response — no re-fetch needed
-        if (data.data) {
-          const bg = data.data;
-          setGames((prev) => prev.map((x) => x._id === bg._id ? { ...x, spotsRemaining: bg.spotsRemaining, totalSlots: bg.totalSlots } : x));
-          setMyGames((prev) => prev.filter((x) => x._id !== bg._id));
-        }
+        // Strip player's waitlist + guest-waitlist from games state immediately
+        // so the 📋 Waitlist panel doesn't show stale names if the game is reopened
+        const pid = playerId;
+        setGames((prev) => prev.map((g) => {
+          if (g._id !== game._id) return g;
+          return {
+            ...g,
+            spotsRemaining: data.data?.spotsRemaining ?? g.spotsRemaining,
+            totalSlots: data.data?.totalSlots ?? g.totalSlots,
+            waitlist: (g.waitlist || []).filter((w: any) => {
+              const wPid = w.player?._id?.toString() ?? w.player?.toString() ?? '';
+              return wPid !== pid;
+            }),
+            guestWaitlist: (g.guestWaitlist || []).filter((gw: any) => {
+              const gwPid = gw.player?._id?.toString() ?? gw.player?.toString() ?? '';
+              return gwPid !== pid;
+            }),
+          };
+        }));
+        setMyGames((prev) => prev.filter((x) => x._id !== game._id));
         fetchWalletBalance();
       } catch (error) {
         console.error("Failed to cancel registration", error);
@@ -551,10 +589,29 @@ export default function PlayerDashboard() {
           showToast("error", data.message || "Unable to update attendance.");
           return;
         }
-        // Instant update — use the returned game data, no full re-fetch needed
         if (data.data) {
-          setDetailGame(data.data);
-          setMyGames((prev: any[]) => prev.map((g: any) => g._id === data.data._id ? data.data : g));
+          // Merge fresh data onto existing detailGame so populated fields (organiser, player names)
+          // are never replaced by raw IDs from the response. Only spots/registration flags change.
+          setDetailGame((prev: any) => {
+            if (!prev || prev._id !== data.data._id) return data.data;
+            const mergedRegs = (data.data.registrations || []).map((nr: any) => {
+              const existing = (prev.registrations || []).find((r: any) => String(r._id) === String(nr._id));
+              if (!existing) return nr;
+              return {
+                ...nr,
+                player: (nr.player && typeof nr.player === 'object' && nr.player.name) ? nr.player : (existing.player ?? nr.player),
+              };
+            });
+            return {
+              ...prev,
+              ...data.data,
+              organiser: (data.data.organiser && typeof data.data.organiser === 'object' && data.data.organiser.name)
+                ? data.data.organiser
+                : (prev.organiser ?? data.data.organiser),
+              registrations: mergedRegs,
+            };
+          });
+          setMyGames((prev: any[]) => prev.map((g: any) => g._id === data.data._id ? { ...g, ...data.data } : g));
         }
         if (data.code === "JOINED_WAITLIST") {
           showToast("success", "Added to waitlist", "We'll notify you when a spot opens. Your guests are still registered.");
@@ -703,11 +760,24 @@ export default function PlayerDashboard() {
         }
         showToast("success", "Removed from waitlist");
         setDetailGame(null);
-        // Remove from myWaitlist immediately — no re-fetch needed
         setMyWaitlist((prev) => prev.filter((x) => x._id !== game._id));
-        if (data.data) {
-          setGames((prev) => prev.map((x) => x._id === data.data._id ? { ...x, spotsRemaining: data.data.spotsRemaining, totalSlots: data.data.totalSlots } : x));
-        }
+        // Strip player's waitlist + guest-waitlist entries from games state immediately
+        // so the panel doesn't show stale names if the same game is opened again
+        const pid = playerId;
+        setGames((prev) => prev.map((g) => {
+          if (g._id !== game._id) return g;
+          return {
+            ...g,
+            waitlist: (g.waitlist || []).filter((w: any) => {
+              const wPid = w.player?._id?.toString() ?? w.player?.toString() ?? '';
+              return wPid !== pid;
+            }),
+            guestWaitlist: (g.guestWaitlist || []).filter((gw: any) => {
+              const gwPid = gw.player?._id?.toString() ?? gw.player?.toString() ?? '';
+              return gwPid !== pid;
+            }),
+          };
+        }));
       } catch {
         showToast("error", "Failed to leave waitlist. Please try again.");
       }
@@ -976,7 +1046,7 @@ export default function PlayerDashboard() {
       })(),
     },
     { label: "Duration", value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins" },
-    { label: "Format", value: detailGame.format || "TBC" },
+    { label: "Format", value: detailGame.format || "TBC", info: "Turf and team size may change based on player turnout" },
     { label: "Fee", value: `₹${(detailGame.feeInPaise || 0) / 100}` },
     { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
     { label: "Players", value: String(
@@ -1382,7 +1452,7 @@ export default function PlayerDashboard() {
       )}
 
       {detailGame && (
-        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); }}>
+        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setShowFormatTip(false); }}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -1417,16 +1487,40 @@ export default function PlayerDashboard() {
             <div className="pd-event-modal-body">
 
             <div className="pd-event-detail-grid">
-              {detailRows.map((row) => (
+              {(detailRows as Array<{ label: string; value: string; info?: string }>).map((row) => (
                 <div
                   key={row.label}
                   className="pd-event-detail-card"
                   style={row.label === "Status" ? { gridColumn: "1 / -1" } : undefined}
                 >
-                  <div className="pd-event-detail-label">{row.label}</div>
+                  <div className="pd-event-detail-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    {row.label}
+                    {row.info && (
+                      <button
+                        type="button"
+                        onClick={() => setShowFormatTip((v) => !v)}
+                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}
+                        title={row.info}
+                      >ℹ️</button>
+                    )}
+                  </div>
                   <div className={`pd-event-detail-value${row.label === "Status" ? " pd-event-detail-status" : ""}`}>
                     {row.value}
                   </div>
+                  {row.info && showFormatTip && (
+                    <div style={{
+                      marginTop: 8,
+                      padding: "8px 10px",
+                      background: "rgba(91,230,178,0.08)",
+                      border: "1px solid rgba(91,230,178,0.2)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: "#a7f3d0",
+                      lineHeight: 1.5,
+                    }}>
+                      {row.info}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1904,10 +1998,26 @@ export default function PlayerDashboard() {
             {/* ── Full Waitlist ── */}
             {(() => {
               const waitlistPlayers = (detailGame.waitlist || [])
-                .filter((w: any) => ['waiting', 'notified', 'approved'].includes(w.status) && w.player?.name)
+                .filter((w: any) => {
+                  if (['declined', 'expired'].includes(w.status) || !w.player?.name) return false;
+                  // hide own entry when no longer on the waitlist (stale DB data after cancellation)
+                  if (!detailIsWaitlisted) {
+                    const wPid = w.player?._id?.toString() ?? w.player?.toString() ?? '';
+                    if (wPid === playerId) return false;
+                  }
+                  return true;
+                })
                 .map((w: any) => ({ name: w.player.name, isGuest: false }));
               const waitlistGuests = (detailGame.guestWaitlist || [])
-                .filter((gw: any) => ['waiting', 'notified'].includes(gw.status) && gw.plusOneName)
+                .filter((gw: any) => {
+                  if (['expired'].includes(gw.status) || !gw.plusOneName) return false;
+                  // hide own guest entries when no longer on the waitlist
+                  if (!detailIsWaitlisted) {
+                    const gwPid = gw.player?._id?.toString() ?? gw.player?.toString() ?? '';
+                    if (gwPid === playerId) return false;
+                  }
+                  return true;
+                })
                 .map((gw: any) => ({ name: gw.plusOneName, isGuest: true }));
               const allWaiting = [...waitlistPlayers, ...waitlistGuests];
               if (allWaiting.length === 0) return null;

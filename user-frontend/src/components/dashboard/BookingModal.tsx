@@ -204,6 +204,7 @@ export function BookingModal({
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
   const [guests, setGuests] = useState<Guest[]>([]);
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
+  const [showFormatTip, setShowFormatTip] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [photoError, setPhotoError] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
@@ -358,24 +359,47 @@ export function BookingModal({
                     </div>
 
                     {/* Format change */}
-                    <div className="bm-pref-row">
-                      <div className="bm-pref-row-label">Format change</div>
-                      <div className="bm-pref-row-val">
-                        <button
-                          type="button"
-                          onClick={() => setWillingIfFormatChange(true)}
-                          className={`bm-pref-opt${willingIfFormatChange ? " selected" : ""}`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setWillingIfFormatChange(false)}
-                          className={`bm-pref-opt${!willingIfFormatChange ? " selected" : ""}`}
-                        >
-                          No
-                        </button>
+                    <div>
+                      <div className="bm-pref-row">
+                        <div className="bm-pref-row-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          Format change
+                          <button
+                            type="button"
+                            onClick={() => setShowFormatTip((v) => !v)}
+                            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}
+                          >ℹ️</button>
+                        </div>
+                        <div className="bm-pref-row-val">
+                          <button
+                            type="button"
+                            onClick={() => setWillingIfFormatChange(true)}
+                            className={`bm-pref-opt${willingIfFormatChange ? " selected" : ""}`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setWillingIfFormatChange(false)}
+                            className={`bm-pref-opt${!willingIfFormatChange ? " selected" : ""}`}
+                          >
+                            No
+                          </button>
+                        </div>
                       </div>
+                      {showFormatTip && (
+                        <div style={{
+                          marginTop: 6,
+                          padding: "7px 10px",
+                          background: "rgba(91,230,178,0.08)",
+                          border: "1px solid rgba(91,230,178,0.2)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                          color: "#a7f3d0",
+                          lineHeight: 1.5,
+                        }}>
+                          Turf and team size may change based on player turnout
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
