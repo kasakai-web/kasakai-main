@@ -22,7 +22,7 @@ interface Registration {
 
 interface WaitlistEntry {
   _id?: string;
-  player?: { _id?: string; name?: string; phone?: string; email?: string };
+  player?: { _id?: string; name?: string; phone?: string; email?: string; profileImage?: string };
   joinedAt?: string;
   notifiedAt?: string;
   status?: string;
@@ -959,6 +959,10 @@ function WaitlistCard({ entry, position, onApprove, isApproving, guestCount, reg
   const pos     = posLabel(entry.preferredPosition);
   const isNotified = status === "notified";
   const isApproved = status === "approved";
+  const imgSrc  = entry.player?.profileImage
+    ? (entry.player.profileImage.startsWith("http") ? entry.player.profileImage : `${IMG_BASE}${entry.player.profileImage}`)
+    : null;
+  const [imgFailed, setImgFailed] = React.useState(false);
 
   return (
     <div
@@ -968,9 +972,12 @@ function WaitlistCard({ entry, position, onApprove, isApproving, guestCount, reg
       <div className="pdm-slot-num" style={{ color: cfg.color }}>#{position}</div>
       <div
         className="pdm-avatar pdm-avatar-p"
-        style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}` }}
+        style={{ background: `${cfg.leftBorder}22`, color: cfg.color, border: `1px solid ${cfg.border}`, padding: 0, overflow: "hidden" }}
       >
-        {initials(name)}
+        {imgSrc && !imgFailed
+          ? <img src={imgSrc} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "50%" }} onError={() => setImgFailed(true)} />
+          : initials(name)
+        }
       </div>
       <div className="pdm-card-body">
         <div className="pdm-card-top">

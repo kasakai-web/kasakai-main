@@ -7,7 +7,7 @@ import "./PostGameModal.css";
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Registration {
   _id: string;
-  player?: { _id: string; name: string; phone?: string };
+  player?: { _id: string; name: string; phone?: string; profileImage?: string };
   plusOneName?: string | null;
   attended?: "present" | "absent" | "not_marked";
 }
@@ -44,6 +44,22 @@ interface Props {
 }
 
 const POSITIONS = ["goalkeeper", "defender", "midfielder", "forward", "any"];
+
+const IMG_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
+
+function PlayerAvatar({ name, profileImage }: { name: string; profileImage?: string }) {
+  const [failed, setFailed] = React.useState(false);
+  const text = (name || "P").substring(0, 2).toUpperCase();
+  if (profileImage && !failed) {
+    const src = profileImage.startsWith("http") ? profileImage : `${IMG_BASE}${profileImage}`;
+    return (
+      <span className="pgm-player-avatar" style={{ padding: 0, overflow: "hidden" }}>
+        <img src={src} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", display: "block" }} onError={() => setFailed(true)} />
+      </span>
+    );
+  }
+  return <span className="pgm-player-avatar">{text}</span>;
+}
 
 // ── Star Rating component ──────────────────────────────────────────────────
 function StarRating({
@@ -347,9 +363,7 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
               {playerRegs.map((reg) => (
                 <div key={reg._id} className="pgm-attendance-row">
                   <div className="pgm-player-info">
-                    <span className="pgm-player-avatar">
-                      {(reg.player?.name || "P").substring(0, 2).toUpperCase()}
-                    </span>
+                    <PlayerAvatar name={reg.player?.name || "P"} profileImage={reg.player?.profileImage} />
                     <span className="pgm-player-name">{reg.player?.name}</span>
                   </div>
                   <div className="pgm-attendance-btns">
@@ -594,12 +608,11 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
                   const otherAttended = attendedPlayers.filter(
                     (p) => p.player!._id !== r.playerId
                   );
+                  const profileImage = playerRegs.find(p => p.player?._id === r.playerId)?.player?.profileImage;
                   return (
                     <div key={r.playerId} className="pgm-rating-card">
                       <div className="pgm-rating-card-header">
-                        <span className="pgm-player-avatar">
-                          {(r.name || "P").substring(0, 2).toUpperCase()}
-                        </span>
+                        <PlayerAvatar name={r.name} profileImage={profileImage} />
                         <span className="pgm-player-name">{r.name}</span>
                       </div>
 
