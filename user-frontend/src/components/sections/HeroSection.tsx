@@ -94,7 +94,7 @@ export function HeroSection() {
       </section>
 
       <div className="hero-strip">
-        <a href="/login" className="hero-strip-btn hero-strip-football">⚽ Turf Meet</a>
+        <a href="/login" className="hero-strip-btn hero-strip-football">⚽ Turf Meets</a>
         <a href="/screening" className="hero-strip-btn hero-strip-screening">🏟️ Screening</a>
       </div>
 
