@@ -68,7 +68,8 @@ export function ScreeningCarousel() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const count = screenings.length;
+  const slides = screenings.slice(0, 6);
+  const count = slides.length;
 
   useEffect(() => {
     setCurrent((i) => (count === 0 ? 0 : i >= count ? 0 : i));
@@ -87,7 +88,7 @@ export function ScreeningCarousel() {
 
   if (count === 0) return <FallbackHero />;
 
-  const s = screenings[current];
+  const s = slides[Math.min(current, count - 1)];
   // Mobile ≤524px: portrait poster fills tall screen best
   // Desktop >524px: landscape banner image
   const imgSrc = isMobile
