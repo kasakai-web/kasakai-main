@@ -53,7 +53,7 @@ export function useScreeningEvents(): UseScreeningEventsResult {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const res    = await fetchPublicScreenings();
+      const res    = await fetchPublicScreenings({ limit: 50 });
       const events = (res.events ?? []).map(toScreening);
       setScreenings(events);
       writeCache(events);
