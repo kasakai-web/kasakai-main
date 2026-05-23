@@ -28,7 +28,8 @@ function ScrHead({ total, onCreate }: { total: number; onCreate: () => void }) {
   );
 }
 
-type CancelTarget = { id: string; title: string };
+type CancelTarget    = { id: string; title: string };
+type CompleteTarget  = { id: string; title: string };
 
 function CancelModal({ target, onClose, onConfirm }: {
   target: CancelTarget;
@@ -129,6 +130,76 @@ function CancelModal({ target, onClose, onConfirm }: {
   );
 }
 
+function CompleteModal({ target, onClose, onConfirm }: {
+  target: CompleteTarget;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to complete event");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)" }} onClick={!loading ? onClose : undefined} />
+      <div style={{ position: "relative", width: "100%", maxWidth: "440px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+        {/* Header */}
+        <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", gap: "14px" }}>
+          <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: "10px", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#818cf8" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "var(--white)" }}>Mark as Completed?</h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--white)" }}>{target.title}</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ padding: "14px 16px", background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "10px" }}>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.6 }}>
+              This will mark the event as <strong style={{ color: "#818cf8" }}>Completed</strong>. The event will be closed for new bookings and no further changes can be made to its status.
+            </p>
+          </div>
+          {error && <p style={{ margin: "10px 0 0", fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>{error}</p>}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "0 24px 22px", display: "flex", gap: "10px" }}>
+          <button type="button" onClick={onClose} disabled={loading}
+            style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: loading ? "default" : "pointer", opacity: loading ? 0.5 : 1 }}>
+            Go Back
+          </button>
+          <button type="button" onClick={handleConfirm} disabled={loading}
+            style={{ flex: 2, height: "42px", background: loading ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.18)", border: "1.5px solid rgba(99,102,241,0.4)", borderRadius: "9px", color: "#818cf8", fontSize: "13px", fontWeight: 800, cursor: loading ? "default" : "pointer", opacity: loading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", transition: "all 0.15s" }}>
+            {loading ? "Completing…" : (
+              <>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Yes, Mark Complete
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ScrEvents() {
   const router = useRouter();
 
@@ -137,7 +208,9 @@ export function ScrEvents() {
   const [error, setError]           = useState<string | null>(null);
   const [search, setSearch]         = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ScrEvent["status"]>("all");
-  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
+  const [cancelTarget, setCancelTarget]     = useState<CancelTarget | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
+  const [successToast, setSuccessToast]     = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -182,6 +255,14 @@ export function ScrEvents() {
     await fetchEvents();
   }, [cancelTarget, fetchEvents]);
 
+  const handleCompleteConfirm = useCallback(async () => {
+    if (!completeTarget) return;
+    await scrApi.completeEvent(completeTarget.id);
+    await fetchEvents();
+    setSuccessToast(`"${completeTarget.title}" has been marked as completed.`);
+    setTimeout(() => setSuccessToast(null), 2500);
+  }, [completeTarget, fetchEvents]);
+
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Delete this draft event? This cannot be undone.")) return;
     try {
@@ -202,6 +283,23 @@ export function ScrEvents() {
         />
       )}
 
+      {completeTarget && (
+        <CompleteModal
+          target={completeTarget}
+          onClose={() => setCompleteTarget(null)}
+          onConfirm={handleCompleteConfirm}
+        />
+      )}
+
+      {successToast && (
+        <div style={{ position: "fixed", bottom: "28px", left: "50%", transform: "translateX(-50%)", zIndex: 10000, display: "flex", alignItems: "center", gap: "10px", padding: "13px 20px", background: "rgba(17,20,36,0.97)", border: "1.5px solid rgba(99,102,241,0.4)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", minWidth: "280px", maxWidth: "440px" }}>
+          <div style={{ width: 28, height: 28, flexShrink: 0, borderRadius: "50%", background: "rgba(99,102,241,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--white)", lineHeight: 1.4 }}>{successToast}</span>
+        </div>
+      )}
+
       <ScrHead total={events.length} onCreate={handleCreate} />
 
       <div className={styles.toolbar}>
@@ -211,6 +309,7 @@ export function ScrEvents() {
           <option value="published">Published</option>
           <option value="draft">Draft</option>
           <option value="cancelled">Cancelled</option>
+          <option value="completed">Completed</option>
         </select>
       </div>
 
@@ -246,7 +345,8 @@ export function ScrEvents() {
           onViewAnalytics={()  => router.push(`/dashboard/streaming/${ev.id}/analytics`)}
           onViewEvent={()     => router.push(`/dashboard/streaming/${ev.id}`)}
           onPublish={ev.status === "draft" ? () => handleQuickPublish(ev.id) : undefined}
-          onCancel={ev.status !== "cancelled" ? () => setCancelTarget({ id: ev.id, title: ev.title }) : undefined}
+          onComplete={ev.status === "published" ? () => setCompleteTarget({ id: ev.id, title: ev.title }) : undefined}
+          onCancel={ev.status !== "cancelled" && ev.status !== "completed" ? () => setCancelTarget({ id: ev.id, title: ev.title }) : undefined}
           onDelete={ev.status === "draft" ? () => handleDelete(ev.id) : undefined}
         />
       ))}

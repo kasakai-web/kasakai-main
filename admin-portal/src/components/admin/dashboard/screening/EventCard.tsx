@@ -10,10 +10,11 @@ type Props = {
   onViewEvent?: () => void;
   onPublish?: () => void;
   onCancel?: () => void;
+  onComplete?: () => void;
   onDelete?: () => void;
 };
 
-export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAnalytics, onViewEvent, onPublish, onCancel, onDelete }: Props) {
+export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAnalytics, onViewEvent, onPublish, onCancel, onComplete, onDelete }: Props) {
   const [imgErr, setImgErr] = useState(false);
   const badge = scrStatusBadge(ev.status);
   const capacity = ev.capacity ?? 100;
@@ -108,6 +109,15 @@ export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAna
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(34,197,94,0.08)"; }}>
               <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
               Publish
+            </button>
+          )}
+          {onComplete && (
+            <button type="button" onClick={onComplete}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "8px", color: "#818cf8", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.16)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.08)"; }}>
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Complete
             </button>
           )}
           {onCancel && (

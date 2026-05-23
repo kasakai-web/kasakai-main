@@ -60,7 +60,7 @@ export type ApiScrEvent = {
   poster: string;
   videoUrl: string;
   galleryImages: string[];
-  status: 'draft' | 'published' | 'cancelled';
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
   venueName: string;
   location: string;
   locationUrl: string;
@@ -271,6 +271,9 @@ export const scrApi = {
       body: JSON.stringify({ reason }),
     }),
 
+  completeEvent: (id: string) =>
+    apiFetch<ApiScrEvent>(`/screening/admin/events/${id}/complete`, { method: 'PATCH' }),
+
   deleteEvent: (id: string) =>
     apiFetch<null>(`/screening/admin/events/${id}`, { method: 'DELETE' }),
 
@@ -318,7 +321,7 @@ export type UIScrEvent = {
   title: string;
   venue: string;
   date: string;
-  status: 'draft' | 'published' | 'cancelled';
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
   image: string;
   capacity: number;
   sold: number;

@@ -5,7 +5,7 @@ export type ScrEvent = {
   title: string;
   venue: string;
   date: string;
-  status: "published" | "cancelled" | "draft";
+  status: "published" | "cancelled" | "draft" | "completed";
   image: string;
   capacity?: number;
   sold?: number;
@@ -16,9 +16,10 @@ export type ScrEvent = {
 
 
 export function scrStatusBadge(status: ScrEvent["status"]) {
-  if (status === "published") return { label: "Published", color: "#22c55e", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)" };
-  if (status === "cancelled") return { label: "Cancelled", color: "#ef4444", bg: "rgba(239,68,68,0.1)",  border: "rgba(239,68,68,0.25)" };
-  return                             { label: "Draft",     color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.25)" };
+  if (status === "published")  return { label: "Published",  color: "#22c55e", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)" };
+  if (status === "cancelled")  return { label: "Cancelled",  color: "#ef4444", bg: "rgba(239,68,68,0.1)",  border: "rgba(239,68,68,0.25)" };
+  if (status === "completed")  return { label: "Completed",  color: "#818cf8", bg: "rgba(99,102,241,0.1)", border: "rgba(99,102,241,0.25)" };
+  return                               { label: "Draft",      color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.25)" };
 }
 
 export type ScrShowTicket = { id: string; name: string; qty: number; sold: number; pricePaise: number };
