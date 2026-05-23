@@ -1382,20 +1382,39 @@ export default function PlayerDashboard() {
       )}
 
       {detailGame && (
-        <div className="modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); }}>
+        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); }}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header pd-event-modal-header">
-              <div className="modal-title-section">
-                <h2 style={{ margin: 0 }}>Event Details</h2>
-                <p className="modal-subtitle" style={{ marginTop: 8 }}>
-                  {detailGame.title || detailGame.turf?.name || "Game"}
-                </p>
+            {/* Drag handle — visible on mobile only */}
+            <div className="pd-modal-handle" />
+
+            {/* ── Sticky Header ── */}
+            <div className="pd-event-modal-header">
+              <div className="pd-event-modal-header-accent" />
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div className="pd-event-modal-eyebrow">Event Details</div>
+                  <h2 className="pd-event-modal-title">
+                    {detailGame.title || detailGame.turf?.name || "Game"}
+                  </h2>
+                </div>
+                <span style={{
+                  flexShrink: 0, marginTop: 2,
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase",
+                  padding: "3px 10px", borderRadius: 99,
+                  background: detailIsCancelled ? "rgba(220,38,38,0.15)" : "rgba(74,222,128,0.12)",
+                  color: detailIsCancelled ? "#f87171" : "#4ade80",
+                  border: `1px solid ${detailIsCancelled ? "rgba(220,38,38,0.3)" : "rgba(74,222,128,0.3)"}`,
+                }}>
+                  {detailGame.status || "open"}
+                </span>
               </div>
             </div>
 
+            {/* ── Scrollable Body ── */}
+            <div className="pd-event-modal-body">
 
             <div className="pd-event-detail-grid">
               {detailRows.map((row) => (
@@ -1933,48 +1952,28 @@ export default function PlayerDashboard() {
               );
             })()}
 
-            {/* ── Modal Footer: Action Buttons ── */}
-            <div className="modal-footer pd-event-modal-footer" style={{
-              display: "flex", 
-              gap: "16px", 
-              justifyContent: "space-between", 
-              alignItems: "center", 
-              paddingTop: "24px", 
-              paddingBottom: "8px",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-              flexWrap: "wrap-reverse"
-            }}>
-              {/* Close Button (Left) */}
-              <button 
-                className="btn-close" 
-                type="button" 
+            </div>{/* end pd-event-modal-body */}
+
+            {/* ── Sticky Footer ── */}
+            <div className="pd-event-modal-footer">
+              {/* Close — always left */}
+              <button
+                type="button"
                 onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}
                 style={{
-                  padding: "11px 24px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#e5e7eb",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  transition: "all 0.2s ease",
-                  minWidth: "100px",
+                  padding: "10px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", background: "rgba(255,255,255,0.06)",
+                  color: "#e5e7eb", border: "1px solid rgba(255,255,255,0.12)",
+                  transition: "background 0.18s, border-color 0.18s", flexShrink: 0,
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
-                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}
               >
                 Close
               </button>
 
-              {/* Action Buttons Container (Right) */}
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: "1 1 auto", justifyContent: "flex-end", minWidth: "fit-content" }}>
+              {/* Action buttons — always right */}
+              <div className="pd-footer-actions">
                 {/* Rate Game Button - Only show if game is completed */}
                 {detailGame.status === "completed" &&
                   detailIsRegistered &&
