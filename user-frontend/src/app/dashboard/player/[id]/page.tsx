@@ -1882,8 +1882,59 @@ export default function PlayerDashboard() {
               </div>
             )}
 
+            {/* ── Full Waitlist ── */}
+            {(() => {
+              const waitlistPlayers = (detailGame.waitlist || [])
+                .filter((w: any) => ['waiting', 'notified', 'approved'].includes(w.status))
+                .map((w: any) => ({ name: w.player?.name || 'Player', isGuest: false }));
+              const waitlistGuests = (detailGame.guestWaitlist || [])
+                .filter((gw: any) => ['waiting', 'notified'].includes(gw.status))
+                .map((gw: any) => ({ name: gw.plusOneName || 'Guest', isGuest: true }));
+              const allWaiting = [...waitlistPlayers, ...waitlistGuests];
+              if (allWaiting.length === 0) return null;
+              return (
+                <div style={{
+                  margin: "0 0 16px",
+                  padding: "14px 16px",
+                  background: "rgba(167,139,250,0.04)",
+                  border: "1px solid rgba(167,139,250,0.18)",
+                  borderRadius: 10,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: "#a78bfa" }}>
+                      📋 Waitlist
+                    </span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 10,
+                      background: "rgba(167,139,250,0.14)", color: "#c4b5fd",
+                      border: "1px solid rgba(167,139,250,0.25)",
+                    }}>{allWaiting.length}</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px 8px" }}>
+                    {allWaiting.map((entry, i) => (
+                      <span key={i} style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        fontSize: 12, fontWeight: 600,
+                        padding: "5px 11px", borderRadius: 20,
+                        background: entry.isGuest ? "rgba(167,139,250,0.06)" : "rgba(167,139,250,0.10)",
+                        color: entry.isGuest ? "#a78bfa" : "#c4b5fd",
+                        border: `1px solid ${entry.isGuest ? "rgba(167,139,250,0.15)" : "rgba(167,139,250,0.25)"}`,
+                        whiteSpace: "nowrap" as const,
+                        maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis",
+                      }}>
+                        {entry.isGuest && (
+                          <span style={{ fontSize: 9, opacity: 0.7, fontWeight: 700, letterSpacing: "0.04em" }}>+1</span>
+                        )}
+                        {entry.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Modal Footer: Action Buttons ── */}
-            <div className="modal-footer pd-event-modal-footer" style={{ 
+            <div className="modal-footer pd-event-modal-footer" style={{
               display: "flex", 
               gap: "16px", 
               justifyContent: "space-between", 
