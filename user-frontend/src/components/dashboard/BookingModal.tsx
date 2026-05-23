@@ -361,7 +361,7 @@ export function BookingModal({
                     {/* Format change */}
                     <div>
                       <div className="bm-pref-row">
-                        <div className="bm-pref-row-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <div className="bm-pref-row-label" style={{ display: "flex", alignItems: "center", gap: 5, width: "auto" }}>
                           Format change
                           <button
                             type="button"
