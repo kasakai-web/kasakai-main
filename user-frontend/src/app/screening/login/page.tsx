@@ -698,7 +698,7 @@ function ScreeningAuthFlow() {
         <div style={{ height: "2px", background: "linear-gradient(to right, transparent, #c8f135 40%, transparent)", margin: "0 40px", borderRadius: "9999px", marginBottom: "0" }} />
 
         <div className="sk-card-body" style={{ padding: "32px 28px 36px" }}>
-          <CardHeader eyebrow="Screening" title="Welcome back" subtitle="Sign in to access your bookings and reserve seats" />
+          <CardHeader eyebrow="Screening" title="Welcome back" subtitle="Sign in to access your bookings and reserve slots" />
 
           <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {error && <ErrorMsg msg={error} />}

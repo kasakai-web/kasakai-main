@@ -246,7 +246,7 @@ async function generateExcelAndDownload(rows: ScrExportRow[], eventTitle: string
   addSectionHeader(ws2, r, "  OVERVIEW", 2); r++;
   addKV(ws2, r, "Total Capacity",     analytics.totalCapacity);              r++;
   addKV(ws2, r, "Tickets Sold",       totalSold,  true, true);               r++;
-  addKV(ws2, r, "Remaining Seats",    analytics.totalCapacity - totalSold);  r++;
+  addKV(ws2, r, "Remaining Slots",    analytics.totalCapacity - totalSold);  r++;
   addKV(ws2, r, "Fill Rate",          `${fillPct}%`, true);                  r++;
   r++;
 

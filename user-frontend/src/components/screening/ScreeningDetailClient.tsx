@@ -335,7 +335,7 @@ const BookingWidget = memo(function BookingWidget({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: "9px", fontWeight: 900, color: "#9ab828", textTransform: "uppercase", letterSpacing: ".22em", margin: "0 0 3px" }}>Booked</p>
-              <p style={{ fontSize: "11px", color: "#888", margin: 0, lineHeight: 1.5 }}>You have a ticket. Select more above to add seats.</p>
+              <p style={{ fontSize: "11px", color: "#888", margin: 0, lineHeight: 1.5 }}>You have a ticket. Select more above to add slots.</p>
             </div>
           </div>
         ) : (

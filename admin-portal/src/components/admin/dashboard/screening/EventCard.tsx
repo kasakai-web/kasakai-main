@@ -68,7 +68,7 @@ export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAna
         <div style={{ marginBottom: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
             <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>
-              {sold === capacity ? "Sold Out" : `${sold} / ${capacity} seats`}
+              {sold === capacity ? "Sold Out" : `${sold} / ${capacity} slots`}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               {priceRs && <span style={{ fontSize: "12px", fontWeight: 700, color: "#5be6b2" }}>{priceRs}</span>}

@@ -78,7 +78,7 @@ export function ScreeningLoginModal({ open, onClose, screening }: Props) {
               </p>
               <h2 style={{ fontSize: "22px", fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>Reserve your spot</h2>
               <p style={{ color: "#777", fontSize: "13px", marginTop: "8px", lineHeight: 1.5 }}>
-                Sign in to book seats at your favourite venue
+                Sign in to book slots at your favourite venue
               </p>
             </div>
           </div>

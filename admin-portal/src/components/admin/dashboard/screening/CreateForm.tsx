@@ -482,7 +482,7 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
               </div>
               <div>
                 <span style={LBL}>Capacity <Req /></span>
-                <input style={inp} type="number" placeholder="Max seats" min="1" value={newTier.capacity}
+                <input style={inp} type="number" placeholder="Max slots" min="1" value={newTier.capacity}
                   onChange={e => setNewTier(t => ({ ...t, capacity:e.target.value }))} />
               </div>
               <div>
@@ -526,7 +526,7 @@ function S3({ form, set }: { form:Draft; set:React.Dispatch<React.SetStateAction
               {tier.desc && <span style={{ fontSize:"11px", color:"var(--muted)", marginLeft:"10px" }}>{tier.desc}</span>}
               <div style={{ marginTop:"4px", display:"flex", gap:"12px" }}>
                 <span style={{ fontSize:"12px", fontWeight:700, color:"#5be6b2" }}>₹{Number(tier.price).toLocaleString()}</span>
-                <span style={{ fontSize:"12px", color:"var(--muted)" }}>{tier.capacity} seats</span>
+                <span style={{ fontSize:"12px", color:"var(--muted)" }}>{tier.capacity} slots</span>
               </div>
             </div>
             <button type="button" onClick={() => set(f => ({ ...f, tiers:f.tiers.filter(t => t.id!==tier.id) }))}

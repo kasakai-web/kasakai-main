@@ -666,7 +666,7 @@ function AddTicketDrawer({ open, onClose, onSave, shows }: {
                   {errors.price && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.price}</p>}
                 </div>
                 <div>
-                  <OvLabel required>Total Seats</OvLabel>
+                  <OvLabel required>Total Slots</OvLabel>
                   <input type="number" min="1" value={quantity}
                     onChange={e => { setQuantity(e.target.value); setErrors(p => ({ ...p, quantity: "" })); }}
                     placeholder="e.g. 100" style={fe("quantity")} />
@@ -1000,7 +1000,7 @@ function EditTicketDrawer({ open, onClose, tier, shows, onSave, onSaveShows }: {
                   {errors.price && <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#ef4444" }}>{errors.price}</p>}
                 </div>
                 <div>
-                  <OvLabel required>Total Seats</OvLabel>
+                  <OvLabel required>Total Slots</OvLabel>
                   <input type="number" min={minCapacity || 1} value={quantity}
                     onChange={e => { setQuantity(e.target.value); setErrors(p => ({ ...p, quantity: "" })); }}
                     placeholder="e.g. 100" style={fe("quantity")} />
