@@ -1885,11 +1885,11 @@ export default function PlayerDashboard() {
             {/* ── Full Waitlist ── */}
             {(() => {
               const waitlistPlayers = (detailGame.waitlist || [])
-                .filter((w: any) => ['waiting', 'notified', 'approved'].includes(w.status))
-                .map((w: any) => ({ name: w.player?.name || 'Player', isGuest: false }));
+                .filter((w: any) => ['waiting', 'notified', 'approved'].includes(w.status) && w.player?.name)
+                .map((w: any) => ({ name: w.player.name, isGuest: false }));
               const waitlistGuests = (detailGame.guestWaitlist || [])
-                .filter((gw: any) => ['waiting', 'notified'].includes(gw.status))
-                .map((gw: any) => ({ name: gw.plusOneName || 'Guest', isGuest: true }));
+                .filter((gw: any) => ['waiting', 'notified'].includes(gw.status) && gw.plusOneName)
+                .map((gw: any) => ({ name: gw.plusOneName, isGuest: true }));
               const allWaiting = [...waitlistPlayers, ...waitlistGuests];
               if (allWaiting.length === 0) return null;
               return (
