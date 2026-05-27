@@ -44,9 +44,13 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
     return () => clearInterval(id);
   }, [fetchUnreadCount, unreadCount]);
 
+  // Only increment locally when no parent is managing the count via prop.
+  // When unreadCount prop is provided, the dashboard layout already listens for
+  // kk-new-notification → refreshes via API → updates the prop. Incrementing here
+  // too would cause a brief double-count before the prop corrects it.
   const handleSocketNotification = useCallback((_n: IncomingNotification) => {
-    setUnread((c) => c + 1);
-  }, []);
+    if (unreadCount === undefined) setUnread((c) => c + 1);
+  }, [unreadCount]);
 
   useNotificationSocket(handleSocketNotification);
 
