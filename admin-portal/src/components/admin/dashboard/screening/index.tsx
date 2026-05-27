@@ -30,6 +30,7 @@ function ScrHead({ total, onCreate }: { total: number; onCreate: () => void }) {
 
 type CancelTarget    = { id: string; title: string };
 type CompleteTarget  = { id: string; title: string };
+type DeleteTarget    = { id: string; title: string; status: "draft" | "cancelled" };
 
 function CancelModal({ target, onClose, onConfirm }: {
   target: CancelTarget;
@@ -200,6 +201,79 @@ function CompleteModal({ target, onClose, onConfirm }: {
   );
 }
 
+function DeleteModal({ target, onClose, onConfirm }: {
+  target: DeleteTarget;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+  const isCancelled = target.status === "cancelled";
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete event");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)" }} onClick={!loading ? onClose : undefined} />
+      <div style={{ position: "relative", width: "100%", maxWidth: "440px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+        {/* Header */}
+        <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", gap: "14px" }}>
+          <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: "10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "var(--white)" }}>Delete Event Permanently?</h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--white)" }}>{target.title}</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ padding: "14px 16px", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "10px" }}>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)", lineHeight: 1.6 }}>
+              {isCancelled
+                ? "This cancelled event will be permanently removed from the database. All associated ticket records (already refunded) will be orphaned. This action cannot be undone."
+                : "This draft event will be permanently deleted. No tickets have been issued. This action cannot be undone."}
+            </p>
+          </div>
+          {error && <p style={{ margin: "10px 0 0", fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>{error}</p>}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "0 24px 22px", display: "flex", gap: "10px" }}>
+          <button type="button" onClick={onClose} disabled={loading}
+            style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: loading ? "default" : "pointer", opacity: loading ? 0.5 : 1 }}>
+            Go Back
+          </button>
+          <button type="button" onClick={handleConfirm} disabled={loading}
+            style={{ flex: 2, height: "42px", background: loading ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.15)", border: "1.5px solid rgba(239,68,68,0.4)", borderRadius: "9px", color: "#ef4444", fontSize: "13px", fontWeight: 800, cursor: loading ? "default" : "pointer", opacity: loading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", transition: "all 0.15s" }}>
+            {loading ? "Deleting…" : (
+              <>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                Delete Permanently
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ScrEvents() {
   const router = useRouter();
 
@@ -210,6 +284,7 @@ export function ScrEvents() {
   const [statusFilter, setStatusFilter] = useState<"all" | ScrEvent["status"]>("all");
   const [cancelTarget, setCancelTarget]     = useState<CancelTarget | null>(null);
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
+  const [deleteTarget, setDeleteTarget]     = useState<DeleteTarget | null>(null);
   const [successToast, setSuccessToast]     = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
@@ -263,15 +338,13 @@ export function ScrEvents() {
     setTimeout(() => setSuccessToast(null), 2500);
   }, [completeTarget, fetchEvents]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("Delete this draft event? This cannot be undone.")) return;
-    try {
-      await scrApi.deleteEvent(id);
-      await fetchEvents();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to delete");
-    }
-  }, [fetchEvents]);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    await scrApi.deleteEvent(deleteTarget.id);
+    await fetchEvents();
+    setSuccessToast(`"${deleteTarget.title}" has been deleted.`);
+    setTimeout(() => setSuccessToast(null), 2500);
+  }, [deleteTarget, fetchEvents]);
 
   return (
     <>
@@ -288,6 +361,14 @@ export function ScrEvents() {
           target={completeTarget}
           onClose={() => setCompleteTarget(null)}
           onConfirm={handleCompleteConfirm}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteModal
+          target={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteConfirm}
         />
       )}
 
@@ -347,7 +428,7 @@ export function ScrEvents() {
           onPublish={ev.status === "draft" ? () => handleQuickPublish(ev.id) : undefined}
           onComplete={ev.status === "published" ? () => setCompleteTarget({ id: ev.id, title: ev.title }) : undefined}
           onCancel={ev.status !== "cancelled" && ev.status !== "completed" ? () => setCancelTarget({ id: ev.id, title: ev.title }) : undefined}
-          onDelete={ev.status === "draft" ? () => handleDelete(ev.id) : undefined}
+          onDelete={(ev.status === "draft" || ev.status === "cancelled") ? () => setDeleteTarget({ id: ev.id, title: ev.title, status: ev.status }) : undefined}
         />
       ))}
     </>
