@@ -34,6 +34,9 @@ type OrganiserProfile = {
   };
   approvalStatus?: string;
   isActive?: boolean;
+  playerSkill?: number;
+  playerPosition?: "goalkeeper" | "defender" | "midfielder" | "forward" | "any";
+  playerGkAffinity?: number;
 };
 
 export default function OrganiserProfilePage() {
@@ -218,6 +221,9 @@ export default function OrganiserProfilePage() {
         },
         approvalStatus: o.approvalStatus || "pending",
         isActive: o.isActive ?? true,
+        playerSkill: o.playerSkill ?? 3,
+        playerPosition: o.playerPosition || "any",
+        playerGkAffinity: o.playerGkAffinity ?? 0,
       });
     } catch (e) {
       setError((e as Error).message || "Failed to load profile");
@@ -324,6 +330,9 @@ export default function OrganiserProfilePage() {
           defaultCutoffHours: profile.defaultCutoffHours,
           defaultTurfId: profile.defaultTurfId || undefined,
           notificationSettings: profile.notificationSettings,
+          playerSkill: profile.playerSkill,
+          playerPosition: profile.playerPosition,
+          playerGkAffinity: profile.playerGkAffinity,
         }),
       });
 
@@ -659,6 +668,59 @@ export default function OrganiserProfilePage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Player Stats — used when organiser plays in their own game */}
+          <div className="op-card">
+            <div className="op-card-header">
+              <div className="op-card-icon">⚽</div>
+              <div>
+                <h3 className="op-card-title">My Player Stats</h3>
+                <p className="op-card-desc">Used for team distribution when you play in your own game</p>
+              </div>
+            </div>
+            <div className="op-grid">
+              <div className="op-field">
+                <label className="op-label">Skill Score (1–5)</label>
+                <input
+                  className="op-input"
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={profile.playerSkill ?? 3}
+                  onChange={(e) => setProfile({ ...profile, playerSkill: Math.min(5, Math.max(1, Number(e.target.value))) })}
+                  placeholder="1–5"
+                />
+              </div>
+              <div className="op-field">
+                <label className="op-label">Preferred Position</label>
+                <select
+                  className="op-input"
+                  value={profile.playerPosition || "any"}
+                  onChange={(e) => setProfile({ ...profile, playerPosition: e.target.value as OrganiserProfile["playerPosition"] })}
+                >
+                  <option value="any">Any</option>
+                  <option value="goalkeeper">Goalkeeper</option>
+                  <option value="defender">Defender</option>
+                  <option value="midfielder">Midfielder</option>
+                  <option value="forward">Forward / Attacker</option>
+                </select>
+              </div>
+              <div className="op-field">
+                <label className="op-label">GK Affinity (0–5)</label>
+                <input
+                  className="op-input"
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={0.5}
+                  value={profile.playerGkAffinity ?? 0}
+                  onChange={(e) => setProfile({ ...profile, playerGkAffinity: Math.min(5, Math.max(0, Number(e.target.value))) })}
+                  placeholder="0 = not a keeper, 5 = excellent"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Account Status */}

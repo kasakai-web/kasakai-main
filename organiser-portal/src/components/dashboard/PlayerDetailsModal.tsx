@@ -99,18 +99,6 @@ function initials(name?: string) {
   return name.substring(0, 2).toUpperCase();
 }
 
-function mapPosition(pos?: string) {
-  if (!pos) return "Any";
-
-  const p = pos.toLowerCase();
-
-  if (p.includes("goal")) return "G";
-  if (p.includes("def")) return "D";
-  if (p.includes("mid")) return "M";
-  if (p.includes("for")) return "F";
-
-  return "Any";
-}
 
 export function PlayerDetailsModal({
   gameId,
@@ -264,16 +252,6 @@ export function PlayerDetailsModal({
       {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          players: players.map((p: any) => ({
-            name: p.plusOneName || p.player?.name,
-            rating: p.player?.rating ?? 5,
-            gkQuotient: p.player?.gkQuotient ?? 0,
-            position: mapPosition(p.preferredPosition),
-            playWith: p.player?.playWith || [],
-            playAgainst: p.player?.playAgainst || [],
-          })),
-        }),
       }
     );
 
@@ -287,12 +265,101 @@ export function PlayerDetailsModal({
     setTeams(data.data);
     showStatus("success", "Teams distributed successfully ⚽");
     onRefresh?.();
+    downloadTeamExcel(data.data);
 
   } catch (err) {
     console.error("Error distributing teams:", err);
     showStatus("error", "Something went wrong");
   }
 };
+
+function downloadTeamExcel(result: {
+  teamA: string[];
+  teamB: string[];
+  statsA?: { totalSkill?: number; totalGKQuotient?: number; playerCount?: number; positions?: Record<string, number> };
+  statsB?: { totalSkill?: number; totalGKQuotient?: number; playerCount?: number; positions?: Record<string, number> };
+  isBalanced?: boolean;
+  skillDifference?: number;
+  playerDetails?: Record<string, string>;
+}) {
+  const dateStr = scheduledAt
+    ? new Date(scheduledAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })
+    : "N/A";
+  const venueName = [venue, location].filter(Boolean).join(", ") || "N/A";
+  const rows = Math.max(result.teamA.length, result.teamB.length);
+  const sA   = result.statsA || {};
+  const sB   = result.statsB || {};
+  const pd   = result.playerDetails || {};
+
+  const fmt = (name: string) => {
+    const detail = pd[name];
+    return detail ? `${name} (${detail})` : name;
+  };
+
+  const playerRows = Array.from({ length: rows }, (_, i) => `
+    <tr>
+      <td style="background:#fee2e2;color:#7f1d1d;padding:8px 12px;border:1px solid #fca5a5;">${result.teamA[i] ? fmt(result.teamA[i]) : ""}</td>
+      <td style="background:#dbeafe;color:#1e3a8a;padding:8px 12px;border:1px solid #93c5fd;">${result.teamB[i] ? fmt(result.teamB[i]) : ""}</td>
+    </tr>`).join("");
+
+  const html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"></head>
+<body>
+<table border="1" cellspacing="0" cellpadding="0" style="font-family:Arial,sans-serif;font-size:13px;border-collapse:collapse;">
+  <tr>
+    <td colspan="2" style="background:#111827;color:#fff;font-size:18px;font-weight:bold;text-align:center;padding:14px;">
+      ⚽ ${gameName} — Team Distribution
+    </td>
+  </tr>
+  <tr>
+    <td style="background:#f3f4f6;font-weight:bold;padding:8px 12px;border:1px solid #d1d5db;">Date</td>
+    <td style="padding:8px 12px;border:1px solid #d1d5db;">${dateStr}</td>
+  </tr>
+  <tr>
+    <td style="background:#f3f4f6;font-weight:bold;padding:8px 12px;border:1px solid #d1d5db;">Venue</td>
+    <td style="padding:8px 12px;border:1px solid #d1d5db;">${venueName}</td>
+  </tr>
+  ${format ? `<tr>
+    <td style="background:#f3f4f6;font-weight:bold;padding:8px 12px;border:1px solid #d1d5db;">Format</td>
+    <td style="padding:8px 12px;border:1px solid #d1d5db;">${format}</td>
+  </tr>` : ""}
+  <tr>
+    <td style="background:#ef4444;color:#fff;font-weight:bold;font-size:15px;text-align:center;padding:10px;border:1px solid #dc2626;">
+      🔴 Red Team (${result.teamA.length} players)
+    </td>
+    <td style="background:#3b82f6;color:#fff;font-weight:bold;font-size:15px;text-align:center;padding:10px;border:1px solid #2563eb;">
+      🔵 Blue Team (${result.teamB.length} players)
+    </td>
+  </tr>
+  ${playerRows}
+  <tr>
+    <td style="background:#fca5a5;font-weight:bold;padding:8px 12px;border:1px solid #f87171;">
+      Skill: ${sA.totalSkill ?? "-"} &nbsp;|&nbsp; GK: ${sA.totalGKQuotient ?? "-"} &nbsp;|&nbsp; Players: ${sA.playerCount ?? result.teamA.length}
+    </td>
+    <td style="background:#93c5fd;font-weight:bold;padding:8px 12px;border:1px solid #60a5fa;">
+      Skill: ${sB.totalSkill ?? "-"} &nbsp;|&nbsp; GK: ${sB.totalGKQuotient ?? "-"} &nbsp;|&nbsp; Players: ${sB.playerCount ?? result.teamB.length}
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="background:#f9fafb;text-align:center;padding:8px;border:1px solid #d1d5db;font-size:12px;color:#6b7280;">
+      Balanced: ${result.isBalanced ? "✅ Yes" : "⚠️ No"} &nbsp;|&nbsp; Skill Difference: ${result.skillDifference ?? "-"} &nbsp;|&nbsp; Generated by Kasa Kai
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `${gameName.replace(/[^a-zA-Z0-9]/g, "_")}_teams.xls`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
   const [processingId, setProcessingId] = useState<string | null>(null);
   // totalSlots is the hard cap (includes organiser slot when organiserIsPlaying)
   const organiserCount = organiserIsPlaying ? 1 : 0;
