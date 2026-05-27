@@ -225,14 +225,19 @@ export function PlayerDetailsModal({
     }
   };
 
-  const [addingGuest, setAddingGuest] = useState(false);
+  const [addingGuest, setAddingGuest]           = useState(false);
+  const [guestModalOpen, setGuestModalOpen]     = useState(false);
+  const [pendingGuestName, setPendingGuestName] = useState("");
 
-  const addOrganiserGuest = async () => {
+  const addOrganiserGuest = async (guestName?: string) => {
     setAddingGuest(true);
     try {
+      const body: Record<string, string> = {};
+      if (guestName && guestName.trim()) body.guestName = guestName.trim();
       const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/add-guest`), {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -678,7 +683,7 @@ export function PlayerDetailsModal({
             <div className="pdm-cards-list">
 
               {/* Organiser group: card (if playing) + organiser's guests */}
-              {(organiserIsPlaying || organiserGuests.length > 0) && (
+              {(organiserIsPlaying || organiserGuests.length > 0 || (!isLocked && spotsLeft > 0)) && (
                 <div className="pdm-group">
                   {organiserIsPlaying && (
                     <div className="pdm-card pdm-card-organiser">
@@ -756,6 +761,18 @@ export function PlayerDetailsModal({
                         );
                       })}
                     </div>
+                  )}
+                  {!isLocked && spotsLeft > 0 && (
+                    <button
+                      onClick={() => { setPendingGuestName(""); setGuestModalOpen(true); }}
+                      style={{
+                        width: "100%", marginTop: 6, padding: "8px 0",
+                        background: "rgba(200,255,62,0.06)", border: "1px dashed rgba(200,255,62,0.3)",
+                        borderRadius: 8, color: "#c8ff3e", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      + Add Guest
+                    </button>
                   )}
                 </div>
               )}
@@ -909,6 +926,39 @@ export function PlayerDetailsModal({
         </div>
       </div>
     </div>
+    {/* ── Add Guest Mini-Modal ── */}
+    {guestModalOpen && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        onClick={() => setGuestModalOpen(false)}>
+        <div style={{ background: "#0f0f1e", border: "1px solid #333", borderRadius: 12, padding: "24px 20px", width: "100%", maxWidth: 360 }}
+          onClick={(e) => e.stopPropagation()}>
+          <h3 style={{ color: "#c8ff3e", margin: "0 0 4px", fontSize: 17 }}>Add Guest</h3>
+          <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>Optionally set a name for your guest.</p>
+          <input
+            type="text"
+            value={pendingGuestName}
+            onChange={(e) => setPendingGuestName(e.target.value)}
+            placeholder="Guest name (optional)"
+            maxLength={40}
+            autoFocus
+            style={{ width: "100%", background: "#1a1a2e", border: "1px solid #444", borderRadius: 7, padding: "9px 12px", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box" as const, marginBottom: 20 }}
+            onFocus={(e) => (e.target.style.borderColor = "#c8ff3e")}
+            onBlur={(e) => (e.target.style.borderColor = "#444")}
+            onKeyDown={(e) => { if (e.key === "Enter") { setGuestModalOpen(false); addOrganiserGuest(pendingGuestName); } }}
+          />
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={() => setGuestModalOpen(false)}
+              style={{ flex: 1, padding: 10, borderRadius: 7, background: "transparent", border: "1px solid #444", color: "#888", fontSize: 14, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button type="button" disabled={addingGuest} onClick={() => { setGuestModalOpen(false); addOrganiserGuest(pendingGuestName); }}
+              style={{ flex: 2, padding: 10, borderRadius: 7, background: "#c8ff3e", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: addingGuest ? "not-allowed" : "pointer", opacity: addingGuest ? 0.7 : 1 }}>
+              {addingGuest ? "Adding…" : "Add Guest"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <ConfirmationModal
       open={confirmVisible}
       title="Remove player"
