@@ -72,61 +72,82 @@ function GuestCard({
   isWaitlisted?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const hasPrefs = guest.position !== "Any" || guest.teamPreference !== "No Preference";
 
   return (
-    <div className={`bm-guest-card ${expanded ? "expanded" : "collapsed"}${isWaitlisted ? " bm-guest-card--waitlist" : ""}`}
+    <div
+      className={`bm-guest-card ${expanded ? "expanded" : "collapsed"}${isWaitlisted ? " bm-guest-card--waitlist" : ""}`}
       style={isWaitlisted ? { borderColor: "rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.04)" } : undefined}
     >
-      <div className="bm-guest-header">
-        <button
-          type="button"
-          className="bm-guest-expand-btn"
-          onClick={() => setExpanded((value) => !value)}
-          aria-label={expanded ? "Collapse guest" : "Expand guest"}
-        >
-          <span className="bm-guest-label">
-            {guest.name || `Guest ${index + 1}`}
-            {isWaitlisted && (
-              <span style={{
-                marginLeft: 6, fontSize: 10, fontWeight: 700, padding: "1px 6px",
-                borderRadius: 4, background: "rgba(245,158,11,0.15)",
-                color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)",
-                letterSpacing: "0.05em",
-              }}>WAITLIST</span>
+      <div className="bm-guest-header" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Name input — always visible, editable immediately */}
+        <input
+          className="bm-guest-name-input"
+          type="text"
+          placeholder={`Guest ${index + 1}`}
+          value={guest.name}
+          onChange={(e) => onUpdate({ name: e.target.value })}
+          maxLength={40}
+          style={{ flex: 1, minWidth: 0 }}
+          onClick={(e) => e.stopPropagation()}
+        />
+
+        {/* Waitlist badge */}
+        {isWaitlisted && (
+          <span style={{
+            flexShrink: 0, fontSize: 9, fontWeight: 700, padding: "2px 6px",
+            borderRadius: 4, background: "rgba(245,158,11,0.15)",
+            color: "#f59e0b", border: "1px solid rgba(245,158,11,0.3)",
+            letterSpacing: "0.06em", textTransform: "uppercase" as const,
+          }}>WL</span>
+        )}
+
+        {/* Preference summary pills when collapsed */}
+        {!expanded && hasPrefs && (
+          <span className="bm-guest-summary-pills" style={{ flexShrink: 0 }}>
+            {guest.position !== "Any" && (
+              <span className="bm-pill bm-pill-pos">{guest.position}</span>
+            )}
+            {guest.teamPreference !== "No Preference" && (
+              <span className={`bm-pill ${guest.teamPreference === "Red Team" ? "bm-pill-red" : "bm-pill-blue"}`}>
+                {guest.teamPreference === "Red Team" ? "Red" : "Blue"}
+              </span>
             )}
           </span>
-          {!expanded && (
-            <span className="bm-guest-summary-pills">
-              {guest.position !== "Any" && (
-                <span className="bm-pill bm-pill-pos">{guest.position}</span>
-              )}
-              {guest.teamPreference !== "No Preference" && (
-                <span className={`bm-pill ${guest.teamPreference === "Red Team" ? "bm-pill-red" : "bm-pill-blue"}`}>
-                  {guest.teamPreference}
-                </span>
-              )}
-            </span>
-          )}
+        )}
+
+        {/* Expand toggle — opens position + team prefs */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "Collapse preferences" : "Set position & team"}
+          style={{ flexShrink: 0, background: "none", border: "none", padding: "2px 4px", cursor: "pointer", color: "var(--muted, #888)", display: "flex", alignItems: "center" }}
+          title={expanded ? "Collapse" : "Set position & team preference"}
+        >
           <svg
             className={`bm-chevron ${expanded ? "up" : "down"}`}
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
 
-        <button className="bm-guest-remove" type="button" onClick={onRemove} title="Remove guest">
-          ✕
+        {/* Remove button */}
+        <button
+          className="bm-guest-remove"
+          type="button"
+          onClick={onRemove}
+          title="Remove guest"
+          style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
         </button>
       </div>
 
+      {/* Expanded: fee + position + team */}
       {expanded && (
         <div className="bm-guest-fields">
           <div className="bm-guest-meta">
@@ -137,27 +158,13 @@ function GuestCard({
           </div>
 
           <div className="bm-guest-row">
-            <div className="bm-guest-row-label">Name</div>
-            <input
-              className="bm-guest-name-input"
-              type="text"
-              placeholder="Guest name"
-              value={guest.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              maxLength={40}
-            />
-          </div>
-
-          <div className="bm-guest-row">
             <div className="bm-guest-row-label">Position</div>
             <div className="bm-guest-positions">
               <button
                 type="button"
                 className={`bm-guest-pos ${guest.position === "Any" ? "selected" : ""}`}
                 onClick={() => onUpdate({ position: "Any" })}
-              >
-                Any
-              </button>
+              >Any</button>
               {POSITIONS.map((pos) => (
                 <button
                   key={pos}
@@ -165,9 +172,7 @@ function GuestCard({
                   className={`bm-guest-pos ${guest.position === pos ? "selected" : ""}`}
                   onClick={() => onUpdate({ position: pos })}
                   title={POSITION_LABELS[pos]}
-                >
-                  {pos}
-                </button>
+                >{pos}</button>
               ))}
             </div>
           </div>
@@ -181,9 +186,7 @@ function GuestCard({
                   type="button"
                   className={`bm-guest-team ${cls} ${guest.teamPreference === label ? "selected" : ""}`}
                   onClick={() => onUpdate({ teamPreference: label })}
-                >
-                  {label}
-                </button>
+                >{label}</button>
               ))}
             </div>
           </div>
@@ -236,7 +239,14 @@ export function BookingModal({
   };
 
   const removeGuest = (index: number) => {
-    setGuests((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
+    const rawName = typeof window !== "undefined" ? localStorage.getItem("userName") || "" : "";
+    const firstName = rawName.trim().split(/\s+/)[0] || "Guest";
+    setGuests((previous) => {
+      const filtered = previous.filter((_, i) => i !== index);
+      // Renumber remaining guests whose name still matches the auto-generated pattern
+      const pattern = new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\+ \\d+$`);
+      return filtered.map((g, i) => pattern.test(g.name) ? { ...g, name: `${firstName} + ${i + 1}` } : g);
+    });
   };
 
   const updateGuest = (index: number, patch: Partial<Guest>) => {

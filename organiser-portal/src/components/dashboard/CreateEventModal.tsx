@@ -459,21 +459,29 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                   const posLabel = ({ GK:"GK",DEF:"DEF",MID:"MID",FWD:"FWD" } as Record<string,string>)[g.position];
                   const teamColor = g.teamPreference === "Red Team" ? { bg:"rgba(220,38,38,0.15)", color:"#f87171" } : g.teamPreference === "Blue Team" ? { bg:"rgba(59,130,246,0.15)", color:"#60a5fa" } : null;
                   return (
-                    <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"rgba(200,255,62,0.04)", border:"1px solid #2a2a2a", borderRadius:8, padding:"8px 12px" }}>
-                      <div>
-                        <span style={{ fontSize:13, color:"#ddd" }}>
-                          <span style={{ color:"#c8ff3e", fontWeight:600, marginRight:8 }}>#{idx+1}</span>
-                          {g.name || `Guest ${idx+1}`}
-                        </span>
+                    <div key={idx} style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(200,255,62,0.04)", border:"1px solid #2a2a2a", borderRadius:8, padding:"8px 12px" }}>
+                      <span style={{ color:"#c8ff3e", fontWeight:700, fontSize:13, flexShrink:0 }}>#{idx+1}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        {/* Inline editable name */}
+                        <input
+                          type="text"
+                          value={g.name}
+                          onChange={(e) => setOrganiserGuests((prev) => prev.map((guest, i) => i === idx ? { ...guest, name: e.target.value } : guest))}
+                          placeholder={`Guest ${idx + 1}`}
+                          maxLength={40}
+                          style={{ background:"transparent", border:"none", borderBottom:"1px solid #333", color:"#ddd", fontSize:13, outline:"none", width:"100%", padding:"1px 0", fontFamily:"inherit" }}
+                          onFocus={(e) => (e.target.style.borderBottomColor = "#c8ff3e")}
+                          onBlur={(e) => (e.target.style.borderBottomColor = "#333")}
+                        />
                         {(posLabel || teamColor) && (
-                          <div style={{ display:"flex", gap:4, marginTop:3 }}>
+                          <div style={{ display:"flex", gap:4, marginTop:4 }}>
                             {posLabel && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:4, background:"rgba(200,255,62,0.12)", color:"#c8ff3e", fontWeight:600 }}>{posLabel}</span>}
                             {teamColor && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:4, fontWeight:600, background:teamColor.bg, color:teamColor.color }}>{g.teamPreference}</span>}
                           </div>
                         )}
                       </div>
                       <button type="button" onClick={() => setOrganiserGuests((prev) => prev.filter((_, i) => i !== idx))}
-                        style={{ background:"rgba(220,38,38,0.12)", border:"1px solid rgba(220,38,38,0.3)", color:"#f87171", borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", minWidth:64, flexShrink:0 }}>
+                        style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.25)", color:"#f87171", borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer", flexShrink:0 }}>
                         Remove
                       </button>
                     </div>
