@@ -234,10 +234,11 @@ export function BookingModal({
     if (!canAddGuest) return;
     const rawName = typeof window !== "undefined" ? localStorage.getItem("userName") || "" : "";
     const firstName = rawName.trim().split(/\s+/)[0] || "Guest";
-    const pattern = new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\+ \\d+$`);
+    const pattern = new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\+ (\\d+)$`);
     setGuests((previous) => {
-      const autoCount = previous.filter((g) => pattern.test(g.name)).length;
-      return [...previous, { name: `${firstName} + ${autoCount + 1}`, position: "Any", teamPreference: "No Preference" }];
+      const usedNums = previous.flatMap((g) => { const m = pattern.exec(g.name); return m ? [parseInt(m[1], 10)] : []; });
+      const nextNum = usedNums.length > 0 ? Math.max(...usedNums) + 1 : 1;
+      return [...previous, { name: `${firstName} + ${nextNum}`, position: "Any", teamPreference: "No Preference" }];
     });
   };
 
