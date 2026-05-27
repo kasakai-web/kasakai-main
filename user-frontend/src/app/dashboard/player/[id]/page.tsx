@@ -699,6 +699,10 @@ export default function PlayerDashboard() {
             const wg = { ...data.data, _isWaitlisted: true, _waitlistStatus: 'waiting', _myWaitlistStatus: data.data._myWaitlistStatus || 'waiting' };
             setMyWaitlist((prev) => [...prev.filter((x) => x._id !== wg._id), wg]);
           }
+          // Confirm with fresh server data so My Games tab updates even if the
+          // optimistic patch above is lost during a concurrent React render.
+          fetchMyWaitlist();
+          fetchMyGames();
         } else {
           const autoGuests: string[] = data.autoConfirmedGuests || [];
           const waitlistAdded: number = data.waitlistGuestsAdded || 0;
@@ -720,6 +724,9 @@ export default function PlayerDashboard() {
           showToast("success", msg, subtitle);
           setActiveTab("my-games");
           if (playerId) router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+          // Confirm with fresh server data so My Games tab updates even if the
+          // optimistic setMyGames patch above is lost during the router.replace render.
+          fetchMyGames();
         }
       } else {
         if (data.code === "INSUFFICIENT_BALANCE") {
