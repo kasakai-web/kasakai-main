@@ -243,9 +243,13 @@ export function BookingModal({
     const firstName = rawName.trim().split(/\s+/)[0] || "Guest";
     setGuests((previous) => {
       const filtered = previous.filter((_, i) => i !== index);
-      // Renumber remaining guests whose name still matches the auto-generated pattern
+      // Renumber only auto-generated names; custom names are left unchanged
       const pattern = new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\+ \\d+$`);
-      return filtered.map((g, i) => pattern.test(g.name) ? { ...g, name: `${firstName} + ${i + 1}` } : g);
+      let autoCounter = 0;
+      return filtered.map((g) => {
+        if (pattern.test(g.name)) return { ...g, name: `${firstName} + ${++autoCounter}` };
+        return g;
+      });
     });
   };
 
