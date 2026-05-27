@@ -234,8 +234,11 @@ export function BookingModal({
     if (!canAddGuest) return;
     const rawName = typeof window !== "undefined" ? localStorage.getItem("userName") || "" : "";
     const firstName = rawName.trim().split(/\s+/)[0] || "Guest";
-    const guestNumber = guests.length + 1;
-    setGuests((previous) => [...previous, { name: `${firstName} + ${guestNumber}`, position: "Any", teamPreference: "No Preference" }]);
+    const pattern = new RegExp(`^${firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\+ \\d+$`);
+    setGuests((previous) => {
+      const autoCount = previous.filter((g) => pattern.test(g.name)).length;
+      return [...previous, { name: `${firstName} + ${autoCount + 1}`, position: "Any", teamPreference: "No Preference" }];
+    });
   };
 
   const removeGuest = (index: number) => {
