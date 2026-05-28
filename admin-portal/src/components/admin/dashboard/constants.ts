@@ -56,6 +56,7 @@ export type SidebarItem = {
   label: string;
   badge?: string;
   badgeTone?: "default" | "red";
+  accent?: "teal" | "blue" | "amber";
 };
 
 export type SidebarGroup = {
@@ -89,9 +90,9 @@ export const sidebarGroups: SidebarGroup[] = [
   {
     label: "Streaming",
     items: [
-      { section: "scr-events",  label: "Events" },
-      { section: "scr-guests",  label: "Guest List" },
-      { section: "scr-finance", label: "Finance" },
+      { section: "scr-events",  label: "Events",     accent: "teal"  },
+      { section: "scr-guests",  label: "Guest List", accent: "blue"  },
+      { section: "scr-finance", label: "Finance",    accent: "amber" },
     ],
   },
   {

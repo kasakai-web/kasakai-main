@@ -46,6 +46,7 @@ export function Sidebar({ activeSection, onNavigate, open, onClose, onLogout }: 
                       onClose();
                     }}
                     type="button"
+                    {...(item.accent ? { "data-accent": item.accent } : {})}
                   >
                     {item.label}
                     {item.badge ? (
