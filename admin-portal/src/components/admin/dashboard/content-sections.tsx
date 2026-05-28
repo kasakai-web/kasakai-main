@@ -1992,6 +1992,271 @@ function ScrFinance() {
   );
 }
 
+// ── WalletAdmin ───────────────────────────────────────────────────────────────
+
+type AdminWalletRow = {
+  _id: string;
+  user?: { _id?: string; name?: string; phone?: string; email?: string } | null;
+  balancePaise: number;
+  lockedPaise: number;
+  totalTopUpPaise: number;
+  totalSpentPaise: number;
+  totalRefundedPaise: number;
+  updatedAt?: string;
+};
+
+type AdminWalletListResponse = {
+  success: boolean;
+  count?: number;
+  summary?: { totalBalancePaise: number; totalTopUpPaise: number; totalSpentPaise: number; totalRefundedPaise: number };
+  data: AdminWalletRow[];
+  message?: string;
+};
+
+type AdjustTarget = { userId: string; name: string; balancePaise: number };
+
+function AdjustWalletModal({ target, onClose, onSuccess }: {
+  target: AdjustTarget;
+  onClose: () => void;
+  onSuccess: (newBalance: number) => void;
+}) {
+  const [mode, setMode]     = useState<"credit" | "debit">("credit");
+  const [amount, setAmount] = useState("");
+  const [note, setNote]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    const rupees = parseFloat(amount);
+    if (!amount || isNaN(rupees) || rupees <= 0) { setError("Enter a valid amount greater than 0."); return; }
+    if (!note.trim()) { setError("A reason / note is required."); return; }
+
+    const amountPaise = Math.round(rupees * 100) * (mode === "debit" ? -1 : 1);
+    setLoading(true);
+    setError(null);
+    try {
+      const token = getAdminToken();
+      const res   = await fetch(`${API_BASE}/admin/wallets/${target.userId}/adjust`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amountPaise, note: note.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.message || "Failed to adjust wallet."); setLoading(false); return; }
+      onSuccess(data.data.balancePaise);
+      onClose();
+    } catch { setError("Cannot reach the server."); setLoading(false); }
+  };
+
+  const availableRupees = ((target.balancePaise) / 100).toFixed(2);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)" }} onClick={!loading ? onClose : undefined} />
+      <div style={{ position: "relative", width: "100%", maxWidth: "460px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+        {/* Header */}
+        <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", gap: "14px" }}>
+          <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: "10px", background: "rgba(91,230,178,0.12)", border: "1px solid rgba(91,230,178,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="2.2" strokeLinecap="round">
+              <rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" />
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "var(--white)" }}>Adjust Wallet</h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted)" }}>
+              <strong style={{ color: "var(--white)" }}>{target.name}</strong>
+              <span style={{ marginLeft: "8px", color: "#5be6b2" }}>Current: ₹{availableRupees}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {/* Credit / Debit toggle */}
+          <div style={{ display: "flex", gap: "8px" }}>
+            {(["credit", "debit"] as const).map(m => (
+              <button key={m} type="button" onClick={() => { setMode(m); setError(null); }}
+                style={{ flex: 1, height: "38px", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
+                  background: mode === m ? (m === "credit" ? "rgba(91,230,178,0.18)" : "rgba(239,68,68,0.15)") : "none",
+                  border: `1.5px solid ${mode === m ? (m === "credit" ? "rgba(91,230,178,0.5)" : "rgba(239,68,68,0.4)") : "var(--border)"}`,
+                  color: mode === m ? (m === "credit" ? "#5be6b2" : "#ef4444") : "var(--muted)",
+                }}>
+                {m === "credit" ? "+ Credit" : "− Debit"}
+              </button>
+            ))}
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "6px" }}>Amount (₹)</label>
+            <input
+              type="number" min="1" step="any" value={amount} onChange={e => { setAmount(e.target.value); setError(null); }}
+              placeholder="e.g. 100"
+              style={{ width: "100%", boxSizing: "border-box", background: "var(--bg)", border: `1.5px solid ${error && !note.trim() ? "var(--border)" : error ? "var(--border)" : "var(--border)"}`, borderRadius: "9px", padding: "10px 13px", fontSize: "14px", color: "var(--white)", outline: "none", fontFamily: "inherit" }}
+              onFocus={e => (e.currentTarget.style.borderColor = "rgba(91,230,178,0.4)")}
+              onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+              disabled={loading}
+            />
+          </div>
+
+          {/* Note */}
+          <div>
+            <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "var(--muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "6px" }}>Reason / Note <span style={{ color: "#ef4444" }}>*</span></label>
+            <input
+              type="text" value={note} onChange={e => { setNote(e.target.value); setError(null); }}
+              placeholder="e.g. Bonus credit for referral"
+              style={{ width: "100%", boxSizing: "border-box", background: "var(--bg)", border: "1.5px solid var(--border)", borderRadius: "9px", padding: "10px 13px", fontSize: "13px", color: "var(--white)", outline: "none", fontFamily: "inherit" }}
+              onFocus={e => (e.currentTarget.style.borderColor = "rgba(91,230,178,0.4)")}
+              onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+              disabled={loading}
+            />
+          </div>
+
+          {error && <p style={{ margin: 0, fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>{error}</p>}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "0 24px 22px", display: "flex", gap: "10px" }}>
+          <button type="button" onClick={onClose} disabled={loading}
+            style={{ flex: 1, height: "42px", background: "none", border: "1px solid var(--border)", borderRadius: "9px", color: "var(--muted)", fontSize: "13px", fontWeight: 700, cursor: loading ? "default" : "pointer", opacity: loading ? 0.5 : 1 }}>
+            Cancel
+          </button>
+          <button type="button" onClick={handleSubmit} disabled={loading}
+            style={{ flex: 2, height: "42px", background: loading ? "rgba(91,230,178,0.06)" : "rgba(91,230,178,0.15)", border: "1.5px solid rgba(91,230,178,0.4)", borderRadius: "9px", color: "#5be6b2", fontSize: "13px", fontWeight: 800, cursor: loading ? "default" : "pointer", opacity: loading ? 0.6 : 1, transition: "all 0.15s" }}>
+            {loading ? "Saving…" : "Confirm Adjustment"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WalletAdmin() {
+  const [wallets, setWallets]   = useState<AdminWalletRow[]>([]);
+  const [summary, setSummary]   = useState<AdminWalletListResponse["summary"] | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState("");
+  const [search, setSearch]     = useState("");
+  const [adjustTarget, setAdjustTarget] = useState<AdjustTarget | null>(null);
+  const [toast, setToast]       = useState<string | null>(null);
+
+  const fetchWallets = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const token = getAdminToken();
+      if (!token) { setError("Admin session missing."); return; }
+      const res  = await fetch(`${API_BASE}/admin/wallets`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = (await res.json()) as AdminWalletListResponse;
+      if (!res.ok) { setError(data.message || "Failed to load wallets."); return; }
+      setWallets(data.data || []);
+      setSummary(data.summary || null);
+    } catch { setError("Cannot reach the server."); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchWallets(); }, [fetchWallets]);
+
+  const filtered = wallets.filter(w => {
+    const q = search.trim().toLowerCase();
+    return [w.user?.name || "", w.user?.phone || "", w.user?.email || ""].join(" ").toLowerCase().includes(q);
+  });
+
+  const handleAdjustSuccess = (userId: string, newBalancePaise: number) => {
+    setWallets(prev => prev.map(w => w.user?._id === userId ? { ...w, balancePaise: newBalancePaise } : w));
+    setToast("Wallet adjusted successfully.");
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  return (
+    <>
+      {adjustTarget && (
+        <AdjustWalletModal
+          target={adjustTarget}
+          onClose={() => setAdjustTarget(null)}
+          onSuccess={(bal) => handleAdjustSuccess(adjustTarget.userId, bal)}
+        />
+      )}
+
+      {toast && (
+        <div style={{ position: "fixed", bottom: "28px", left: "50%", transform: "translateX(-50%)", zIndex: 10000, display: "flex", alignItems: "center", gap: "10px", padding: "13px 20px", background: "rgba(17,20,36,0.97)", border: "1.5px solid rgba(91,230,178,0.4)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", minWidth: "260px" }}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#5be6b2" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--white)" }}>{toast}</span>
+        </div>
+      )}
+
+      <Head title="Player Wallets" sub={loading ? "Loading…" : `${wallets.length} player wallets`} />
+
+      {/* Summary cards */}
+      {summary && (
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Balance</div><div className={styles.statValue}>{formatCurrency(summary.totalBalancePaise)}</div><div className={`${styles.statDelta} ${styles.neutral}`}>All player wallets</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Top-ups</div><div className={styles.statValue}>{formatCurrency(summary.totalTopUpPaise)}</div><div className={`${styles.statDelta} ${styles.up}`}>Lifetime recharges</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Spent</div><div className={styles.statValue}>{formatCurrency(summary.totalSpentPaise)}</div><div className={`${styles.statDelta} ${styles.down}`}>Game registrations</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Refunded</div><div className={styles.statValue}>{formatCurrency(summary.totalRefundedPaise)}</div><div className={`${styles.statDelta} ${styles.neutral}`}>Cancellations</div></div>
+        </div>
+      )}
+
+      <div className={styles.toolbar}>
+        <input className={styles.searchInput} placeholder="Search by name, phone or email…" value={search} onChange={e => setSearch(e.target.value)} />
+        <button className={styles.actionBtn} type="button" onClick={fetchWallets}>Refresh</button>
+      </div>
+
+      {error && <div className={styles.formError}>{error}</div>}
+      {loading && <div className={styles.loadingState}>Loading wallets…</div>}
+
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Phone</th>
+              <th>Balance</th>
+              <th>Locked</th>
+              <th>Available</th>
+              <th>Total Top-ups</th>
+              <th>Total Spent</th>
+              <th>Last Updated</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={9} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No wallets found.</td></tr>
+            )}
+            {filtered.map(w => {
+              const available = (w.balancePaise || 0) - (w.lockedPaise || 0);
+              return (
+                <tr key={w._id}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{w.user?.name || "Unknown"}</div>
+                    {w.user?.email && <div style={{ fontSize: "11px", color: "var(--muted)" }}>{w.user.email}</div>}
+                  </td>
+                  <td>{w.user?.phone || "—"}</td>
+                  <td style={{ color: (w.balancePaise || 0) > 0 ? "var(--green)" : "var(--muted)", fontWeight: 600 }}>{formatCurrency(w.balancePaise)}</td>
+                  <td style={{ color: (w.lockedPaise || 0) > 0 ? "var(--amber)" : "var(--muted)" }}>{formatCurrency(w.lockedPaise)}</td>
+                  <td style={{ color: available > 0 ? "var(--green)" : "var(--muted)", fontWeight: 600 }}>{formatCurrency(available)}</td>
+                  <td>{formatCurrency(w.totalTopUpPaise)}</td>
+                  <td>{formatCurrency(w.totalSpentPaise)}</td>
+                  <td>{formatDate(w.updatedAt)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      onClick={() => setAdjustTarget({ userId: w.user?._id || w._id, name: w.user?.name || "Unknown", balancePaise: w.balancePaise || 0 })}
+                    >
+                      Adjust
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export function ContentSections({ activeSection, onOpenDetail, onNavigate }: ContentSectionsProps) {
@@ -2001,6 +2266,7 @@ export function ContentSections({ activeSection, onOpenDetail, onNavigate }: Con
   if (activeSection === "games")         return <Games />;
   if (activeSection === "payments")      return <Payments />;
   if (activeSection === "finance")       return <Finance />;
+  if (activeSection === "wallet-admin")  return <WalletAdmin />;
   if (activeSection === "notifications") return <Notifications />;
   if (activeSection === "feedback")      return <Feedback />;
   if (activeSection === "disputes")      return <Disputes onOpenDetail={onOpenDetail} />;
