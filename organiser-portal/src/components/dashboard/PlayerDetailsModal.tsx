@@ -242,6 +242,7 @@ export function PlayerDetailsModal({
   };
 
   const [copied, setCopied] = useState(false);
+  const [copiedTeams, setCopiedTeams] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
@@ -360,6 +361,48 @@ function downloadTeamExcel(result: {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+  const handleCopyTeams = () => {
+    if (!teams) return;
+    const pd = teams.playerDetails || {};
+    const sA = teams.statsA || {};
+    const sB = teams.statsB || {};
+    const lines: string[] = [];
+
+    lines.push(`⚽ *${gameName}*`);
+    if (scheduledAt) {
+      const d = new Date(scheduledAt);
+      lines.push(`📅 ${d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} at ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`);
+    }
+    const venueParts = [venue, location].filter(Boolean);
+    if (venueParts.length) lines.push(`📍 ${venueParts.join(", ")}`);
+    if (format) lines.push(`🎮 Format: ${format}`);
+
+    lines.push("");
+    lines.push("─".repeat(28));
+    lines.push(`🔴 *Red Team* (${(teams.teamA || []).length} players)`);
+    (teams.teamA || []).forEach((name: string, i: number) => {
+      const detail = pd[name];
+      lines.push(`${i + 1}. ${name}${detail ? ` (${detail})` : ""}`);
+    });
+
+    lines.push("");
+    lines.push(`🔵 *Blue Team* (${(teams.teamB || []).length} players)`);
+    (teams.teamB || []).forEach((name: string, i: number) => {
+      const detail = pd[name];
+      lines.push(`${i + 1}. ${name}${detail ? ` (${detail})` : ""}`);
+    });
+
+    lines.push("─".repeat(28));
+    const balancedLine = teams.isBalanced ? "✅ Balanced" : `⚠️ Skill diff: ${teams.skillDifference}`;
+    lines.push(`${balancedLine} | Red skill: ${sA.totalSkill ?? "-"} · Blue skill: ${sB.totalSkill ?? "-"}`);
+    lines.push("_Kasa Kai ⚽_");
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopiedTeams(true);
+      setTimeout(() => setCopiedTeams(false), 2500);
+    });
+  };
+
   const [processingId, setProcessingId] = useState<string | null>(null);
   // totalSlots is the hard cap (includes organiser slot when organiserIsPlaying)
   const organiserCount = organiserIsPlaying ? 1 : 0;
@@ -960,8 +1003,31 @@ function downloadTeamExcel(result: {
           {/* Teams — inside scroll area */}
           {teams && (
             <div style={{ marginTop: 20, paddingBottom: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                ⚽ Teams
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  ⚽ Teams
+                </div>
+                <button
+                  onClick={handleCopyTeams}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 12px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    border: `1px solid ${copiedTeams ? "rgba(200,255,62,0.4)" : "rgba(74,222,128,0.3)"}`,
+                    background: copiedTeams ? "rgba(200,255,62,0.15)" : "rgba(74,222,128,0.08)",
+                    color: copiedTeams ? "#c8ff3e" : "#4ade80",
+                    transition: "all 0.2s",
+                  }}
+                  title="Copy teams for WhatsApp"
+                >
+                  <span>{copiedTeams ? "✓" : "📋"}</span>
+                  <span>{copiedTeams ? "Copied!" : "Copy Teams"}</span>
+                </button>
               </div>
               <div style={{ display: "flex", gap: 16 }}>
                 <div style={{ flex: 1, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "12px 14px" }}>
