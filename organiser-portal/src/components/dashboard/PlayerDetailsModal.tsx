@@ -1172,21 +1172,6 @@ function WaitlistCard({ entry, position, onApprove, isApproving, guestCount, reg
             >
               {cfg.label}
             </span>
-            {onApprove && (
-              <button
-                onClick={onApprove}
-                disabled={isApproving}
-                style={{
-                  fontSize: 10, fontWeight: 700, padding: "2px 8px",
-                  borderRadius: 4, cursor: isApproving ? "not-allowed" : "pointer",
-                  background: isApproving ? "rgba(74,222,128,0.05)" : "rgba(74,222,128,0.12)",
-                  color: isApproving ? "rgba(74,222,128,0.4)" : "#4ade80",
-                  border: "1px solid rgba(74,222,128,0.3)",
-                }}
-              >
-                {isApproving ? "…" : "Approve"}
-              </button>
-            )}
           </div>
         </div>
 
