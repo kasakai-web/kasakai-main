@@ -10,12 +10,44 @@
 /* ── Container & background ── */
 .player-dashboard-container {
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(196, 213, 108, 0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 100% 80%, rgba(111, 200, 218, 0.04) 0%, transparent 55%),
-    #070709;
   color: var(--white);
   padding: 0 0 80px;
+  background: transparent;
+  position: relative;
+}
+
+/* ── Layered atmospheric background ── */
+.player-dashboard-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    /* lime orb top-center */
+    radial-gradient(ellipse 700px 400px at 50% -5%, rgba(200,255,62,.055) 0%, transparent 65%),
+    /* teal orb right */
+    radial-gradient(ellipse 500px 600px at 105% 40%, rgba(56,189,248,.035) 0%, transparent 60%),
+    /* coral orb bottom-left */
+    radial-gradient(ellipse 600px 400px at -5% 95%, rgba(255,92,62,.03) 0%, transparent 60%),
+    /* deep center haze */
+    radial-gradient(ellipse 1000px 700px at 50% 50%, rgba(200,255,62,.015) 0%, transparent 75%),
+    #060608;
+}
+
+/* ── Animated floating orb ── */
+.player-dashboard-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle 260px at 20% 30%, rgba(200,255,62,.035) 0%, transparent 70%),
+    radial-gradient(circle 220px at 78% 65%, rgba(56,189,248,.03) 0%, transparent 70%),
+    radial-gradient(circle 180px at 50% 85%, rgba(200,255,62,.025) 0%, transparent 70%);
+  animation: orbDrift 20s ease-in-out infinite;
+  will-change: transform;
 }
 
 /* ── Page shell ── */
@@ -545,52 +577,81 @@
   color: #ff9b9b;
 }
 
-/* ── Modal ── */
+/* ── Modal overlay ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0,0,0,.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  animation: footballFadeUp 0.18s ease both;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
 }
 
 .modal-content {
-  background: #0e0e12;
-  border: 1px solid #222;
+  background: rgba(10,10,14,.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 18px;
   padding: 32px;
-  animation: modalIn 0.2s ease;
+  box-shadow:
+    0 32px 80px rgba(0,0,0,.75),
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 -1px 0 rgba(255,255,255,.07) inset;
+  animation: modalIn 0.24s cubic-bezier(.34,1.35,.64,1) both;
 }
 
-.modal-header { margin-bottom: 20px; }
+.modal-header {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .modal-title-section h2 {
   font-family: var(--cond);
   font-weight: 900;
-  font-size: 28px;
+  font-size: 26px;
   color: var(--white);
+  margin: 0;
 }
 
 .modal-subtitle {
   font-family: var(--body);
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 6px;
+  font-size: 12px;
+  color: #555;
+  margin-top: 4px;
 }
 
 .btn-close {
-  background: transparent;
-  border: 1px solid #222;
-  color: var(--muted);
-  padding: 10px 20px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #666;
+  padding: 8px 18px;
+  border-radius: 8px;
   font-family: var(--body);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
   cursor: pointer;
-  transition: border-color 0.18s, color 0.18s;
+  transition: all 0.18s;
+  text-transform: uppercase;
 }
 
-.btn-close:hover { border-color: #444; color: var(--white); }
+.btn-close:hover {
+  border-color: rgba(255,255,255,.22);
+  background: rgba(255,255,255,.08);
+  color: #ccc;
+}
 
 /* ── Event Details Modal ─────────────────────────────── */
 .pd-event-modal {
@@ -601,16 +662,23 @@
   flex-direction: column;
   overflow: hidden;
   padding: 0;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(9,9,13,.95);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow:
+    0 40px 100px rgba(0,0,0,.8),
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 -1px 0 rgba(255,255,255,.08) inset;
+  animation: modalIn 0.26s cubic-bezier(.34,1.3,.64,1) both;
 }
 
 /* Sticky header */
 .pd-event-modal-header {
   flex-shrink: 0;
   padding: 0 24px 16px;
-  background: #0e0e12;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: transparent;
+  border-bottom: 1px solid rgba(255,255,255,.06);
 }
 
 .pd-event-modal-header-accent {
@@ -680,8 +748,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px 24px;
-  background: #0e0e12;
-  border-top: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,.02);
+  border-top: 1px solid rgba(255,255,255,.06);
+  backdrop-filter: blur(8px);
 }
 
 .pd-footer-actions {
@@ -700,22 +769,28 @@
 }
 
 .pd-event-detail-card {
-  border: 1px solid #1f1f1f;
-  padding: 10px 12px;
-  background: #111;
-  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.07);
+  padding: 11px 14px;
+  background: rgba(255,255,255,.03);
+  border-radius: 10px;
+  transition: border-color 0.18s, background 0.18s;
+}
+.pd-event-detail-card:hover {
+  border-color: rgba(200,255,62,.15);
+  background: rgba(200,255,62,.03);
 }
 
 .pd-event-detail-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #666;
-  margin-bottom: 4px;
+  color: #444;
+  margin-bottom: 5px;
+  font-family: var(--mono, monospace);
 }
 
 .pd-event-detail-value {
-  color: #fff;
+  color: #e5e5e5;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.3;
@@ -791,10 +866,15 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  border: 1px solid #222;
-  padding: 9px 10px;
-  background: #0d0d0d;
-  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.06);
+  padding: 9px 12px;
+  background: rgba(255,255,255,.025);
+  border-radius: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pd-event-player-row:hover {
+  border-color: rgba(200,255,62,.12);
+  background: rgba(200,255,62,.025);
 }
 
 .pd-event-player-name {

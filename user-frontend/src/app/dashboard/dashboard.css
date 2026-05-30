@@ -1,8 +1,31 @@
 /* Dashboard Specific Styles */
 :root {
-  --grey: #111;
-  --surface: #161616;
+  --grey: #0e0e10;
+  --surface: #13131a;
   --mid: #2a2a2a;
+  --lime: #c8ff3e;
+  --amber: #f59e0b;
+  --coral: #ff5c3e;
+  --dark: #070709;
+}
+
+/* ── Football section animations ── */
+@keyframes footballFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cardGlowPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(200,255,62,0); }
+  50%      { box-shadow: 0 0 16px 2px rgba(200,255,62,.08); }
+}
+@keyframes orbDrift {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(30px,-20px) scale(1.05); }
+  66%      { transform: translate(-15px,15px) scale(0.97); }
+}
+@keyframes shimmerGrid {
+  0%,100% { opacity: .02; }
+  50%      { opacity: .035; }
 }
 
 body::after {
@@ -473,42 +496,76 @@ body::after {
 }
 
 .event-card {
-  background: linear-gradient(150deg, #141414 0%, #0e0e0e 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-left: 3px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(200,255,62,.03) 0%, transparent 65%),
+    linear-gradient(160deg, #161618 0%, #0e0e10 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-left: 3px solid rgba(255,255,255,.07);
+  border-radius: 16px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   position: relative;
   overflow: hidden;
-  transition: all 0.28s ease;
-  animation: cardIn .5s cubic-bezier(.22, 1, .36, 1) both;
+  transition: transform 0.25s cubic-bezier(.34,1.2,.64,1), box-shadow 0.25s, border-color 0.2s, background 0.2s;
+  animation: cardIn .5s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* subtle top-edge highlight */
+.event-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(255,255,255,.06) 40%, transparent 90%);
+  pointer-events: none;
 }
 
 .event-card:hover {
-  background: linear-gradient(150deg, #191919 0%, #131313 100%);
-  border-color: rgba(200, 255, 62, 0.2);
-  border-left-color: rgba(200, 255, 62, 0.55);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(200,255,62,.06) 0%, transparent 65%),
+    linear-gradient(160deg, #1c1c1e 0%, #141416 100%);
+  border-color: rgba(200,255,62,.22);
+  border-left-color: rgba(200,255,62,.7);
+  transform: translateY(-4px);
+  box-shadow:
+    0 16px 48px rgba(0,0,0,.6),
+    0 0 0 1px rgba(200,255,62,.06) inset,
+    0 0 24px rgba(200,255,62,.05);
 }
 
 .event-card.registered {
-  border-left-color: rgba(200, 255, 62, 0.5);
-  background: linear-gradient(150deg, #131713 0%, #0e100e 100%);
+  border-left-color: rgba(200,255,62,.55);
+  background:
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(200,255,62,.045) 0%, transparent 60%),
+    linear-gradient(160deg, #141814 0%, #0e100e 100%);
 }
 
-/* Status-based left accent */
-.event-card.confirmed { border-left-color: rgba(200, 255, 62, 0.5); }
-.event-card.full      { border-left-color: rgba(255, 80,  80,  0.55); }
-.event-card.cancelled { border-left-color: rgba(120, 120, 120, 0.3); }
-.event-card.open      { border-left-color: rgba(200, 255, 62, 0.3); }
+/* Status-based left accent + subtle card tint */
+.event-card.confirmed {
+  border-left-color: rgba(74,222,128,.6);
+  background:
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(74,222,128,.03) 0%, transparent 60%),
+    linear-gradient(160deg, #131713 0%, #0e0f0e 100%);
+}
+.event-card.full {
+  border-left-color: rgba(255,80,80,.6);
+  background:
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(255,80,80,.025) 0%, transparent 60%),
+    linear-gradient(160deg, #161212 0%, #0f0d0d 100%);
+}
+.event-card.cancelled {
+  border-left-color: rgba(120,120,120,.25);
+  opacity: .75;
+}
+.event-card.open {
+  border-left-color: rgba(200,255,62,.4);
+}
 
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* ─── Card Header ─── */
@@ -532,65 +589,76 @@ body::after {
 .status-badge {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  padding: 6px 11px;
+  padding: 5px 11px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 193, 7, 0.4);
-  background: rgba(255, 193, 7, 0.08);
-  color: var(--amber);
+  border: 1px solid rgba(245,158,11,.35);
+  background: rgba(245,158,11,.09);
+  color: #fbbf24;
   white-space: nowrap;
 }
 
 .event-card.full .status-badge {
-  border-color: rgba(255, 80, 80, 0.4);
-  background: rgba(255, 80, 80, 0.08);
-  color: #ff7070;
+  border-color: rgba(239,68,68,.35);
+  background: rgba(239,68,68,.09);
+  color: #f87171;
 }
 
 .event-card.confirmed .status-badge {
-  border-color: rgba(200, 255, 62, 0.4);
-  background: rgba(200, 255, 62, 0.07);
+  border-color: rgba(74,222,128,.35);
+  background: rgba(74,222,128,.09);
+  color: #4ade80;
+  animation: pulse-approved 2.5s ease-in-out infinite;
+}
+
+.event-card.open .status-badge {
+  border-color: rgba(200,255,62,.35);
+  background: rgba(200,255,62,.09);
   color: var(--lime);
 }
 
 .event-card.cancelled .status-badge {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #555;
+  border-color: rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  color: #444;
 }
 
 .registered-badge {
-  display: inline-block;
-  padding: 6px 11px;
-  background: rgba(200, 255, 62, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 11px;
+  background: rgba(200,255,62,.12);
   color: var(--lime);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   border-radius: 20px;
+  border: 1px solid rgba(200,255,62,.2);
 }
 
 .card-price {
   display: flex;
   align-items: baseline;
   gap: 2px;
-  background: rgba(200, 255, 62, 0.07);
-  border: 1px solid rgba(200, 255, 62, 0.18);
-  padding: 5px 10px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  padding: 5px 11px;
   border-radius: 20px;
   flex-shrink: 0;
+  backdrop-filter: blur(8px);
 }
 
 .price-rupee {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--lime);
-  opacity: 0.85;
+  color: #888;
 }
 
 .price-amount {
@@ -663,9 +731,9 @@ body::after {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255,255,255,.025);
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255,255,255,.07);
   overflow: hidden;
 }
 
@@ -675,7 +743,11 @@ body::after {
   gap: 4px;
   align-items: center;
   padding: 12px 8px;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255,255,255,.05);
+  transition: background 0.18s;
+}
+.detail-item:hover {
+  background: rgba(200,255,62,.04);
 }
 
 .detail-item:last-child {
@@ -684,16 +756,16 @@ body::after {
 
 .detail-label {
   font-family: var(--mono);
-  font-size: 10px;
-  color: #555;
+  font-size: 9px;
+  color: #444;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
 }
 
 .detail-value {
   font-size: 15px;
   font-weight: 700;
-  color: var(--white);
+  color: #e5e5e5;
   letter-spacing: 0.01em;
 }
 
@@ -892,93 +964,123 @@ body::after {
   flex: 1;
   padding: 12px 14px;
   font-family: var(--body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--white);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+  color: #ccc;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(.34,1.2,.64,1);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
 }
 
 .card-btn:hover:not(:disabled) {
-  border-color: var(--lime);
-  background: rgba(200, 255, 62, 0.1);
+  border-color: rgba(200,255,62,.4);
+  background: rgba(200,255,62,.08);
+  color: var(--lime);
+  transform: translateY(-1px);
+}
+
+.card-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .card-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
+/* ── Hero: Book button — solid lime ── */
 .signup-btn {
-  background: linear-gradient(135deg, rgba(200, 255, 62, 0.15), rgba(200, 255, 62, 0.08));
-  border-color: rgba(200, 255, 62, 0.3);
-  color: var(--lime);
-}
-
-.signup-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(200, 255, 62, 0.25), rgba(200, 255, 62, 0.15));
+  background: var(--lime);
   border-color: var(--lime);
+  color: #000;
+  font-weight: 800;
+  box-shadow: 0 4px 18px rgba(200,255,62,.25);
+}
+.signup-btn:hover:not(:disabled) {
+  background: #d4ff52;
+  border-color: #d4ff52;
+  color: #000;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(200,255,62,.4);
 }
 
+/* ── Waitlist button — amber ── */
 .waitlist-btn {
-  background: linear-gradient(135deg, rgba(255, 179, 71, 0.15), rgba(255, 179, 71, 0.08));
-  border-color: rgba(255, 179, 71, 0.3);
-  color: var(--amber);
+  background: rgba(245,158,11,.12);
+  border-color: rgba(245,158,11,.35);
+  color: #fbbf24;
 }
-
 .waitlist-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255, 179, 71, 0.25), rgba(255, 179, 71, 0.15));
-  border-color: var(--amber);
+  background: rgba(245,158,11,.22);
+  border-color: rgba(245,158,11,.6);
+  color: #fcd34d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(245,158,11,.2);
 }
 
+/* ── Already registered — static indicator ── */
 .registered-btn {
-  background: rgba(200, 255, 62, 0.08);
-  border-color: rgba(200, 255, 62, 0.2);
-  color: var(--lime);
+  background: rgba(200,255,62,.07);
+  border-color: rgba(200,255,62,.2);
+  color: rgba(200,255,62,.7);
   cursor: default;
+  font-size: 11px;
 }
-
 .registered-btn:hover {
-  background: rgba(200, 255, 62, 0.08);
-  border-color: rgba(200, 255, 62, 0.2);
+  background: rgba(200,255,62,.07);
+  border-color: rgba(200,255,62,.2);
+  transform: none;
 }
 
+/* ── Backout / Cancel button ── */
 .cancel-btn {
-  background: linear-gradient(135deg, rgba(255, 80, 80, 0.15), rgba(255, 80, 80, 0.08));
-  border-color: rgba(255, 80, 80, 0.35);
-  color: #ff9b9b;
+  background: rgba(239,68,68,.09);
+  border-color: rgba(239,68,68,.28);
+  color: #f87171;
 }
-
 .cancel-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255, 80, 80, 0.24), rgba(255, 80, 80, 0.16));
-  border-color: #ff7f7f;
+  background: rgba(239,68,68,.18);
+  border-color: rgba(239,68,68,.55);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(239,68,68,.18);
 }
 
+/* ── Cancelled state ── */
 .cancelled-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: var(--muted);
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.07);
+  color: #444;
 }
 
+/* ── Details / ghost button ── */
 .details-btn {
   background: transparent;
-  border-color: rgba(255, 255, 255, 0.08);
-  color: #888;
+  border-color: rgba(255,255,255,.07);
+  color: #666;
   font-size: 11px;
+  flex: 0.8;
+}
+.details-btn:hover:not(:disabled) {
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.04);
+  color: #aaa;
+  transform: translateY(-1px);
 }
 
 .cancel-reason-section {
-  background: rgba(192, 57, 43, 0.1);
-  border: 1px solid rgba(192, 57, 43, 0.35);
-  border-radius: 6px;
+  background: rgba(239,68,68,.07);
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: 8px;
   padding: 10px 12px;
 }
 
@@ -3302,4 +3404,139 @@ body::after {
 
 .spots-flash {
   animation: spots-flash-bg 1.2s ease forwards;
+}
+
+/* ══════════════════════════════════════════════════
+   FOOTBALL SECTION — VISUAL POLISH (appended)
+══════════════════════════════════════════════════ */
+
+/* ── Grid mesh overlay on the events section ── */
+.events-grid::before {
+  display: none; /* mesh is on the page wrapper, not grid */
+}
+
+/* ── Staggered card entry ── */
+.events-grid .event-card:nth-child(1)  { animation-delay: .04s; }
+.events-grid .event-card:nth-child(2)  { animation-delay: .08s; }
+.events-grid .event-card:nth-child(3)  { animation-delay: .12s; }
+.events-grid .event-card:nth-child(4)  { animation-delay: .16s; }
+.events-grid .event-card:nth-child(5)  { animation-delay: .19s; }
+.events-grid .event-card:nth-child(6)  { animation-delay: .22s; }
+.events-grid .event-card:nth-child(n+7){ animation-delay: .25s; }
+
+/* ── Capacity bar glow on fills ── */
+.capacity-fill.high {
+  background: linear-gradient(90deg, #c8ff3e, #8dd44e);
+  box-shadow: 0 0 6px rgba(200,255,62,.4);
+}
+.capacity-fill.mid {
+  background: linear-gradient(90deg, #f59e0b, #fb923c);
+  box-shadow: 0 0 6px rgba(245,158,11,.3);
+}
+.capacity-fill.low {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  box-shadow: 0 0 6px rgba(239,68,68,.3);
+}
+
+/* ── Booking modal glass effect ── */
+.booking-modal {
+  background: rgba(9,9,13,.94) !important;
+  backdrop-filter: blur(24px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 40px 100px rgba(0,0,0,.8),
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 -1px 0 rgba(255,255,255,.08) inset !important;
+}
+
+/* ── Booking confirm button ── */
+.bm-confirm-btn {
+  background: var(--lime) !important;
+  color: #000 !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  letter-spacing: .08em !important;
+  box-shadow: 0 4px 20px rgba(200,255,62,.3) !important;
+  transition: all 0.2s cubic-bezier(.34,1.2,.64,1) !important;
+}
+.bm-confirm-btn:hover:not(:disabled) {
+  background: #d4ff52 !important;
+  box-shadow: 0 8px 28px rgba(200,255,62,.45) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ── Tab navigation improvements ── */
+.tab-navigation {
+  gap: 4px;
+  border-bottom: 1px solid rgba(255,255,255,.06) !important;
+}
+
+.tab-btn {
+  border-bottom: 2px solid transparent;
+  transition: all 0.18s;
+  color: #555;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 16px;
+}
+
+.tab-btn.active {
+  color: #e5e5e5 !important;
+  border-bottom-color: var(--lime) !important;
+}
+
+.tab-btn:hover {
+  color: #999 !important;
+  background: rgba(255,255,255,.03) !important;
+}
+
+.tab-badge-count {
+  background: rgba(255,255,255,.07) !important;
+  color: #555 !important;
+  border-radius: 10px !important;
+  padding: 1px 7px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+
+.tab-btn.active .tab-badge-count {
+  background: rgba(200,255,62,.15) !important;
+  color: var(--lime) !important;
+}
+
+/* ── Search bar polish ── */
+.search-input-wrap input,
+.tab-search input,
+.filter-search-input {
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 10px !important;
+  color: #e5e5e5 !important;
+  transition: border-color 0.18s, box-shadow 0.18s !important;
+}
+.search-input-wrap input:focus,
+.tab-search input:focus,
+.filter-search-input:focus {
+  border-color: rgba(200,255,62,.35) !important;
+  box-shadow: 0 0 0 3px rgba(200,255,62,.07) !important;
+  outline: none !important;
+}
+
+/* ── Player section wrapper grid mesh ── */
+.player-section-wrap,
+.organizer-dashboard-container,
+.events-section-wrap {
+  position: relative;
+}
+
+/* ── Guest pref modal (add guest popup) ── */
+[class*="guestPref"],
+[class*="guest-pref"] {
+  background: rgba(9,9,13,.94) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,.75) !important;
 }
