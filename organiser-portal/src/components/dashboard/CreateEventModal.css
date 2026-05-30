@@ -3,12 +3,12 @@
 .create-event-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.78);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(10px);
 }
 
 .create-event-modal {
@@ -16,17 +16,26 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  background: #141416;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 18px;
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
   z-index: 1010;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255,255,255,.05),
+    0 -1px 0 rgba(255,255,255,.07) inset;
   display: flex;
   flex-direction: column;
+  animation: createModalIn 0.28s cubic-bezier(.34,1.35,.64,1) both;
+}
+
+@keyframes createModalIn {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 16px)) scale(0.97); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 /* Modal Header */

@@ -3,6 +3,9 @@
   --grey: #111;
   --surface: #161616;
   --mid: #2a2a2a;
+  --electric: #c8ff3e;
+  --amber: #f59e0b;
+  --dark: #0a0a0a;
 }
 
 body::after {
@@ -26,9 +29,14 @@ body::after {
   height: 62px;
   display: flex;
   align-items: center;
-  background: rgba(8, 8, 8, .97);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(20px);
+  background: rgba(6,6,6,.88);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    0 1px 0 rgba(200,255,62,.05),
+    0 8px 32px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.04);
 }
 .logo-wrap {
   display: flex;
@@ -211,17 +219,124 @@ body::after {
 }
 
 /* ══════════════════ LAYOUT ══════════════════ */
+
+/* ── Animated orb keyframes ── */
+@keyframes orbFloat1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(40px,-30px) scale(1.08); }
+  66%      { transform: translate(-20px,20px) scale(0.96); }
+}
+@keyframes orbFloat2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%      { transform: translate(-50px,40px) scale(1.06); }
+  70%      { transform: translate(30px,-20px) scale(0.94); }
+}
+@keyframes orbFloat3 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%      { transform: translate(25px,35px) scale(1.04); }
+}
+@keyframes gridShimmer {
+  0%   { opacity: .028; }
+  50%  { opacity: .042; }
+  100% { opacity: .028; }
+}
+
+.dashboard-app-wrapper {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+/* ── Deep atmospheric background ── */
+.dashboard-app-wrapper::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -3;
+  background:
+    /* lime orb — top left */
+    radial-gradient(ellipse 700px 500px at -5% -5%,
+      rgba(200,255,62,.055) 0%, transparent 65%),
+    /* coral orb — right edge */
+    radial-gradient(ellipse 500px 700px at 105% 35%,
+      rgba(255,92,62,.04) 0%, transparent 60%),
+    /* blue orb — bottom center */
+    radial-gradient(ellipse 800px 400px at 50% 105%,
+      rgba(59,130,246,.035) 0%, transparent 65%),
+    /* center deep lime haze */
+    radial-gradient(ellipse 1000px 700px at 50% 45%,
+      rgba(200,255,62,.018) 0%, transparent 75%),
+    /* base */
+    #080808;
+}
+
+/* ── Animated floating orbs ── */
+.dashboard-app-wrapper::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  /* three animated blobs using multi-position radial gradients */
+  background:
+    radial-gradient(circle 320px at 15% 25%,
+      rgba(200,255,62,.04) 0%, transparent 70%),
+    radial-gradient(circle 280px at 82% 60%,
+      rgba(255,92,62,.035) 0%, transparent 70%),
+    radial-gradient(circle 240px at 50% 80%,
+      rgba(99,102,241,.03) 0%, transparent 70%);
+  animation: orbFloat1 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── Grid mesh texture ── */
 .dashboard-app {
   display: flex;
   min-height: 100vh;
   padding-top: 62px;
+  position: relative;
+}
+
+/* ── Grid mesh — fades toward edges ── */
+.dashboard-app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image:
+    radial-gradient(ellipse 85% 70% at 50% 50%,
+      rgba(0,0,0,.9) 30%, transparent 100%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 85% 70% at 50% 50%,
+      rgba(0,0,0,.9) 30%, transparent 100%);
+  animation: gridShimmer 8s ease-in-out infinite;
+}
+
+/* ── Noise grain overlay ── */
+.dashboard-app::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px;
+  opacity: .02;
 }
 
 /* sidebar */
 .sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: var(--grey);
+  background: rgba(8,8,8,.85);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255,255,255,.05);
   position: sticky;
   top: 62px;
   height: calc(100vh - 62px);
@@ -262,23 +377,30 @@ body::after {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
   background: var(--lime);
+  border-radius: 0 2px 2px 0;
   transform: scaleY(0);
-  transition: transform .2s;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
 }
 .sidebar-link:hover {
   color: var(--white);
-  background: rgba(255, 255, 255, .04);
+  background: rgba(255, 255, 255, .05);
 }
 .sidebar-link.active {
-  color: var(--white);
-  background: rgba(255, 255, 255, .06);
+  color: var(--lime);
+  background: rgba(200, 255, 62, .07);
+  font-weight: 600;
+  box-shadow: inset 1px 0 0 rgba(200,255,62,.1);
 }
 .sidebar-link.active::before {
   transform: scaleY(1);
+  box-shadow: 0 0 8px rgba(200,255,62,.5);
+}
+.sidebar-link.active .sidebar-icon {
+  filter: drop-shadow(0 0 4px rgba(200, 255, 62, .6));
 }
 .sidebar-icon {
   font-size: 15px;
@@ -360,6 +482,7 @@ body::after {
   flex: 1;
   padding: 24px 16px;
   min-width: 0;
+  background: transparent;
 }
 
 /* ══════════════════ PAGE HEADER ══════════════════ */
