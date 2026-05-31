@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import "./CreateEventModal.css";
 import { buildApiUrl, getSession } from "@/utils/api";
 
@@ -47,6 +48,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const [turfs, setTurfs]     = useState<Turf[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors]   = useState<Record<string, string>>({});
+  const [mounted, setMounted] = useState(false);
 
   // Core form
   const [title, setTitle]           = useState(lastEvent?.title ?? "");
@@ -86,6 +88,25 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const reservedSlots   = organiserSlot + organiserGuestCount;
   const openSlots       = Math.max(0, hardCap - reservedSlots);
   const maxGuests       = Math.max(0, hardCap - organiserSlot); // can't bring more guests than remaining cap
+
+  useEffect(() => {
+    setMounted(true);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   useEffect(() => {
     const { token } = getSession();
@@ -186,10 +207,12 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div className="create-event-overlay" onClick={onClose} />
-      <div className="create-event-modal">
+      <div className="create-event-modal" role="dialog" aria-modal="true" aria-label="Create Event">
         {/* Header */}
         <div className="create-event-header">
           <div className="header-content">
@@ -599,6 +622,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 }
