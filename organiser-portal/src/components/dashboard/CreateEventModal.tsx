@@ -211,8 +211,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
 
   return createPortal(
     <>
-      <div className="create-event-overlay" onClick={onClose} />
-      <div className="create-event-modal" role="dialog" aria-modal="true" aria-label="Create Event">
+      <div className="create-event-overlay" onClick={onClose}>
+      <div className="create-event-modal" role="dialog" aria-modal="true" aria-label="Create Event" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="create-event-header">
           <div className="header-content">
@@ -557,6 +557,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             </button>
           </div>
         </form>
+      </div>
       </div>
 
       {/* ── Guest Preferences Mini-Modal ── */}
