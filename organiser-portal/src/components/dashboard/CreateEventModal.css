@@ -17,6 +17,7 @@
 .create-event-modal {
   /* Let the overlay's flexbox handle centering — no fixed positioning here */
   position: relative;
+  z-index: 1001;
   background: #141416;
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 18px;
