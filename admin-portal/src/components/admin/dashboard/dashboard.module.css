@@ -271,6 +271,7 @@
 
 .main {
   flex: 1;
+  min-width: 0; /* allow flex item to shrink below content width so child tables can scroll instead of overflowing */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -344,6 +345,7 @@
 
 .content {
   flex: 1;
+  min-width: 0; /* contain wide child tables within the scroll wrapper instead of expanding the page */
   overflow-y: auto;
   padding: 28px;
 }

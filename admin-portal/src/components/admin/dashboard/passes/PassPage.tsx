@@ -259,7 +259,7 @@ export function PassPage() {
   const GRID = "2fr 1fr 1fr 1fr 1fr 1fr 180px 160px 160px 80px 110px 38px";
 
   return (
-    <div style={{ padding: "0 0 40px" }}>
+    <div style={{ padding: "0 0 40px", width: "100%", maxWidth: "100%", minWidth: 0 }}>
 
       {/* ── Confirmation Modal ──────────────────────────────────────────── */}
       {pendingConfirm && (
