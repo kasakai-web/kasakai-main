@@ -269,7 +269,7 @@ export function PassPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "#111", border: "1px solid #222", borderRadius: 14, padding: "28px 32px", minWidth: 340, maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}
+            style={{ background: "#111", border: "1px solid #222", borderRadius: 14, padding: "28px 32px", width: "min(420px, 92vw)", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}
           >
             <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>
               Confirm Pass Assignment
@@ -485,7 +485,12 @@ export function PassPage() {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: 40, color: "#555" }}>No players found.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <>
+        <div className="pass-scroll-hint" style={{ fontSize: 11, color: "#555", marginBottom: 8, display: "none" }}>
+          ← swipe horizontally to see all columns →
+        </div>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 1040 }}>
           {/* Column headers */}
           <div style={{
             display: "grid", gridTemplateColumns: GRID,
@@ -661,7 +666,15 @@ export function PassPage() {
             );
           })}
         </div>
+        </div>
+        </>
       )}
+
+      <style>{`
+        @media (max-width: 1080px) {
+          .pass-scroll-hint { display: block !important; }
+        }
+      `}</style>
     </div>
   );
 }
