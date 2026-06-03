@@ -256,8 +256,6 @@ export function PassPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const GRID = "2fr 1fr 1fr 1fr 1fr 1fr 180px 160px 160px 80px 110px 38px";
-
   return (
     <div style={{ padding: "0 0 40px", width: "100%", maxWidth: "100%", minWidth: 0 }}>
 
@@ -477,7 +475,7 @@ export function PassPage() {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Player cards — responsive grid (auto-fills columns, single column on small screens) */}
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "#555" }}>Loading players…</div>
       ) : error ? (
@@ -485,33 +483,13 @@ export function PassPage() {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: 40, color: "#555" }}>No players found.</div>
       ) : (
-        <>
-        <div className="pass-scroll-hint" style={{ fontSize: 11, color: "#555", marginBottom: 8, display: "none" }}>
-          ← swipe horizontally to see all columns →
-        </div>
-        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 6 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 1040 }}>
-          {/* Column headers */}
-          <div style={{
-            display: "grid", gridTemplateColumns: GRID,
-            gap: 10, padding: "8px 16px",
-            fontSize: 10, fontWeight: 800, color: "#444",
-            textTransform: "uppercase", letterSpacing: "0.1em",
-          }}>
-            <span>Player</span>
-            <span>Phone</span>
-            <span>Location</span>
-            <span>Games</span>
-            <span>Rating</span>
-            <span>Spent</span>
-            <span>Pass Type</span>
-            <span>Month</span>
-            <span>Expiry Date</span>
-            <span>Status</span>
-            <span>Confirm</span>
-            <span></span>
-          </div>
-
+        <div style={{
+          display: "grid",
+          // min(340px, 100%) guarantees a single column never exceeds the container
+          // on very narrow screens — no horizontal overflow at any width.
+          gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
+          gap: 14,
+        }}>
           {filtered.map((p) => {
             const local = getLocal(p);
             const { passType, passExpiry, passMonthYear } = local;
@@ -525,156 +503,158 @@ export function PassPage() {
               <div
                 key={p.id}
                 style={{
-                  display: "grid", gridTemplateColumns: GRID,
-                  gap: 10, padding: "12px 16px",
                   background: isExpired ? "rgba(251,146,60,0.03)" : "rgba(255,255,255,0.02)",
-                  border: isExpired ? "1px solid rgba(251,146,60,0.15)" : "1px solid #111",
-                  borderRadius: 8, alignItems: "center",
+                  border: isExpired ? "1px solid rgba(251,146,60,0.15)" : "1px solid #1a1a1a",
+                  borderRadius: 12, padding: "16px 18px",
                   borderLeft: isExpired
                     ? "3px solid #fb923c"
                     : hasSavedPass
                       ? `3px solid ${PASS_TEXT[p.passType]}`
-                      : "3px solid transparent",
+                      : "3px solid #1a1a1a",
+                  display: "flex", flexDirection: "column", gap: 14,
+                  minWidth: 0,
                 }}
               >
-                {/* Player */}
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e0e0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                  {p.email && <div style={{ fontSize: 11, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{p.email}</div>}
-                </div>
+                {/* ── Card header: name/email + status + history ── */}
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#e0e0e0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    {p.email && <div style={{ fontSize: 12, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{p.email}</div>}
+                    <div style={{ fontSize: 12, color: "#777", marginTop: 3 }}>{p.phone}{p.location ? ` · ${p.location}` : ""}</div>
+                  </div>
 
-                <div style={{ fontSize: 12, color: "#888" }}>{p.phone}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>{p.location || "—"}</div>
-                <div style={{ fontSize: 12, color: "#888" }}>{p.gamesPlayed}</div>
-                <div style={{ fontSize: 12, color: "#888" }}>{p.rating ? p.rating.toFixed(1) : "—"}</div>
-                <div style={{ fontSize: 12, color: "#888" }}>₹{Math.round((p.totalSpentPaise || 0) / 100)}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    {/* Status badge */}
+                    {saving === "saving" && <span style={{ fontSize: 10, fontWeight: 700, color: "#888" }}>Saving…</span>}
+                    {saving === "error" && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171", background: "rgba(248,113,113,0.1)", borderRadius: 20, padding: "3px 8px" }}>Error</span>
+                    )}
+                    {!saving && isExpired && (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#fb923c", background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.25)", borderRadius: 20, padding: "3px 10px", letterSpacing: "0.04em" }}>Expired</span>
+                    )}
+                    {!saving && hasSavedPass && !isExpired && (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#4ade80", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "3px 10px", letterSpacing: "0.04em" }}>Approved</span>
+                    )}
+                    {!saving && !hasSavedPass && (
+                      <span style={{ fontSize: 10, color: "#444", fontWeight: 700, background: "rgba(255,255,255,0.03)", border: "1px solid #222", borderRadius: 20, padding: "3px 10px" }}>No Pass</span>
+                    )}
 
-                {/* Pass type dropdown */}
-                <select
-                  value={passType}
-                  onChange={(e) => setLocal(p.id, { passType: e.target.value as PassType, passMonthYear: "" }, local)}
-                  style={{
-                    background: PASS_COLORS[passType],
-                    border: `1px solid ${passType !== "none" ? PASS_TEXT[passType] + "55" : "#222"}`,
-                    borderRadius: 6, padding: "6px 10px",
-                    color: PASS_TEXT[passType], fontSize: 12, fontWeight: 600,
-                    cursor: "pointer", outline: "none", width: "100%",
-                  }}
-                >
-                  {PASS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value} style={{ background: "#111", color: "#ccc" }}>{o.label}</option>
-                  ))}
-                </select>
-
-                {/* Month picker */}
-                <input
-                  type="month"
-                  value={passMonthYear}
-                  disabled={!needsMonth}
-                  onChange={(e) => setLocal(p.id, { passMonthYear: e.target.value }, local)}
-                  style={{
-                    background: "#0a0a0a",
-                    border: `1px solid ${needsMonth ? PASS_TEXT[passType] + "55" : "#222"}`,
-                    borderRadius: 6, padding: "6px 10px",
-                    color: needsMonth ? "#ccc" : "#333",
-                    fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
-                    cursor: needsMonth ? "pointer" : "not-allowed",
-                    colorScheme: "dark" as const,
-                  }}
-                  title={needsMonth ? "Select the month for this pass" : "Only needed for Full/Half month passes"}
-                />
-
-                {/* Expiry date */}
-                <input
-                  type="date"
-                  value={passExpiry}
-                  min={new Date().toISOString().split("T")[0]}
-                  disabled={passType === "none"}
-                  onChange={(e) => setLocal(p.id, { passExpiry: e.target.value }, local)}
-                  style={{
-                    background: "#0a0a0a",
-                    border: "1px solid #222", borderRadius: 6,
-                    padding: "6px 10px", color: passType === "none" ? "#444" : "#ccc",
-                    fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
-                    cursor: passType === "none" ? "not-allowed" : "pointer",
-                    colorScheme: "dark" as const,
-                  }}
-                  placeholder="No expiry"
-                  title={passType === "none" ? "Assign a pass first" : "Required to enable Confirm"}
-                />
-
-                {/* Status badge */}
-                <div style={{ textAlign: "center" }}>
-                  {saving === "saving" && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#888" }}>Saving…</span>
-                  )}
-                  {saving === "error" && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171", background: "rgba(248,113,113,0.1)", borderRadius: 20, padding: "3px 8px" }}>Error</span>
-                  )}
-                  {!saving && isExpired && (
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "#fb923c", background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.25)", borderRadius: 20, padding: "3px 10px", display: "inline-block", letterSpacing: "0.04em" }}>
-                      Expired
-                    </span>
-                  )}
-                  {!saving && hasSavedPass && !isExpired && (
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "#4ade80", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "3px 10px", display: "inline-block", letterSpacing: "0.04em" }}>
-                      Approved
-                    </span>
-                  )}
-                  {!saving && !hasSavedPass && (
-                    <span style={{ fontSize: 10, color: "#333", fontWeight: 600 }}>—</span>
-                  )}
-                </div>
-
-                {/* Confirm button — visible only when all required fields are filled */}
-                <div style={{ textAlign: "center" }}>
-                  {saving === "saving" ? (
-                    <span style={{ fontSize: 11, color: "#555" }}>…</span>
-                  ) : ready ? (
+                    {/* History icon */}
                     <button
-                      onClick={() => setPendingConfirm({ playerId: p.id, playerName: p.name, passType, passExpiry, passMonthYear })}
+                      onClick={() => openHistory(p.id, p.name)}
+                      title="View pass history"
                       style={{
-                        padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 800,
-                        background: "rgba(200,255,62,0.12)", border: "1px solid #c8ff3e55",
-                        color: "#c8ff3e", cursor: "pointer", width: "100%",
+                        background: "rgba(255,255,255,0.04)", border: "1px solid #1a1a1a",
+                        borderRadius: 6, width: 28, height: 28, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#666", fontSize: 13, fontWeight: 700, flexShrink: 0,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "#aaa")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "#666")}
+                    >
+                      ≡
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Meta chips: games · rating · spent ── */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {[
+                    { label: "Games",  value: String(p.gamesPlayed ?? 0) },
+                    { label: "Rating", value: p.rating ? p.rating.toFixed(1) : "—" },
+                    { label: "Spent",  value: `₹${Math.round((p.totalSpentPaise || 0) / 100)}` },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1a1a1a", borderRadius: 6, padding: "4px 10px" }}>
+                      <span style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label} </span>
+                      <span style={{ fontSize: 12, color: "#bbb", fontWeight: 700 }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Pass controls ── */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {/* Pass type */}
+                  <div>
+                    <label style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Pass Type</label>
+                    <select
+                      value={passType}
+                      onChange={(e) => setLocal(p.id, { passType: e.target.value as PassType, passMonthYear: "" }, local)}
+                      style={{
+                        background: PASS_COLORS[passType],
+                        border: `1px solid ${passType !== "none" ? PASS_TEXT[passType] + "55" : "#222"}`,
+                        borderRadius: 6, padding: "8px 10px",
+                        color: PASS_TEXT[passType], fontSize: 13, fontWeight: 600,
+                        cursor: "pointer", outline: "none", width: "100%",
                       }}
                     >
-                      Confirm
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: 10, color: "#2a2a2a", fontWeight: 600 }}>—</span>
-                  )}
+                      {PASS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value} style={{ background: "#111", color: "#ccc" }}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Month + Expiry side by side */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <label style={{ fontSize: 10, color: needsMonth ? "#555" : "#333", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Month</label>
+                      <input
+                        type="month"
+                        value={passMonthYear}
+                        disabled={!needsMonth}
+                        onChange={(e) => setLocal(p.id, { passMonthYear: e.target.value }, local)}
+                        style={{
+                          background: "#0a0a0a",
+                          border: `1px solid ${needsMonth ? PASS_TEXT[passType] + "55" : "#222"}`,
+                          borderRadius: 6, padding: "8px 10px",
+                          color: needsMonth ? "#ccc" : "#333",
+                          fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
+                          cursor: needsMonth ? "pointer" : "not-allowed",
+                          colorScheme: "dark" as const,
+                        }}
+                        title={needsMonth ? "Select the month for this pass" : "Only needed for Full/Half month passes"}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <label style={{ fontSize: 10, color: passType === "none" ? "#333" : "#555", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Expiry</label>
+                      <input
+                        type="date"
+                        value={passExpiry}
+                        min={new Date().toISOString().split("T")[0]}
+                        disabled={passType === "none"}
+                        onChange={(e) => setLocal(p.id, { passExpiry: e.target.value }, local)}
+                        style={{
+                          background: "#0a0a0a",
+                          border: "1px solid #222", borderRadius: 6,
+                          padding: "8px 10px", color: passType === "none" ? "#444" : "#ccc",
+                          fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
+                          cursor: passType === "none" ? "not-allowed" : "pointer",
+                          colorScheme: "dark" as const,
+                        }}
+                        title={passType === "none" ? "Assign a pass first" : "Required to enable Confirm"}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* History icon button */}
-                <button
-                  onClick={() => openHistory(p.id, p.name)}
-                  title="View pass history"
-                  style={{
-                    background: "rgba(255,255,255,0.04)", border: "1px solid #1a1a1a",
-                    borderRadius: 6, width: 30, height: 30, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#555", fontSize: 13, fontWeight: 700,
-                    transition: "color 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#aaa")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-                >
-                  ≡
-                </button>
+                {/* ── Confirm button ── */}
+                {ready && saving !== "saving" && (
+                  <button
+                    onClick={() => setPendingConfirm({ playerId: p.id, playerName: p.name, passType, passExpiry, passMonthYear })}
+                    style={{
+                      padding: "9px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800,
+                      background: "rgba(200,255,62,0.12)", border: "1px solid #c8ff3e55",
+                      color: "#c8ff3e", cursor: "pointer", width: "100%",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Confirm Pass
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
-        </div>
-        </>
       )}
-
-      <style>{`
-        @media (max-width: 1080px) {
-          .pass-scroll-hint { display: block !important; }
-        }
-      `}</style>
     </div>
   );
 }
