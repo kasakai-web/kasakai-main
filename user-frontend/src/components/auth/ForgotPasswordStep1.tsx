@@ -25,7 +25,7 @@ export function ForgotPasswordStep1({ onBack, onContinue }: ForgotPasswordStep1P
 
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl("/api/v1/auth/forgot-password"), {
+      const response = await fetch(buildApiUrl("/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, role: "player" }),

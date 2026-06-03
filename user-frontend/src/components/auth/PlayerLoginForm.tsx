@@ -34,7 +34,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLog
 
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
+      const response = await fetch(buildApiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, password, role: "player" }),
@@ -68,7 +68,7 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLog
           const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
           const formData = new FormData();
           formData.append("profileImage", blob, `profile.${ext}`);
-          const imgRes = await fetch(buildApiUrl("/api/v1/players/me/profile-image"), {
+          const imgRes = await fetch(buildApiUrl("/players/me/profile-image"), {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
             body: formData,

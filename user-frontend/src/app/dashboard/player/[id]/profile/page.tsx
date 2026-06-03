@@ -173,7 +173,7 @@ export default function PlayerProfilePage() {
     const { token } = getSession();
     if (!token) { clearSessionAndExit(); return; }
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+      const res = await fetch(buildApiUrl("/players/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
@@ -245,7 +245,7 @@ export default function PlayerProfilePage() {
     try {
       const formData = new FormData();
       formData.append("profileImage", file);
-      const res = await fetch(buildApiUrl("/api/v1/players/me/profile-image"), {
+      const res = await fetch(buildApiUrl("/players/me/profile-image"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -300,7 +300,7 @@ export default function PlayerProfilePage() {
     const { token } = getSession();
     if (!token) { clearSessionAndExit(); return; }
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+      const res = await fetch(buildApiUrl("/players/me"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -336,7 +336,7 @@ export default function PlayerProfilePage() {
     if (!token) { clearSessionAndExit(); return; }
     setDeleting(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+      const res = await fetch(buildApiUrl("/players/me"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

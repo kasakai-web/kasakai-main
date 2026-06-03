@@ -57,7 +57,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     try {
       const body: Record<string, string> = { role: "player" };
       body[field] = value;
-      const res = await fetch(buildApiUrl("/api/v1/auth/check-availability"), {
+      const res = await fetch(buildApiUrl("/auth/check-availability"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -132,7 +132,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     // If errors already showing from blur, skip re-check
     if (!errors.phone && !errors.email) {
       try {
-        const res = await fetch(buildApiUrl("/api/v1/auth/check-availability"), {
+        const res = await fetch(buildApiUrl("/auth/check-availability"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone, email, role: "player" }),

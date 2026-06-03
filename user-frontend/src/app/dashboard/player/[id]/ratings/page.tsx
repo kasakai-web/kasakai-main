@@ -63,8 +63,8 @@ export default function MyRatingsPage() {
     setLoading(true);
     try {
       const [pendingRes, myGamesRes] = await Promise.allSettled([
-        fetch(buildApiUrl("/api/v1/games/pending-feedback"), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(buildApiUrl("/api/v1/games/my-games"),         { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl("/games/pending-feedback"), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(buildApiUrl("/games/my-games"),         { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       // Pending feedback games

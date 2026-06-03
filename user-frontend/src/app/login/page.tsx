@@ -119,7 +119,7 @@ function AuthFlow() {
                   const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
                   const formData = new FormData();
                   formData.append("profileImage", blob, `profile.${ext}`);
-                  const imgRes = await fetch(buildApiUrl("/api/v1/players/me/profile-image"), {
+                  const imgRes = await fetch(buildApiUrl("/players/me/profile-image"), {
                     method: "POST",
                     headers: { Authorization: `Bearer ${authData.token}` },
                     body: formData,

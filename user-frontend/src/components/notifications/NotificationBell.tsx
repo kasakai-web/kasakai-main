@@ -27,7 +27,7 @@ export function NotificationBell({ onViewAll, unreadCount }: NotificationBellPro
     const { token } = getSession();
     if (!token) return;
     try {
-      const res = await fetch(buildApiUrl("/api/v1/notifications/unread-count"), {
+      const res = await fetch(buildApiUrl("/notifications/unread-count"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;

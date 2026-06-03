@@ -37,7 +37,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
 
   useEffect(() => {
     // Fetch available turfs
-    fetch(buildApiUrl("/api/v1/turfs"))
+    fetch(buildApiUrl("/turfs"))
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -189,7 +189,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess }: CreateEventMo
         return;
       }
 
-      const res = await fetch(buildApiUrl("/api/v1/games/organisers/create"), {
+      const res = await fetch(buildApiUrl("/games/organisers/create"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

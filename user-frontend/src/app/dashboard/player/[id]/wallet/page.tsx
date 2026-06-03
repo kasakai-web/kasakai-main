@@ -113,7 +113,7 @@ export default function WalletPage() {
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
 
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me/wallet"), {
+      const res = await fetch(buildApiUrl("/players/me/wallet"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401 || res.status === 403) {
@@ -209,7 +209,7 @@ export default function WalletPage() {
 
     try {
       // Create order on backend — amount is validated and stored server-side
-      const orderRes = await fetch(buildApiUrl("/api/v1/players/me/wallet/orders"), {
+      const orderRes = await fetch(buildApiUrl("/players/me/wallet/orders"), {
         method:  "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body:    JSON.stringify({ amountPaise }),
@@ -244,7 +244,7 @@ export default function WalletPage() {
           // Payment succeeded on Razorpay side — verify on our backend
           setModalStep("processing");
           try {
-            const verifyRes = await fetch(buildApiUrl("/api/v1/players/me/wallet/verify"), {
+            const verifyRes = await fetch(buildApiUrl("/players/me/wallet/verify"), {
               method:  "POST",
               headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
               body:    JSON.stringify({

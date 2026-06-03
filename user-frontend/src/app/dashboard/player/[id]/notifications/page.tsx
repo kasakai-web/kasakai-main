@@ -165,7 +165,7 @@ export default function PlayerNotificationsPage() {
 
       if (!append && skip === 0 && list.some((n) => !n.isRead)) {
         try {
-          await fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+          await fetch(buildApiUrl("/notifications/read-all"), {
             method: "PATCH",
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -191,7 +191,7 @@ export default function PlayerNotificationsPage() {
     if (!token) { clearSessionAndExit(); return; }
     setLoadingSettings(true);
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+      const res = await fetch(buildApiUrl("/players/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
@@ -238,7 +238,7 @@ export default function PlayerNotificationsPage() {
     const { token } = getSession();
     if (!token) { setMarking(false); return; }
     try {
-      await fetch(buildApiUrl("/api/v1/notifications/read-all"), {
+      await fetch(buildApiUrl("/notifications/read-all"), {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -262,7 +262,7 @@ export default function PlayerNotificationsPage() {
     const { token } = getSession();
     if (!token) { clearSessionAndExit(); return; }
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+      const res = await fetch(buildApiUrl("/players/me"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ notificationSettings: settings }),

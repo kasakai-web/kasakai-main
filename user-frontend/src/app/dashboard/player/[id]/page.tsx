@@ -90,7 +90,7 @@ export default function PlayerDashboard() {
         return;
       }
 
-      const res = await fetch(buildApiUrl("/api/v1/games"), {
+      const res = await fetch(buildApiUrl("/games"), {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
@@ -121,7 +121,7 @@ export default function PlayerDashboard() {
         return;
       }
 
-      const res = await fetch(buildApiUrl("/api/v1/games/my-games"), {
+      const res = await fetch(buildApiUrl("/games/my-games"), {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
@@ -148,7 +148,7 @@ export default function PlayerDashboard() {
     try {
       const { token } = getSession();
       if (!token) { setMyWaitlist([]); return; }
-      const res = await fetch(buildApiUrl("/api/v1/games/my-waitlist"), {
+      const res = await fetch(buildApiUrl("/games/my-waitlist"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) { setMyWaitlist([]); return; }
@@ -163,7 +163,7 @@ export default function PlayerDashboard() {
     try {
       const { token } = getSession();
       if (!token) return;
-      const res = await fetch(buildApiUrl("/api/v1/players/me"), {
+      const res = await fetch(buildApiUrl("/players/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
@@ -180,7 +180,7 @@ export default function PlayerDashboard() {
     try {
       const { token } = getSession();
       if (!token) return;
-      const res = await fetch(buildApiUrl("/api/v1/players/me/wallet"), {
+      const res = await fetch(buildApiUrl("/players/me/wallet"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
@@ -198,7 +198,7 @@ export default function PlayerDashboard() {
     try {
       const { token } = getSession();
       if (!token) return;
-      const res = await fetch(buildApiUrl("/api/v1/games/pending-feedback"), {
+      const res = await fetch(buildApiUrl("/games/pending-feedback"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;

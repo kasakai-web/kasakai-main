@@ -55,7 +55,7 @@ export function EditEventModal({ gameId, initialData, onClose, onSuccess }: Edit
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch(buildApiUrl("/api/v1/turfs"))
+    fetch(buildApiUrl("/turfs"))
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {

@@ -45,7 +45,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
 
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl("/api/v1/auth/register"), {
+      const response = await fetch(buildApiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

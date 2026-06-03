@@ -83,7 +83,7 @@ export default function DashboardLayout({
     if (!authenticated) return;
     const { token } = getSession();
     if (!token) return;
-    fetch(buildApiUrl("/api/v1/players/me"), {
+    fetch(buildApiUrl("/players/me"), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -106,7 +106,7 @@ export default function DashboardLayout({
     const { token } = getSession();
     if (!token) return;
     try {
-      const res = await fetch(buildApiUrl("/api/v1/players/me/wallet"), {
+      const res = await fetch(buildApiUrl("/players/me/wallet"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -125,7 +125,7 @@ export default function DashboardLayout({
     const { token } = getSession();
     if (!token) return;
     try {
-      const res = await fetch(buildApiUrl("/api/v1/notifications/unread-count"), {
+      const res = await fetch(buildApiUrl("/notifications/unread-count"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
