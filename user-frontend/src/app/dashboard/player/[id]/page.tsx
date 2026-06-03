@@ -366,6 +366,8 @@ export default function PlayerDashboard() {
           if (!prev || prev._id !== fresh._id) return prev;
           return {
             ...fresh,
+            // fresh.passEligible comes from backend if present; fall back to prev to avoid losing it
+            passEligible: fresh.passEligible ?? prev.passEligible ?? false,
             _isWaitlisted: prev._isWaitlisted,
             _waitlistStatus: prev._waitlistStatus,
             _myWaitlistStatus: prev._myWaitlistStatus,
@@ -466,6 +468,7 @@ export default function PlayerDashboard() {
       fee: game.feeInPaise / 100,
       spots: Math.max(0, spotsLeft),
       waitlist: isFull,
+      passEligible: Boolean(game.passEligible),
     };
     setSelectedGame(formattedGame);
   };
@@ -1054,7 +1057,7 @@ export default function PlayerDashboard() {
     },
     { label: "Duration", value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins" },
     { label: "Format", value: detailGame.format || "TBC", info: "Turf and team size may change based on player turnout" },
-    { label: "Fee", value: `₹${(detailGame.feeInPaise || 0) / 100}` },
+    { label: "Fee", value: detailGame.passEligible && (detailGame.feeInPaise || 0) > 0 ? `₹0 (Pass Covered — was ₹${(detailGame.feeInPaise || 0) / 100})` : `₹${(detailGame.feeInPaise || 0) / 100}` },
     { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
     { label: "Players", value: String(
       typeof detailGame.spotsRemaining === 'number'
@@ -1239,6 +1242,7 @@ export default function PlayerDashboard() {
                   time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
                   fee={game.feeInPaise / 100}
+                  passEligible={Boolean(game.passEligible)}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={myGames.some(myGame => myGame._id === game._id)}
@@ -1492,6 +1496,27 @@ export default function PlayerDashboard() {
 
             {/* ── Scrollable Body ── */}
             <div className="pd-event-modal-body">
+
+            {/* Pass banner in detail view */}
+            {detailGame.passEligible && (detailGame.feeInPaise || 0) > 0 && (
+              <div style={{
+                background: "rgba(200,255,62,0.07)",
+                border: "1px solid rgba(200,255,62,0.25)",
+                borderRadius: 10,
+                padding: "10px 14px",
+                marginBottom: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#c8ff3e" }}>
+                  🎟️ Your Pass covers this game — entry is <span style={{ textDecoration: "line-through", opacity: 0.6 }}>₹{(detailGame.feeInPaise || 0) / 100}</span> <strong>₹0</strong> for you
+                </div>
+                <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>
+                  Pass applies to <strong style={{ color: "#ccc" }}>your slot only</strong>. Any guests you bring pay the full ₹{(detailGame.feeInPaise || 0) / 100} entry fee each.
+                </div>
+              </div>
+            )}
 
             <div className="pd-event-detail-grid">
               {(detailRows as Array<{ label: string; value: string; info?: string }>).map((row) => (

@@ -29,6 +29,14 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
+  const [playerPass, setPlayerPass] = useState<{ type: string; expiryDate: string | null; passMonthYear: string | null } | null>(null);
+
+  const PASS_LABELS: Record<string, string> = {
+    weekday: "Weekday", weekend: "Weekend", day: "Day", night: "Night",
+    weekday_day: "Weekday + Day", weekday_night: "Weekday + Night",
+    weekend_day: "Weekend + Day", weekend_night: "Weekend + Night",
+    full_month: "Full Month", half_month_1: "Half Month (1–15)", half_month_2: "Half Month (16–31)",
+  };
 
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
@@ -70,10 +78,9 @@ export default function DashboardLayout({
     }
   }, [pathname]);
 
-  // Fetch profile image from API if not in localStorage
+  // Fetch profile image + pass info from API
   useEffect(() => {
     if (!authenticated) return;
-    if (localStorage.getItem("userProfileImage")) return;
     const { token } = getSession();
     if (!token) return;
     fetch(buildApiUrl("/api/v1/players/me"), {
@@ -82,11 +89,13 @@ export default function DashboardLayout({
       .then((r) => r.json())
       .then((data) => {
         const img = data?.data?.profileImage;
-        if (img) {
+        if (img && !localStorage.getItem("userProfileImage")) {
           const url = `${SERVER_BASE}${img}`;
           localStorage.setItem("userProfileImage", url);
           setUserProfileImage(url);
         }
+        const pass = data?.data?.pass;
+        if (pass) setPlayerPass(pass);
       })
       .catch(() => {});
   }, [authenticated]);
@@ -522,8 +531,54 @@ export default function DashboardLayout({
               </button>
             </div>
 
-            <button 
-              className="sidebar-link" 
+            {/* Pass card */}
+            {(() => {
+              const hasPass = playerPass?.type && playerPass.type !== "none";
+              const isExpired = hasPass && !!playerPass?.expiryDate && new Date(playerPass.expiryDate) < new Date();
+              const isActive = hasPass && !isExpired;
+              const passLabel = hasPass ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type) : "No Pass";
+              const accentColor = isActive ? "#4ade80" : isExpired ? "#fb923c" : "#444";
+              const badgeLabel = isActive ? "Active" : isExpired ? "Expired" : "No Pass";
+              return (
+                <div style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: `1px solid ${isActive ? "rgba(74,222,128,0.2)" : isExpired ? "rgba(251,146,60,0.2)" : "var(--border)"}`,
+                  borderRadius: "8px", padding: "14px 16px", marginBottom: "16px",
+                }}>
+                  <div style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                    My Pass
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPass ? "8px" : 0 }}>
+                    <span style={{ color: isActive ? "var(--white)" : "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+                      {passLabel}
+                    </span>
+                    <span style={{
+                      fontSize: "9px", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
+                      padding: "2px 8px", borderRadius: "20px",
+                      color: accentColor,
+                      background: isActive ? "rgba(74,222,128,0.1)" : isExpired ? "rgba(251,146,60,0.1)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${isActive ? "rgba(74,222,128,0.25)" : isExpired ? "rgba(251,146,60,0.25)" : "#222"}`,
+                    }}>
+                      {badgeLabel}
+                    </span>
+                  </div>
+                  {hasPass && (
+                    <div style={{ fontSize: "11px", color: "var(--muted)", lineHeight: 1.5 }}>
+                      {playerPass?.passMonthYear && (
+                        <span>Month: {playerPass.passMonthYear}{playerPass?.expiryDate ? " · " : ""}</span>
+                      )}
+                      {playerPass?.expiryDate
+                        ? <span>Expires {new Date(playerPass.expiryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                        : !playerPass?.passMonthYear && <span style={{ color: "#555" }}>No expiry set</span>
+                      }
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <button
+              className="sidebar-link"
               onClick={handleLogout}
               style={{ color: "#ff4444", marginTop: "auto", borderTop: "1px solid var(--border)", paddingTop: "16px", width: "100%", justifyContent: "flex-start", opacity: 0.8 }}
             >

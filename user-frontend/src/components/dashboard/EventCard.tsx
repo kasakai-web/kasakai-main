@@ -14,6 +14,7 @@ export interface EventCardProps {
   time: string;
   format: string;
   fee: number;
+  passEligible?: boolean;
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
@@ -36,6 +37,7 @@ export function EventCard({
   time,
   format,
   fee,
+  passEligible = false,
   spotsTotal,
   spotsLeft,
   isRegistered,
@@ -99,8 +101,17 @@ export function EventCard({
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
         </div>
         <div className="card-price">
-          <div className="price-rupee">₹</div>
-          <div className="price-amount">{fee}</div>
+          {passEligible && fee > 0 ? (
+            <>
+              <div className="price-original">₹{fee}</div>
+              <div className="price-free">₹0</div>
+            </>
+          ) : (
+            <>
+              <div className="price-rupee">₹</div>
+              <div className="price-amount">{fee}</div>
+            </>
+          )}
         </div>
       </div>
 

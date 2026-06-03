@@ -14,6 +14,7 @@ type BookingGame = {
   fee: number;
   spots: number;
   waitlist?: boolean;
+  passEligible?: boolean;
 };
 
 type Guest = {
@@ -214,14 +215,16 @@ export function BookingModal({
 
   if (!game || !game.venue) return null;
 
-  const isWaitlist = game.waitlist;
+  const isWaitlist    = game.waitlist;
+  const passEligible  = Boolean(game.passEligible);
   // How many guests can be confirmed (fit in available spots after player takes 1)
   const spotsForGuests = isWaitlist ? 0 : Math.max(0, (game.spots ?? 0) - 1);
   // Guests beyond spotsForGuests go to waitlist
   const confirmedGuestCount = Math.min(guests.length, spotsForGuests);
   const waitlistGuestCount  = Math.max(0, guests.length - spotsForGuests);
-  // Fee only covers player + confirmed guests (waitlist guests pay when slot opens)
-  const totalFee = game.fee * (1 + confirmedGuestCount);
+  // Player fee is 0 when pass eligible; guests always pay full fee
+  const playerFee = passEligible ? 0 : game.fee;
+  const totalFee  = playerFee + (game.fee * confirmedGuestCount);
   const canAfford = isWaitlist || walletBalance >= totalFee;
   const canAddGuest = guests.length < MAX_GUESTS_HARD_CAP;
   // Button switches label once confirmed slots are full
@@ -423,6 +426,36 @@ export function BookingModal({
                 )}
               </div>
 
+              {/* Pass banner */}
+              {passEligible && !isWaitlist && (
+                <div style={{
+                  background: "rgba(200,255,62,0.07)",
+                  border: "1px solid rgba(200,255,62,0.3)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  marginBottom: 14,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 16 }}>🎟️</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "#c8ff3e" }}>
+                      Your Pass is Active
+                    </span>
+                    <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#4ade80", background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 20, padding: "2px 8px" }}>
+                      FREE
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#aaa", lineHeight: 1.6 }}>
+                    Your entry fee{" "}
+                    <span style={{ textDecoration: "line-through", color: "#666" }}>₹{game.fee}</span>
+                    {" → "}
+                    <strong style={{ color: "#c8ff3e" }}>₹0</strong> — covered by your pass.
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#666", lineHeight: 1.5, borderTop: "1px solid rgba(200,255,62,0.1)", paddingTop: 6 }}>
+                    ⚠️ Pass applies to <strong style={{ color: "#aaa" }}>your slot only</strong>. Guests are not covered — each guest pays the full ₹{game.fee} entry fee.
+                  </div>
+                </div>
+              )}
+
               <div className="bm-guests-section">
                 <div className="bm-guests-header">
                   <div>
@@ -489,15 +522,37 @@ export function BookingModal({
                           </span>
                         )}
                       </div>
-                      <div className="ws-fee">₹{totalFee}</div>
-                      <div className="ws-balance">Wallet: ₹{walletBalance}</div>
+                      {passEligible && guests.length === 0 ? (
+                        <>
+                          <div className="ws-fee" style={{ color: "#c8ff3e" }}>Free</div>
+                          <div className="ws-balance" style={{ color: "#888" }}>
+                            <s style={{ color: "#555" }}>₹{game.fee}</s> · Covered by Pass
+                          </div>
+                        </>
+                      ) : passEligible && guests.length > 0 ? (
+                        <>
+                          <div className="ws-fee">₹{totalFee}</div>
+                          <div className="ws-balance" style={{ fontSize: 11, color: "#888" }}>
+                            You: <span style={{ color: "#c8ff3e" }}>Free (Pass)</span>
+                            {" · "}Guest{guests.length > 1 ? "s" : ""}: ₹{game.fee * confirmedGuestCount}
+                            {" · "}Wallet: ₹{walletBalance}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="ws-fee">₹{totalFee}</div>
+                          <div className="ws-balance">Wallet: ₹{walletBalance}</div>
+                        </>
+                      )}
                     </div>
-                    <div className="ws-right">
-                      <div className="ws-after">After payment</div>
-                      <div className="ws-after-val" style={{ color: walletBalance - totalFee < 0 ? "#ff6b6b" : undefined }}>
-                        ₹{walletBalance - totalFee}
+                    {totalFee > 0 && (
+                      <div className="ws-right">
+                        <div className="ws-after">After payment</div>
+                        <div className="ws-after-val" style={{ color: walletBalance - totalFee < 0 ? "#ff6b6b" : undefined }}>
+                          ₹{walletBalance - totalFee}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {!canAfford && (
@@ -535,7 +590,15 @@ export function BookingModal({
               )}
 
               <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
-                <span>{isLoading ? "Processing..." : isWaitlist ? "Join Waitlist — No Charge Yet" : `Confirm & Pay ₹${totalFee}`}</span>
+                <span>
+                  {isLoading
+                    ? "Processing..."
+                    : isWaitlist
+                    ? "Join Waitlist — No Charge Yet"
+                    : passEligible && totalFee === 0
+                    ? "Confirm — Free (Pass Covered)"
+                    : `Confirm & Pay ₹${totalFee}`}
+                </span>
               </button>
             </div>
         </div>

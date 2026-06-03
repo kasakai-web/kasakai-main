@@ -851,6 +851,7 @@ function downloadTeamExcel(result: {
                             reg={reg}
                             slotNum={slotNum}
                             type="guest"
+                            gameFeeInPaise={feeInPaise}
                             isProcessing={processingId === regId}
                             onRemove={
                               onRemoveRegistration && regId && !isLocked
@@ -908,6 +909,7 @@ function downloadTeamExcel(result: {
                         reg={reg}
                         slotNum={slot}
                         type="player"
+                        gameFeeInPaise={feeInPaise}
                         isProcessing={processingId === regId}
                         onRemove={undefined}
                       />
@@ -922,6 +924,7 @@ function downloadTeamExcel(result: {
                                 reg={gReg}
                                 slotNum={slot}
                                 type="guest"
+                                gameFeeInPaise={feeInPaise}
                                 isProcessing={processingId === gId}
                                 onRemove={undefined}
                               />
@@ -1333,15 +1336,30 @@ function GuestWaitlistCard({ entry, position }: { entry: GuestWaitlistEntry; pos
 }
 
 const PAYMENT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  paid:          { label: "Paid",    bg: "rgba(74,222,128,0.12)",  color: "#4ade80" },
-  wallet_locked: { label: "Locked",  bg: "rgba(167,139,250,0.12)", color: "#a78bfa" },
-  pending:       { label: "Pending", bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
-  refunded:      { label: "Refunded",bg: "rgba(96,165,250,0.12)",  color: "#60a5fa" },
-  forfeited:     { label: "Forfeited",bg:"rgba(248,113,113,0.12)", color: "#f87171" },
+  paid:          { label: "Paid",     bg: "rgba(74,222,128,0.12)",  color: "#4ade80" },
+  wallet_locked: { label: "Locked",   bg: "rgba(167,139,250,0.12)", color: "#a78bfa" },
+  pending:       { label: "Pending",  bg: "rgba(245,158,11,0.12)",  color: "#f59e0b" },
+  refunded:      { label: "Refunded", bg: "rgba(96,165,250,0.12)",  color: "#60a5fa" },
+  forfeited:     { label: "Forfeited",bg: "rgba(248,113,113,0.12)", color: "#f87171" },
 };
 
-function PaymentBadge({ status, amountPaise }: { status?: string; amountPaise?: number }) {
+function PaymentBadge({ status, amountPaise, gameFeeInPaise }: { status?: string; amountPaise?: number; gameFeeInPaise?: number }) {
   if (!status) return null;
+  // Pass-covered: paid status but ₹0 on a game that has a fee
+  const isPassCovered = status === "paid" && amountPaise === 0 && (gameFeeInPaise || 0) > 0;
+  if (isPassCovered) {
+    return (
+      <span style={{
+        background: "rgba(200,255,62,0.1)", color: "#c8ff3e",
+        border: "1px solid rgba(200,255,62,0.3)",
+        borderRadius: 4, padding: "2px 7px",
+        fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+        display: "inline-flex", alignItems: "center", gap: 4,
+      }}>
+        🎟 Pass
+      </span>
+    );
+  }
   const cfg = PAYMENT_BADGE[status];
   if (!cfg) return null;
   return (
@@ -1366,12 +1384,14 @@ function PlayerCard({
   type,
   isProcessing,
   onRemove,
+  gameFeeInPaise,
 }: {
   reg: Registration;
   slotNum?: number;
   type: "player" | "guest";
   isProcessing?: boolean;
   onRemove?: () => void;
+  gameFeeInPaise?: number;
 }) {
   const isGuest = type === "guest";
   const name    = isGuest ? (reg.plusOneName ?? "Guest") : (reg.player?.name ?? "Unknown");
@@ -1408,7 +1428,7 @@ function PlayerCard({
                 border: "1px solid rgba(245,158,11,0.3)",
               }}>Not Attending</span>
             ) : (
-              <PaymentBadge status={reg.paymentStatus} amountPaise={reg.amountPaidPaise} />
+              <PaymentBadge status={reg.paymentStatus} amountPaise={reg.amountPaidPaise} gameFeeInPaise={gameFeeInPaise} />
             )}
             <span className={`pdm-type-chip ${isGuest ? "pdm-chip-guest" : "pdm-chip-player"}`}>
               {isGuest ? "Guest" : "Player"}

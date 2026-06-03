@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import styles from "./dashboard.module.css";
 import type { DashboardSection } from "./constants";
 import { getAdminToken } from "@/lib/admin-session";
+import { PassPage } from "./passes/PassPage";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1";
@@ -2267,6 +2268,7 @@ export function ContentSections({ activeSection, onOpenDetail, onNavigate }: Con
   if (activeSection === "payments")      return <Payments />;
   if (activeSection === "finance")       return <Finance />;
   if (activeSection === "wallet-admin")  return <WalletAdmin />;
+  if (activeSection === "passes")        return <PassPage />;
   if (activeSection === "notifications") return <Notifications />;
   if (activeSection === "feedback")      return <Feedback />;
   if (activeSection === "disputes")      return <Disputes onOpenDetail={onOpenDetail} />;

@@ -48,7 +48,7 @@ interface WalletData {
 
 interface Transaction {
   _id: string;
-  type: "topup" | "debit" | "refund" | "lock" | "unlock" | "backout_fee" | "bonus" | "withdrawal";
+  type: "topup" | "debit" | "refund" | "lock" | "unlock" | "backout_fee" | "bonus" | "withdrawal" | "pass_cover";
   amountPaise: number;
   balanceAfterPaise: number;
   description?: string;
@@ -58,14 +58,15 @@ interface Transaction {
 }
 
 const TX_CONFIG: Record<string, { label: string; sign: string; color: string; icon: string }> = {
-  topup:       { label: "Recharge",    sign: "+", color: "#4ade80", icon: "⬆" },
-  bonus:       { label: "Bonus",       sign: "+", color: "#4ade80", icon: "🎁" },
-  refund:      { label: "Refund",      sign: "+", color: "#60a5fa", icon: "↩" },
-  debit:       { label: "Game signup", sign: "−", color: "#f87171", icon: "⬇" },
+  topup:       { label: "Recharge",         sign: "+", color: "#4ade80", icon: "⬆" },
+  bonus:       { label: "Bonus",            sign: "+", color: "#4ade80", icon: "🎁" },
+  refund:      { label: "Refund",           sign: "+", color: "#60a5fa", icon: "↩" },
+  debit:       { label: "Game signup",      sign: "−", color: "#f87171", icon: "⬇" },
   backout_fee: { label: "Cancellation fee", sign: "−", color: "#f87171", icon: "⚠" },
-  withdrawal:  { label: "Withdrawal",  sign: "−", color: "#f59e0b", icon: "💸" },
-  lock:        { label: "Locked",      sign: "−", color: "#a78bfa", icon: "🔒" },
-  unlock:      { label: "Unlocked",    sign: "+", color: "#a78bfa", icon: "🔓" },
+  withdrawal:  { label: "Withdrawal",       sign: "−", color: "#f59e0b", icon: "💸" },
+  lock:        { label: "Locked",           sign: "−", color: "#a78bfa", icon: "🔒" },
+  unlock:      { label: "Unlocked",         sign: "+", color: "#a78bfa", icon: "🔓" },
+  pass_cover:  { label: "Pass covered",     sign: "",  color: "#c8ff3e", icon: "🎟" },
 };
 
 function fmtRupees(paise: number) {
@@ -361,8 +362,9 @@ export default function WalletPage() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {transactions.map((tx) => {
+                    const isPassCover = tx.type === "pass_cover";
                     const cfg = TX_CONFIG[tx.type] ?? { label: tx.type, sign: "", color: "#ccc", icon: "•" };
-                    const isCredit = ["topup", "refund", "bonus", "unlock"].includes(tx.type);
+                    const isCredit = ["topup", "refund", "bonus", "unlock", "pass_cover"].includes(tx.type);
                     const desc = tx.description || (tx.game?.title ? `${cfg.label} – ${tx.game.title}` : cfg.label);
                     return (
                       <div key={tx._id} style={{
@@ -370,15 +372,15 @@ export default function WalletPage() {
                         alignItems: "center",
                         gap: 14,
                         padding: "14px 16px",
-                        background: "rgba(255,255,255,0.025)",
+                        background: isPassCover ? "rgba(200,255,62,0.04)" : "rgba(255,255,255,0.025)",
                         borderRadius: 8,
-                        border: "1px solid #1a1a1a",
+                        border: isPassCover ? "1px solid rgba(200,255,62,0.15)" : "1px solid #1a1a1a",
                       }}>
                         <div style={{
                           width: 36,
                           height: 36,
                           borderRadius: 8,
-                          background: isCredit ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
+                          background: isPassCover ? "rgba(200,255,62,0.12)" : isCredit ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -394,7 +396,12 @@ export default function WalletPage() {
                           </div>
                           <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
                             {fmtDate(tx.createdAt)}
-                            {tx.status !== "success" && (
+                            {isPassCover && (
+                              <span style={{ marginLeft: 8, color: "#c8ff3e", fontWeight: 600 }}>
+                                Pass Active — entry free
+                              </span>
+                            )}
+                            {!isPassCover && tx.status !== "success" && (
                               <span style={{ marginLeft: 8, color: tx.status === "failed" ? "#f87171" : "#f59e0b", fontWeight: 600 }}>
                                 {tx.status.toUpperCase()}
                               </span>
@@ -404,7 +411,7 @@ export default function WalletPage() {
 
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
                           <div style={{ fontSize: 15, fontWeight: 700, color: cfg.color }}>
-                            {cfg.sign}{fmtRupees(tx.amountPaise)}
+                            {isPassCover ? "FREE" : `${cfg.sign}${fmtRupees(tx.amountPaise)}`}
                           </div>
                           <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>
                             Bal: {fmtRupees(tx.balanceAfterPaise)}

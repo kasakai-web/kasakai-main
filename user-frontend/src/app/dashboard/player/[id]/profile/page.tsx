@@ -42,6 +42,19 @@ type PlayerProfile = {
     sms?: boolean;
     push?: boolean;
   };
+  pass?: {
+    type: string;
+    expiryDate?: string | null;
+    passMonthYear?: string | null;
+    assignedAt?: string | null;
+  };
+};
+
+const PASS_LABELS: Record<string, string> = {
+  weekday: "Weekday", weekend: "Weekend", day: "Day", night: "Night",
+  weekday_day: "Weekday + Day", weekday_night: "Weekday + Night",
+  weekend_day: "Weekend + Day", weekend_night: "Weekend + Night",
+  full_month: "Full Month", half_month_1: "Half Month (1–15)", half_month_2: "Half Month (16–31)",
 };
 
 export default function PlayerProfilePage() {
@@ -200,6 +213,12 @@ export default function PlayerProfilePage() {
           sms: p.notificationSettings?.sms ?? true,
           push: p.notificationSettings?.push ?? true,
         },
+        pass: p.pass ? {
+          type: p.pass.type || "none",
+          expiryDate: p.pass.expiryDate || null,
+          passMonthYear: p.pass.passMonthYear || null,
+          assignedAt: p.pass.assignedAt || null,
+        } : { type: "none" },
       });
     } catch (e) {
       setError((e as Error).message || "Failed to load profile");
@@ -732,6 +751,80 @@ export default function PlayerProfilePage() {
               )}
             </div>
           </div>
+
+          {/* ── My Pass ── */}
+          {(() => {
+            const pass = profile.pass;
+            const hasPass = pass?.type && pass.type !== "none";
+            const isExpired = hasPass && !!pass?.expiryDate && new Date(pass.expiryDate) < new Date();
+            const isActive  = hasPass && !isExpired;
+            const label     = hasPass ? (PASS_LABELS[pass!.type] ?? pass!.type) : "No Pass";
+            const statusColor  = isActive ? "#4ade80" : isExpired ? "#fb923c" : "#555";
+            const statusBg     = isActive ? "rgba(74,222,128,0.1)"  : isExpired ? "rgba(251,146,60,0.1)"  : "rgba(255,255,255,0.04)";
+            const statusBorder = isActive ? "rgba(74,222,128,0.25)" : isExpired ? "rgba(251,146,60,0.25)" : "#222";
+            const statusLabel  = isActive ? "Active" : isExpired ? "Expired" : "No Pass";
+            return (
+              <div className="pp-card">
+                <div className="pp-card-header">
+                  <div className="pp-card-icon">🎟️</div>
+                  <div>
+                    <h3 className="pp-card-title">My Pass</h3>
+                    <p className="pp-card-desc">Approved by admin — covers eligible game entry fees</p>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "16px", borderRadius: "10px", marginBottom: "12px",
+                  background: isActive ? "rgba(74,222,128,0.05)" : isExpired ? "rgba(251,146,60,0.05)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${isActive ? "rgba(74,222,128,0.2)" : isExpired ? "rgba(251,146,60,0.2)" : "#1a1a1a"}`,
+                }}>
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: isActive ? "#fff" : "#666", marginBottom: "4px" }}>
+                      {label}
+                    </div>
+                    {hasPass && (
+                      <div style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
+                        {pass?.passMonthYear && <span>Month: {pass.passMonthYear}{pass?.expiryDate ? "  ·  " : ""}</span>}
+                        {pass?.expiryDate
+                          ? <span>Expires {new Date(pass.expiryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                          : !pass?.passMonthYear && <span>No expiry — valid until admin changes</span>
+                        }
+                        {pass?.assignedAt && (
+                          <div style={{ marginTop: "2px" }}>
+                            Assigned {new Date(pass.assignedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!hasPass && (
+                      <div style={{ fontSize: "12px", color: "#444" }}>
+                        No pass assigned yet. Contact your admin.
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: "10px", fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase",
+                    padding: "4px 12px", borderRadius: "20px", flexShrink: 0,
+                    color: statusColor, background: statusBg, border: `1px solid ${statusBorder}`,
+                  }}>
+                    {statusLabel}
+                  </span>
+                </div>
+
+                {isActive && (
+                  <div style={{ fontSize: "12px", color: "#4ade80", background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "8px", padding: "10px 14px" }}>
+                    ✓ Eligible games will show as <strong>free</strong> for you at checkout.
+                  </div>
+                )}
+                {isExpired && (
+                  <div style={{ fontSize: "12px", color: "#fb923c", background: "rgba(251,146,60,0.06)", border: "1px solid rgba(251,146,60,0.15)", borderRadius: "8px", padding: "10px 14px" }}>
+                    ⚠ Your pass has expired. Contact admin to get a new one.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {error && <div className="pp-error">{error}</div>}
           {saveSuccess && <div className="pp-success">Profile saved successfully.</div>}
