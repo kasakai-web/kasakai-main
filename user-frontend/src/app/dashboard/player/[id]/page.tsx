@@ -139,8 +139,9 @@ export default function PlayerDashboard() {
       if (data.success) {
         setMyGames(data.data || []);
       }
-    } catch (error) {
-      console.error("Failed to fetch my games", error);
+    } catch {
+      // non-critical — transient network blip during a background refresh.
+      // Keep existing games in place rather than logging a scary error or blanking the list.
     }
   };
 
