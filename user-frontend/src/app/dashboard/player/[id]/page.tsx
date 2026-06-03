@@ -546,6 +546,16 @@ export default function PlayerDashboard() {
   const handleOptOut = (wantToPlay: boolean) => {
     if (!detailGame) return;
 
+    const fee = detailGame.feeInPaise || 0;
+    const passCovered = Boolean(detailGame.passEligible);
+
+    // What the player actually paid for their own (non-guest) slot.
+    // Pass-covered registrations store amountPaidPaise = 0, so there is nothing to refund.
+    const ownReg = (detailGame.registrations || []).find((r: any) =>
+      !r.plusOneName && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
+    );
+    const ownPaidPaise = ownReg?.amountPaidPaise ?? 0;
+
     // Build confirmation copy
     if (wantToPlay) {
       const gameFull = detailSpotsLeft === 0;
@@ -558,9 +568,12 @@ export default function PlayerDashboard() {
         );
       } else {
         setConfirmTitle("Rejoin this game?");
-        const feeMsg = detailGame.feeInPaise > 0
-          ? ` ₹${detailGame.feeInPaise / 100} will be debited from your wallet.`
-          : "";
+        // Rejoin charge depends on CURRENT pass eligibility — backend re-checks the live pass.
+        const feeMsg = passCovered
+          ? " Your pass covers this game, so you won't be charged."
+          : fee > 0
+            ? ` ₹${fee / 100} will be debited from your wallet.`
+            : "";
         setConfirmMessage(`You'll be marked as attending again.${feeMsg}`);
       }
     } else {
@@ -571,9 +584,13 @@ export default function PlayerDashboard() {
       const guestMsg = guestCount > 0
         ? ` Your ${guestCount} guest${guestCount > 1 ? "s" : ""} will remain registered.`
         : "";
-      const feeMsg = detailGame.feeInPaise > 0
-        ? ` ₹${detailGame.feeInPaise / 100} will be refunded to your wallet.`
-        : "";
+      // Refund reflects what was actually paid for the player's own slot, not the game fee.
+      // Pass-covered players paid ₹0 → no refund.
+      const feeMsg = ownPaidPaise > 0
+        ? ` ₹${ownPaidPaise / 100} will be refunded to your wallet.`
+        : passCovered
+          ? " Your slot was covered by your pass, so there's nothing to refund."
+          : "";
       setConfirmMessage(`You'll be marked as not attending.${guestMsg}${feeMsg}`);
     }
 
