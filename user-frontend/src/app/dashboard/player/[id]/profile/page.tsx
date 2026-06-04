@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
-import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { NavBtn } from "@/components/ui/NavBtn";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
@@ -756,7 +756,7 @@ export default function PlayerProfilePage() {
           {(() => {
             const pass = profile.pass;
             const hasPass = pass?.type && pass.type !== "none";
-            const isExpired = hasPass && !!pass?.expiryDate && new Date(pass.expiryDate) < new Date();
+            const isExpired = hasPass && !!pass?.expiryDate && isPassExpired(pass.expiryDate);
             const isActive  = hasPass && !isExpired;
             const label     = hasPass ? (PASS_LABELS[pass!.type] ?? pass!.type) : "No Pass";
             const statusColor  = isActive ? "#4ade80" : isExpired ? "#fb923c" : "#555";

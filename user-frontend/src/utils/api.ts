@@ -58,3 +58,13 @@ export const handleAuthExpiry = () => {
     window.dispatchEvent(new CustomEvent("kk-auth-changed"));
   }
 };
+
+// A pass is valid through the END of its expiry day in IST (matches backend
+// passUtils.isPassExpired). "Expires 1 July" → valid all of 1 July IST, expires
+// at 2 July 00:00 IST. No expiry date = never expires.
+export const isPassExpired = (expiryDate?: string | null, now: Date = new Date()): boolean => {
+  if (!expiryDate) return false;
+  const expIstYMD = new Date(expiryDate).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const cutoff = new Date(`${expIstYMD}T00:00:00+05:30`).getTime() + 24 * 60 * 60 * 1000;
+  return now.getTime() >= cutoff;
+};

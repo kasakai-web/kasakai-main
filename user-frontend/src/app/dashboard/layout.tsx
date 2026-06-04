@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired } from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -545,7 +545,7 @@ export default function DashboardLayout({
             {/* Pass card */}
             {(() => {
               const hasPass = playerPass?.type && playerPass.type !== "none";
-              const isExpired = hasPass && !!playerPass?.expiryDate && new Date(playerPass.expiryDate) < new Date();
+              const isExpired = hasPass && !!playerPass?.expiryDate && isPassExpired(playerPass.expiryDate);
               const isActive = hasPass && !isExpired;
               const passLabel = hasPass ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type) : "No Pass";
               const accentColor = isActive ? "#4ade80" : isExpired ? "#fb923c" : "#444";
