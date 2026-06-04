@@ -105,9 +105,13 @@ export function EditEventModal({
   const initialDateTime = useMemo(() => {
     const scheduled = initialData.scheduledAt ? new Date(initialData.scheduledAt) : null;
     if (!scheduled) return { date: "", time: "18:00" };
-    const hh = String(scheduled.getHours()).padStart(2, "0");
-    const mm  = scheduled.getMinutes() >= 30 ? "30" : "00";
-    return { date: scheduled.toISOString().split("T")[0], time: `${hh}:${mm}` };
+    // Read both date and time in IST — never browser TZ or UTC, so late-night IST
+    // games keep the correct calendar date and hour when editing.
+    const istDate = scheduled.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
+    const istHM   = scheduled.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); // HH:MM
+    const [hh, mmRaw] = istHM.split(":");
+    const mm = Number(mmRaw) >= 30 ? "30" : "00";
+    return { date: istDate, time: `${hh}:${mm}` };
   }, [initialData.scheduledAt]);
 
   const [date, setDate] = useState(initialDateTime.date);
@@ -230,7 +234,9 @@ export function EditEventModal({
       const { token } = getSession();
       if (!token) { setErrors({ submit: "Please login as organiser first" }); return; }
 
-      const scheduledAt = new Date(`${date}T${time}`);
+      // Entered time is IST — anchor with +05:30 so the stored UTC instant is correct
+      // regardless of the organiser's browser timezone.
+      const scheduledAt = new Date(`${date}T${time}:00+05:30`);
       const cutoffAt    = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
 
       // organiserIsPlaying is NOT included — it's managed in real-time above

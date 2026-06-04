@@ -154,7 +154,7 @@ type Turf = {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 }
 
 function formatCurrency(paise?: number) {
@@ -164,7 +164,7 @@ function formatCurrency(paise?: number) {
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
 function formatStatusLabel(status?: string) {

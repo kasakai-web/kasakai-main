@@ -585,15 +585,15 @@ export default function OrganizerDashboard() {
                         <div className="venue-name">{game.turf?.name || 'Unknown'}</div>
                         <div className="venue-location">{(game.turf as any)?.address?.city || ''}</div>
                         <div className="date-time">
-                          {new Date(game.scheduledAt).toLocaleDateString()} · {new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(game.scheduledAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })} · {new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                         </div>
                         {game.reportingMinsBeforeGame > 0 && (
                           <div className="date-time" style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
                             Report: {(() => {
                               const d = new Date(new Date(game.scheduledAt).getTime() - game.reportingMinsBeforeGame * 60000);
-                              return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                              return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
                             })()}
-                            {game.endsAt && ` · Ends: ${new Date(game.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                            {game.endsAt && ` · Ends: ${new Date(game.endsAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`}
                           </div>
                         )}
                         {game.organiserIsPlaying && (
@@ -748,7 +748,7 @@ export default function OrganizerDashboard() {
                         <div className="venue-name">{game.turf?.name || 'Unknown'}</div>
                         <div className="venue-location">{(game.turf as any)?.address?.city || ''}</div>
                         <div className="date-time">
-                          {new Date(game.scheduledAt).toLocaleDateString()}
+                          {new Date(game.scheduledAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
                         </div>
                       </div>
                     </div>

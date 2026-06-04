@@ -54,13 +54,15 @@ export function EventCard({
   const effectiveStatus = isCancelled ? "cancelled" : isFull ? "full" : status;
 
   const getDateLabel = () => {
-    const now = new Date();
-    const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const tomorrow = today + 86_400_000;
-    const gameDay  = new Date(new Date(date).getFullYear(), new Date(date).getMonth(), new Date(date).getDate()).getTime();
-    if (gameDay === today)    return "Today";
-    if (gameDay === tomorrow) return "Tomorrow";
-    return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    // Compare calendar days in IST (en-CA → "YYYY-MM-DD"), independent of the viewer's timezone.
+    const istYMD = (d: number | string | Date) =>
+      new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const todayIST    = istYMD(Date.now());
+    const tomorrowIST = istYMD(Date.now() + 86_400_000);
+    const gameIST     = istYMD(date);
+    if (gameIST === todayIST)    return "Today";
+    if (gameIST === tomorrowIST) return "Tomorrow";
+    return new Date(date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
   };
 
   const fillPercentage = spotsTotal > 0 ? ((spotsTotal - spotsLeft) / spotsTotal) * 100 : 0;
@@ -129,7 +131,7 @@ export function EventCard({
       <div className="card-details-grid">
         <div className="detail-item">
           <span className="detail-label">Date</span>
-          <span className="detail-value">{new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+          <span className="detail-value">{new Date(date).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })}</span>
         </div>
         <div className="detail-item">
           <span className="detail-label">Time</span>

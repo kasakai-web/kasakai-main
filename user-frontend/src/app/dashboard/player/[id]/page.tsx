@@ -464,7 +464,7 @@ export default function PlayerDashboard() {
       _id: game._id,
       venue: `${game.turf?.name || 'TBC'},${game.turf?.address?.city || 'TBC'}`,
       date: new Date(game.scheduledAt).toISOString().split('T')[0],
-      time: new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
       format: game.format,
       fee: game.feeInPaise / 100,
       spots: Math.max(0, spotsLeft),
@@ -1059,15 +1059,16 @@ export default function PlayerDashboard() {
   const detailRows = detailGame ? [
     { label: "Venue", value: detailGame.turf?.name || "TBC" },
     { label: "City", value: detailGame.turf?.address?.city || "TBC" },
-    { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
-    { label: "Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
+    { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" }) },
+    { label: "Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) },
     {
       label: "Report By",
       value: (() => {
         const scheduled = new Date(detailGame.scheduledAt);
         const reportMins = Number(detailGame.reportingMinsBeforeGame ?? 30);
         if (Number.isNaN(scheduled.getTime())) return "TBC";
-        return new Date(scheduled.getTime() - reportMins * 60000).toLocaleTimeString([], {
+        return new Date(scheduled.getTime() - reportMins * 60000).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
           hour: "2-digit",
           minute: "2-digit",
         });
@@ -1257,7 +1258,7 @@ export default function PlayerDashboard() {
                   venue={game.turf?.name || 'TBC'}
                   city={game.turf?.address?.city || 'TBC'}
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}
-                  time={new Date(game.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  time={new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
                   fee={game.feeInPaise / 100}
                   passEligible={Boolean(game.passEligible)}

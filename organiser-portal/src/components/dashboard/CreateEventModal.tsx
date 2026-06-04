@@ -25,10 +25,11 @@ const slotsFromFormat = (fmt: string) => {
 
 const addMins = (timeStr: string, date: string, mins: number): string => {
   if (!date || !timeStr) return "";
-  const dt = new Date(`${date}T${timeStr}`);
+  // Entered time is IST — anchor with +05:30 so it's correct regardless of the organiser's browser TZ
+  const dt = new Date(`${date}T${timeStr}:00+05:30`);
   if (isNaN(dt.getTime())) return "";
   const result = new Date(dt.getTime() + mins * 60000);
-  return result.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return result.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true });
 };
 
 const subtractMins = (timeStr: string, date: string, mins: number): string => {
@@ -54,7 +55,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const [title, setTitle]           = useState(lastEvent?.title ?? "");
   const [turf, setTurf]             = useState(lastEvent?.turf?._id || (typeof lastEvent?.turf === "string" ? lastEvent.turf : ""));
   const [date, setDate]             = useState("");
-  const [time, setTime]             = useState(lastEvent ? (() => { const d = new Date(lastEvent.scheduledAt); return `${String(d.getHours()).padStart(2,"0")}:${d.getMinutes() >= 30 ? "30" : "00"}`; })() : "18:00");
+  const [time, setTime]             = useState(lastEvent ? (() => { const hm = new Date(lastEvent.scheduledAt).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); const [hh, mm] = hm.split(":"); return `${hh}:${Number(mm) >= 30 ? "30" : "00"}`; })() : "18:00");
   const initialFormat = (lastEvent?.format as Format) ?? "5v5";
   const [format, setFormat]         = useState<Format>(initialFormat);
   const [durationMins, setDuration] = useState(lastEvent?.durationMins ?? 60);
@@ -137,7 +138,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
     if (!title.trim()) newErrors.title = "Event title is required";
     if (!turf)         newErrors.turf  = "Please select a turf";
     if (!date)         newErrors.date  = "Date is required";
-    if (date && new Date(`${date}T${time}`) <= new Date())
+    if (date && new Date(`${date}T${time}:00+05:30`) <= new Date())
       newErrors.date = "Game must be scheduled in the future";
     if (!feeInRs || isNaN(Number(feeInRs)) || Number(feeInRs) < 0)
       newErrors.feeInRs = "Valid fee is required";
@@ -163,7 +164,9 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       const { token } = getSession();
       if (!token) { setErrors({ submit: "Please login as organiser first" }); return; }
 
-      const scheduledAt = new Date(`${date}T${time}`);
+      // Entered time is IST — anchor with +05:30 so the stored UTC instant is correct
+      // regardless of the organiser's browser timezone.
+      const scheduledAt = new Date(`${date}T${time}:00+05:30`);
       const cutoffAt    = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
       const slots       = Number(maxPlayers) || slotsFromFormat(format);
 
