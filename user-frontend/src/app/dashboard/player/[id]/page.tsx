@@ -1088,6 +1088,12 @@ export default function PlayerDashboard() {
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
   const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
+  // Once reporting time (start − reportingMinsBeforeGame) has passed, players can no
+  // longer change participation. Mirrors the backend isPastReportingTime guard.
+  const detailPastReporting = !!detailGame && (() => {
+    const reportMins = Number(detailGame.reportingMinsBeforeGame ?? 30);
+    return Date.now() >= new Date(detailGame.scheduledAt).getTime() - reportMins * 60000;
+  })();
   const myWaitlistStatus: string = (detailIsWaitlisted && detailGame)
     ? (myWaitlist.find((wg: any) => wg._id === detailGame._id)?._myWaitlistStatus || "waiting")
     : "waiting";
@@ -1748,7 +1754,7 @@ export default function PlayerDashboard() {
             </div>
 
             {/* ── My Guests (CRUD section — only when registered and game active) ── */}
-            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
+            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -1828,8 +1834,24 @@ export default function PlayerDashboard() {
               </div>
             )}
 
+            {/* ── Reporting-time lock notice ── */}
+            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && detailPastReporting && (
+              <div style={{
+                margin: "0 0 12px",
+                padding: "12px 16px",
+                background: "rgba(245,158,11,0.06)",
+                border: "1px solid rgba(245,158,11,0.25)",
+                borderRadius: 10,
+                fontSize: 13,
+                color: "#f59e0b",
+                lineHeight: 1.5,
+              }}>
+                ⏰ Reporting time has passed — registration and guests can no longer be changed for this game.
+              </div>
+            )}
+
             {/* ── Attending toggle — after My Guests, only for registered active games ── */}
-            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && (
+            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 12px",
                 padding: "12px 16px",
@@ -1916,7 +1938,7 @@ export default function PlayerDashboard() {
             )}
 
             {/* ── Guest Waitlist ── */}
-            {(detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && (
+            {(detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -2170,7 +2192,7 @@ export default function PlayerDashboard() {
                   )}
 
                 {/* Registered User Actions — guest CRUD moved to My Guests section above */}
-                {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" ? (
+                {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting ? (
                   <button
                     className="pd-modal-btn secondary"
                     type="button"
@@ -2206,7 +2228,7 @@ export default function PlayerDashboard() {
                 ) : null}
 
                 {/* Waitlisted User Actions */}
-                {detailIsWaitlisted && !isOnRejoinWaitlist && !detailIsCancelled && detailGame.status !== "completed" ? (
+                {detailIsWaitlisted && !isOnRejoinWaitlist && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting ? (
                   <>
                     {detailSpotsLeft > 0 && (
                       <button
