@@ -78,27 +78,38 @@ export default function DashboardLayout({
     }
   }, [pathname]);
 
-  // Fetch profile image + pass info from API
-  useEffect(() => {
+  // Fetch profile image + pass info from API. Kept live so an admin-assigned
+  // pass (or expiry) reflects without needing a re-login.
+  const refreshProfileMeta = useCallback(async () => {
     if (!authenticated) return;
     const { token } = getSession();
     if (!token) return;
-    fetch(buildApiUrl("/players/me"), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const img = data?.data?.profileImage;
-        if (img && !localStorage.getItem("userProfileImage")) {
-          const url = `${SERVER_BASE}${img}`;
-          localStorage.setItem("userProfileImage", url);
-          setUserProfileImage(url);
-        }
-        const pass = data?.data?.pass;
-        if (pass) setPlayerPass(pass);
-      })
-      .catch(() => {});
+    try {
+      const res = await fetch(buildApiUrl("/players/me"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      const img = data?.data?.profileImage;
+      if (img && !localStorage.getItem("userProfileImage")) {
+        const url = `${SERVER_BASE}${img}`;
+        localStorage.setItem("userProfileImage", url);
+        setUserProfileImage(url);
+      }
+      // Always sync pass — set to its current value (incl. "none" when removed)
+      setPlayerPass(data?.data?.pass ?? null);
+    } catch {}
   }, [authenticated]);
+
+  // Re-fetch on auth resolve + on every navigation so the My Pass card stays current
+  useEffect(() => { refreshProfileMeta(); }, [refreshProfileMeta, pathname]);
+
+  // Also refresh on window focus / tab visible (e.g. admin changed the pass in another tab)
+  useAutoRefresh(authenticated ? refreshProfileMeta : null, {
+    interval:  60_000,
+    onFocus:   true,
+    onVisible: true,
+    enabled:   authenticated,
+  });
 
   // Fetch + auto-refresh wallet balance in sidebar
   const refreshWalletBalance = useCallback(async () => {
