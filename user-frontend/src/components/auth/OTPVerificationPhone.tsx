@@ -126,11 +126,33 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
       </button>
 
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>
-        Verify via WhatsApp
+        Verify your OTP
       </h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>
-        OTP sent to your WhatsApp at {destinationText}
+      <p style={{ color: "#999", marginBottom: "16px", fontSize: "14px" }}>
+        OTP sent to {destinationText}
       </p>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          background: "rgba(196,213,108,0.08)",
+          border: "1px solid rgba(196,213,108,0.3)",
+          borderRadius: "8px",
+          padding: "12px 14px",
+          marginBottom: "30px",
+          fontSize: "13px",
+          color: "#ccc",
+          lineHeight: 1.5,
+        }}
+      >
+        <span style={{ fontSize: "16px" }}>📲</span>
+        <span>
+          Your OTP will arrive on <strong style={{ color: "#25D366" }}>WhatsApp</strong>. Please check
+          your WhatsApp messages.
+        </span>
+      </div>
 
       {error && (
         <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
