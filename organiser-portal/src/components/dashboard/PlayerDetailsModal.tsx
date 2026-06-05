@@ -61,6 +61,7 @@ interface PlayerDetailsModalProps {
   location?: string;
   feeInPaise?: number;
   format?: string;
+  reportingMinsBeforeGame?: number;
 }
 
 const POS_LABEL: Record<string, string> = {
@@ -121,6 +122,7 @@ export function PlayerDetailsModal({
   location,
   feeInPaise,
   format,
+  reportingMinsBeforeGame,
 }: PlayerDetailsModalProps) {
   const isLocked = gameStatus === 'completed' || gameStatus === 'cancelled';
 
@@ -417,84 +419,55 @@ function downloadTeamExcel(result: {
 
     // ── Event header ──────────────────────────────────────────────────────────
     lines.push(`*${gameName}*`);
+    lines.push("");
+
+    if (venue) lines.push(`Venue: ${venue}`);
     if (scheduledAt) {
       const d = new Date(scheduledAt);
-      const dateStr = d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-      const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-      lines.push(`📅 ${dateStr} at ${timeStr}`);
+      lines.push(`Date: ${d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`);
+      lines.push(`Time: ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`);
     }
-    const venueParts = [venue, location].filter(Boolean);
-    if (venueParts.length)    lines.push(`📍 ${venueParts.join(", ")}`);
-    if (format)               lines.push(`⚽ Format: ${format}`);
-    if (feeInPaise != null)   lines.push(`💰 Fee: ₹${feeInPaise / 100} per player`);
+    if (format) lines.push(`Format: ${format}`);
+    lines.push(`Registration link: https://kasakai.in/join/${gameId}`);
+    if (location) lines.push(`Location: ${location}`);
 
-    // helper: push one indented line per guest (plain, no arrows)
-    const pushGuests = (guests: Array<{ plusOneName?: string | null }>) => {
-      guests.forEach(g => lines.push(`   ${g.plusOneName || "Guest"}`));
-    };
+    // Reporting time = start time minus reportingMinsBeforeGame (default 30)
+    const repMins = reportingMinsBeforeGame ?? 30;
+    if (scheduledAt && repMins > 0) {
+      const rep = new Date(new Date(scheduledAt).getTime() - repMins * 60000);
+      lines.push(`Reporting time: ${rep.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`);
+    }
 
-    // ── Organiser + their guests ───────────────────────────────────────────────
+    // ── Confirmed players (each occupying a slot) ─────────────────────────────
     lines.push("");
-    lines.push(`*${organiserName}*`);
-    pushGuests(organiserGuests);
-
-    // ── Players in game ───────────────────────────────────────────────────────
-    const totalInGame = activeRegs.length + organiserCount;
+    lines.push(`*Confirmed Players*`);
     let num = 1;
-    const optedOutWithGuests: Registration[] = [];
-    const optedOutNoGuests: Registration[]   = [];
-
-    mainRegs.forEach(reg => {
-      const pid      = (reg.player as any)?._id?.toString() ?? "";
-      const myGuests = pid ? (guestsByPlayer.get(pid) ?? []) : [];
-
-      if (reg.optedOut) {
-        if (myGuests.length > 0) optedOutWithGuests.push(reg);
-        else                     optedOutNoGuests.push(reg);
-        return;
-      }
-      const name = reg.player?.name || "Unknown";
-      const pos  = posLabel(reg.preferredPosition);
-      lines.push(`${num++}. *${name}*${pos ? ` [${pos}]` : ""}`);
-      pushGuests(myGuests);
+    if (organiserIsPlaying) {
+      lines.push(`${num++}. ${organiserName} (Organiser)`);
+    }
+    activeRegs.forEach(r => {
+      if (r.plusOneName) lines.push(`${num++}. ${r.plusOneName} (Guest)`);
+      else               lines.push(`${num++}. ${r.player?.name || "Unknown"}`);
     });
 
-    // ── Player not attending but their guest is still playing ─────────────────
-    if (optedOutWithGuests.length > 0) {
-      lines.push("");
-      lines.push(`*Not Attending — Guest Still Playing*`);
-      optedOutWithGuests.forEach(reg => {
-        const name     = reg.player?.name || "Unknown";
-        const pid      = (reg.player as any)?._id?.toString() ?? "";
-        const myGuests = pid ? (guestsByPlayer.get(pid) ?? []) : [];
-        lines.push(`*${name}*`);
-        pushGuests(myGuests);
-      });
-    }
-
-    // ── Opted out with no guests (brief, at the end) ──────────────────────────
-    if (optedOutNoGuests.length > 0) {
-      lines.push("");
-      lines.push(`*Not Attending*`);
-      optedOutNoGuests.forEach(r => lines.push(r.player?.name || "Unknown"));
-    }
-
-    // ── Waitlist ───────────────────────────────────────────────────────────────
-    const activeWl = waitlist.filter(w => !["declined", "expired"].includes(w.status || ""));
+    // ── Waitlist (only if anyone is waiting) ──────────────────────────────────
+    const activeWl  = waitlist.filter(w => !["declined", "expired"].includes(w.status || ""));
     const activeGwl = guestWaitlist.filter(g => ["waiting", "notified"].includes(g.status || "waiting"));
     if (activeWl.length > 0 || activeGwl.length > 0) {
       lines.push("");
       lines.push(`*Waitlist*`);
-      activeWl.forEach(w => lines.push(w.player?.name || "Unknown"));
-      activeGwl.forEach(g => lines.push(g.plusOneName  || "Unknown"));
+      let wn = 1;
+      activeWl.forEach(w => lines.push(`${wn++}. ${w.player?.name || "Unknown"}`));
+      activeGwl.forEach(g => lines.push(`${wn++}. ${g.plusOneName || "Unknown"} (Guest)`));
     }
 
-    // ── Footer ────────────────────────────────────────────────────────────────
+    // ── Footer: spots remaining ───────────────────────────────────────────────
     lines.push("");
-    lines.push("─".repeat(30));
-    const spotsLabel = spotsLeft === 0 ? "Full 🔴" : `${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} remaining 🟢`;
-    lines.push(`📊 ${totalInGame} / ${totalSlots} filled · ${spotsLabel}`);
-    if (activeWl.length > 0) lines.push(`⏳ ${activeWl.length} on waitlist`);
+    if (spotsLeft > 0) {
+      lines.push(`🚨🚨 ${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} remaining 🚨🚨`);
+    } else {
+      lines.push(`✅ Game Full`);
+    }
 
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);

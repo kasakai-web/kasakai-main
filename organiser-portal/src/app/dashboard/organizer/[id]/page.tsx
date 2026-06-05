@@ -914,6 +914,7 @@ export default function OrganizerDashboard() {
           location={selectedGame.turf?.address?.city || selectedGame.turf?.location || ''}
           feeInPaise={selectedGame.feeInPaise}
           format={selectedGame.format}
+          reportingMinsBeforeGame={selectedGame.reportingMinsBeforeGame}
           onToggleOrganiserPlaying={() => handleOrganiserWithdraw(selectedGame._id)}
           onRemoveRegistration={async (regId) => {
             await handleRemoveRegistration(selectedGame._id, regId);
