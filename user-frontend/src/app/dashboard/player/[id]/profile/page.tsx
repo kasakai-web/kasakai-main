@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
-import { buildApiUrl, clearSession, getSession, isPassExpired } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired, fetchWithRetry } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { NavBtn } from "@/components/ui/NavBtn";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
@@ -173,7 +173,7 @@ export default function PlayerProfilePage() {
     const { token } = getSession();
     if (!token) { clearSessionAndExit(); return; }
     try {
-      const res = await fetch(buildApiUrl("/players/me"), {
+      const res = await fetchWithRetry(buildApiUrl("/players/me"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }

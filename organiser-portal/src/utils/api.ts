@@ -54,3 +54,31 @@ export const getAuthHeaders = () => {
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 };
+
+// Resilient fetch for transient failures (cold starts, brief DB reconnects,
+// network blips). Retries on network error or 5xx — NOT on 4xx (auth/validation).
+export const fetchWithRetry = async (
+  url: string,
+  options: RequestInit = {},
+  { retries = 2, backoffMs = 700 }: { retries?: number; backoffMs?: number } = {},
+): Promise<Response> => {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.status >= 500 && attempt < retries) {
+        await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+        continue;
+      }
+      throw lastErr;
+    }
+  }
+  throw lastErr;
+};

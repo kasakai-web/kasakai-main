@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../organizer-dashboard.css";
-import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, fetchWithRetry } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NavBtn } from "@/components/ui/NavBtn";
@@ -169,8 +169,8 @@ export default function OrganiserProfilePage() {
 
     try {
       const [res, fbRes] = await Promise.all([
-        fetch(buildApiUrl("/api/v1/organisers/me"), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(buildApiUrl("/api/v1/games/organisers/my-feedback-summary"), { headers: { Authorization: `Bearer ${token}` } }),
+        fetchWithRetry(buildApiUrl("/api/v1/organisers/me"), { headers: { Authorization: `Bearer ${token}` } }),
+        fetchWithRetry(buildApiUrl("/api/v1/games/organisers/my-feedback-summary"), { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (res.status === 401 || res.status === 403) {

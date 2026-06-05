@@ -68,3 +68,34 @@ export const isPassExpired = (expiryDate?: string | null, now: Date = new Date()
   const cutoff = new Date(`${expIstYMD}T00:00:00+05:30`).getTime() + 24 * 60 * 60 * 1000;
   return now.getTime() >= cutoff;
 };
+
+// Resilient fetch for transient failures (cold starts, brief DB reconnects,
+// network blips). Retries on network error or 5xx — NOT on 4xx (auth/validation).
+// Use for read-only GETs where a transient failure should self-heal.
+export const fetchWithRetry = async (
+  url: string,
+  options: RequestInit = {},
+  { retries = 2, backoffMs = 700 }: { retries?: number; backoffMs?: number } = {},
+): Promise<Response> => {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      // Retry only on server-side transient errors; return everything else as-is.
+      if (res.status >= 500 && attempt < retries) {
+        await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      // Network-level failure ("Failed to fetch") — retry with backoff.
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+        continue;
+      }
+      throw lastErr;
+    }
+  }
+  throw lastErr;
+};
