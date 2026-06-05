@@ -662,22 +662,29 @@ function downloadTeamExcel(result: {
           )}
         </div>
 
-        {/* Inline status message — replaces alert() dialogs */}
+        {/* Centered floating status message — replaces alert() dialogs */}
         {statusMsg && (
           <div style={{
-            margin: "0",
-            padding: "10px 20px",
-            background: statusMsg.type === "success" ? "rgba(74,222,128,0.12)" : "rgba(239,68,68,0.12)",
-            borderBottom: `1px solid ${statusMsg.type === "success" ? "rgba(74,222,128,0.25)" : "rgba(239,68,68,0.25)"}`,
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 10000,
+            padding: "16px 28px",
+            borderRadius: 12,
+            background: statusMsg.type === "success" ? "rgba(20,32,24,0.97)" : "rgba(34,18,18,0.97)",
+            border: `1px solid ${statusMsg.type === "success" ? "rgba(74,222,128,0.4)" : "rgba(239,68,68,0.4)"}`,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
             color: statusMsg.type === "success" ? "#4ade80" : "#f87171",
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: 600,
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
+            gap: 10,
+            maxWidth: "90vw",
+            textAlign: "center",
           }}>
-            <span>{statusMsg.type === "success" ? "✓" : "✕"}</span>
+            <span style={{ fontSize: 18 }}>{statusMsg.type === "success" ? "✓" : "✕"}</span>
             <span>{statusMsg.text}</span>
           </div>
         )}
