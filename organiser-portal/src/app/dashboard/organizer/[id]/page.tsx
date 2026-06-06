@@ -947,48 +947,81 @@ export default function OrganizerDashboard() {
 
       {showCancelModal && cancelTargetGame && (
         <div className="modal-overlay" onClick={() => { setShowCancelModal(false); setCancelTargetGame(null); setCancelMessage(""); }}>
-          <div className="modal-content" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 style={{ margin: 0 }}>Cancel Event</h2>
-              <p style={{ marginTop: 8, color: "#888", fontSize: 14 }}>
-                You are about to cancel <strong>{cancelTargetGame.title}</strong>. All registered players will receive an email notification.
+          <div className="modal-content" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            {/* Header: warning icon + title + summary */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  background: "rgba(192,57,43,0.14)",
+                  border: "1px solid rgba(192,57,43,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 28,
+                  lineHeight: 1,
+                }}
+              >
+                ⚠️
+              </div>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em" }}>
+                Cancel this event?
+              </h2>
+              <p style={{ margin: 0, color: "#9ca3af", fontSize: 14, lineHeight: 1.55 }}>
+                You're about to cancel <strong style={{ color: "#fff" }}>{cancelTargetGame.title}</strong>.
+                All registered players will be <strong style={{ color: "#fff" }}>refunded</strong> and notified by email.
               </p>
             </div>
-            <div style={{ marginTop: 20 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#ccc" }}>
-                Message to players (optional)
+
+            {/* Message field */}
+            <div style={{ marginTop: 22 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#d1d5db" }}>
+                Message to players <span style={{ color: "#6b7280", fontWeight: 400 }}>(optional)</span>
               </label>
               <textarea
                 rows={4}
                 value={cancelMessage}
                 onChange={(e) => setCancelMessage(e.target.value)}
-                placeholder="e.g. Due to bad weather, we are unable to host this event. Apologies for the inconvenience."
+                placeholder="e.g. Due to bad weather, we're unable to host this event. Apologies for the inconvenience."
                 style={{
                   width: "100%",
-                  background: "#111",
-                  border: "1px solid #333",
+                  background: "rgba(0,0,0,0.35)",
+                  border: "1px solid rgba(255,255,255,0.12)",
                   color: "#fff",
-                  borderRadius: 6,
+                  borderRadius: 8,
                   padding: "10px 12px",
                   fontSize: 13,
+                  lineHeight: 1.5,
                   resize: "vertical",
                   boxSizing: "border-box",
+                  outline: "none",
                 }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(192,57,43,0.6)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
               />
+              <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 12, lineHeight: 1.4 }}>
+                This note is included in the cancellation email each player receives.
+              </p>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
               <button
                 type="button"
                 onClick={() => { setShowCancelModal(false); setCancelTargetGame(null); setCancelMessage(""); }}
                 disabled={cancellingId === cancelTargetGame._id}
                 style={{
-                  padding: "8px 20px",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  background: "#222",
-                  border: "1px solid #444",
-                  color: "#ccc",
+                  flex: 1,
+                  padding: "11px 16px",
+                  borderRadius: 8,
+                  cursor: cancellingId === cancelTargetGame._id ? "not-allowed" : "pointer",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  color: "#e5e7eb",
                   fontWeight: 600,
+                  fontSize: 14,
                 }}
               >
                 Go Back
@@ -999,17 +1032,19 @@ export default function OrganizerDashboard() {
                 disabled={cancellingId === cancelTargetGame._id}
                 onClick={() => handleCancelGame(cancelTargetGame._id, cancelMessage)}
                 style={{
-                  padding: "8px 20px",
-                  borderRadius: 6,
+                  flex: 1,
+                  padding: "11px 16px",
+                  borderRadius: 8,
                   background: "#c0392b",
                   color: "#fff",
                   border: "none",
                   fontWeight: 600,
+                  fontSize: 14,
                   cursor: cancellingId === cancelTargetGame._id ? "not-allowed" : "pointer",
                   opacity: cancellingId === cancelTargetGame._id ? 0.7 : 1,
                 }}
               >
-                {cancellingId === cancelTargetGame._id ? "Cancelling..." : "Confirm Cancel"}
+                {cancellingId === cancelTargetGame._id ? "Cancelling…" : "Confirm Cancel"}
               </button>
             </div>
           </div>
