@@ -644,14 +644,11 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
                         </select>
                       </div>
 
-                      {(r.preferredPosition === "goalkeeper" ||
-                        r.preferredPosition === "any") && (
-                        <StarRating
-                          label="GK Affinity"
-                          value={r.gkAffinity ?? 0}
-                          onChange={(v) => updateRating(r.playerId, "gkAffinity", v)}
-                        />
-                      )}
+                      <StarRating
+                        label="GK Affinity"
+                        value={r.gkAffinity ?? 0}
+                        onChange={(v) => updateRating(r.playerId, "gkAffinity", v)}
+                      />
 
                       {otherAttended.length > 0 && (
                         <>
