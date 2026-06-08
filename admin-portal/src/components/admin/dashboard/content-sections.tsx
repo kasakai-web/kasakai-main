@@ -308,6 +308,12 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [roleFilter, setRoleFilter] = useState<"all" | AdminUserRow["role"]>("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const [deleteTarget, setDeleteTarget] = useState<AdminUserRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteError, setDeleteError]   = useState("");
+  const [deleteBusy, setDeleteBusy]     = useState(false);
+  const [toast, setToast]               = useState<string | null>(null);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError("");
     try {
@@ -322,6 +328,29 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  async function doDelete() {
+    if (!deleteTarget) return;
+    if (!deleteReason.trim()) { setDeleteError("Please provide a reason for deletion."); return; }
+    setDeleteBusy(true); setDeleteError("");
+    try {
+      const token = getAdminToken();
+      const res   = await fetch(`${API_BASE}/admin/users/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: deleteReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setDeleteError(data.message || "Delete failed."); return; }
+      const deletedName = deleteTarget.name;
+      setDeleteTarget(null);
+      setDeleteReason("");
+      setToast(`${deletedName} has been successfully deleted.`);
+      setTimeout(() => setToast(null), 3000);
+      await fetchUsers();
+    } catch { setDeleteError("Cannot reach the server."); }
+    finally { setDeleteBusy(false); }
+  }
 
   const filtered = users.filter((u) => {
     const q = search.trim().toLowerCase();
@@ -356,10 +385,10 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Rating</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th></tr>
+            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Rating</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={10} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
             {filtered.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
                 <td>{u.name}</td>
@@ -390,11 +419,68 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
                 </td>
                 <td>{formatDate(u.joinedAt)}</td>
                 <td><span className={`${styles.badge} ${badgeClassForStatus(u.status)}`}>{formatStatusLabel(u.status)}</span></td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className={styles.actionBtn}
+                    style={{ color: "var(--red)", borderColor: "rgba(239,68,68,0.4)" }}
+                    type="button"
+                    onClick={() => { setDeleteTarget(u); setDeleteReason(""); setDeleteError(""); }}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className={styles.modalOverlay} onClick={() => setDeleteTarget(null)}>
+          <div className={styles.modal} style={{ maxWidth: "460px" }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <div className={styles.sectionTitle}>Delete User</div>
+              <button className={styles.modalClose} type="button" onClick={() => setDeleteTarget(null)}>✕</button>
+            </div>
+            <div style={{ marginBottom: "14px", color: "var(--text)", fontSize: "14px" }}>
+              Are you sure you want to delete <strong>{deleteTarget.name}</strong>?{" "}
+              <span style={{ color: "var(--red)" }}>This action cannot be undone.</span>
+            </div>
+            <label className={styles.formLabel}>
+              Reason for deletion
+              <input
+                className={styles.searchInput}
+                style={{ width: "100%", marginTop: "6px" }}
+                placeholder="e.g. Fake account, policy violation, user request…"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+              />
+            </label>
+            {deleteError && <div className={styles.formError} style={{ marginTop: "10px" }}>{deleteError}</div>}
+            <div className={styles.modalActions} style={{ marginTop: "18px" }}>
+              <button className={styles.actionBtn} type="button" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button
+                className={styles.actionBtn}
+                style={{ color: "var(--red)", borderColor: "rgba(239,68,68,0.5)", background: "var(--red-bg)" }}
+                type="button"
+                disabled={deleteBusy}
+                onClick={doDelete}
+              >
+                {deleteBusy ? "Deleting…" : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success toast */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: "28px", left: "50%", transform: "translateX(-50%)", zIndex: 10000, display: "flex", alignItems: "center", gap: "10px", padding: "13px 20px", background: "rgba(17,20,36,0.97)", border: "1.5px solid rgba(239,68,68,0.4)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)", minWidth: "280px" }}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--white)" }}>{toast}</span>
+        </div>
+      )}
     </>
   );
 }
