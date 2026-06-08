@@ -75,6 +75,7 @@ export default function PlayerDashboard() {
   const [guestPrefPosition, setGuestPrefPosition] = useState("Any");
   const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
   const [guestPrefName, setGuestPrefName] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -1510,13 +1511,52 @@ export default function PlayerDashboard() {
                   flexShrink: 0, marginTop: 2,
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase",
                   padding: "3px 10px", borderRadius: 99,
-                  background: detailIsCancelled ? "rgba(220,38,38,0.15)" : "rgba(74,222,128,0.12)",
+                  background: detailIsCancelled ? "rgba(220,38,68,0.15)" : "rgba(74,222,128,0.12)",
                   color: detailIsCancelled ? "#f87171" : "#4ade80",
-                  border: `1px solid ${detailIsCancelled ? "rgba(220,38,38,0.3)" : "rgba(74,222,128,0.3)"}`,
+                  border: `1px solid ${detailIsCancelled ? "rgba(220,38,68,0.3)" : "rgba(74,222,128,0.3)"}`,
                 }}>
                   {detailGame.status || "open"}
                 </span>
               </div>
+
+              {/* Copy Link button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const link = `${window.location.origin}/join/${detailGame._id}`;
+                  navigator.clipboard.writeText(link).then(() => {
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  });
+                }}
+                style={{
+                  marginTop: 12,
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "7px 14px", borderRadius: 99,
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  transition: "background 0.2s, color 0.2s, border-color 0.2s",
+                  background: linkCopied ? "rgba(200,255,62,0.12)" : "rgba(255,255,255,0.05)",
+                  color: linkCopied ? "#c8ff3e" : "#aaa",
+                  border: `1px solid ${linkCopied ? "rgba(200,255,62,0.35)" : "rgba(255,255,255,0.1)"}`,
+                }}
+              >
+                {linkCopied ? (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    Copy Link
+                  </>
+                )}
+              </button>
             </div>
 
             {/* ── Scrollable Body ── */}
