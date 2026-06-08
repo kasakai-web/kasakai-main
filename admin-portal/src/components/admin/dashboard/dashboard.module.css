@@ -599,11 +599,12 @@
 
 .tableWrap {
   border: 1px solid var(--border);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
@@ -802,12 +803,8 @@
     grid-template-columns: 1fr;
   }
 
-  .tableWrap {
-    overflow-x: auto;
-  }
-
   .table {
-    min-width: 840px;
+    min-width: 1000px;
   }
 }
 
