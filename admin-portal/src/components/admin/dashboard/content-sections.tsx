@@ -12,6 +12,16 @@ const API_BASE =
 // Backend origin (strips /api/v1 suffix) — used to resolve relative upload paths
 const BACKEND_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, "");
 
+// Module-level cache: avoids re-fetching Users / Organisers on every tab switch
+const _adminCache = new Map<string, { data: unknown; ts: number }>();
+const ADMIN_CACHE_TTL = 60_000; // 60 s
+function adminCacheGet<T>(key: string): T | null {
+  const hit = _adminCache.get(key);
+  if (hit && Date.now() - hit.ts < ADMIN_CACHE_TTL) return hit.data as T;
+  return null;
+}
+function adminCacheSet(key: string, data: unknown) { _adminCache.set(key, { data, ts: Date.now() }); }
+
 function resolveImageUrl(src: string | null | undefined): string | null {
   if (!src) return null;
   if (src.startsWith("http://") || src.startsWith("https://")) return src;
@@ -335,6 +345,7 @@ function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; s
     <img
       src={resolvedSrc}
       alt={name}
+      loading="lazy"
       style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.12)", display: "block" }}
       onError={() => setImgFailed(true)}
     />
@@ -357,14 +368,20 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [deleteBusy, setDeleteBusy]     = useState(false);
   const [toast, setToast]               = useState<string | null>(null);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (force = false) => {
+    const token = getAdminToken();
+    if (!token) { setLoading(false); setError("Admin session missing."); return; }
+    const cacheKey = `${API_BASE}/admin/users`;
+    if (!force) {
+      const cached = adminCacheGet<AdminUserRow[]>(cacheKey);
+      if (cached) { setUsers(cached); setLoading(false); return; }
+    }
     setLoading(true); setError("");
     try {
-      const token = getAdminToken();
-      if (!token) { setError("Admin session missing."); return; }
-      const res  = await fetch(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
+      const res  = await fetch(cacheKey, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Failed to load users."); return; }
+      adminCacheSet(cacheKey, data.data || []);
       setUsers(data.data || []);
     } catch { setError("Cannot reach the server."); }
     finally { setLoading(false); }
@@ -390,7 +407,7 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       setDeleteReason("");
       setToast(`${deletedName} has been successfully deleted.`);
       setTimeout(() => setToast(null), 3000);
-      await fetchUsers();
+      await fetchUsers(true);
     } catch { setDeleteError("Cannot reach the server."); }
     finally { setDeleteBusy(false); }
   }
@@ -545,14 +562,20 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [suspendTarget, setSuspendTarget] = useState<AdminOrganiserRow | null>(null);
   const [suspendReason, setSuspendReason] = useState("");
 
-  const fetchOrganisers = useCallback(async () => {
+  const fetchOrganisers = useCallback(async (force = false) => {
+    const token = getAdminToken();
+    if (!token) { setLoading(false); setError("Admin session missing."); return; }
+    const cacheKey = `${API_BASE}/admin/organisers`;
+    if (!force) {
+      const cached = adminCacheGet<AdminOrganiserRow[]>(cacheKey);
+      if (cached) { setOrganisers(cached); setLoading(false); return; }
+    }
     setLoading(true); setError("");
     try {
-      const token = getAdminToken();
-      if (!token) { setError("Admin session missing."); return; }
-      const res  = await fetch(`${API_BASE}/admin/organisers`, { headers: { Authorization: `Bearer ${token}` } });
+      const res  = await fetch(cacheKey, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Failed to load organisers."); return; }
+      adminCacheSet(cacheKey, data.data || []);
       setOrganisers(data.data || []);
     } catch { setError("Cannot reach the server."); }
     finally { setLoading(false); }
@@ -571,7 +594,7 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       });
       const data = await res.json();
       if (!res.ok) { setActionError(data.message || "Action failed."); return; }
-      await fetchOrganisers();
+      await fetchOrganisers(true);
     } catch { setActionError("Cannot reach the server."); }
     finally { setActionBusy(null); }
   }
@@ -589,7 +612,7 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       const data = await res.json();
       if (!res.ok) { setActionError(data.message || "Suspend failed."); return; }
       setSuspendTarget(null); setSuspendReason("");
-      await fetchOrganisers();
+      await fetchOrganisers(true);
     } catch { setActionError("Cannot reach the server."); }
     finally { setActionBusy(null); }
   }
@@ -724,7 +747,7 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       {error && <div className={styles.formError}>{error}</div>}
       <div className={styles.toolbar}>
         <input className={styles.searchInput} placeholder="Search by name, phone, WhatsApp, email, location…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button className={styles.actionBtn} type="button" onClick={fetchOrganisers}>Refresh</button>
+        <button className={styles.actionBtn} type="button" onClick={() => fetchOrganisers(true)}>Refresh</button>
       </div>
       {loading && <div className={styles.loadingState}>Loading organisers…</div>}
       <div className={styles.blockTitle}>Pending Verification ({applySearch(pending).length})</div>
