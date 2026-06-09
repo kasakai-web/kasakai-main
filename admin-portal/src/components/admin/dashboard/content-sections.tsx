@@ -1510,25 +1510,27 @@ function Feedback() {
   }, [feedback]);
 
   const fbGames = useMemo(() => {
-    const map = new Map<string, string>(); // "title||scheduledAt" → display label
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const map = new Map<string, string>(); // "title||YYYY-MM-DD" → display label
     feedback.forEach(f => {
       const title = f.game?.title;
       if (!title) return;
-      const raw  = f.game?.scheduledAt || "";
-      const key  = `${title}||${raw}`;
+      const dateOnly = (f.game?.scheduledAt || "").slice(0, 10); // "2025-06-09" — no timezone shift
+      const key = `${title}||${dateOnly}`;
       if (!map.has(key)) {
-        const dateLabel = raw
-          ? new Date(raw).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })
-          : "";
+        let dateLabel = "";
+        if (dateOnly) {
+          const [, m, d] = dateOnly.split("-").map(Number);
+          dateLabel = `${d} ${MONTHS[m - 1]}`;
+        }
         map.set(key, dateLabel ? `${title} — ${dateLabel}` : title);
       }
     });
-    // newest date first, then alphabetical within the same date
+    // YYYY-MM-DD strings sort lexicographically = chronologically; newest first
     return Array.from(map.entries()).sort((a, b) => {
-      const dateA = a[0].split("||")[1] || "";
-      const dateB = b[0].split("||")[1] || "";
-      const byDate = dateB.localeCompare(dateA);
-      return byDate !== 0 ? byDate : a[1].localeCompare(b[1]);
+      const dA = a[0].split("||")[1] || "";
+      const dB = b[0].split("||")[1] || "";
+      return dB !== dA ? dB.localeCompare(dA) : a[1].localeCompare(b[1]);
     });
   }, [feedback]);
 
@@ -1539,24 +1541,26 @@ function Feedback() {
   }, [prRows]);
 
   const prGames = useMemo(() => {
-    const map = new Map<string, string>(); // "title||gameDate" → display label
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const map = new Map<string, string>(); // "title||YYYY-MM-DD" → display label
     prRows.forEach(r => {
       const title = r.gameTitle;
       if (!title) return;
-      const raw  = r.gameDate || "";
-      const key  = `${title}||${raw}`;
+      const dateOnly = (r.gameDate || "").slice(0, 10);
+      const key = `${title}||${dateOnly}`;
       if (!map.has(key)) {
-        const dateLabel = raw
-          ? new Date(raw).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })
-          : "";
+        let dateLabel = "";
+        if (dateOnly) {
+          const [, m, d] = dateOnly.split("-").map(Number);
+          dateLabel = `${d} ${MONTHS[m - 1]}`;
+        }
         map.set(key, dateLabel ? `${title} — ${dateLabel}` : title);
       }
     });
     return Array.from(map.entries()).sort((a, b) => {
-      const dateA = a[0].split("||")[1] || "";
-      const dateB = b[0].split("||")[1] || "";
-      const byDate = dateB.localeCompare(dateA);
-      return byDate !== 0 ? byDate : a[1].localeCompare(b[1]);
+      const dA = a[0].split("||")[1] || "";
+      const dB = b[0].split("||")[1] || "";
+      return dB !== dA ? dB.localeCompare(dA) : a[1].localeCompare(b[1]);
     });
   }, [prRows]);
 
@@ -1584,7 +1588,7 @@ function Feedback() {
     const matchTurf = !fbTurf || f.game?.turf?.name === fbTurf;
     const matchGame = !fbGame || (() => {
       const [ft, fd] = fbGame.split("||");
-      return f.game?.title === ft && (f.game?.scheduledAt || "") === fd;
+      return f.game?.title === ft && (f.game?.scheduledAt || "").slice(0, 10) === fd;
     })();
     const matchDate = inDateRange(f.createdAt, fbDateRange);
     return matchSearch && matchOrg && matchTurf && matchGame && matchDate;
@@ -1605,7 +1609,7 @@ function Feedback() {
     const matchOrg  = !prOrganiser || r.organiserName === prOrganiser;
     const matchGame = !prGame || (() => {
       const [ft, fd] = prGame.split("||");
-      return r.gameTitle === ft && (r.gameDate || "") === fd;
+      return r.gameTitle === ft && (r.gameDate || "").slice(0, 10) === fd;
     })();
     const matchDate = inDateRange(r.ratedAt, prDateRange);
     return matchSearch && matchOrg && matchGame && matchDate;
