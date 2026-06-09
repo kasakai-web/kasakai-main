@@ -1510,9 +1510,26 @@ function Feedback() {
   }, [feedback]);
 
   const fbGames = useMemo(() => {
-    const s = new Set<string>();
-    feedback.forEach(f => { if (f.game?.title) s.add(f.game.title); });
-    return Array.from(s).sort();
+    const map = new Map<string, string>(); // "title||scheduledAt" → display label
+    feedback.forEach(f => {
+      const title = f.game?.title;
+      if (!title) return;
+      const raw  = f.game?.scheduledAt || "";
+      const key  = `${title}||${raw}`;
+      if (!map.has(key)) {
+        const dateLabel = raw
+          ? new Date(raw).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })
+          : "";
+        map.set(key, dateLabel ? `${title} — ${dateLabel}` : title);
+      }
+    });
+    // newest date first, then alphabetical within the same date
+    return Array.from(map.entries()).sort((a, b) => {
+      const dateA = a[0].split("||")[1] || "";
+      const dateB = b[0].split("||")[1] || "";
+      const byDate = dateB.localeCompare(dateA);
+      return byDate !== 0 ? byDate : a[1].localeCompare(b[1]);
+    });
   }, [feedback]);
 
   const prOrganisers = useMemo(() => {
@@ -1522,9 +1539,25 @@ function Feedback() {
   }, [prRows]);
 
   const prGames = useMemo(() => {
-    const s = new Set<string>();
-    prRows.forEach(r => { if (r.gameTitle) s.add(r.gameTitle); });
-    return Array.from(s).sort();
+    const map = new Map<string, string>(); // "title||gameDate" → display label
+    prRows.forEach(r => {
+      const title = r.gameTitle;
+      if (!title) return;
+      const raw  = r.gameDate || "";
+      const key  = `${title}||${raw}`;
+      if (!map.has(key)) {
+        const dateLabel = raw
+          ? new Date(raw).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })
+          : "";
+        map.set(key, dateLabel ? `${title} — ${dateLabel}` : title);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => {
+      const dateA = a[0].split("||")[1] || "";
+      const dateB = b[0].split("||")[1] || "";
+      const byDate = dateB.localeCompare(dateA);
+      return byDate !== 0 ? byDate : a[1].localeCompare(b[1]);
+    });
   }, [prRows]);
 
   function inDateRange(iso: string | null | undefined, range: DateRange): boolean {
@@ -1549,7 +1582,10 @@ function Feedback() {
     ].join(" ").toLowerCase().includes(q);
     const matchOrg  = !fbOrganiser || f.game?.organiser?.name === fbOrganiser;
     const matchTurf = !fbTurf || f.game?.turf?.name === fbTurf;
-    const matchGame = !fbGame || f.game?.title === fbGame;
+    const matchGame = !fbGame || (() => {
+      const [ft, fd] = fbGame.split("||");
+      return f.game?.title === ft && (f.game?.scheduledAt || "") === fd;
+    })();
     const matchDate = inDateRange(f.createdAt, fbDateRange);
     return matchSearch && matchOrg && matchTurf && matchGame && matchDate;
   });
@@ -1567,7 +1603,10 @@ function Feedback() {
     const q = prSearch.trim().toLowerCase();
     const matchSearch = !q || [r.playerName, r.playerPhone || "", r.organiserName, r.organiserPhone || "", r.gameTitle || "", r.notes || ""].join(" ").toLowerCase().includes(q);
     const matchOrg  = !prOrganiser || r.organiserName === prOrganiser;
-    const matchGame = !prGame || r.gameTitle === prGame;
+    const matchGame = !prGame || (() => {
+      const [ft, fd] = prGame.split("||");
+      return r.gameTitle === ft && (r.gameDate || "") === fd;
+    })();
     const matchDate = inDateRange(r.ratedAt, prDateRange);
     return matchSearch && matchOrg && matchGame && matchDate;
   });
@@ -1634,7 +1673,7 @@ function Feedback() {
             </select>
             <select className={styles.filterSelect} value={fbGame} onChange={(e) => setFbGame(e.target.value)}>
               <option value="">All Games</option>
-              {fbGames.map(g => <option key={g} value={g}>{g}</option>)}
+              {fbGames.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
             <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               {DATE_RANGES.map(r => (
@@ -1798,7 +1837,7 @@ function Feedback() {
             </select>
             <select className={styles.filterSelect} value={prGame} onChange={(e) => setPrGame(e.target.value)}>
               <option value="">All Games</option>
-              {prGames.map(g => <option key={g} value={g}>{g}</option>)}
+              {prGames.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
             <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               {DATE_RANGES.map(r => (
