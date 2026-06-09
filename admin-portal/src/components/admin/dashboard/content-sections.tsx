@@ -1432,6 +1432,7 @@ function Feedback() {
   const [commentModal, setCommentModal] = useState<CommentModalData | null>(null);
   const [fbOrganiser, setFbOrganiser] = useState("");
   const [fbTurf, setFbTurf]           = useState("");
+  const [fbGame, setFbGame]           = useState("");
   const [fbDateRange, setFbDateRange] = useState<DateRange>("all");
 
   // ── Tab 2: Organiser → Player (PlayerRating) ───────────────────────────────
@@ -1444,6 +1445,7 @@ function Feedback() {
   const [prSortDir, setPrSortDir] = useState<"asc" | "desc">("desc");
   const [notesModal, setNotesModal] = useState<{ notes: string; player: string; organiser: string } | null>(null);
   const [prOrganiser, setPrOrganiser] = useState("");
+  const [prGame, setPrGame]           = useState("");
   const [prDateRange, setPrDateRange] = useState<DateRange>("all");
 
   useEffect(() => {
@@ -1507,9 +1509,21 @@ function Feedback() {
     return Array.from(s).sort();
   }, [feedback]);
 
+  const fbGames = useMemo(() => {
+    const s = new Set<string>();
+    feedback.forEach(f => { if (f.game?.title) s.add(f.game.title); });
+    return Array.from(s).sort();
+  }, [feedback]);
+
   const prOrganisers = useMemo(() => {
     const s = new Set<string>();
     prRows.forEach(r => { if (r.organiserName) s.add(r.organiserName); });
+    return Array.from(s).sort();
+  }, [prRows]);
+
+  const prGames = useMemo(() => {
+    const s = new Set<string>();
+    prRows.forEach(r => { if (r.gameTitle) s.add(r.gameTitle); });
     return Array.from(s).sort();
   }, [prRows]);
 
@@ -1535,8 +1549,9 @@ function Feedback() {
     ].join(" ").toLowerCase().includes(q);
     const matchOrg  = !fbOrganiser || f.game?.organiser?.name === fbOrganiser;
     const matchTurf = !fbTurf || f.game?.turf?.name === fbTurf;
+    const matchGame = !fbGame || f.game?.title === fbGame;
     const matchDate = inDateRange(f.createdAt, fbDateRange);
-    return matchSearch && matchOrg && matchTurf && matchDate;
+    return matchSearch && matchOrg && matchTurf && matchGame && matchDate;
   });
 
   const fbSorted = [...fbFiltered].sort((a, b) => {
@@ -1552,8 +1567,9 @@ function Feedback() {
     const q = prSearch.trim().toLowerCase();
     const matchSearch = !q || [r.playerName, r.playerPhone || "", r.organiserName, r.organiserPhone || "", r.gameTitle || "", r.notes || ""].join(" ").toLowerCase().includes(q);
     const matchOrg  = !prOrganiser || r.organiserName === prOrganiser;
+    const matchGame = !prGame || r.gameTitle === prGame;
     const matchDate = inDateRange(r.ratedAt, prDateRange);
-    return matchSearch && matchOrg && matchDate;
+    return matchSearch && matchOrg && matchGame && matchDate;
   });
 
   const prSorted = [...prFiltered].sort((a, b) => {
@@ -1616,6 +1632,10 @@ function Feedback() {
               <option value="">All Turfs</option>
               {fbTurfs.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
+            <select className={styles.filterSelect} value={fbGame} onChange={(e) => setFbGame(e.target.value)}>
+              <option value="">All Games</option>
+              {fbGames.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
             <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               {DATE_RANGES.map(r => (
                 <button key={r} type="button" onClick={() => setFbDateRange(r)}
@@ -1628,9 +1648,9 @@ function Feedback() {
                 </button>
               ))}
             </div>
-            {(fbOrganiser || fbTurf || fbDateRange !== "all" || fbSearch) && (
+            {(fbOrganiser || fbTurf || fbGame || fbDateRange !== "all" || fbSearch) && (
               <button type="button"
-                onClick={() => { setFbOrganiser(""); setFbTurf(""); setFbDateRange("all"); setFbSearch(""); }}
+                onClick={() => { setFbOrganiser(""); setFbTurf(""); setFbGame(""); setFbDateRange("all"); setFbSearch(""); }}
                 style={{ padding: "7px 12px", fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
                   background: "rgba(241,118,127,0.1)", border: "1px solid rgba(241,118,127,0.35)",
                   color: "var(--danger)", whiteSpace: "nowrap" }}>
@@ -1776,6 +1796,10 @@ function Feedback() {
               <option value="">All Organisers</option>
               {prOrganisers.map(o => <option key={o} value={o}>{o}</option>)}
             </select>
+            <select className={styles.filterSelect} value={prGame} onChange={(e) => setPrGame(e.target.value)}>
+              <option value="">All Games</option>
+              {prGames.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
             <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               {DATE_RANGES.map(r => (
                 <button key={r} type="button" onClick={() => setPrDateRange(r)}
@@ -1788,9 +1812,9 @@ function Feedback() {
                 </button>
               ))}
             </div>
-            {(prOrganiser || prDateRange !== "all" || prSearch) && (
+            {(prOrganiser || prGame || prDateRange !== "all" || prSearch) && (
               <button type="button"
-                onClick={() => { setPrOrganiser(""); setPrDateRange("all"); setPrSearch(""); }}
+                onClick={() => { setPrOrganiser(""); setPrGame(""); setPrDateRange("all"); setPrSearch(""); }}
                 style={{ padding: "7px 12px", fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
                   background: "rgba(241,118,127,0.1)", border: "1px solid rgba(241,118,127,0.35)",
                   color: "var(--danger)", whiteSpace: "nowrap" }}>
