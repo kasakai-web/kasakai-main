@@ -217,6 +217,7 @@ export function EventCard({
         )}
         <button className="card-btn details-btn" onClick={onViewDetails}>
           <span>View More Details</span>
+          <span className="details-btn-arrow">→</span>
         </button>
       </div>
     </div>
