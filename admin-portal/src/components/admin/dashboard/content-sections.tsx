@@ -322,9 +322,10 @@ function Dashboard({ onNavigate }: { onNavigate: (s: DashboardSection) => void }
 // ── Shared Avatar component ───────────────────────────────────────────────────
 
 function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; size?: number }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const initial = name ? name.charAt(0).toUpperCase() : "?";
-  const hue = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+  const [imgFailed, setImgFailed]     = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const initial    = name ? name.charAt(0).toUpperCase() : "?";
+  const hue        = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
   const resolvedSrc = imgFailed ? null : resolveImageUrl(src);
 
   const fallback = (
@@ -342,13 +343,96 @@ function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; s
   if (!resolvedSrc) return fallback;
 
   return (
-    <img
-      src={resolvedSrc}
-      alt={name}
-      loading="lazy"
-      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.12)", display: "block" }}
-      onError={() => setImgFailed(true)}
-    />
+    <>
+      <img
+        src={resolvedSrc}
+        alt={name}
+        loading="lazy"
+        title={`View photo of ${name}`}
+        onClick={() => setLightboxOpen(true)}
+        style={{
+          width: size, height: size, borderRadius: "50%", objectFit: "cover",
+          flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.12)", display: "block",
+          cursor: "pointer", transition: "opacity 0.15s, transform 0.15s",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLImageElement).style.opacity = "0.82"; (e.currentTarget as HTMLImageElement).style.transform = "scale(1.08)"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLImageElement).style.opacity = "1";    (e.currentTarget as HTMLImageElement).style.transform = "scale(1)"; }}
+        onError={() => setImgFailed(true)}
+      />
+
+      {/* ── Photo lightbox ── */}
+      {lightboxOpen && (
+        <div
+          onClick={() => setLightboxOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "24px",
+            animation: "lbFadeIn 0.2s ease both",
+          }}
+        >
+          {/* inject keyframes once */}
+          <style>{`
+            @keyframes lbFadeIn { from { opacity:0 } to { opacity:1 } }
+            @keyframes lbPopIn  { from { opacity:0; transform:scale(0.88) } to { opacity:1; transform:scale(1) } }
+          `}</style>
+
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: "relative",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: "14px",
+              animation: "lbPopIn 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
+            }}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setLightboxOpen(false)}
+              title="Close"
+              style={{
+                position: "absolute", top: "-14px", right: "-14px",
+                width: "34px", height: "34px", borderRadius: "50%",
+                background: "#1e2030", border: "1.5px solid rgba(255,255,255,0.18)",
+                color: "#e0e8f8", fontSize: "16px", fontWeight: 700,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                zIndex: 1, lineHeight: 1,
+                transition: "background 0.15s, border-color 0.15s, color 0.15s",
+              }}
+              onMouseEnter={e => { const b = e.currentTarget; b.style.background = "#2e3248"; b.style.borderColor = "rgba(255,255,255,0.35)"; b.style.color = "#fff"; }}
+              onMouseLeave={e => { const b = e.currentTarget; b.style.background = "#1e2030"; b.style.borderColor = "rgba(255,255,255,0.18)"; b.style.color = "#e0e8f8"; }}
+            >
+              ✕
+            </button>
+
+            {/* Enlarged photo */}
+            <img
+              src={resolvedSrc}
+              alt={name}
+              style={{
+                width: "min(320px, 80vw)",
+                height: "min(320px, 80vw)",
+                borderRadius: "16px",
+                objectFit: "cover",
+                border: "2px solid rgba(255,255,255,0.14)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
+                display: "block",
+              }}
+            />
+
+            {/* Name label */}
+            <div style={{
+              color: "#e8eef8", fontSize: "15px", fontWeight: 700,
+              textAlign: "center", letterSpacing: "0.02em",
+              textShadow: "0 1px 4px rgba(0,0,0,0.6)",
+            }}>
+              {name}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
