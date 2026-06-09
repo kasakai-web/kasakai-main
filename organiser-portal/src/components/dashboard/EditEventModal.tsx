@@ -14,9 +14,9 @@ const slotsFromFormat = (fmt: string) => {
   return 10;
 };
 
-const TIME_SLOT_OPTIONS = Array.from({ length: 48 }, (_, idx) => {
-  const hours   = Math.floor(idx / 2);
-  const minutes = idx % 2 === 0 ? "00" : "30";
+const TIME_SLOT_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
+  const hours   = Math.floor(idx / 4);
+  const minutes = String((idx % 4) * 15).padStart(2, "0");
   const value   = `${String(hours).padStart(2, "0")}:${minutes}`;
   const displayHour = hours % 12 === 0 ? 12 : hours % 12;
   const period  = hours < 12 ? "AM" : "PM";
@@ -110,7 +110,7 @@ export function EditEventModal({
     const istDate = scheduled.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
     const istHM   = scheduled.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); // HH:MM
     const [hh, mmRaw] = istHM.split(":");
-    const mm = Number(mmRaw) >= 30 ? "30" : "00";
+    const mm = String(Math.round(Number(mmRaw) / 15) * 15 % 60).padStart(2, "0");
     return { date: istDate, time: `${hh}:${mm}` };
   }, [initialData.scheduledAt]);
 
