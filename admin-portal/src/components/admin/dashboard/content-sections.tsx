@@ -9,6 +9,15 @@ import { PassPage } from "./passes/PassPage";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1";
 
+// Backend origin (strips /api/v1 suffix) — used to resolve relative upload paths
+const BACKEND_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, "");
+
+function resolveImageUrl(src: string | null | undefined): string | null {
+  if (!src) return null;
+  if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  return `${BACKEND_ORIGIN}${src.startsWith("/") ? src : `/${src}`}`;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type AdminUserRow = {
@@ -303,27 +312,32 @@ function Dashboard({ onNavigate }: { onNavigate: (s: DashboardSection) => void }
 // ── Shared Avatar component ───────────────────────────────────────────────────
 
 function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; size?: number }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const initial = name ? name.charAt(0).toUpperCase() : "?";
   const hue = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.1)", display: "block" }}
-        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-      />
-    );
-  }
-  return (
+  const resolvedSrc = imgFailed ? null : resolveImageUrl(src);
+
+  const fallback = (
     <div style={{
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: `hsl(${hue}, 50%, 32%)`, border: "1.5px solid rgba(255,255,255,0.1)",
+      background: `hsl(${hue}, 50%, 32%)`, border: "1.5px solid rgba(255,255,255,0.12)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: Math.round(size * 0.4), fontWeight: 700, color: "#fff", userSelect: "none",
+      fontSize: Math.round(size * 0.42), fontWeight: 700, color: "#fff", userSelect: "none",
+      letterSpacing: 0,
     }}>
       {initial}
     </div>
+  );
+
+  if (!resolvedSrc) return fallback;
+
+  return (
+    <img
+      src={resolvedSrc}
+      alt={name}
+      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.12)", display: "block" }}
+      onError={() => setImgFailed(true)}
+    />
   );
 }
 
