@@ -14,6 +14,7 @@ const API_BASE =
 type AdminUserRow = {
   id: string; name: string; phone: string; email?: string | null;
   role: "player" | "organiser"; isVerified?: boolean;
+  profileImage?: string | null;
   gamesPlayed?: number; gamesHosted?: number;
   noShowCount?: number; backoutCount?: number;
   rating?: number;
@@ -27,6 +28,7 @@ type AdminUserRow = {
 
 type AdminOrganiserRow = {
   id: string; name: string; phone: string; email?: string | null;
+  profileImage?: string | null;
   whatsappNumber?: string | null; isVerified?: boolean; isActive?: boolean;
   approvalStatus?: string; status: string;
   gamesHosted?: number; totalPlayersManaged?: number;
@@ -298,6 +300,33 @@ function Dashboard({ onNavigate }: { onNavigate: (s: DashboardSection) => void }
   );
 }
 
+// ── Shared Avatar component ───────────────────────────────────────────────────
+
+function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; size?: number }) {
+  const initial = name ? name.charAt(0).toUpperCase() : "?";
+  const hue = name.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.1)", display: "block" }}
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+      />
+    );
+  }
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: `hsl(${hue}, 50%, 32%)`, border: "1.5px solid rgba(255,255,255,0.1)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.round(size * 0.4), fontWeight: 700, color: "#fff", userSelect: "none",
+    }}>
+      {initial}
+    </div>
+  );
+}
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
@@ -391,7 +420,12 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
             {!loading && filtered.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
             {filtered.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
-                <td>{u.name}</td>
+                <td>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Avatar name={u.name} src={u.profileImage} size={36} />
+                    <span style={{ fontWeight: 500 }}>{u.name}</span>
+                  </div>
+                </td>
                 <td>{u.phone}</td>
                 <td><span className={`${styles.badge} ${u.role === "organiser" ? styles.badgeBlue : styles.badgeGray}`}>{u.role === "organiser" ? "Organiser" : "Player"}</span></td>
                 <td>{u.email || "—"}</td>
@@ -560,8 +594,13 @@ function Organisers({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
     return (
     <tr>
       <td>
-        <div style={{ fontWeight: 500 }}>{o.name}</div>
-        {o.suspendReason && <div style={{ fontSize: "11px", color: "var(--red)" }}>{o.suspendReason}</div>}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Avatar name={o.name} src={o.profileImage} size={36} />
+          <div>
+            <div style={{ fontWeight: 500 }}>{o.name}</div>
+            {o.suspendReason && <div style={{ fontSize: "11px", color: "var(--red)" }}>{o.suspendReason}</div>}
+          </div>
+        </div>
       </td>
       <td>
         <div>{o.phone}</div>
