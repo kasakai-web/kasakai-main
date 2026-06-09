@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import styles from "./dashboard.module.css";
 import type { DashboardSection } from "./constants";
 import { getAdminToken } from "@/lib/admin-session";
@@ -1244,6 +1244,7 @@ function Notifications() {
 
 type FbSortKey = "date" | "gameRating" | "organiserRating" | "venueRating";
 type PrSortKey = "date" | "conduct" | "gameplay" | "avg";
+type DateRange = "all" | "today" | "week" | "month";
 
 type CommentModalData = { comment: string; player: string; game: string };
 
@@ -1269,6 +1270,9 @@ function Feedback() {
   const [sortKey, setSortKey]   = useState<FbSortKey>("date");
   const [sortDir, setSortDir]   = useState<"asc" | "desc">("desc");
   const [commentModal, setCommentModal] = useState<CommentModalData | null>(null);
+  const [fbOrganiser, setFbOrganiser] = useState("");
+  const [fbTurf, setFbTurf]           = useState("");
+  const [fbDateRange, setFbDateRange] = useState<DateRange>("all");
 
   // ── Tab 2: Organiser → Player (PlayerRating) ───────────────────────────────
   const [prRows, setPrRows]       = useState<PlayerRatingRow[]>([]);
@@ -1279,6 +1283,8 @@ function Feedback() {
   const [prSortKey, setPrSortKey] = useState<PrSortKey>("date");
   const [prSortDir, setPrSortDir] = useState<"asc" | "desc">("desc");
   const [notesModal, setNotesModal] = useState<{ notes: string; player: string; organiser: string } | null>(null);
+  const [prOrganiser, setPrOrganiser] = useState("");
+  const [prDateRange, setPrDateRange] = useState<DateRange>("all");
 
   useEffect(() => {
     const token = getAdminToken();
@@ -1328,13 +1334,49 @@ function Feedback() {
 
   const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
 
+  // ── Unique filter lists ──────────────────────────────────────────────────────
+  const fbOrganisers = useMemo(() => {
+    const s = new Set<string>();
+    feedback.forEach(f => { if (f.game?.organiser?.name) s.add(f.game.organiser.name); });
+    return Array.from(s).sort();
+  }, [feedback]);
+
+  const fbTurfs = useMemo(() => {
+    const s = new Set<string>();
+    feedback.forEach(f => { if (f.game?.turf?.name) s.add(f.game.turf.name); });
+    return Array.from(s).sort();
+  }, [feedback]);
+
+  const prOrganisers = useMemo(() => {
+    const s = new Set<string>();
+    prRows.forEach(r => { if (r.organiserName) s.add(r.organiserName); });
+    return Array.from(s).sort();
+  }, [prRows]);
+
+  function inDateRange(iso: string | null | undefined, range: DateRange): boolean {
+    if (range === "all") return true;
+    if (!iso) return false;
+    const d = new Date(iso);
+    const now = new Date();
+    if (range === "today") return d.toDateString() === now.toDateString();
+    const ms = range === "week" ? 7 * 86400000 : 30 * 86400000;
+    return d >= new Date(now.getTime() - ms);
+  }
+
+  const DATE_RANGE_LABELS: Record<DateRange, string> = { all: "All Time", today: "Today", week: "7 Days", month: "30 Days" };
+  const DATE_RANGES: DateRange[] = ["all", "today", "week", "month"];
+
   const fbFiltered = feedback.filter((f) => {
     const q = fbSearch.trim().toLowerCase();
-    return [
+    const matchSearch = !q || [
       f.submittedBy?.name || "", f.submittedBy?.phone || "",
       f.game?.title || "", f.game?.organiser?.name || "",
       f.game?.turf?.name || "", f.comment || "",
     ].join(" ").toLowerCase().includes(q);
+    const matchOrg  = !fbOrganiser || f.game?.organiser?.name === fbOrganiser;
+    const matchTurf = !fbTurf || f.game?.turf?.name === fbTurf;
+    const matchDate = inDateRange(f.createdAt, fbDateRange);
+    return matchSearch && matchOrg && matchTurf && matchDate;
   });
 
   const fbSorted = [...fbFiltered].sort((a, b) => {
@@ -1348,7 +1390,10 @@ function Feedback() {
 
   const prFiltered = prRows.filter((r) => {
     const q = prSearch.trim().toLowerCase();
-    return [r.playerName, r.playerPhone || "", r.organiserName, r.organiserPhone || "", r.gameTitle || "", r.notes || ""].join(" ").toLowerCase().includes(q);
+    const matchSearch = !q || [r.playerName, r.playerPhone || "", r.organiserName, r.organiserPhone || "", r.gameTitle || "", r.notes || ""].join(" ").toLowerCase().includes(q);
+    const matchOrg  = !prOrganiser || r.organiserName === prOrganiser;
+    const matchDate = inDateRange(r.ratedAt, prDateRange);
+    return matchSearch && matchOrg && matchDate;
   });
 
   const prSorted = [...prFiltered].sort((a, b) => {
@@ -1402,8 +1447,42 @@ function Feedback() {
           </div>
 
           <div className={styles.toolbar}>
-            <input className={styles.searchInput} placeholder="Search by player, organiser, turf, game or comment…" value={fbSearch} onChange={(e) => setFbSearch(e.target.value)} />
+            <input className={styles.searchInput} placeholder="Search player, organiser, turf, game, comment…" value={fbSearch} onChange={(e) => setFbSearch(e.target.value)} />
+            <select className={styles.filterSelect} value={fbOrganiser} onChange={(e) => setFbOrganiser(e.target.value)}>
+              <option value="">All Organisers</option>
+              {fbOrganisers.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <select className={styles.filterSelect} value={fbTurf} onChange={(e) => setFbTurf(e.target.value)}>
+              <option value="">All Turfs</option>
+              {fbTurfs.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              {DATE_RANGES.map(r => (
+                <button key={r} type="button" onClick={() => setFbDateRange(r)}
+                  style={{ padding: "7px 12px", fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
+                    background: fbDateRange === r ? "var(--accent)" : "var(--surface)",
+                    border: `1px solid ${fbDateRange === r ? "var(--accent)" : "var(--border2)"}`,
+                    color: fbDateRange === r ? "#000" : "var(--muted)",
+                    fontWeight: fbDateRange === r ? 700 : 400 }}>
+                  {DATE_RANGE_LABELS[r]}
+                </button>
+              ))}
+            </div>
+            {(fbOrganiser || fbTurf || fbDateRange !== "all" || fbSearch) && (
+              <button type="button"
+                onClick={() => { setFbOrganiser(""); setFbTurf(""); setFbDateRange("all"); setFbSearch(""); }}
+                style={{ padding: "7px 12px", fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
+                  background: "rgba(241,118,127,0.1)", border: "1px solid rgba(241,118,127,0.35)",
+                  color: "var(--danger)", whiteSpace: "nowrap" }}>
+                ✕ Clear Filters
+              </button>
+            )}
           </div>
+          {!fbLoading && (
+            <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "10px" }}>
+              Showing <strong style={{ color: "var(--white)" }}>{fbSorted.length}</strong> of {feedback.length} entries
+            </div>
+          )}
 
           {fbError   && <div className={styles.formError}>{fbError}</div>}
           {fbLoading && <div className={styles.loadingState}>Loading feedback…</div>}
@@ -1532,8 +1611,38 @@ function Feedback() {
           </div>
 
           <div className={styles.toolbar}>
-            <input className={styles.searchInput} placeholder="Search by player, organiser, game or notes…" value={prSearch} onChange={(e) => setPrSearch(e.target.value)} />
+            <input className={styles.searchInput} placeholder="Search player, organiser, game, notes…" value={prSearch} onChange={(e) => setPrSearch(e.target.value)} />
+            <select className={styles.filterSelect} value={prOrganiser} onChange={(e) => setPrOrganiser(e.target.value)}>
+              <option value="">All Organisers</option>
+              {prOrganisers.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              {DATE_RANGES.map(r => (
+                <button key={r} type="button" onClick={() => setPrDateRange(r)}
+                  style={{ padding: "7px 12px", fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
+                    background: prDateRange === r ? "var(--accent)" : "var(--surface)",
+                    border: `1px solid ${prDateRange === r ? "var(--accent)" : "var(--border2)"}`,
+                    color: prDateRange === r ? "#000" : "var(--muted)",
+                    fontWeight: prDateRange === r ? 700 : 400 }}>
+                  {DATE_RANGE_LABELS[r]}
+                </button>
+              ))}
+            </div>
+            {(prOrganiser || prDateRange !== "all" || prSearch) && (
+              <button type="button"
+                onClick={() => { setPrOrganiser(""); setPrDateRange("all"); setPrSearch(""); }}
+                style={{ padding: "7px 12px", fontSize: "12px", cursor: "pointer", fontFamily: "inherit",
+                  background: "rgba(241,118,127,0.1)", border: "1px solid rgba(241,118,127,0.35)",
+                  color: "var(--danger)", whiteSpace: "nowrap" }}>
+                ✕ Clear Filters
+              </button>
+            )}
           </div>
+          {!prLoading && (
+            <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "10px" }}>
+              Showing <strong style={{ color: "var(--white)" }}>{prSorted.length}</strong> of {prTotal} entries
+            </div>
+          )}
 
           {prError   && <div className={styles.formError}>{prError}</div>}
           {prLoading && <div className={styles.loadingState}>Loading player ratings…</div>}
