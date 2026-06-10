@@ -88,7 +88,7 @@ function StarRating({
             ★
           </button>
         ))}
-        <span className="pgm-star-value">{value}/5</span>
+        <span className="pgm-star-value">{value > 0 ? `${value}/5` : "Not rated"}</span>
       </div>
     </div>
   );
@@ -168,8 +168,8 @@ export function PostGameModal({ game, onClose, onDone }: Props) {
         drafts[pid] = {
           playerId:          pid,
           name:              reg.player!.name,
-          conductRating:     3,
-          gameplayRating:    3,
+          conductRating:     0,   // 0 = not rated yet (no default)
+          gameplayRating:    0,   // 0 = not rated yet (no default)
           preferredPosition: "any",
           gkAffinity:        null,
           playWith:          [],
