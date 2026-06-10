@@ -37,6 +37,8 @@ type AdminUserRow = {
   gamesPlayed?: number; gamesHosted?: number;
   noShowCount?: number; backoutCount?: number;
   rating?: number;
+  // player-specific conduct/gameplay averages (from organiser ratings)
+  conductRating?: number | null; gameplayRating?: number | null; ratingCount?: number;
   // player-specific wallet fields
   totalSpentPaise?: number; walletBalancePaise?: number;
   // organiser-specific
@@ -529,10 +531,10 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Rating</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Conduct</th><th>Gameplay</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
             {filtered.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
                 <td>
@@ -551,10 +553,24 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
                     <div style={{ fontSize: "11px", color: "var(--red)" }}>{u.noShowCount} no-show{(u.noShowCount ?? 0) > 1 ? "s" : ""}</div>
                   )}
                 </td>
+                {/* Conduct: players show conduct avg; organisers show their single rating */}
                 <td>
-                  {u.rating != null && u.rating > 0
-                    ? <span style={{ color: "var(--amber)", fontWeight: 600 }}>★ {(u.rating as number).toFixed(1)}</span>
-                    : <span style={{ color: "var(--muted)", fontSize: "12px" }}>No ratings</span>
+                  {u.role === "organiser"
+                    ? (u.rating != null && u.rating > 0
+                        ? <span style={{ color: "var(--amber)", fontWeight: 600 }}>★ {(u.rating as number).toFixed(1)}<span style={{ fontSize: "10px", color: "var(--muted)", fontWeight: 400, marginLeft: "3px" }}>(org)</span></span>
+                        : <span style={{ color: "var(--muted)", fontSize: "12px" }}>No ratings</span>)
+                    : (u.conductRating != null && u.conductRating > 0
+                        ? <span style={{ color: "var(--amber)", fontWeight: 600 }}>★ {u.conductRating.toFixed(1)}</span>
+                        : <span style={{ color: "var(--muted)", fontSize: "12px" }}>—</span>)
+                  }
+                </td>
+                {/* Gameplay: players only */}
+                <td>
+                  {u.role === "organiser"
+                    ? <span style={{ color: "var(--muted)", fontSize: "12px" }}>—</span>
+                    : (u.gameplayRating != null && u.gameplayRating > 0
+                        ? <span style={{ color: "var(--amber)", fontWeight: 600 }}>★ {u.gameplayRating.toFixed(1)}</span>
+                        : <span style={{ color: "var(--muted)", fontSize: "12px" }}>—</span>)
                   }
                 </td>
                 <td>
