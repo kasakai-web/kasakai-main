@@ -428,7 +428,16 @@ function downloadTeamExcel(result: {
       lines.push(`Time: ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`);
     }
     if (format) lines.push(`Format: ${format}`);
-    lines.push(`Registration link: https://kasakai.in/join/${gameId}`);
+    // Human-readable join link: "<game-name>-<date>-<id>" so the shared URL itself
+    // shows the game name + date. The trailing ObjectId is what the join page reads,
+    // so old bare-id links still work too.
+    const dateLabel = scheduledAt
+      ? new Date(scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })
+      : "";
+    const joinSlug = `${gameName || "game"} ${dateLabel}`
+      .toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const joinUrl = `https://kasakai.in/join/${joinSlug ? `${joinSlug}-` : ""}${gameId}`;
+    lines.push(`Registration link: ${joinUrl}`);
     if (location) lines.push(`Location: ${location}`);
 
     // Reporting time = start time minus reportingMinsBeforeGame (default 30)
