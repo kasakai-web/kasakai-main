@@ -58,9 +58,15 @@ Dashboard for game organisers on the Kasa Kai football platform. Organisers crea
 
 ### Post-game
 - Record per-player attendance (present / absent)
-- Rate individual players (skill, attitude, punctuality)
+- **Rate individual players** — conduct, gameplay, GK affinity, preferred position, play-with / play-against. Stars start **unrated** (no pre-filled default); only players the organiser actually rates (valid 1–5 for both conduct & gameplay) are saved — no fake `3` is ever stored
 - View all player feedback submitted for the game
 - View aggregated organiser rating summary
+
+### Team distribution
+- **Auto-distribute balanced teams** from a game's attended players
+- Skill is the player's **average gameplay rating only** (conduct is not used); GK affinity, position, and play-with/against preferences also factor in
+- No default values — unrated players and guests contribute 0 skill / 0 GK; config is read fresh each run (changing a rating reflects immediately)
+- **Copy List** produces a shareable game summary with a readable registration link (`/join/<name>-<date>-<id>`)
 
 ### Finance
 - Per-game financial summary (registrations, revenue, refunds)

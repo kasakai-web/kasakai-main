@@ -43,8 +43,11 @@ Platform administration interface for Kasa Kai. Admins monitor and manage the en
 ### People management
 - List, search, and filter all players
 - List and manage organisers
+- **Profile photos** shown in circular avatars (initial-letter fallback if missing); **click a photo to enlarge it** in a centered lightbox
+- Player rating displayed as **separate Conduct & Gameplay columns** — each the real average of organiser-submitted ratings, "—" when unrated (no default values)
 - View profile details, game history, wallet balance per user
 - Deactivate / reactivate accounts
+- Performance: All Users / Organisers use a short client-side cache + lazy-loaded images; backend uses MongoDB aggregations
 
 ### Game management
 - View all games across all organisers (status, registrations, revenue)
@@ -53,11 +56,14 @@ Platform administration interface for Kasa Kai. Admins monitor and manage the en
 
 ### Payments & finance
 - View all payment transactions across the platform
+- Player wallets + manual wallet adjustment (in-app credit/debit with note)
 - Per-game financial breakdown (registrations, refunds, net revenue)
 - Cross-platform finance overview
+- **Wallet Recharge Offers** — panel at the top of Player Wallets to set a flat bonus per recharge tier (₹500–999, ₹1000–1499, ₹1500–1999, ₹2000+), with an enable/disable toggle. Values persist and are editable; bonus auto-credits to the in-app wallet on recharge (never a bank account)
 
 ### Feedback & disputes
-- View all player feedback and ratings
+- View all player feedback and ratings — two tabs: **Player → Platform** and **Organiser → Players**
+- Filter feedback by organiser, turf, **game (name + date, so same-named games on different dates stay distinct)**, and date range
 - Manage reported disputes
 
 ### Notifications

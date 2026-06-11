@@ -61,6 +61,12 @@ Player-facing web application for the Kasa Kai football event management platfor
 - Tag-based feedback (too rough, great atmosphere, etc.)
 - View own submitted feedback
 - Auto-popup prompting feedback after game completion
+- **Redesigned feedback modal** — high-contrast text, visible empty/filled stars, clear Submit vs Skip buttons, and a mobile bottom-sheet layout
+
+### Shareable join links
+- Game links are human-readable: `/join/<game-name>-<date>-<id>` (e.g. `/join/thursday-morning-game-12-jun-2026-<id>`)
+- The join page extracts the game id from the link and opens that exact game (logged-in players go straight to it; otherwise they log in and return)
+- Backward-compatible: old bare-id links (already shared / in emails) still work
 
 ### Profile & wallet
 - View and update profile and position preferences

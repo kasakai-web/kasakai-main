@@ -2242,8 +2242,19 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
 
 type FinanceTab = "wallets" | "earnings";
 
+type OfferTier = { key: string; label: string; minPaise: number; maxPaise: number | null; bonusPaise: number };
+
 function Finance() {
   const [tab, setTab] = useState<FinanceTab>("wallets");
+
+  // Recharge-offer config state
+  const [offerEnabled, setOfferEnabled]   = useState(false);
+  const [offerTiers, setOfferTiers]       = useState<OfferTier[]>([]);
+  const [offerDraft, setOfferDraft]       = useState<Record<string, string>>({}); // tier key → rupee string
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [offersSaving, setOffersSaving]   = useState(false);
+  const [offersMsg, setOffersMsg]         = useState<string | null>(null);
+  const [offersErr, setOffersErr]         = useState("");
 
   // Wallet state
   const [wallets, setWallets]       = useState<WalletRow[]>([]);
@@ -2285,7 +2296,49 @@ function Finance() {
     finally { setEarningsLoading(false); }
   }, []);
 
-  useEffect(() => { fetchWallets(); fetchEarnings(); }, [fetchWallets, fetchEarnings]);
+  const fetchOffers = useCallback(async () => {
+    setOffersLoading(true); setOffersErr("");
+    try {
+      const token = getAdminToken();
+      if (!token) { setOffersErr("Admin session missing."); return; }
+      const res  = await fetch(`${API_BASE}/admin/wallet-offers`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setOffersErr(data.message || "Failed to load offers."); return; }
+      setOfferEnabled(!!data.data.enabled);
+      setOfferTiers(data.data.tiers || []);
+      const draft: Record<string, string> = {};
+      (data.data.tiers || []).forEach((t: OfferTier) => { draft[t.key] = String((t.bonusPaise || 0) / 100); });
+      setOfferDraft(draft);
+    } catch { setOffersErr("Cannot reach the server."); }
+    finally { setOffersLoading(false); }
+  }, []);
+
+  const saveOffers = async () => {
+    setOffersSaving(true); setOffersErr(""); setOffersMsg(null);
+    try {
+      const token = getAdminToken();
+      if (!token) { setOffersErr("Admin session missing."); setOffersSaving(false); return; }
+      const bonusPaise: Record<string, number> = {};
+      for (const t of offerTiers) {
+        const rupees = Number(offerDraft[t.key]);
+        if (!Number.isFinite(rupees) || rupees < 0) { setOffersErr(`Invalid bonus for ${t.label}.`); setOffersSaving(false); return; }
+        bonusPaise[t.key] = Math.round(rupees * 100);
+      }
+      const res  = await fetch(`${API_BASE}/admin/wallet-offers`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ enabled: offerEnabled, bonusPaise }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setOffersErr(data.message || "Save failed."); return; }
+      setOfferTiers(data.data.tiers || []);
+      setOffersMsg("Saved ✓");
+      setTimeout(() => setOffersMsg(null), 2500);
+    } catch { setOffersErr("Cannot reach the server."); }
+    finally { setOffersSaving(false); }
+  };
+
+  useEffect(() => { fetchWallets(); fetchEarnings(); fetchOffers(); }, [fetchWallets, fetchEarnings, fetchOffers]);
 
   const filteredWallets  = wallets.filter((w) => {
     const q = walletSearch.trim().toLowerCase();
@@ -2322,6 +2375,48 @@ function Finance() {
       {/* Player Wallets */}
       {tab === "wallets" && (
         <>
+          {/* ── Recharge offers config ───────────────────────────────────────── */}
+          <div style={{ border: "1px solid var(--border2)", borderRadius: 12, padding: 16, marginBottom: 16, background: "var(--surface)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "var(--white)" }}>💸 Wallet Recharge Offers</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3, maxWidth: 520, lineHeight: 1.45 }}>
+                  Flat bonus added to a player&apos;s wallet for each recharge range. The ranges are fixed — you set the bonus amount per range.
+                </div>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, cursor: "pointer", color: "var(--white)", whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={offerEnabled} onChange={(e) => setOfferEnabled(e.target.checked)} />
+                {offerEnabled ? "Offers Enabled" : "Offers Disabled"}
+              </label>
+            </div>
+
+            {offersErr && <div className={styles.formError} style={{ marginTop: 10 }}>{offersErr}</div>}
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+              {offerTiers.map((t) => (
+                <div key={t.key} style={{ flex: "1 1 170px", border: "1px solid var(--border2)", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 7 }}>Recharge <strong style={{ color: "var(--white)" }}>{t.label}</strong></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "var(--muted)", fontSize: 13 }}>Bonus ₹</span>
+                    <input
+                      type="number" min={0} step={1} value={offerDraft[t.key] ?? ""}
+                      onChange={(e) => setOfferDraft((p) => ({ ...p, [t.key]: e.target.value }))}
+                      style={{ width: 100, padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--white)", fontSize: 14 }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14 }}>
+              <button className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`} onClick={saveOffers} disabled={offersSaving || offersLoading} type="button">
+                {offersSaving ? "Saving…" : "Save Offers"}
+              </button>
+              {offersMsg && <span style={{ color: "var(--green)", fontSize: 13, fontWeight: 600 }}>{offersMsg}</span>}
+              {offersLoading && <span style={{ color: "var(--muted)", fontSize: 13 }}>Loading…</span>}
+            </div>
+          </div>
+
           <div className={styles.toolbar}>
             <input className={styles.searchInput} placeholder="Search by name, phone or email…" value={walletSearch} onChange={(e) => setWalletSearch(e.target.value)} />
           </div>
