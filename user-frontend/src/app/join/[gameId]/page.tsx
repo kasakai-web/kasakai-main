@@ -31,7 +31,9 @@ export default function JoinGamePage() {
 
     if (token && userId && role === "player") {
       // Already logged in — open their dashboard with this game's modal
-      router.replace(`/dashboard/player/${userId}?tab=my-games&openGame=${gameId}`);
+      // No tab param: the openGame effect in the dashboard determines the correct tab
+      // based on whether the player is registered/waitlisted or not.
+      router.replace(`/dashboard/player/${userId}?openGame=${gameId}`);
     } else {
       // Not logged in — go to login, passing this page as the post-login redirect
       router.replace(`/login?role=player&redirect=/join/${gameId}`);

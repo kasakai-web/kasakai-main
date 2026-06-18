@@ -328,17 +328,23 @@ export default function PlayerDashboard() {
     setActiveTab("all");
   }, [searchParams]);
 
-  // Auto-open game detail when arriving from a waitlist email link (/join/[gameId])
+  // Auto-open game detail when arriving via a shared /join/[gameId] link
   useEffect(() => {
     if (loading || !openGameId) return;
     const target = [...games, ...myWaitlist, ...myGames].find((g) => g._id === openGameId);
-    if (target) {
-      setDetailGame(target);
-      setActiveTab("my-games");
-    }
-    // Clear the openGame param from URL so refresh doesn't re-open
+    // If data isn't ready yet (empty lists on premature load=false), bail without clearing
+    // the URL so this effect retries on the next loading→false transition.
+    if (!target) return;
+    setDetailGame(target);
+    // Show "My Games" tab if the player is already registered/waitlisted, otherwise "All Games"
+    const isRegistered =
+      myGames.some((g) => g._id === openGameId) ||
+      myWaitlist.some((g) => g._id === openGameId);
+    const destTab = isRegistered ? "my-games" : "all";
+    setActiveTab(destTab);
+    // Clear the openGame param from URL only after popup is successfully opened
     if (playerId) {
-      router.replace(`/dashboard/player/${playerId}?tab=my-games`);
+      router.replace(`/dashboard/player/${playerId}?tab=${destTab}`);
     }
   }, [loading, openGameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
