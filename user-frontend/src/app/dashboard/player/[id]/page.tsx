@@ -335,7 +335,9 @@ export default function PlayerDashboard() {
     // If data isn't ready yet (empty lists on premature load=false), bail without clearing
     // the URL so this effect retries on the next loading→false transition.
     if (!target) return;
-    setDetailGame(target);
+    // Use the same function as the "View Details" button so the popup is identical
+    // (annotated data, fresh server fetch, feedback for completed games).
+    openGameDetail(target);
     // Show "My Games" tab if the player is already registered/waitlisted, otherwise "All Games"
     const isRegistered =
       myGames.some((g) => g._id === openGameId) ||
