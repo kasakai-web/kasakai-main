@@ -229,11 +229,10 @@ export function PassPage() {
     setLocalPass((prev) => ({ ...prev, [playerId]: { ...current, ...patch } }));
   };
 
-  // Confirm button is enabled when Pass Type is set + expiry is set + (if month-required, month is set)
+  // Confirm button is enabled when: removing a pass (none) OR a real pass type with expiry filled in
   const canConfirm = (passType: PassType, passExpiry: string, passMonthYear: string) =>
-    passType !== "none" &&
-    passExpiry !== "" &&
-    (!MONTH_REQUIRED.includes(passType) || passMonthYear !== "");
+    passType === "none" ||
+    (passExpiry !== "" && (!MONTH_REQUIRED.includes(passType) || passMonthYear !== ""));
 
   // True only when local draft differs from what's saved on the server
   const hasUnsavedChanges = (p: PlayerPassRow, passType: PassType, passExpiry: string, passMonthYear: string) =>
@@ -269,11 +268,13 @@ export function PassPage() {
             onClick={(e) => e.stopPropagation()}
             style={{ background: "#111", border: "1px solid #222", borderRadius: 14, padding: "28px 32px", width: "min(420px, 92vw)", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>
-              Confirm Pass Assignment
+            <div style={{ fontSize: 18, fontWeight: 800, color: pendingConfirm.passType === "none" ? "#f87171" : "#fff", marginBottom: 4 }}>
+              {pendingConfirm.passType === "none" ? "Remove Pass" : "Confirm Pass Assignment"}
             </div>
             <div style={{ fontSize: 12, color: "#555", marginBottom: 22 }}>
-              Review the details below and confirm to save.
+              {pendingConfirm.passType === "none"
+                ? "This will deactivate all passes for this player."
+                : "Review the details below and confirm to save."}
             </div>
 
             {/* Player */}
@@ -283,26 +284,35 @@ export function PassPage() {
             </div>
 
             {/* Pass */}
-            <div style={{ marginBottom: 12, padding: "12px 16px", background: PASS_COLORS[pendingConfirm.passType], borderRadius: 8, border: `1px solid ${PASS_TEXT[pendingConfirm.passType]}33` }}>
-              <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Pass Type</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: PASS_TEXT[pendingConfirm.passType] }}>
-                {PASS_LABEL[pendingConfirm.passType]}
+            {pendingConfirm.passType === "none" ? (
+              <div style={{ marginBottom: 24, padding: "12px 16px", background: "rgba(248,113,113,0.07)", borderRadius: 8, border: "1px solid rgba(248,113,113,0.25)" }}>
+                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Action</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#f87171" }}>All passes will be deactivated for this player.</div>
               </div>
-            </div>
-
-            {/* Details row */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-              {pendingConfirm.passMonthYear && (
-                <div style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
-                  <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Month</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{pendingConfirm.passMonthYear}</div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 12, padding: "12px 16px", background: PASS_COLORS[pendingConfirm.passType], borderRadius: 8, border: `1px solid ${PASS_TEXT[pendingConfirm.passType]}33` }}>
+                  <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Pass Type</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: PASS_TEXT[pendingConfirm.passType] }}>
+                    {PASS_LABEL[pendingConfirm.passType]}
+                  </div>
                 </div>
-              )}
-              <div style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
-                <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Expires</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{fmtDate(pendingConfirm.passExpiry)}</div>
-              </div>
-            </div>
+
+                {/* Details row */}
+                <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+                  {pendingConfirm.passMonthYear && (
+                    <div style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
+                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Month</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{pendingConfirm.passMonthYear}</div>
+                    </div>
+                  )}
+                  <div style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
+                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Expires</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{fmtDate(pendingConfirm.passExpiry)}</div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Buttons */}
             <div style={{ display: "flex", gap: 10 }}>
@@ -318,9 +328,14 @@ export function PassPage() {
                   setPendingConfirm(null);
                   savePass(playerId, passType, passExpiry, passMonthYear);
                 }}
-                style={{ flex: 1, padding: "10px 0", borderRadius: 8, background: "rgba(200,255,62,0.12)", border: "1px solid #c8ff3e55", color: "#c8ff3e", fontSize: 13, fontWeight: 800, cursor: "pointer" }}
+                style={{
+                  flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                  background: pendingConfirm.passType === "none" ? "rgba(248,113,113,0.12)" : "rgba(200,255,62,0.12)",
+                  border: pendingConfirm.passType === "none" ? "1px solid rgba(248,113,113,0.4)" : "1px solid #c8ff3e55",
+                  color: pendingConfirm.passType === "none" ? "#f87171" : "#c8ff3e",
+                }}
               >
-                Confirm
+                {pendingConfirm.passType === "none" ? "Remove Pass" : "Confirm"}
               </button>
             </div>
           </div>
@@ -642,12 +657,14 @@ export function PassPage() {
                     onClick={() => setPendingConfirm({ playerId: p.id, playerName: p.name, passType, passExpiry, passMonthYear })}
                     style={{
                       padding: "9px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800,
-                      background: "rgba(200,255,62,0.12)", border: "1px solid #c8ff3e55",
-                      color: "#c8ff3e", cursor: "pointer", width: "100%",
+                      background: passType === "none" ? "rgba(248,113,113,0.1)" : "rgba(200,255,62,0.12)",
+                      border: passType === "none" ? "1px solid rgba(248,113,113,0.35)" : "1px solid #c8ff3e55",
+                      color: passType === "none" ? "#f87171" : "#c8ff3e",
+                      cursor: "pointer", width: "100%",
                       letterSpacing: "0.04em",
                     }}
                   >
-                    Confirm Pass
+                    {passType === "none" ? "Remove Pass" : "Confirm Pass"}
                   </button>
                 )}
               </div>
