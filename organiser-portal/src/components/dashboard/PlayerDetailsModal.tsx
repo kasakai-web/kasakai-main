@@ -415,68 +415,47 @@ function downloadTeamExcel(result: {
 
   const handleCopyList = () => {
     const organiserName = (typeof window !== "undefined" ? localStorage.getItem("userName") : null) || "Organiser";
+    const DIV = "━━━━━━━━━━━━━";
     const lines: string[] = [];
 
     // ── Event header ──────────────────────────────────────────────────────────
     lines.push(`*${gameName}*`);
     lines.push("");
-
-    if (venue) lines.push(`Venue: ${venue}`);
+    if (venue) lines.push(`📍 Venue: ${venue}`);
     if (scheduledAt) {
-      const d = new Date(scheduledAt);
-      lines.push(`Date: ${d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`);
-      lines.push(`Time: ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`);
+      const t = new Date(scheduledAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+      lines.push(`⏱️ Time: ${t}`);
     }
-    if (format) lines.push(`Format: ${format}`);
-    // Human-readable join link: "<game-name>-<date>-<id>" so the shared URL itself
-    // shows the game name + date. The trailing ObjectId is what the join page reads,
-    // so old bare-id links still work too.
+    if (format) lines.push(`⚽ Format: ${format}`);
+    lines.push(DIV);
+    lines.push("");
+
+    // ── Confirmed players (each occupying a slot) ─────────────────────────────
+    lines.push(`*Confirmed Players*`);
+    lines.push("");
+    let num = 1;
+    if (organiserIsPlaying) {
+      lines.push(`${num++}. ${organiserName}`);
+    }
+    activeRegs.forEach(r => {
+      // Guests show their +1 name (e.g. "Anubhab +1"); players show their name
+      lines.push(`${num++}. ${r.plusOneName || r.player?.name || "Unknown"}`);
+    });
+
+    lines.push("");
+    lines.push(DIV);
+    lines.push("");
+
+    // ── Register CTA with the join link at the BOTTOM ─────────────────────────
+    // Readable join link "<game-name>-<date>-<id>" — the join page reads the
+    // trailing ObjectId, so bare-id links also work.
     const dateLabel = scheduledAt
       ? new Date(scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })
       : "";
     const joinSlug = `${gameName || "game"} ${dateLabel}`
       .toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const joinUrl = `https://kasakai.in/join/${joinSlug ? `${joinSlug}-` : ""}${gameId}`;
-    lines.push(`Registration link: ${joinUrl}`);
-    if (location) lines.push(`Location: ${location}`);
-
-    // Reporting time = start time minus reportingMinsBeforeGame (default 30)
-    const repMins = reportingMinsBeforeGame ?? 30;
-    if (scheduledAt && repMins > 0) {
-      const rep = new Date(new Date(scheduledAt).getTime() - repMins * 60000);
-      lines.push(`Reporting time: ${rep.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}`);
-    }
-
-    // ── Confirmed players (each occupying a slot) ─────────────────────────────
-    lines.push("");
-    lines.push(`*Confirmed Players*`);
-    let num = 1;
-    if (organiserIsPlaying) {
-      lines.push(`${num++}. ${organiserName} (Organiser)`);
-    }
-    activeRegs.forEach(r => {
-      if (r.plusOneName) lines.push(`${num++}. ${r.plusOneName} (Guest)`);
-      else               lines.push(`${num++}. ${r.player?.name || "Unknown"}`);
-    });
-
-    // ── Waitlist (only if anyone is waiting) ──────────────────────────────────
-    const activeWl  = waitlist.filter(w => !["declined", "expired"].includes(w.status || ""));
-    const activeGwl = guestWaitlist.filter(g => ["waiting", "notified"].includes(g.status || "waiting"));
-    if (activeWl.length > 0 || activeGwl.length > 0) {
-      lines.push("");
-      lines.push(`*Waitlist*`);
-      let wn = 1;
-      activeWl.forEach(w => lines.push(`${wn++}. ${w.player?.name || "Unknown"}`));
-      activeGwl.forEach(g => lines.push(`${wn++}. ${g.plusOneName || "Unknown"} (Guest)`));
-    }
-
-    // ── Footer: spots remaining ───────────────────────────────────────────────
-    lines.push("");
-    if (spotsLeft > 0) {
-      lines.push(`🚨🚨 ${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} remaining 🚨🚨`);
-    } else {
-      lines.push(`✅ Game Full`);
-    }
+    const joinUrl = `https://www.kasakai.in/join/${joinSlug ? `${joinSlug}-` : ""}${gameId}`;
+    lines.push(`🚨 *To get your name added on the list, register on ${joinUrl}*`);
 
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopied(true);
