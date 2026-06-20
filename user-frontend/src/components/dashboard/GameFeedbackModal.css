@@ -197,6 +197,10 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Negative row sits on its own line below the positive row */
+.gfm-tags--negative {
+  margin-top: 8px;
+}
 
 .gfm-tag {
   font-size: 12px;
@@ -215,13 +219,39 @@
   color: #ccd8e8;
   background: rgba(255, 255, 255, 0.08);
 }
-.gfm-tag.selected {
-  background: rgba(91, 230, 178, 0.12);
+
+/* ── Positive tags: green ── */
+.gfm-tag--positive {
   color: #5be6b2;
-  border-color: rgba(91, 230, 178, 0.45);
+  border-color: rgba(91, 230, 178, 0.35);
+  background: rgba(91, 230, 178, 0.06);
 }
-.gfm-tag.selected:hover {
-  background: rgba(91, 230, 178, 0.18);
+.gfm-tag--positive:hover {
+  color: #6cf0c0;
+  border-color: rgba(91, 230, 178, 0.5);
+  background: rgba(91, 230, 178, 0.12);
+}
+.gfm-tag--positive.selected {
+  background: rgba(91, 230, 178, 0.2);
+  color: #7ff5cb;
+  border-color: rgba(91, 230, 178, 0.7);
+}
+
+/* ── Negative tags: red ── */
+.gfm-tag--negative {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.06);
+}
+.gfm-tag--negative:hover {
+  color: #ff8a8a;
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.12);
+}
+.gfm-tag--negative.selected {
+  background: rgba(248, 113, 113, 0.2);
+  color: #ff9a9a;
+  border-color: rgba(248, 113, 113, 0.7);
 }
 
 /* ── Textarea ── */

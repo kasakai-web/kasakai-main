@@ -19,15 +19,18 @@ interface Props {
   isPopup?: boolean; // true = full-screen overlay popup on login
 }
 
-const TAGS = [
+const POSITIVE_TAGS = [
   "Great Atmosphere",
   "Well Organized",
   "Good Turf",
   "Friendly Players",
+  "Would Play Again",
+];
+
+const NEGATIVE_TAGS = [
   "Poor Turf",
   "Disorganized",
   "Late Start",
-  "Would Play Again",
 ];
 
 function StarPicker({
@@ -145,15 +148,27 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
             <StarPicker label="Venue"     value={venueRating}     onChange={setVenueRating}     />
           </div>
 
-          {/* Tags */}
+          {/* Tags — positive (green) and negative (red) on separate rows */}
           <div className="gfm-section">
             <div className="gfm-section-label">Tags</div>
-            <div className="gfm-tags">
-              {TAGS.map((tag) => (
+            <div className="gfm-tags gfm-tags--positive">
+              {POSITIVE_TAGS.map((tag) => (
                 <button
                   key={tag}
                   type="button"
-                  className={`gfm-tag ${selectedTags.includes(tag) ? "selected" : ""}`}
+                  className={`gfm-tag gfm-tag--positive ${selectedTags.includes(tag) ? "selected" : ""}`}
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="gfm-tags gfm-tags--negative">
+              {NEGATIVE_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`gfm-tag gfm-tag--negative ${selectedTags.includes(tag) ? "selected" : ""}`}
                   onClick={() => toggleTag(tag)}
                 >
                   {tag}
