@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 
 import { buildApiUrl, getAuthHeaders } from "@/utils/api";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { buildPlayerListMessage } from "@/utils/playerListMessage";
 
 const IMG_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1").replace(/\/api\/v1\/?$/, "");
 
@@ -415,49 +416,17 @@ function downloadTeamExcel(result: {
 
   const handleCopyList = () => {
     const organiserName = (typeof window !== "undefined" ? localStorage.getItem("userName") : null) || "Organiser";
-    const DIV = "━━━━━━━━━━━━━";
-    const lines: string[] = [];
-
-    // ── Event header ──────────────────────────────────────────────────────────
-    lines.push(`*${gameName}*`);
-    lines.push("");
-    if (venue) lines.push(`📍 Venue: ${venue}`);
-    if (scheduledAt) {
-      const t = new Date(scheduledAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-      lines.push(`⏱️ Time: ${t}`);
-    }
-    if (format) lines.push(`⚽ Format: ${format}`);
-    lines.push(DIV);
-    lines.push("");
-
-    // ── Confirmed players (each occupying a slot) ─────────────────────────────
-    lines.push(`*Confirmed Players*`);
-    lines.push("");
-    let num = 1;
-    if (organiserIsPlaying) {
-      lines.push(`${num++}. ${organiserName}`);
-    }
-    activeRegs.forEach(r => {
-      // Guests show their +1 name (e.g. "Anubhab +1"); players show their name
-      lines.push(`${num++}. ${r.plusOneName || r.player?.name || "Unknown"}`);
+    const text = buildPlayerListMessage({
+      gameName,
+      venue,
+      scheduledAt,
+      format,
+      gameId,
+      organiserIsPlaying,
+      organiserName,
+      activeRegs,
     });
-
-    lines.push("");
-    lines.push(DIV);
-    lines.push("");
-
-    // ── Register CTA with the join link at the BOTTOM ─────────────────────────
-    // Readable join link "<game-name>-<date>-<id>" — the join page reads the
-    // trailing ObjectId, so bare-id links also work.
-    const dateLabel = scheduledAt
-      ? new Date(scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })
-      : "";
-    const joinSlug = `${gameName || "game"} ${dateLabel}`
-      .toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const joinUrl = `https://www.kasakai.in/join/${joinSlug ? `${joinSlug}-` : ""}${gameId}`;
-    lines.push(`🚨 *To get your name added on the list, register on ${joinUrl}*`);
-
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+    navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
