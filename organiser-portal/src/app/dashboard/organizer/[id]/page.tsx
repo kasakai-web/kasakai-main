@@ -646,7 +646,7 @@ export default function OrganizerDashboard() {
                           </svg>
                           <span className="btn-label">Edit</span>
                         </button>
-                        {['open','tentative'].includes(game.status) && getTotalPlayers(game) >= game.minPlayers && (
+                        {['open','tentative'].includes(game.status) && (
                           <button
                             className="btn-action btn-confirm"
                             onClick={() => handleConfirmGame(game._id)}
