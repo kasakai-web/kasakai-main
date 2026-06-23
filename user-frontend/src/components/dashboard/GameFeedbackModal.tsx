@@ -25,12 +25,15 @@ const POSITIVE_TAGS = [
   "Good Turf",
   "Friendly Players",
   "Would Play Again",
+  "Well distributed teams",
+  "Punctual game",
 ];
 
 const NEGATIVE_TAGS = [
   "Poor Turf",
   "Disorganized",
   "Late Start",
+  "Uneven teams",
 ];
 
 function StarPicker({
