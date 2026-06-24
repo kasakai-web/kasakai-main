@@ -137,6 +137,12 @@ export default function WalletPage() {
     fetchWallet();
   }, [isAuthorized, fetchWallet]);
 
+  // If checkout.js was already loaded on a previous visit (cached), the <Script>
+  // onLoad may not fire — pick up the existing global so the Pay button works.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Razorpay) setRazorpayReady(true);
+  }, []);
+
   useAutoRefresh(isAuthorized ? fetchWallet : null, {
     interval:  30_000,
     onFocus:   true,
@@ -193,8 +199,11 @@ export default function WalletPage() {
       setModalError("Please accept the Terms & Conditions to proceed.");
       return;
     }
-    if (!razorpayReady) {
-      setModalError("Payment system loading, please try again.");
+    // Trust the actual global too — the onLoad state can lag behind a cached/
+    // already-loaded script. Only block if Razorpay genuinely isn't available.
+    const rzpAvailable = razorpayReady || (typeof window !== "undefined" && !!window.Razorpay);
+    if (!rzpAvailable) {
+      setModalError("Payment system is still loading. Please wait a moment and try again.");
       return;
     }
 
@@ -282,11 +291,15 @@ export default function WalletPage() {
 
   return (
     <>
-      {/* Razorpay checkout.js — loaded once, available globally */}
+      {/* Razorpay checkout.js — load early (afterInteractive) so it's ready by
+          the time the user reaches the Pay step. onError lets the user recover
+          instead of being stuck on a permanently-"loading" payment system. */}
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
         onLoad={() => setRazorpayReady(true)}
+        onReady={() => setRazorpayReady(true)}
+        onError={() => setModalError("Couldn't load the payment system. Check your connection (or disable any ad-blocker) and try again.")}
       />
 
       <div className="player-dashboard-container">
