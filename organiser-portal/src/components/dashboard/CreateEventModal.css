@@ -161,6 +161,12 @@
   gap: 16px;
 }
 
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
 .form-label {
   display: flex;
   align-items: center;
@@ -475,7 +481,8 @@
     gap: 16px;
   }
 
-  .form-row {
+  .form-row,
+  .form-row-3 {
     grid-template-columns: 1fr;
     gap: 12px;
   }

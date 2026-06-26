@@ -6,6 +6,7 @@ import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
 import { PostGameModal } from "@/components/dashboard/PostGameModal";
+import { LifecycleAlertModal } from "@/components/dashboard/LifecycleAlertModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
@@ -34,6 +35,7 @@ export default function OrganizerDashboard() {
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const [confirmLabel, setConfirmLabel]     = useState("Confirm");
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
   const [games, setGames] = useState<any[]>([]);
@@ -212,6 +214,58 @@ export default function OrganizerDashboard() {
     }
   };
 
+  const handleSwitchFormat = async (gameId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    try {
+      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/switch-format`), {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { showToast("error", data.message || "Failed to switch format"); return; }
+      showToast("success", "Format Switched", data.message || "Players have been notified.");
+      if (data.data) {
+        const updated = data.data;
+        setGames((prev) => prev.map((g) => g._id === updated._id ? updated : g));
+        setSelectedGame((prev: any) => prev?._id === updated._id ? updated : prev);
+      }
+    } catch {
+      showToast("error", "Failed to switch format. Please try again.");
+    }
+  };
+
+  const requestSwitchFormat = (game: any) => {
+    const alt = game.alternateFormats?.[0];
+    setConfirmMessage(`Switch this game to the alternate format${alt?.format ? ` (${alt.format})` : ""}? Players who opted out of format changes will be removed and refunded.`);
+    setConfirmLabel("Switch");
+    confirmActionRef.current = () => handleSwitchFormat(game._id);
+    setConfirmVisible(true);
+  };
+
+  const handleSendSos = async (gameId: string) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    try {
+      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}/sos`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { showToast("error", data.message || "Failed to send SOS"); return; }
+      showToast("success", "SOS Sent", data.message || `Notified ${data.data?.notified ?? 0} regular(s).`);
+    } catch {
+      showToast("error", "Failed to send SOS. Please try again.");
+    }
+  };
+
+  const requestSendSos = (game: any) => {
+    setConfirmMessage(`Send an SOS to this venue's regular players, inviting them to fill the open spots in "${game.title}"?`);
+    setConfirmLabel("Send SOS");
+    confirmActionRef.current = () => handleSendSos(game._id);
+    setConfirmVisible(true);
+  };
+
   const handleOrganiserWithdraw = async (gameId: string) => {
     const doWithdraw = async () => {
       const { token } = getSession();
@@ -237,6 +291,7 @@ export default function OrganizerDashboard() {
     };
 
     setConfirmMessage('Are you sure you want to withdraw yourself from this game?');
+    setConfirmLabel("Withdraw");
     confirmActionRef.current = doWithdraw;
     setConfirmVisible(true);
   };
@@ -401,10 +456,10 @@ export default function OrganizerDashboard() {
 
       <ConfirmationModal
         open={confirmVisible}
-        title="Withdraw from game"
+        title={confirmLabel === "Switch" ? "Switch to alternate format" : confirmLabel === "Send SOS" ? "Send SOS to regulars" : "Withdraw from game"}
         message={confirmMessage || "Are you sure you want to continue?"}
-        confirmLabel="Withdraw"
-        cancelLabel="Keep me in"
+        confirmLabel={confirmLabel}
+        cancelLabel={confirmLabel === "Withdraw" ? "Keep me in" : "Cancel"}
         onCancel={() => {
           setConfirmVisible(false);
           confirmActionRef.current = null;
@@ -419,6 +474,15 @@ export default function OrganizerDashboard() {
             await act();
           }
         }}
+      />
+
+      {/* Confirmation-algorithm pop-up: shows when a game needs a decision or the 30-min reminder */}
+      <LifecycleAlertModal
+        games={games}
+        onConfirm={handleConfirmGame}
+        onSwitch={requestSwitchFormat}
+        onSos={requestSendSos}
+        onCancel={(g) => { setCancelTargetGame(g); setCancelMessage(""); setShowCancelModal(true); }}
       />
 
       {fetchError && (
@@ -656,6 +720,30 @@ export default function OrganizerDashboard() {
                               <polyline points="20 6 9 17 4 12"/>
                             </svg>
                             <span className="btn-label">Confirm</span>
+                          </button>
+                        )}
+                        {['open','tentative'].includes(game.status) && game.alternateFormats?.length > 0 && (
+                          <button
+                            className="btn-action btn-edit"
+                            onClick={() => requestSwitchFormat(game)}
+                            title={`Switch to alternate format${game.alternateFormats[0]?.format ? ` (${game.alternateFormats[0].format})` : ""}`}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                            </svg>
+                            <span className="btn-label">Switch</span>
+                          </button>
+                        )}
+                        {['open','tentative'].includes(game.status) && (
+                          <button
+                            className="btn-action btn-edit"
+                            onClick={() => requestSendSos(game)}
+                            title="Send SOS to venue regulars"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+                            </svg>
+                            <span className="btn-label">SOS</span>
                           </button>
                         )}
                         {game.organiserIsPlaying && (

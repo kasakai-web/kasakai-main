@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./CreateEventModal.css";
 import { buildApiUrl, getSession } from "@/utils/api";
+import { checkInDate, defaultCheckTimes, checkInIso } from "@/utils/checkins";
 
 const TIME_SLOT_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
   const hours   = Math.floor(idx / 4);
@@ -36,6 +37,21 @@ const subtractMins = (timeStr: string, date: string, mins: number): string => {
   return addMins(timeStr, date, -mins);
 };
 
+// Pretty-print a YYYY-MM-DD date for the derived check-in label.
+const prettyDate = (dateStr: string): string => {
+  if (!dateStr) return "";
+  const d = new Date(`${dateStr}T12:00:00+05:30`);
+  return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" });
+};
+
+// IST time-of-day ("HH:mm") from a stored ISO timestamp — used to restore a saved
+// check-in time from the last event so it carries over like a template.
+const istHHmm = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+};
+
 interface Turf { _id: string; name: string; location?: { city?: string }; }
 
 export interface CreateEventModalProps {
@@ -55,7 +71,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const [title, setTitle]           = useState(lastEvent?.title ?? "");
   const [turf, setTurf]             = useState(lastEvent?.turf?._id || (typeof lastEvent?.turf === "string" ? lastEvent.turf : ""));
   const [date, setDate]             = useState("");
-  const [time, setTime]             = useState(lastEvent ? (() => { const hm = new Date(lastEvent.scheduledAt).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); const [hh, mm] = hm.split(":"); return `${hh}:${Number(mm) >= 30 ? "30" : "00"}`; })() : "18:00");
+  const initialTime = lastEvent ? (() => { const hm = new Date(lastEvent.scheduledAt).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); const [hh, mm] = hm.split(":"); return `${hh}:${Number(mm) >= 30 ? "30" : "00"}`; })() : "18:00";
+  const [time, setTime]             = useState(initialTime);
   const initialFormat = (lastEvent?.format as Format) ?? "5v5";
   const [format, setFormat]         = useState<Format>(initialFormat);
   const [durationMins, setDuration] = useState(lastEvent?.durationMins ?? 60);
@@ -67,8 +84,31 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const [maxPlayers, setMaxPlayers] = useState<string>(lastEvent?.totalSlots ? String(lastEvent.totalSlots) : String(slotsFromFormat(initialFormat)));
   const minPlayersEdited = useRef(!!lastEvent?.minPlayers);
 
-  // Format change
+  // Format change + the alternate format the system can switch to (section 3.1/3.2)
   const [allowSizeChange, setAllowSizeChange] = useState(lastEvent?.allowSizeChange ?? false);
+  const lastAlt = (lastEvent?.alternateFormats && lastEvent.alternateFormats[0]) || null;
+  const [altFormat, setAltFormat] = useState<Format>((lastAlt?.format as Format) ?? "5v5");
+  const [altTurf, setAltTurf]     = useState<string>(lastAlt?.turf?._id || (typeof lastAlt?.turf === "string" ? lastAlt.turf : ""));
+  const [altMin, setAltMin]       = useState<string>(lastAlt?.minPlayers ? String(lastAlt.minPlayers) : "");
+  const [altMax, setAltMax]       = useState<string>(lastAlt?.maxPlayers ? String(lastAlt.maxPlayers) : "");
+  const altDefaultsSet = useRef(!!lastAlt);
+  // Alternate format always uses the SAME fee as the main format.
+
+  // Automation master switch (section 3.1): ON = auto confirm/cancel at check-ins;
+  // OFF = only notify the organiser to decide.
+  const [automationEnabled, setAutomationEnabled] = useState(lastEvent?.lifecycle?.automationEnabled ?? false);
+
+  // Confirmation check-ins (section 3.1). Organiser edits the TIME only; the date
+  // is auto-derived (same day for evening games, day before for morning games).
+  // Restored from the last event if it had custom check times (template behaviour),
+  // otherwise the morning/evening defaults from the start time.
+  const savedFirstCheck  = istHHmm(lastEvent?.lifecycle?.firstCheckAt);
+  const savedSecondCheck = istHHmm(lastEvent?.lifecycle?.secondCheckAt);
+  const [firstCheckTime, setFirstCheckTime]   = useState(savedFirstCheck  || defaultCheckTimes(initialTime).first);
+  const [secondCheckTime, setSecondCheckTime] = useState(savedSecondCheck || defaultCheckTimes(initialTime).second);
+  // If we restored saved times, treat them as user-set so the mount effect won't
+  // overwrite them with the defaults.
+  const checkTimesEdited = useRef(!!(savedFirstCheck && savedSecondCheck));
 
   // Organiser playing + guests
   const [organiserIsPlaying, setOrganiserPlaying] = useState(lastEvent?.organiserIsPlaying ?? false);
@@ -133,6 +173,29 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
     }
   }, [format]);
 
+  // Re-fill the default check-in times from kickoff (2pm/4pm evening, 8pm/10pm
+  // morning) whenever the start time changes — unless the organiser edited them.
+  useEffect(() => {
+    if (checkTimesEdited.current) return;
+    const d = defaultCheckTimes(time);
+    setFirstCheckTime(d.first);
+    setSecondCheckTime(d.second);
+  }, [time]);
+
+  // First time format-change is enabled, seed sensible alternate-format defaults
+  // (one size smaller than the main format, same turf/fee).
+  useEffect(() => {
+    if (!allowSizeChange || altDefaultsSet.current) return;
+    altDefaultsSet.current = true;
+    const idx = FORMATS.indexOf(format);
+    const smaller = idx > 0 ? FORMATS[idx - 1] : format;
+    const slots = slotsFromFormat(smaller);
+    setAltFormat(smaller);
+    setAltTurf((prev) => prev || turf);
+    setAltMin((prev) => prev || String(Math.ceil(slots / 2)));
+    setAltMax((prev) => prev || String(slots));
+  }, [allowSizeChange]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCreate = async () => {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = "Event title is required";
@@ -156,6 +219,31 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
     const orgSlot = organiserIsPlaying ? 1 : 0;
     if (orgSlot + organiserGuestCount > cap) {
       newErrors.submit = `You + ${organiserGuestCount} guest${organiserGuestCount !== 1 ? "s" : ""} exceeds the max of ${cap} players. Reduce guests or increase the player limit.`;
+    }
+    // Alternate format (when format change is enabled)
+    if (allowSizeChange) {
+      const altSlots = slotsFromFormat(altFormat);
+      if (!altMin || Number(altMin) < 2)
+        newErrors.alt = "Alternate min players must be at least 2";
+      else if (Number(altMin) > altSlots)
+        newErrors.alt = `Alternate min cannot exceed ${altSlots} (slots for ${altFormat})`;
+      else if (Number(altMax) < altSlots)
+        newErrors.alt = `Alternate max must be at least ${altSlots} for ${altFormat}`;
+      else if (Number(altMax) < Number(altMin))
+        newErrors.alt = "Alternate max cannot be less than min";
+    }
+
+    // Check-in times: second after first, and both before kickoff
+    if (date && firstCheckTime && secondCheckTime) {
+      const firstIso  = checkInIso(date, time, firstCheckTime);
+      const secondIso = checkInIso(date, time, secondCheckTime);
+      const kickoff   = new Date(`${date}T${time}:00+05:30`);
+      if (firstIso && secondIso) {
+        if (new Date(firstIso) >= new Date(secondIso))
+          newErrors.checks = "Second check-in must be after the first.";
+        else if (new Date(secondIso) >= kickoff)
+          newErrors.checks = "Check-ins must be before the game start time.";
+      }
     }
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
@@ -186,6 +274,20 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
         organiserIsPlaying,
         organiserGuests,
         community: null,
+        // Confirmation check-ins — date auto-derived (same day evening / day before morning)
+        lifecycle: {
+          firstCheckAt:  checkInIso(date, time, firstCheckTime),
+          secondCheckAt: checkInIso(date, time, secondCheckTime),
+          automationEnabled,
+        },
+        // The single alternate format the system may switch to (only when enabled)
+        alternateFormats: allowSizeChange ? [{
+          format:     altFormat,
+          turf:       altTurf || turf,
+          minPlayers: Number(altMin),
+          maxPlayers: Number(altMax),
+          feeInRs:    Number(feeInRs), // same fee as the main format
+        }] : [],
       };
 
       const res  = await fetch(buildApiUrl("/api/v1/games/organisers/create"), {
@@ -291,7 +393,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
 
               <div className="form-group">
                 <label className="form-label"><span className="label-text">Game Start Time</span></label>
-                <select value={time} onChange={(e) => setTime(e.target.value)} className="form-select">
+                <select value={time} onChange={(e) => { checkTimesEdited.current = false; setTime(e.target.value); }} className="form-select">
                   {TIME_SLOT_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
@@ -435,20 +537,106 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             </div>
           </div>
 
-          {/* ── Format Change Option ── */}
+          {/* ── Format Change ── */}
           <div className="form-section">
             <h3 className="section-title">Format Change</h3>
-            <div className="form-group">
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={allowSizeChange}
-                  onChange={(e) => setAllowSizeChange(e.target.checked)}
-                  className="toggle-checkbox"
-                />
-                <span className="toggle-label">Allow format change if needed</span>
-              </label>
-              <div className="field-hint">Enable alternate formats if the primary format can't be filled</div>
+            <label className="toggle-row">
+              <input
+                type="checkbox"
+                checked={allowSizeChange}
+                onChange={(e) => setAllowSizeChange(e.target.checked)}
+                className="toggle-checkbox"
+              />
+              <span className="toggle-label">Allow switch to a smaller format if it can&apos;t fill</span>
+            </label>
+
+            {allowSizeChange && (
+              <>
+                <div className="form-row" style={{ marginTop: 10 }}>
+                  <div className="form-group">
+                    <label className="form-label"><span className="label-text">Alt. format</span></label>
+                    <select className="form-select" value={altFormat} onChange={(e) => setAltFormat(e.target.value as Format)}>
+                      {FORMATS.map((f) => <option key={f} value={f}>{f} ({slotsFromFormat(f)})</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label"><span className="label-text">Alt. turf</span></label>
+                    <select className="form-select" value={altTurf || turf} onChange={(e) => setAltTurf(e.target.value)}>
+                      {turfs.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row-3">
+                  <div className="form-group">
+                    <label className="form-label"><span className="label-text">Alt. min</span></label>
+                    <input type="number" min={2} className="form-input" value={altMin} onChange={(e) => setAltMin(e.target.value)} placeholder={String(Math.ceil(slotsFromFormat(altFormat) / 2))} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label"><span className="label-text">Alt. max</span></label>
+                    <input type="number" min={slotsFromFormat(altFormat)} className="form-input" value={altMax} onChange={(e) => setAltMax(e.target.value)} placeholder={String(slotsFromFormat(altFormat))} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label"><span className="label-text">Fee</span></label>
+                    <input type="text" className="form-input" value={feeInRs ? `₹${feeInRs}` : "—"} readOnly disabled style={{ opacity: 0.55 }} />
+                  </div>
+                </div>
+                {errors.alt && <div className="field-error">{errors.alt}</div>}
+              </>
+            )}
+          </div>
+
+          {/* ── Confirmation Check-ins ── */}
+          <div className="form-section">
+            <h3 className="section-title">Confirmation Check-ins</h3>
+            <div className="field-hint" style={{ marginBottom: 10 }}>
+              Two automatic reviews of turnout — to confirm, switch format, or cancel.
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label"><span className="label-text">First check-in</span></label>
+                <select
+                  className="form-select"
+                  value={firstCheckTime}
+                  onChange={(e) => { checkTimesEdited.current = true; setFirstCheckTime(e.target.value); }}
+                >
+                  {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label"><span className="label-text">Second check-in</span></label>
+                <select
+                  className="form-select"
+                  value={secondCheckTime}
+                  onChange={(e) => { checkTimesEdited.current = true; setSecondCheckTime(e.target.value); }}
+                >
+                  {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            {date && (
+              <div className="field-hint">
+                Both on {prettyDate(checkInDate(date, time))} · {Number(time.split(":")[0]) < 12 ? "day before (morning game)" : "game day"}
+              </div>
+            )}
+            {(firstCheckTime >= secondCheckTime || errors.checks) && (
+              <div className="field-error">
+                {firstCheckTime >= secondCheckTime ? "Second check-in must be after the first." : errors.checks}
+              </div>
+            )}
+
+            <label className="toggle-row" style={{ marginTop: 14 }}>
+              <input
+                type="checkbox"
+                checked={automationEnabled}
+                onChange={(e) => setAutomationEnabled(e.target.checked)}
+                className="toggle-checkbox"
+              />
+              <span className="toggle-label">Automate confirm &amp; cancel</span>
+            </label>
+            <div className="field-hint">
+              {automationEnabled
+                ? "Auto-confirms or cancels at the 2nd check; everyone notified on WhatsApp."
+                : "You decide at each check — we send you the count + a recommendation."}
             </div>
           </div>
 

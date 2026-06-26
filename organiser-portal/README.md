@@ -44,6 +44,16 @@ Dashboard for game organisers on the Kasa Kai football platform. Organisers crea
 - Open, confirm, and complete a game through its full lifecycle
 - Cancel a game — triggers automatic refunds to all registered players
 
+### Confirmation algorithm (auto-pilot) — spec §3.1–3.3
+- **Confirmation check-ins** at game creation: two editable times that auto-default by kickoff
+  (morning game → 8 PM & 10 PM the day before; evening → 2 PM & 4 PM on game day). Date is derived; you edit only the times.
+- **Alternate format** — define a smaller fallback format (format/turf/min/max; fee = main fee). Used when the main format can't fill.
+- **Automation toggle** — ON: the second check-in auto-confirms (main/alternate) or auto-cancels + refunds. OFF: you're notified to decide.
+- **Switch** button — switch to the alternate format now (players who said "No" to format changes at signup are opted out + refunded).
+- **SOS** button — invite the venue's regulars (rule-based: top 10 who played there at that time, >5 of last 15 games — never everyone).
+- **Dashboard pop-up** (`LifecycleAlertModal`) — appears for the 30-min reminder and any pending decision, with Confirm / Switch / SOS / Cancel / Keep Waiting actions.
+- Backend engine + full reference: `kasakai-backend/docs/PART3_LIFECYCLE_HANDOFF.md`.
+
 ### Registration management (real-time)
 - View all registered players and guests with position and team preference
 - Live slot counter — updates instantly via Socket.io when any player joins or leaves
@@ -241,7 +251,8 @@ The parent dashboard is notified via the `onParticipationChange` prop so it sile
 
 1. Click **+ Create Event** on the dashboard
 2. Fill in: title, turf, date, time, format, total slots, fee, minimum players, cutoff time, duration, reporting time
-3. Submit → game created in `open` status (immediately open for registration)
+3. (Optional) Enable **Format Change** to define an alternate format, set the two **Confirmation Check-in** times, and toggle **automation**
+4. Submit → game created in `open` status (immediately open for registration)
 
 ### Managing registrations
 

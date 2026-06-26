@@ -44,6 +44,8 @@ Player-facing web application for the Kasa Kai football event management platfor
 ### Football games
 - Browse all open / confirmed games with live spot counts
 - Register for a game (fee deducted from wallet)
+- At booking, choose **"comfortable with a format change?" Yes/No** (`willingIfFormatChange`) — drives the confirmation algorithm:
+  if the game later switches format, **Yes** players stay; **No** players are auto opted-out + refunded + notified they can rejoin
 - Add / remove guests after registration
 - Join the waitlist when a game is full
 - Opt out of attending (guests stay registered)

@@ -136,6 +136,14 @@ Express + MongoDB + Socket.io. Owns auth/OTP, the game lifecycle, wallet & Razor
 ### Game lifecycle
 `Create → Open for registration → Players join (wallet locks fee) → Organiser confirms → Attendance marked post-game → Players rate (feedback) & organiser rates players → Funds settled / refunded`
 
+### Confirmation algorithm (auto-pilot) — spec §3.1–3.3
+A background engine reviews each game at two organiser-set **check times** and, based on player count vs the
+main/alternate format minimums, **confirms, switches format, or cancels** — automatically (if the organiser
+enabled automation) or by prompting them (WhatsApp + in-app + dashboard pop-up). Players choose **Yes/No to
+format changes** at signup; on a switch, "No" players are opted out + refunded. **SOS** invites the venue's
+regulars (rule-based). Off by default (`GAME_LIFECYCLE_LIVE=true` to enable). Full reference:
+`kasakai-backend/docs/PART3_LIFECYCLE_HANDOFF.md`.
+
 ### Wallet recharge + offer bonus
 `Player tops up via Razorpay → webhook/verify credits base amount → if a recharge offer is enabled, the tier bonus is added to the in-app wallet (never a bank account) → player notified`
 
