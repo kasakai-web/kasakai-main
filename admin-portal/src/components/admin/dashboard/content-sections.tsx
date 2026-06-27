@@ -516,8 +516,13 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
     else { setSortKey(key); setSortDir(key === "name" ? "asc" : "desc"); }
   }
   function sortIcon(key: UserSortKey) {
-    if (sortKey !== key) return <span style={{ color: "var(--muted2)", marginLeft: "4px" }}>↕</span>;
-    return <span style={{ marginLeft: "4px" }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
+    const base: React.CSSProperties = {
+      display: "inline-block", marginLeft: "6px", fontSize: "13px", lineHeight: 1,
+      fontWeight: 800, color: "#0b1114", background: "#facc15",
+      borderRadius: "4px", padding: "1px 4px",
+    };
+    if (sortKey !== key) return <span style={{ ...base, background: "rgba(250,204,21,0.22)", color: "#facc15" }}>↕</span>;
+    return <span style={base}>{sortDir === "asc" ? "↑" : "↓"}</span>;
   }
   const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
 
