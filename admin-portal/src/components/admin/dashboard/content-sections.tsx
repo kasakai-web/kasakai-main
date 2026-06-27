@@ -2286,6 +2286,8 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [error, setError]           = useState("");
   const [modalTurf, setModalTurf]   = useState<Turf | null | "new">(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [search, setSearch]         = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "discontinued">("all");
 
   const fetchTurfs = useCallback(async () => {
     setLoading(true); setError("");
@@ -2306,15 +2308,50 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
     finally { setActionLoading(null); }
   };
 
+  // Summary (over all venues) + filtered/sorted view (busiest venues first)
+  const activeCount   = turfs.filter((t) => t.isActive).length;
+  const totalGames    = turfs.reduce((s, t) => s + (t.totalGamesHosted || 0), 0);
+  const filtered = turfs
+    .filter((t) => {
+      const q = search.trim().toLowerCase();
+      const matchesSearch = !q || [t.name, t.address.area, t.address.city, t.address.state].join(" ").toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? t.isActive : !t.isActive);
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => (b.totalGamesHosted || 0) - (a.totalGamesHosted || 0));
+
   return (
     <>
       <div className={styles.sectionHead}>
         <div>
           <div className={styles.sectionTitle}>Venues &amp; Turfs</div>
-          <div className={styles.sectionSub}>{loading ? "Loading…" : `${turfs.length} registered venues`}</div>
+          <div className={styles.sectionSub}>
+            {loading ? "Loading…" : (search || statusFilter !== "all" ? `${filtered.length} of ${turfs.length} venues` : `${turfs.length} registered venues`)}
+          </div>
         </div>
         <button className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`} type="button" onClick={() => setModalTurf("new")}>+ Add Venue</button>
       </div>
+
+      {/* Summary cards */}
+      {!loading && (
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Venues</div><div className={styles.statValue}>{turfs.length}</div><div className={`${styles.statDelta} ${styles.neutral}`}>Registered turfs</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Active</div><div className={styles.statValue}>{activeCount}</div><div className={`${styles.statDelta} ${styles.up}`}>Open for games</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Discontinued</div><div className={styles.statValue}>{turfs.length - activeCount}</div><div className={`${styles.statDelta} ${styles.down}`}>Not in use</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Games Hosted</div><div className={styles.statValue} style={{ color: "var(--amber)" }}>{totalGames}</div><div className={`${styles.statDelta} ${styles.neutral}`}>Across all venues</div></div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className={styles.toolbar}>
+        <input className={styles.searchInput} placeholder="Search venue, area, city, state…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "discontinued")}>
+          <option value="all">All status</option>
+          <option value="active">Active</option>
+          <option value="discontinued">Discontinued</option>
+        </select>
+      </div>
+
       {error && <div className={styles.formError}>{error}</div>}
       {loading ? (
         <div className={styles.loadingState}>Loading venues…</div>
@@ -2323,12 +2360,12 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
           <table className={styles.table}>
             <thead><tr><th>Venue</th><th>Area</th><th>City</th><th>State</th><th>Surface</th><th>Pitches</th><th>Floodlights</th><th>Verified</th><th>Status</th><th>Games</th><th>Actions</th></tr></thead>
             <tbody>
-              {turfs.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No venues yet.</td></tr>}
-              {turfs.map((t) => {
+              {filtered.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>{turfs.length === 0 ? "No venues yet." : "No venues match the current filters."}</td></tr>}
+              {filtered.map((t) => {
                 const busy = actionLoading !== null;
                 return (
-                  <tr key={t._id}>
-                    <td>{t.name}</td>
+                  <tr key={t._id} style={!t.isActive ? { opacity: 0.62 } : undefined}>
+                    <td style={{ fontWeight: 500 }}>{t.name}</td>
                     <td>{t.address.area}</td>
                     <td>{t.address.city}</td>
                     <td>{t.address.state}</td>
@@ -2337,7 +2374,14 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
                     <td><span className={`${styles.badge} ${t.hasFloodlights ? styles.badgeGreen : styles.badgeGray}`}>{t.hasFloodlights ? "Yes" : "No"}</span></td>
                     <td><span className={`${styles.badge} ${t.isVerified ? styles.badgeGreen : styles.badgeAmber}`}>{t.isVerified ? "Verified" : "Pending"}</span></td>
                     <td><span className={`${styles.badge} ${t.isActive ? styles.badgeGreen : styles.badgeRed}`}>{t.isActive ? "Active" : "Discontinued"}</span></td>
-                    <td>{t.totalGamesHosted}</td>
+                    <td>
+                      <span style={{
+                        display: "inline-block", minWidth: 30, textAlign: "center",
+                        fontWeight: 700, fontSize: 13, padding: "3px 9px", borderRadius: 6,
+                        color: (t.totalGamesHosted || 0) > 0 ? "#0b1114" : "var(--muted)",
+                        background: (t.totalGamesHosted || 0) > 0 ? "var(--amber)" : "rgba(255,255,255,0.05)",
+                      }}>{t.totalGamesHosted || 0}</span>
+                    </td>
                     <td>
                       <div className={styles.actions}>
                         <button className={styles.actionBtn} type="button" onClick={() => setModalTurf(t)}>Edit</button>
