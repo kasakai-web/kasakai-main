@@ -452,6 +452,19 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [sortKey, setSortKey] = useState<UserSortKey>("joined");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  // ── Server-side pagination state ──
+  const PAGE_SIZE = 25;
+  const [page, setPage]           = useState(1);
+  const [total, setTotal]         = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Debounced search term — avoids one request per keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const [deleteTarget, setDeleteTarget] = useState<AdminUserRow | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteError, setDeleteError]   = useState("");
@@ -461,21 +474,33 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const fetchUsers = useCallback(async (force = false) => {
     const token = getAdminToken();
     if (!token) { setLoading(false); setError("Admin session missing."); return; }
-    const cacheKey = `${API_BASE}/admin/users`;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(PAGE_SIZE),
+      sort: sortKey,
+      dir: sortDir,
+    });
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (roleFilter !== "all")   params.set("role", roleFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    const cacheKey = `${API_BASE}/admin/users?${params.toString()}`;
     if (!force) {
-      const cached = adminCacheGet<AdminUserRow[]>(cacheKey);
-      if (cached) { setUsers(cached); setLoading(false); return; }
+      const cached = adminCacheGet<{ data: AdminUserRow[]; total: number; totalPages: number }>(cacheKey);
+      if (cached) { setUsers(cached.data); setTotal(cached.total); setTotalPages(cached.totalPages); setLoading(false); return; }
     }
     setLoading(true); setError("");
     try {
       const res  = await fetch(cacheKey, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Failed to load users."); return; }
-      adminCacheSet(cacheKey, data.data || []);
-      setUsers(data.data || []);
+      const rows: AdminUserRow[] = data.data || [];
+      const t  = data.total ?? rows.length;
+      const tp = data.totalPages ?? 1;
+      adminCacheSet(cacheKey, { data: rows, total: t, totalPages: tp });
+      setUsers(rows); setTotal(t); setTotalPages(tp);
     } catch { setError("Cannot reach the server."); }
     finally { setLoading(false); }
-  }, []);
+  }, [page, sortKey, sortDir, debouncedSearch, roleFilter, statusFilter]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -497,23 +522,17 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       setDeleteReason("");
       setToast(`${deletedName} has been successfully deleted.`);
       setTimeout(() => setToast(null), 3000);
-      await fetchUsers(true);
+      // If we just removed the only row on a page past the first, step back one.
+      if (users.length === 1 && page > 1) setPage((p) => p - 1);
+      else await fetchUsers(true);
     } catch { setDeleteError("Cannot reach the server."); }
     finally { setDeleteBusy(false); }
   }
 
-  const filtered = users.filter((u) => {
-    const q = search.trim().toLowerCase();
-    return (
-      [u.name, u.phone, u.email || "", u.location || ""].join(" ").toLowerCase().includes(q) &&
-      (roleFilter === "all" || u.role === roleFilter) &&
-      (statusFilter === "all" || u.status.toLowerCase() === statusFilter)
-    );
-  });
-
   function toggleSort(key: UserSortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir(key === "name" ? "asc" : "desc"); }
+    setPage(1);
   }
   function sortIcon(key: UserSortKey) {
     const base: React.CSSProperties = {
@@ -526,35 +545,20 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   }
   const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
 
-  const gamesOf   = (u: AdminUserRow) => (u.role === "organiser" ? (u.gamesHosted ?? 0) : (u.gamesPlayed ?? 0));
-  const conductOf = (u: AdminUserRow) => (u.role === "organiser" ? (u.rating ?? 0) : (u.conductRating ?? 0));
-  const moneyOf   = (u: AdminUserRow) => (u.role === "organiser" ? (u.earningsPaise ?? 0) : (u.totalSpentPaise ?? 0));
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === "name") {
-      const cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      return sortDir === "asc" ? cmp : -cmp;
-    }
-    let av = 0, bv = 0;
-    if (sortKey === "joined")   { av = a.joinedAt ? new Date(a.joinedAt).getTime() : 0; bv = b.joinedAt ? new Date(b.joinedAt).getTime() : 0; }
-    if (sortKey === "games")    { av = gamesOf(a);   bv = gamesOf(b); }
-    if (sortKey === "conduct")  { av = conductOf(a); bv = conductOf(b); }
-    if (sortKey === "gameplay") { av = a.gameplayRating ?? 0; bv = b.gameplayRating ?? 0; }
-    if (sortKey === "money")    { av = moneyOf(a);   bv = moneyOf(b); }
-    return sortDir === "asc" ? av - bv : bv - av;
-  });
+  // The server returns the already-filtered, already-sorted page.
+  const rows = users;
 
   return (
     <>
-      <Head title="All Users" sub={loading ? "Loading…" : `${users.length} registered users`} />
+      <Head title="All Users" sub={loading ? "Loading…" : `${total} registered users`} />
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search by name, phone, email, location…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className={styles.filterSelect} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as "all" | AdminUserRow["role"])}>
+        <input className={styles.searchInput} placeholder="Search by name, phone, email, location…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <select className={styles.filterSelect} value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value as "all" | AdminUserRow["role"]); setPage(1); }}>
           <option value="all">All roles</option>
           <option value="player">Players</option>
           <option value="organiser">Organisers</option>
         </select>
-        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="all">All status</option>
           <option value="active">Active</option>
           <option value="pending">Pending</option>
@@ -580,8 +584,8 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
             </tr>
           </thead>
           <tbody>
-            {!loading && sorted.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
-            {sorted.map((u) => (
+            {!loading && rows.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
+            {rows.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -645,6 +649,26 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {!loading && total > 0 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginTop: "14px" }}>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            Showing <strong style={{ color: "var(--white)" }}>{(page - 1) * PAGE_SIZE + 1}</strong>–
+            <strong style={{ color: "var(--white)" }}>{Math.min(page * PAGE_SIZE, total)}</strong> of{" "}
+            <strong style={{ color: "var(--white)" }}>{total}</strong> users
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <button className={styles.actionBtn} type="button" disabled={page <= 1} onClick={() => setPage(1)}>« First</button>
+            <button className={styles.actionBtn} type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+            <span style={{ fontSize: "13px", color: "var(--text)", padding: "0 8px", whiteSpace: "nowrap" }}>
+              Page <strong style={{ color: "var(--white)" }}>{page}</strong> / {totalPages}
+            </span>
+            <button className={styles.actionBtn} type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+            <button className={styles.actionBtn} type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last »</button>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
