@@ -448,6 +448,10 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [roleFilter, setRoleFilter] = useState<"all" | AdminUserRow["role"]>("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  type UserSortKey = "name" | "joined" | "games" | "conduct" | "gameplay" | "money";
+  const [sortKey, setSortKey] = useState<UserSortKey>("joined");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
   const [deleteTarget, setDeleteTarget] = useState<AdminUserRow | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteError, setDeleteError]   = useState("");
@@ -507,6 +511,34 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
     );
   });
 
+  function toggleSort(key: UserSortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "name" ? "asc" : "desc"); }
+  }
+  function sortIcon(key: UserSortKey) {
+    if (sortKey !== key) return <span style={{ color: "var(--muted2)", marginLeft: "4px" }}>↕</span>;
+    return <span style={{ marginLeft: "4px" }}>{sortDir === "asc" ? "↑" : "↓"}</span>;
+  }
+  const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
+
+  const gamesOf   = (u: AdminUserRow) => (u.role === "organiser" ? (u.gamesHosted ?? 0) : (u.gamesPlayed ?? 0));
+  const conductOf = (u: AdminUserRow) => (u.role === "organiser" ? (u.rating ?? 0) : (u.conductRating ?? 0));
+  const moneyOf   = (u: AdminUserRow) => (u.role === "organiser" ? (u.earningsPaise ?? 0) : (u.totalSpentPaise ?? 0));
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === "name") {
+      const cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    }
+    let av = 0, bv = 0;
+    if (sortKey === "joined")   { av = a.joinedAt ? new Date(a.joinedAt).getTime() : 0; bv = b.joinedAt ? new Date(b.joinedAt).getTime() : 0; }
+    if (sortKey === "games")    { av = gamesOf(a);   bv = gamesOf(b); }
+    if (sortKey === "conduct")  { av = conductOf(a); bv = conductOf(b); }
+    if (sortKey === "gameplay") { av = a.gameplayRating ?? 0; bv = b.gameplayRating ?? 0; }
+    if (sortKey === "money")    { av = moneyOf(a);   bv = moneyOf(b); }
+    return sortDir === "asc" ? av - bv : bv - av;
+  });
+
   return (
     <>
       <Head title="All Users" sub={loading ? "Loading…" : `${users.length} registered users`} />
@@ -531,11 +563,20 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Conduct</th><th>Gameplay</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
+            <tr>
+              <th style={thSort} onClick={() => toggleSort("name")}>Name{sortIcon("name")}</th>
+              <th>Phone</th><th>Role</th><th>Email</th><th>Location</th>
+              <th style={thSort} onClick={() => toggleSort("games")}>Games{sortIcon("games")}</th>
+              <th style={thSort} onClick={() => toggleSort("conduct")}>Conduct{sortIcon("conduct")}</th>
+              <th style={thSort} onClick={() => toggleSort("gameplay")}>Gameplay{sortIcon("gameplay")}</th>
+              <th style={thSort} onClick={() => toggleSort("money")}>Earnings / Spent{sortIcon("money")}</th>
+              <th style={thSort} onClick={() => toggleSort("joined")}>Joined{sortIcon("joined")}</th>
+              <th>Status</th><th>Actions</th>
+            </tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
-            {filtered.map((u) => (
+            {!loading && sorted.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
+            {sorted.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
