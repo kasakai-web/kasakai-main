@@ -22,6 +22,30 @@ function adminCacheGet<T>(key: string): T | null {
 }
 function adminCacheSet(key: string, data: unknown) { _adminCache.set(key, { data, ts: Date.now() }); }
 
+// Shared style for pagination (Prev/Next/First/Last) buttons
+function pagerBtnStyle(disabled: boolean): React.CSSProperties {
+  return {
+    fontFamily: "inherit",
+    fontSize: "13px",
+    fontWeight: 700,
+    padding: "7px 13px",
+    borderRadius: "6px",
+    whiteSpace: "nowrap",
+    cursor: disabled ? "not-allowed" : "pointer",
+    color: disabled ? "var(--muted2)" : "var(--white)",
+    background: disabled ? "transparent" : "rgba(59,130,246,0.14)",
+    border: `1px solid ${disabled ? "var(--border)" : "var(--blue)"}`,
+    opacity: disabled ? 0.5 : 1,
+    transition: "background 0.15s",
+  };
+}
+
+// Shared style for the bright "Page X / Y" indicator pill
+const pagerPillStyle: React.CSSProperties = {
+  fontSize: "13px", fontWeight: 800, color: "#0b1114", background: "#facc15",
+  padding: "6px 12px", borderRadius: "6px", whiteSpace: "nowrap", margin: "0 2px",
+};
+
 function resolveImageUrl(src: string | null | undefined): string | null {
   if (!src) return null;
   if (src.startsWith("http://") || src.startsWith("https://")) return src;
@@ -81,6 +105,7 @@ type AdminPaymentSummary = {
 
 type AdminPaymentListResponse = {
   success: boolean; count?: number; summary?: AdminPaymentSummary;
+  total?: number; page?: number; limit?: number; totalPages?: number;
   data: AdminPaymentRow[]; message?: string;
 };
 
@@ -127,6 +152,7 @@ type WalletRow = {
 
 type WalletApiResponse = {
   success: boolean; count?: number;
+  total?: number; page?: number; limit?: number; totalPages?: number;
   summary?: { totalBalancePaise: number; totalTopUpPaise: number; totalSpentPaise: number; totalRefundedPaise: number };
   data: WalletRow[]; message?: string;
 };
@@ -448,6 +474,23 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [roleFilter, setRoleFilter] = useState<"all" | AdminUserRow["role"]>("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  type UserSortKey = "name" | "joined" | "games" | "conduct" | "gameplay" | "money";
+  const [sortKey, setSortKey] = useState<UserSortKey>("joined");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // ── Server-side pagination state ──
+  const PAGE_SIZE = 25;
+  const [page, setPage]           = useState(1);
+  const [total, setTotal]         = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Debounced search term — avoids one request per keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const [deleteTarget, setDeleteTarget] = useState<AdminUserRow | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteError, setDeleteError]   = useState("");
@@ -457,21 +500,33 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const fetchUsers = useCallback(async (force = false) => {
     const token = getAdminToken();
     if (!token) { setLoading(false); setError("Admin session missing."); return; }
-    const cacheKey = `${API_BASE}/admin/users`;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(PAGE_SIZE),
+      sort: sortKey,
+      dir: sortDir,
+    });
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (roleFilter !== "all")   params.set("role", roleFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    const cacheKey = `${API_BASE}/admin/users?${params.toString()}`;
     if (!force) {
-      const cached = adminCacheGet<AdminUserRow[]>(cacheKey);
-      if (cached) { setUsers(cached); setLoading(false); return; }
+      const cached = adminCacheGet<{ data: AdminUserRow[]; total: number; totalPages: number }>(cacheKey);
+      if (cached) { setUsers(cached.data); setTotal(cached.total); setTotalPages(cached.totalPages); setLoading(false); return; }
     }
     setLoading(true); setError("");
     try {
       const res  = await fetch(cacheKey, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Failed to load users."); return; }
-      adminCacheSet(cacheKey, data.data || []);
-      setUsers(data.data || []);
+      const rows: AdminUserRow[] = data.data || [];
+      const t  = data.total ?? rows.length;
+      const tp = data.totalPages ?? 1;
+      adminCacheSet(cacheKey, { data: rows, total: t, totalPages: tp });
+      setUsers(rows); setTotal(t); setTotalPages(tp);
     } catch { setError("Cannot reach the server."); }
     finally { setLoading(false); }
-  }, []);
+  }, [page, sortKey, sortDir, debouncedSearch, roleFilter, statusFilter]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -493,31 +548,43 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       setDeleteReason("");
       setToast(`${deletedName} has been successfully deleted.`);
       setTimeout(() => setToast(null), 3000);
-      await fetchUsers(true);
+      // If we just removed the only row on a page past the first, step back one.
+      if (users.length === 1 && page > 1) setPage((p) => p - 1);
+      else await fetchUsers(true);
     } catch { setDeleteError("Cannot reach the server."); }
     finally { setDeleteBusy(false); }
   }
 
-  const filtered = users.filter((u) => {
-    const q = search.trim().toLowerCase();
-    return (
-      [u.name, u.phone, u.email || "", u.location || ""].join(" ").toLowerCase().includes(q) &&
-      (roleFilter === "all" || u.role === roleFilter) &&
-      (statusFilter === "all" || u.status.toLowerCase() === statusFilter)
-    );
-  });
+  function toggleSort(key: UserSortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "name" ? "asc" : "desc"); }
+    setPage(1);
+  }
+  function sortIcon(key: UserSortKey) {
+    const base: React.CSSProperties = {
+      display: "inline-block", marginLeft: "6px", fontSize: "13px", lineHeight: 1,
+      fontWeight: 800, color: "#0b1114", background: "#facc15",
+      borderRadius: "4px", padding: "1px 4px",
+    };
+    if (sortKey !== key) return <span style={{ ...base, background: "rgba(250,204,21,0.22)", color: "#facc15" }}>↕</span>;
+    return <span style={base}>{sortDir === "asc" ? "↑" : "↓"}</span>;
+  }
+  const thSort: React.CSSProperties = { cursor: "pointer", userSelect: "none" };
+
+  // The server returns the already-filtered, already-sorted page.
+  const rows = users;
 
   return (
     <>
-      <Head title="All Users" sub={loading ? "Loading…" : `${users.length} registered users`} />
+      <Head title="All Users" sub={loading ? "Loading…" : `${total} registered users`} />
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search by name, phone, email, location…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className={styles.filterSelect} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as "all" | AdminUserRow["role"])}>
+        <input className={styles.searchInput} placeholder="Search by name, phone, email, location…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <select className={styles.filterSelect} value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value as "all" | AdminUserRow["role"]); setPage(1); }}>
           <option value="all">All roles</option>
           <option value="player">Players</option>
           <option value="organiser">Organisers</option>
         </select>
-        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="all">All status</option>
           <option value="active">Active</option>
           <option value="pending">Pending</option>
@@ -531,11 +598,20 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Role</th><th>Email</th><th>Location</th><th>Games</th><th>Conduct</th><th>Gameplay</th><th>Earnings / Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
+            <tr>
+              <th style={thSort} onClick={() => toggleSort("name")}>Name{sortIcon("name")}</th>
+              <th>Phone</th><th>Role</th><th>Email</th><th>Location</th>
+              <th style={thSort} onClick={() => toggleSort("games")}>Games{sortIcon("games")}</th>
+              <th style={thSort} onClick={() => toggleSort("conduct")}>Conduct{sortIcon("conduct")}</th>
+              <th style={thSort} onClick={() => toggleSort("gameplay")}>Gameplay{sortIcon("gameplay")}</th>
+              <th style={thSort} onClick={() => toggleSort("money")}>Earnings / Spent{sortIcon("money")}</th>
+              <th style={thSort} onClick={() => toggleSort("joined")}>Joined{sortIcon("joined")}</th>
+              <th>Status</th><th>Actions</th>
+            </tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
-            {filtered.map((u) => (
+            {!loading && rows.length === 0 && <tr><td colSpan={12} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No users match the current filters.</td></tr>}
+            {rows.map((u) => (
               <tr key={u.id} onClick={() => onOpenDetail(u.name)} style={{ cursor: "pointer" }}>
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -599,6 +675,24 @@ function Users({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {!loading && total > 0 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginTop: "14px" }}>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            Showing <strong style={{ color: "var(--white)" }}>{(page - 1) * PAGE_SIZE + 1}</strong>–
+            <strong style={{ color: "var(--white)" }}>{Math.min(page * PAGE_SIZE, total)}</strong> of{" "}
+            <strong style={{ color: "var(--white)" }}>{total}</strong> users
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <button style={pagerBtnStyle(page <= 1)} type="button" disabled={page <= 1} onClick={() => setPage(1)}>« First</button>
+            <button style={pagerBtnStyle(page <= 1)} type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+            <span style={pagerPillStyle}>Page {page} / {totalPages}</span>
+            <button style={pagerBtnStyle(page >= totalPages)} type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+            <button style={pagerBtnStyle(page >= totalPages)} type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last »</button>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
@@ -1178,34 +1272,47 @@ function Payments() {
   const [typeFilter, setTypeFilter]     = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // ── Server-side pagination state ──
+  const PAGE_SIZE = 25;
+  const [page, setPage]             = useState(1);
+  const [total, setTotal]           = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Debounced search — avoids one request per keystroke
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchPayments = useCallback(async () => {
     setLoading(true); setError("");
     try {
       const token = getAdminToken();
       if (!token) { setError("Admin session missing."); return; }
-      const res  = await fetch(`${API_BASE}/admin/payments`, { headers: { Authorization: `Bearer ${token}` } });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (typeFilter   !== "all") params.set("type", typeFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      const res  = await fetch(`${API_BASE}/admin/payments?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = (await res.json()) as AdminPaymentListResponse;
       if (!res.ok) { setError(data.message || "Failed to load payments."); return; }
-      setPayments(data.data || []);
+      const rows = data.data || [];
+      setPayments(rows);
       setSummary(data.summary || {});
+      setTotal(data.total ?? rows.length);
+      setTotalPages(data.totalPages ?? 1);
     } catch { setError("Cannot reach the server."); }
     finally { setLoading(false); }
-  }, []);
+  }, [page, debouncedSearch, typeFilter, statusFilter]);
 
   useEffect(() => { fetchPayments(); }, [fetchPayments]);
 
-  const filtered = payments.filter((p) => {
-    const q = search.trim().toLowerCase();
-    return (
-      [p.playerName, p.playerPhone || "", p.gameTitle || "", p.organiserName || "", p.description || "", p.razorpayPaymentId || ""].join(" ").toLowerCase().includes(q) &&
-      (typeFilter   === "all" || p.type === typeFilter) &&
-      (statusFilter === "all" || p.status === statusFilter)
-    );
-  });
+  const filtered = payments; // server already filtered + paginated
 
   return (
     <>
-      <Head title="Payments" sub={loading ? "Loading…" : `${payments.length} wallet transactions`} />
+      <Head title="Payments" sub={loading ? "Loading…" : `${total} wallet transactions`} />
 
       {/* Summary cards */}
       <div className={styles.summaryFour}>
@@ -1233,8 +1340,8 @@ function Payments() {
 
       {/* Filters */}
       <div className={styles.toolbar}>
-        <input className={styles.searchInput} placeholder="Search player, phone, game, Razorpay ID…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className={styles.filterSelect} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+        <input className={styles.searchInput} placeholder="Search player, phone, game, Razorpay ID…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <select className={styles.filterSelect} value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
           <option value="all">All Types</option>
           <option value="topup">Top-up</option>
           <option value="lock">Lock</option>
@@ -1245,7 +1352,7 @@ function Payments() {
           <option value="bonus">Bonus</option>
           <option value="withdrawal">Withdrawal</option>
         </select>
-        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="all">All Status</option>
           <option value="success">Success</option>
           <option value="pending">Pending</option>
@@ -1317,6 +1424,24 @@ function Payments() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {!loading && total > 0 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginTop: "14px" }}>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            Showing <strong style={{ color: "var(--white)" }}>{(page - 1) * PAGE_SIZE + 1}</strong>–
+            <strong style={{ color: "var(--white)" }}>{Math.min(page * PAGE_SIZE, total)}</strong> of{" "}
+            <strong style={{ color: "var(--white)" }}>{total}</strong> transactions
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <button style={pagerBtnStyle(page <= 1)} type="button" disabled={page <= 1} onClick={() => setPage(1)}>« First</button>
+            <button style={pagerBtnStyle(page <= 1)} type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+            <span style={pagerPillStyle}>Page {page} / {totalPages}</span>
+            <button style={pagerBtnStyle(page >= totalPages)} type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+            <button style={pagerBtnStyle(page >= totalPages)} type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last »</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -2161,6 +2286,8 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
   const [error, setError]           = useState("");
   const [modalTurf, setModalTurf]   = useState<Turf | null | "new">(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [search, setSearch]         = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "discontinued">("all");
 
   const fetchTurfs = useCallback(async () => {
     setLoading(true); setError("");
@@ -2181,15 +2308,50 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
     finally { setActionLoading(null); }
   };
 
+  // Summary (over all venues) + filtered/sorted view (busiest venues first)
+  const activeCount   = turfs.filter((t) => t.isActive).length;
+  const totalGames    = turfs.reduce((s, t) => s + (t.totalGamesHosted || 0), 0);
+  const filtered = turfs
+    .filter((t) => {
+      const q = search.trim().toLowerCase();
+      const matchesSearch = !q || [t.name, t.address.area, t.address.city, t.address.state].join(" ").toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? t.isActive : !t.isActive);
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => (b.totalGamesHosted || 0) - (a.totalGamesHosted || 0));
+
   return (
     <>
       <div className={styles.sectionHead}>
         <div>
           <div className={styles.sectionTitle}>Venues &amp; Turfs</div>
-          <div className={styles.sectionSub}>{loading ? "Loading…" : `${turfs.length} registered venues`}</div>
+          <div className={styles.sectionSub}>
+            {loading ? "Loading…" : (search || statusFilter !== "all" ? `${filtered.length} of ${turfs.length} venues` : `${turfs.length} registered venues`)}
+          </div>
         </div>
         <button className={`${styles.topbarBtn} ${styles.topbarBtnPrimary}`} type="button" onClick={() => setModalTurf("new")}>+ Add Venue</button>
       </div>
+
+      {/* Summary cards */}
+      {!loading && (
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Venues</div><div className={styles.statValue}>{turfs.length}</div><div className={`${styles.statDelta} ${styles.neutral}`}>Registered turfs</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Active</div><div className={styles.statValue}>{activeCount}</div><div className={`${styles.statDelta} ${styles.up}`}>Open for games</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Discontinued</div><div className={styles.statValue}>{turfs.length - activeCount}</div><div className={`${styles.statDelta} ${styles.down}`}>Not in use</div></div>
+          <div className={styles.statCard}><div className={styles.statLabel}>Total Games Hosted</div><div className={styles.statValue} style={{ color: "var(--amber)" }}>{totalGames}</div><div className={`${styles.statDelta} ${styles.neutral}`}>Across all venues</div></div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className={styles.toolbar}>
+        <input className={styles.searchInput} placeholder="Search venue, area, city, state…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select className={styles.filterSelect} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "discontinued")}>
+          <option value="all">All status</option>
+          <option value="active">Active</option>
+          <option value="discontinued">Discontinued</option>
+        </select>
+      </div>
+
       {error && <div className={styles.formError}>{error}</div>}
       {loading ? (
         <div className={styles.loadingState}>Loading venues…</div>
@@ -2198,12 +2360,12 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
           <table className={styles.table}>
             <thead><tr><th>Venue</th><th>Area</th><th>City</th><th>State</th><th>Surface</th><th>Pitches</th><th>Floodlights</th><th>Verified</th><th>Status</th><th>Games</th><th>Actions</th></tr></thead>
             <tbody>
-              {turfs.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No venues yet.</td></tr>}
-              {turfs.map((t) => {
+              {filtered.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>{turfs.length === 0 ? "No venues yet." : "No venues match the current filters."}</td></tr>}
+              {filtered.map((t) => {
                 const busy = actionLoading !== null;
                 return (
-                  <tr key={t._id}>
-                    <td>{t.name}</td>
+                  <tr key={t._id} style={!t.isActive ? { opacity: 0.62 } : undefined}>
+                    <td style={{ fontWeight: 500 }}>{t.name}</td>
                     <td>{t.address.area}</td>
                     <td>{t.address.city}</td>
                     <td>{t.address.state}</td>
@@ -2212,7 +2374,14 @@ function Venues({ onOpenDetail }: { onOpenDetail: (t: string) => void }) {
                     <td><span className={`${styles.badge} ${t.hasFloodlights ? styles.badgeGreen : styles.badgeGray}`}>{t.hasFloodlights ? "Yes" : "No"}</span></td>
                     <td><span className={`${styles.badge} ${t.isVerified ? styles.badgeGreen : styles.badgeAmber}`}>{t.isVerified ? "Verified" : "Pending"}</span></td>
                     <td><span className={`${styles.badge} ${t.isActive ? styles.badgeGreen : styles.badgeRed}`}>{t.isActive ? "Active" : "Discontinued"}</span></td>
-                    <td>{t.totalGamesHosted}</td>
+                    <td>
+                      <span style={{
+                        display: "inline-block", minWidth: 30, textAlign: "center",
+                        fontWeight: 700, fontSize: 13, padding: "3px 9px", borderRadius: 6,
+                        color: (t.totalGamesHosted || 0) > 0 ? "#0b1114" : "var(--muted)",
+                        background: (t.totalGamesHosted || 0) > 0 ? "var(--amber)" : "rgba(255,255,255,0.05)",
+                      }}>{t.totalGamesHosted || 0}</span>
+                    </td>
                     <td>
                       <div className={styles.actions}>
                         <button className={styles.actionBtn} type="button" onClick={() => setModalTurf(t)}>Edit</button>
@@ -2256,45 +2425,73 @@ function Finance() {
   const [offersMsg, setOffersMsg]         = useState<string | null>(null);
   const [offersErr, setOffersErr]         = useState("");
 
+  const PAGE_SIZE = 25;
+
   // Wallet state
   const [wallets, setWallets]       = useState<WalletRow[]>([]);
   const [walletSum, setWalletSum]   = useState<{ totalBalancePaise?: number; totalTopUpPaise?: number; totalSpentPaise?: number; totalRefundedPaise?: number }>({});
   const [walletsLoading, setWalletsLoading] = useState(false);
   const [walletsError, setWalletsError]     = useState("");
   const [walletSearch, setWalletSearch]     = useState("");
+  const [walletPage, setWalletPage]         = useState(1);
+  const [walletTotal, setWalletTotal]       = useState(0);
+  const [walletTotalPages, setWalletTotalPages] = useState(1);
+  const [debouncedWalletSearch, setDebouncedWalletSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedWalletSearch(walletSearch), 300);
+    return () => clearTimeout(t);
+  }, [walletSearch]);
 
   // Earnings state
   const [earnings, setEarnings]             = useState<OrganiserEarningRow[]>([]);
   const [earningsLoading, setEarningsLoading] = useState(false);
   const [earningsError, setEarningsError]     = useState("");
   const [earningsSearch, setEarningsSearch]   = useState("");
+  const [earningsPage, setEarningsPage]       = useState(1);
+  const [earningsTotal, setEarningsTotal]     = useState(0);
+  const [earningsTotalPages, setEarningsTotalPages] = useState(1);
+  const [debouncedEarningsSearch, setDebouncedEarningsSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedEarningsSearch(earningsSearch), 300);
+    return () => clearTimeout(t);
+  }, [earningsSearch]);
 
   const fetchWallets = useCallback(async () => {
     setWalletsLoading(true); setWalletsError("");
     try {
       const token = getAdminToken();
       if (!token) { setWalletsError("Admin session missing."); return; }
-      const res  = await fetch(`${API_BASE}/admin/wallets`, { headers: { Authorization: `Bearer ${token}` } });
+      const params = new URLSearchParams({ page: String(walletPage), limit: String(PAGE_SIZE) });
+      if (debouncedWalletSearch.trim()) params.set("search", debouncedWalletSearch.trim());
+      const res  = await fetch(`${API_BASE}/admin/wallets?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = (await res.json()) as WalletApiResponse;
       if (!res.ok) { setWalletsError(data.message || "Failed to load wallets."); return; }
-      setWallets(data.data || []);
+      const rows = data.data || [];
+      setWallets(rows);
       setWalletSum(data.summary || {});
+      setWalletTotal(data.total ?? rows.length);
+      setWalletTotalPages(data.totalPages ?? 1);
     } catch { setWalletsError("Cannot reach the server."); }
     finally { setWalletsLoading(false); }
-  }, []);
+  }, [walletPage, debouncedWalletSearch]);
 
   const fetchEarnings = useCallback(async () => {
     setEarningsLoading(true); setEarningsError("");
     try {
       const token = getAdminToken();
       if (!token) { setEarningsError("Admin session missing."); return; }
-      const res  = await fetch(`${API_BASE}/admin/organiser-earnings`, { headers: { Authorization: `Bearer ${token}` } });
+      const params = new URLSearchParams({ page: String(earningsPage), limit: String(PAGE_SIZE) });
+      if (debouncedEarningsSearch.trim()) params.set("search", debouncedEarningsSearch.trim());
+      const res  = await fetch(`${API_BASE}/admin/organiser-earnings?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) { setEarningsError(data.message || "Failed to load earnings."); return; }
-      setEarnings(data.data || []);
+      const rows: OrganiserEarningRow[] = data.data || [];
+      setEarnings(rows);
+      setEarningsTotal(data.total ?? rows.length);
+      setEarningsTotalPages(data.totalPages ?? 1);
     } catch { setEarningsError("Cannot reach the server."); }
     finally { setEarningsLoading(false); }
-  }, []);
+  }, [earningsPage, debouncedEarningsSearch]);
 
   const fetchOffers = useCallback(async () => {
     setOffersLoading(true); setOffersErr("");
@@ -2338,17 +2535,13 @@ function Finance() {
     finally { setOffersSaving(false); }
   };
 
-  useEffect(() => { fetchWallets(); fetchEarnings(); fetchOffers(); }, [fetchWallets, fetchEarnings, fetchOffers]);
+  useEffect(() => { fetchWallets(); }, [fetchWallets]);
+  useEffect(() => { fetchEarnings(); }, [fetchEarnings]);
+  useEffect(() => { fetchOffers(); }, [fetchOffers]);
 
-  const filteredWallets  = wallets.filter((w) => {
-    const q = walletSearch.trim().toLowerCase();
-    return [w.user?.name || "", w.user?.phone || "", w.user?.email || ""].join(" ").toLowerCase().includes(q);
-  });
-
-  const filteredEarnings = earnings.filter((e) => {
-    const q = earningsSearch.trim().toLowerCase();
-    return [e.name, e.phone || "", e.email || ""].join(" ").toLowerCase().includes(q);
-  });
+  // Server already filtered + paginated each list.
+  const filteredWallets  = wallets;
+  const filteredEarnings = earnings;
 
   return (
     <>
@@ -2365,10 +2558,10 @@ function Finance() {
       {/* Tabs */}
       <div className={styles.tabBar}>
         <button className={`${styles.tab} ${tab === "wallets" ? styles.tabActive : ""}`} onClick={() => setTab("wallets")} type="button">
-          Player Wallets ({wallets.length})
+          Player Wallets ({walletTotal})
         </button>
         <button className={`${styles.tab} ${tab === "earnings" ? styles.tabActive : ""}`} onClick={() => setTab("earnings")} type="button">
-          Organiser Earnings ({earnings.length})
+          Organiser Earnings ({earningsTotal})
         </button>
       </div>
 
@@ -2418,7 +2611,7 @@ function Finance() {
           </div>
 
           <div className={styles.toolbar}>
-            <input className={styles.searchInput} placeholder="Search by name, phone or email…" value={walletSearch} onChange={(e) => setWalletSearch(e.target.value)} />
+            <input className={styles.searchInput} placeholder="Search by name, phone or email…" value={walletSearch} onChange={(e) => { setWalletSearch(e.target.value); setWalletPage(1); }} />
           </div>
           {walletsError && <div className={styles.formError}>{walletsError}</div>}
           {walletsLoading && <div className={styles.loadingState}>Loading wallets…</div>}
@@ -2444,6 +2637,23 @@ function Finance() {
               </tbody>
             </table>
           </div>
+
+          {!walletsLoading && walletTotal > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginTop: "14px" }}>
+              <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                Showing <strong style={{ color: "var(--white)" }}>{(walletPage - 1) * PAGE_SIZE + 1}</strong>–
+                <strong style={{ color: "var(--white)" }}>{Math.min(walletPage * PAGE_SIZE, walletTotal)}</strong> of{" "}
+                <strong style={{ color: "var(--white)" }}>{walletTotal}</strong> wallets
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <button style={pagerBtnStyle(walletPage <= 1)} type="button" disabled={walletPage <= 1} onClick={() => setWalletPage(1)}>« First</button>
+                <button style={pagerBtnStyle(walletPage <= 1)} type="button" disabled={walletPage <= 1} onClick={() => setWalletPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+                <span style={pagerPillStyle}>Page {walletPage} / {walletTotalPages}</span>
+                <button style={pagerBtnStyle(walletPage >= walletTotalPages)} type="button" disabled={walletPage >= walletTotalPages} onClick={() => setWalletPage((p) => Math.min(walletTotalPages, p + 1))}>Next ›</button>
+                <button style={pagerBtnStyle(walletPage >= walletTotalPages)} type="button" disabled={walletPage >= walletTotalPages} onClick={() => setWalletPage(walletTotalPages)}>Last »</button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -2451,7 +2661,7 @@ function Finance() {
       {tab === "earnings" && (
         <>
           <div className={styles.toolbar}>
-            <input className={styles.searchInput} placeholder="Search organiser by name or phone…" value={earningsSearch} onChange={(e) => setEarningsSearch(e.target.value)} />
+            <input className={styles.searchInput} placeholder="Search organiser by name or phone…" value={earningsSearch} onChange={(e) => { setEarningsSearch(e.target.value); setEarningsPage(1); }} />
           </div>
           {earningsError && <div className={styles.formError}>{earningsError}</div>}
           {earningsLoading && <div className={styles.loadingState}>Loading organiser earnings…</div>}
@@ -2480,6 +2690,23 @@ function Finance() {
               </tbody>
             </table>
           </div>
+
+          {!earningsLoading && earningsTotal > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginTop: "14px" }}>
+              <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                Showing <strong style={{ color: "var(--white)" }}>{(earningsPage - 1) * PAGE_SIZE + 1}</strong>–
+                <strong style={{ color: "var(--white)" }}>{Math.min(earningsPage * PAGE_SIZE, earningsTotal)}</strong> of{" "}
+                <strong style={{ color: "var(--white)" }}>{earningsTotal}</strong> organisers
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <button style={pagerBtnStyle(earningsPage <= 1)} type="button" disabled={earningsPage <= 1} onClick={() => setEarningsPage(1)}>« First</button>
+                <button style={pagerBtnStyle(earningsPage <= 1)} type="button" disabled={earningsPage <= 1} onClick={() => setEarningsPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+                <span style={pagerPillStyle}>Page {earningsPage} / {earningsTotalPages}</span>
+                <button style={pagerBtnStyle(earningsPage >= earningsTotalPages)} type="button" disabled={earningsPage >= earningsTotalPages} onClick={() => setEarningsPage((p) => Math.min(earningsTotalPages, p + 1))}>Next ›</button>
+                <button style={pagerBtnStyle(earningsPage >= earningsTotalPages)} type="button" disabled={earningsPage >= earningsTotalPages} onClick={() => setEarningsPage(earningsTotalPages)}>Last »</button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </>
