@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shiftDate, isMorningKickoff, checkInDate, defaultCheckTimes, checkInIso } from "./checkins.ts";
+import { shiftDate, isMorningKickoff, checkInDate, defaultCheckTimes, checkInIso, checkInIsoFromParts, istYMD } from "./checkins.ts";
 
 test("isMorningKickoff: before noon is morning, noon onward is evening", () => {
   assert.equal(isMorningKickoff("06:15"), true);
@@ -55,4 +55,26 @@ test("checkInIso: morning check-ins resolve to the day-before in IST", () => {
 test("checkInIso: returns null when inputs are incomplete", () => {
   assert.equal(checkInIso("", "08:00", "20:00"), null);
   assert.equal(checkInIso("2026-06-27", "08:00", ""), null);
+});
+
+test("checkInIsoFromParts: builds the UTC instant from an EXPLICIT date + time (IST)", () => {
+  // 25 Jun 2026 20:00 IST == 14:30 UTC — date is taken as-is, not derived.
+  assert.equal(checkInIsoFromParts("2026-06-25", "20:00"), "2026-06-25T14:30:00.000Z");
+  // Lets the organiser put a check-in days before the game (e.g. game on 1 Jul,
+  // first check-in on 25 Jun) — no day-before derivation involved.
+  const early = checkInIsoFromParts("2026-06-25", "10:00")!;
+  assert.equal(early.slice(0, 10), "2026-06-25");
+});
+
+test("checkInIsoFromParts: null when date or time is missing", () => {
+  assert.equal(checkInIsoFromParts("", "20:00"), null);
+  assert.equal(checkInIsoFromParts("2026-06-25", ""), null);
+});
+
+test("istYMD: recovers the IST calendar date from a stored ISO instant", () => {
+  // 14:30 UTC on 25 Jun == 20:00 IST on 25 Jun → 2026-06-25
+  assert.equal(istYMD("2026-06-25T14:30:00.000Z"), "2026-06-25");
+  // 22:00 UTC on 25 Jun == 03:30 IST on 26 Jun → 2026-06-26 (date rolls forward in IST)
+  assert.equal(istYMD("2026-06-25T22:00:00.000Z"), "2026-06-26");
+  assert.equal(istYMD(null), "");
 });

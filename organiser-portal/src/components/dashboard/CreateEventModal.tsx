@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./CreateEventModal.css";
 import { buildApiUrl, getSession } from "@/utils/api";
-import { checkInDate, defaultCheckTimes, checkInIso } from "@/utils/checkins";
+import { checkInDate, defaultCheckTimes, checkInIsoFromParts } from "@/utils/checkins";
 
 const TIME_SLOT_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
   const hours   = Math.floor(idx / 4);
@@ -42,14 +42,6 @@ const prettyDate = (dateStr: string): string => {
   if (!dateStr) return "";
   const d = new Date(`${dateStr}T12:00:00+05:30`);
   return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" });
-};
-
-// IST time-of-day ("HH:mm") from a stored ISO timestamp — used to restore a saved
-// check-in time from the last event so it carries over like a template.
-const istHHmm = (iso?: string | null): string => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
 };
 
 interface Turf { _id: string; name: string; location?: { city?: string }; }
@@ -104,13 +96,16 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   // is auto-derived (same day for evening games, day before for morning games).
   // Restored from the last event if it had custom check times (template behaviour),
   // otherwise the morning/evening defaults from the start time.
-  const savedFirstCheck  = istHHmm(lastEvent?.lifecycle?.firstCheckAt);
-  const savedSecondCheck = istHHmm(lastEvent?.lifecycle?.secondCheckAt);
-  const [firstCheckTime, setFirstCheckTime]   = useState(savedFirstCheck  || defaultCheckTimes(initialTime).first);
-  const [secondCheckTime, setSecondCheckTime] = useState(savedSecondCheck || defaultCheckTimes(initialTime).second);
-  // If we restored saved times, treat them as user-set so the mount effect won't
-  // overwrite them with the defaults.
-  const checkTimesEdited = useRef(!!(savedFirstCheck && savedSecondCheck));
+  // Check-in TIMES default to the morning/evening defaults (8/10pm the day before
+  // for a morning game, 2/4pm the same day for an evening game).
+  const [firstCheckTime, setFirstCheckTime]   = useState(defaultCheckTimes(initialTime).first);
+  const [secondCheckTime, setSecondCheckTime] = useState(defaultCheckTimes(initialTime).second);
+  // Check-in DATES auto-fill from the game date (day-before / same-day) via the
+  // effect below — empty until a game date is picked. The organiser can override
+  // either date or time; once they do, auto-fill stops for all check-in fields.
+  const [firstCheckDate, setFirstCheckDate]   = useState("");
+  const [secondCheckDate, setSecondCheckDate] = useState("");
+  const checkTimesEdited = useRef(false);
 
   // Organiser playing + guests
   const [organiserIsPlaying, setOrganiserPlaying] = useState(lastEvent?.organiserIsPlaying ?? false);
@@ -124,6 +119,12 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   // Derived times
   const reportingTime = subtractMins(time, date, reportingMins);
   const endTime       = addMins(time, date, Number(durationMins));
+
+  // Check-in date pickers: today's lower bound + live "second after first" check.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const firstCheckIso  = checkInIsoFromParts(firstCheckDate, firstCheckTime);
+  const secondCheckIso = checkInIsoFromParts(secondCheckDate, secondCheckTime);
+  const checkOrderBad  = !!(firstCheckIso && secondCheckIso && new Date(firstCheckIso) >= new Date(secondCheckIso));
 
   // Capacity accounting — totalSlots is the hard cap for ALL people
   const hardCap         = Number(maxPlayers) || slotsFromFormat(format);
@@ -179,10 +180,14 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   // morning) whenever the start time changes — unless the organiser edited them.
   useEffect(() => {
     if (checkTimesEdited.current) return;
-    const d = defaultCheckTimes(time);
-    setFirstCheckTime(d.first);
-    setSecondCheckTime(d.second);
-  }, [time]);
+    const t = defaultCheckTimes(time);
+    setFirstCheckTime(t.first);
+    setSecondCheckTime(t.second);
+    // Default both check-in dates to the derived check-in date (day-before for
+    // morning games, same day for evening). The organiser can override either.
+    const cd = checkInDate(date, time);
+    if (cd) { setFirstCheckDate(cd); setSecondCheckDate(cd); }
+  }, [date, time]);
 
   // First time format-change is enabled, seed sensible alternate-format defaults
   // (one size smaller than the main format, same turf/fee).
@@ -243,16 +248,20 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       }
     }
 
-    // Check-in times: second after first, and both before kickoff
-    if (date && firstCheckTime && secondCheckTime) {
-      const firstIso  = checkInIso(date, time, firstCheckTime);
-      const secondIso = checkInIso(date, time, secondCheckTime);
+    // Check-ins: both date+time required, second strictly after first, both before
+    // kickoff, and the first must still be in the future.
+    if (date) {
+      const firstIso  = checkInIsoFromParts(firstCheckDate, firstCheckTime);
+      const secondIso = checkInIsoFromParts(secondCheckDate, secondCheckTime);
       const kickoff   = new Date(`${date}T${time}:00+05:30`);
-      if (firstIso && secondIso) {
-        if (new Date(firstIso) >= new Date(secondIso))
-          newErrors.checks = "Second check-in must be after the first.";
-        else if (new Date(secondIso) >= kickoff)
-          newErrors.checks = "Check-ins must be before the game start time.";
+      if (!firstIso || !secondIso) {
+        newErrors.checks = "Both check-in dates and times are required.";
+      } else if (new Date(firstIso) >= new Date(secondIso)) {
+        newErrors.checks = "Second check-in must be after the first.";
+      } else if (new Date(secondIso) >= kickoff) {
+        newErrors.checks = "Check-ins must be before the game start time.";
+      } else if (new Date(firstIso) <= new Date()) {
+        newErrors.checks = "First check-in must be in the future.";
       }
     }
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
@@ -286,8 +295,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
         community: null,
         // Confirmation check-ins — date auto-derived (same day evening / day before morning)
         lifecycle: {
-          firstCheckAt:  checkInIso(date, time, firstCheckTime),
-          secondCheckAt: checkInIso(date, time, secondCheckTime),
+          firstCheckAt:  checkInIsoFromParts(firstCheckDate, firstCheckTime),
+          secondCheckAt: checkInIsoFromParts(secondCheckDate, secondCheckTime),
           automationEnabled,
         },
         // The single alternate format the system may switch to (only when enabled)
@@ -611,9 +620,21 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             <div className="field-hint" style={{ marginBottom: 10 }}>
               Two automatic reviews of turnout — to confirm, switch format, or cancel.
             </div>
+            {/* First check-in — editable date + time */}
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label"><span className="label-text">First check-in</span></label>
+                <label className="form-label"><span className="label-text">First check-in date</span></label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={firstCheckDate}
+                  min={todayStr}
+                  max={date || undefined}
+                  onChange={(e) => { checkTimesEdited.current = true; setFirstCheckDate(e.target.value); }}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label"><span className="label-text">First check-in time</span></label>
                 <select
                   className="form-select"
                   value={firstCheckTime}
@@ -622,8 +643,22 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                   {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
+            </div>
+            {/* Second check-in — editable date + time */}
+            <div className="form-row">
               <div className="form-group">
-                <label className="form-label"><span className="label-text">Second check-in</span></label>
+                <label className="form-label"><span className="label-text">Second check-in date</span></label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={secondCheckDate}
+                  min={firstCheckDate || todayStr}
+                  max={date || undefined}
+                  onChange={(e) => { checkTimesEdited.current = true; setSecondCheckDate(e.target.value); }}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label"><span className="label-text">Second check-in time</span></label>
                 <select
                   className="form-select"
                   value={secondCheckTime}
@@ -633,14 +668,14 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 </select>
               </div>
             </div>
-            {date && (
-              <div className="field-hint">
-                Both on {prettyDate(checkInDate(date, time))} · {Number(time.split(":")[0]) < 12 ? "day before (morning game)" : "game day"}
-              </div>
-            )}
-            {(firstCheckTime >= secondCheckTime || errors.checks) && (
+            <div className="field-hint">
+              {date
+                ? `Defaults to ${prettyDate(checkInDate(date, time))} (${Number(time.split(":")[0]) < 12 ? "day before — morning game" : "game day"}). Change either date or time — the reminder, pop-up and WhatsApp all follow what you set.`
+                : "Pick a game date first; the check-ins default near it and can be moved to any day before kickoff."}
+            </div>
+            {(checkOrderBad || errors.checks) && (
               <div className="field-error">
-                {firstCheckTime >= secondCheckTime ? "Second check-in must be after the first." : errors.checks}
+                {checkOrderBad ? "Second check-in must be after the first." : errors.checks}
               </div>
             )}
 

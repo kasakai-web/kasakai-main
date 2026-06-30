@@ -40,3 +40,31 @@ export const checkInIso = (gameDate: string, gameTime: string, checkTime: string
   const d = new Date(`${cd}T${checkTime}:00+05:30`);
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
+
+// Combine an EXPLICIT check-in date (YYYY-MM-DD) + time-of-day (HH:mm) into the
+// stored UTC instant. Used when the organiser picks the check-in date directly
+// instead of relying on the morning/evening derivation.
+export const checkInIsoFromParts = (checkDate: string, checkTime: string): string | null => {
+  if (!checkDate || !checkTime) return null;
+  const d = new Date(`${checkDate}T${checkTime}:00+05:30`);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+};
+
+// IST calendar date (YYYY-MM-DD) from a stored ISO instant — to restore a saved
+// check-in date back into the date picker.
+export const istYMD = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+};
+
+// IST time-of-day ("HH:mm", quarter-hour rounded) from a stored ISO instant —
+// to restore a saved check-in time back into the time picker when editing.
+export const istHHmm = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const hm = d.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+  const [hh, mm] = hm.split(":");
+  return `${hh}:${String((Math.round(Number(mm) / 15) * 15) % 60).padStart(2, "0")}`;
+};

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { buildApiUrl, getSession } from "@/utils/api";
+import { checkInDate, defaultCheckTimes, checkInIsoFromParts, istYMD, istHHmm } from "@/utils/checkins";
 
 interface Turf { _id: string; name: string; location: { city: string } }
 
@@ -117,6 +118,22 @@ export function EditEventModal({
   const [date, setDate] = useState(initialDateTime.date);
   const [time, setTime] = useState(initialDateTime.time);
 
+  /* ── Format change + alternate format (3.2) ── */
+  const lastAlt = initialData.alternateFormats?.[0] || null;
+  const [allowSizeChange, setAllowSizeChange] = useState(Boolean(initialData.allowSizeChange));
+  const [altFormat, setAltFormat] = useState<Format>((lastAlt?.format as Format) ?? "5v5");
+  const [altTurf, setAltTurf] = useState<string>(lastAlt?.turf?._id || (typeof lastAlt?.turf === "string" ? lastAlt.turf : ""));
+  const [altMin, setAltMin] = useState<string>(lastAlt?.minPlayers ? String(lastAlt.minPlayers) : "");
+  const [altMax, setAltMax] = useState<string>(lastAlt?.maxPlayers ? String(lastAlt.maxPlayers) : "");
+  const [altFee, setAltFee] = useState<string>(lastAlt?.feeInPaise ? String(lastAlt.feeInPaise / 100) : "");
+
+  /* ── Confirmation check-ins (3.1) — restore saved times/dates, else derive ── */
+  const [automationEnabled, setAutomationEnabled] = useState(Boolean(initialData.lifecycle?.automationEnabled));
+  const [firstCheckDate, setFirstCheckDate]   = useState(istYMD(initialData.lifecycle?.firstCheckAt)  || checkInDate(initialDateTime.date, initialDateTime.time));
+  const [firstCheckTime, setFirstCheckTime]   = useState(istHHmm(initialData.lifecycle?.firstCheckAt) || defaultCheckTimes(initialDateTime.time).first);
+  const [secondCheckDate, setSecondCheckDate] = useState(istYMD(initialData.lifecycle?.secondCheckAt)  || checkInDate(initialDateTime.date, initialDateTime.time));
+  const [secondCheckTime, setSecondCheckTime] = useState(istHHmm(initialData.lifecycle?.secondCheckAt) || defaultCheckTimes(initialDateTime.time).second);
+
   useEffect(() => {
     const { token } = getSession();
     fetch(buildApiUrl("/api/v1/turfs"), token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
@@ -141,6 +158,12 @@ export function EditEventModal({
   const hardCap = Number(totalSlots);
   const filled = regsCount + (organiserPlaying ? 1 : 0);
   const openSlots = Math.max(0, hardCap - filled);
+
+  /* ── Check-in date pickers: lower bound + live ordering check ── */
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const firstCheckIso  = checkInIsoFromParts(firstCheckDate, firstCheckTime);
+  const secondCheckIso = checkInIsoFromParts(secondCheckDate, secondCheckTime);
+  const checkOrderBad  = !!(firstCheckIso && secondCheckIso && new Date(firstCheckIso) >= new Date(secondCheckIso));
 
   /* ── Execute confirmed action ── */
   const executeAction = async () => {
@@ -227,6 +250,28 @@ export function EditEventModal({
     if (!date) newErrors.date = "Date is required";
     if (Number(minPlayers) > Number(totalSlots))
       newErrors.minMax = "Min players cannot exceed total slots";
+    // Alternate format: valid min/max and a fee strictly below the main fee.
+    if (allowSizeChange) {
+      const altSlots = slotsFromFormat(altFormat);
+      if (!altMin || Number(altMin) < 2) newErrors.alt = "Alternate min must be at least 2";
+      else if (Number(altMax) < altSlots) newErrors.alt = `Alternate max must be at least ${altSlots} for ${altFormat}`;
+      else if (Number(altMax) < Number(altMin)) newErrors.alt = "Alternate max cannot be less than min";
+      else {
+        const altFeeNum = Number(altFee);
+        if (altFee === "" || isNaN(altFeeNum) || altFeeNum < 0) newErrors.alt = "Alternate fee is required (₹0 or more)";
+        else if (Number(feeInRs) > 0 && altFeeNum >= Number(feeInRs)) newErrors.alt = `Alternate fee must be less than the main fee (₹${feeInRs})`;
+      }
+    }
+    // Check-ins: second after first, both before kickoff.
+    if (date) {
+      const fIso = checkInIsoFromParts(firstCheckDate, firstCheckTime);
+      const sIso = checkInIsoFromParts(secondCheckDate, secondCheckTime);
+      const kickoff = new Date(`${date}T${time}:00+05:30`);
+      if (fIso && sIso) {
+        if (new Date(fIso) >= new Date(sIso)) newErrors.checks = "Second check-in must be after the first.";
+        else if (new Date(sIso) >= kickoff) newErrors.checks = "Check-ins must be before the game start time.";
+      }
+    }
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     setLoading(true);
@@ -252,6 +297,19 @@ export function EditEventModal({
         durationMins: Number(durationMins),
         minPlayers: Number(minPlayers),
         reportingMinsBeforeGame: Number(reportingMins),
+        allowSizeChange,
+        alternateFormats: allowSizeChange ? [{
+          format:     altFormat,
+          turf:       altTurf || turf,
+          minPlayers: Number(altMin),
+          maxPlayers: Number(altMax),
+          feeInRs:    Number(altFee),
+        }] : [],
+        lifecycle: {
+          firstCheckAt:  checkInIsoFromParts(firstCheckDate, firstCheckTime),
+          secondCheckAt: checkInIsoFromParts(secondCheckDate, secondCheckTime),
+          automationEnabled,
+        },
       };
 
       const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
@@ -419,6 +477,87 @@ export function EditEventModal({
                   }} />
               </Field>
             </div>
+          </Section>
+
+          {/* ── Format Change ── */}
+          <Section title="Format Change">
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <input type="checkbox" checked={allowSizeChange} onChange={(e) => setAllowSizeChange(e.target.checked)}
+                style={{ width: 17, height: 17, accentColor: "#c8ff3e", flexShrink: 0 }} />
+              <span style={{ fontSize: 14, color: "#ddd" }}>Allow switch to a smaller / cheaper alternate format</span>
+            </label>
+            {allowSizeChange && (
+              <>
+                <div className="form-row">
+                  <Field label="Alt. format">
+                    <select className="form-select" value={altFormat} onChange={(e) => setAltFormat(e.target.value as Format)}>
+                      {FORMATS.map((f) => <option key={f} value={f}>{f} ({slotsFromFormat(f)})</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Alt. turf">
+                    <select className="form-select" value={altTurf || turf} onChange={(e) => setAltTurf(e.target.value)}>
+                      {turfs.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <div className="form-row">
+                  <Field label="Alt. min">
+                    <input type="number" className="form-input" min={2} value={altMin}
+                      onChange={(e) => setAltMin(e.target.value)} placeholder={String(Math.ceil(slotsFromFormat(altFormat) / 2))} />
+                  </Field>
+                  <Field label="Alt. max">
+                    <input type="number" className="form-input" min={slotsFromFormat(altFormat)} value={altMax}
+                      onChange={(e) => setAltMax(e.target.value)} placeholder={String(slotsFromFormat(altFormat))} />
+                  </Field>
+                </div>
+                <Field label="Alt. fee (₹) — must be less than the main fee" error={errors.alt}>
+                  <input type="number" className="form-input" min="0" step="1" value={altFee}
+                    onChange={(e) => setAltFee(e.target.value)} placeholder={feeInRs ? `< ${feeInRs}` : "0"} />
+                </Field>
+                <div style={{ fontSize: 11, color: "#666" }}>
+                  On switch, players are refunded the per-player fee difference automatically.
+                </div>
+              </>
+            )}
+          </Section>
+
+          {/* ── Confirmation Check-ins ── */}
+          <Section title="Confirmation Check-ins">
+            <div style={{ fontSize: 11, color: "#666" }}>
+              Two automatic turnout reviews — to confirm, switch format, or cancel. Pop-up &amp; WhatsApp follow these date/times.
+            </div>
+            <div className="form-row">
+              <Field label="First check-in date">
+                <input type="date" className="form-input" value={firstCheckDate} min={todayStr} max={date || undefined}
+                  onChange={(e) => setFirstCheckDate(e.target.value)} />
+              </Field>
+              <Field label="First check-in time">
+                <select className="form-select" value={firstCheckTime} onChange={(e) => setFirstCheckTime(e.target.value)}>
+                  {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+            </div>
+            <div className="form-row">
+              <Field label="Second check-in date">
+                <input type="date" className="form-input" value={secondCheckDate} min={firstCheckDate || todayStr} max={date || undefined}
+                  onChange={(e) => setSecondCheckDate(e.target.value)} />
+              </Field>
+              <Field label="Second check-in time">
+                <select className="form-select" value={secondCheckTime} onChange={(e) => setSecondCheckTime(e.target.value)}>
+                  {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+            </div>
+            {(checkOrderBad || errors.checks) && (
+              <div className="field-error" style={{ fontSize: 11, color: "#f87171" }}>
+                {checkOrderBad ? "Second check-in must be after the first." : errors.checks}
+              </div>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginTop: 2 }}>
+              <input type="checkbox" checked={automationEnabled} onChange={(e) => setAutomationEnabled(e.target.checked)}
+                style={{ width: 17, height: 17, accentColor: "#c8ff3e", flexShrink: 0 }} />
+              <span style={{ fontSize: 14, color: "#ddd" }}>Automate confirm &amp; cancel at the 2nd check</span>
+            </label>
           </Section>
 
           {/* ── Your Participation (real-time) ── */}

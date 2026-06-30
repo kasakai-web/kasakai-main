@@ -237,7 +237,12 @@ export default function OrganizerDashboard() {
 
   const requestSwitchFormat = (game: any) => {
     const alt = game.alternateFormats?.[0];
-    setConfirmMessage(`Switch this game to the alternate format${alt?.format ? ` (${alt.format})` : ""}? Players who opted out of format changes will be removed and refunded.`);
+    const altFeeRs  = typeof alt?.feeInPaise === "number" ? alt.feeInPaise / 100 : null;
+    const mainFeeRs = typeof game.feeInPaise === "number" ? game.feeInPaise / 100 : null;
+    const diffNote  = (altFeeRs != null && mainFeeRs != null && altFeeRs < mainFeeRs)
+      ? ` Remaining players are refunded the ₹${mainFeeRs - altFeeRs} fee difference.`
+      : "";
+    setConfirmMessage(`Switch this game to the alternate format${alt?.format ? ` (${alt.format})` : ""}? Players who opted out of format changes are removed and fully refunded.${diffNote}`);
     setConfirmLabel("Switch");
     confirmActionRef.current = () => handleSwitchFormat(game._id);
     setConfirmVisible(true);
