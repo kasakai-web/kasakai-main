@@ -686,12 +686,12 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 onChange={(e) => setAutomationEnabled(e.target.checked)}
                 className="toggle-checkbox"
               />
-              <span className="toggle-label">Automate confirm &amp; cancel</span>
+              <span className="toggle-label">Auto-cancel if turnout is below the minimum</span>
             </label>
             <div className="field-hint">
               {automationEnabled
-                ? "Auto-confirms or cancels at the 2nd check; everyone notified on WhatsApp."
-                : "You decide at each check — we send you the count + a recommendation."}
+                ? "If too few players by the 2nd check, the game is auto-cancelled & everyone refunded. Confirmation always happens automatically."
+                : "If too few players by the 2nd check, we'll ask you to Cancel or Keep Waiting. Confirmation still happens automatically."}
             </div>
           </div>
 

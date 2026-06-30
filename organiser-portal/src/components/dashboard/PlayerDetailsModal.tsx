@@ -460,9 +460,10 @@ function downloadTeamExcel(result: {
   const activeRegs = players.filter(
     (r) => !r.optedOut && !['refunded', 'forfeited'].includes(r.paymentStatus || '')
   );
-  const spotsLeft = typeof spotsRemainingProp === 'number'
-    ? spotsRemainingProp
-    : Math.max(0, totalSlots - activeRegs.length - organiserCount);
+  // Derive from the registrations we're displaying (single source of truth) so the
+  // count always matches the player/guest list shown below — rather than a
+  // separately-broadcast spotsRemaining that can momentarily disagree.
+  const spotsLeft = Math.max(0, totalSlots - activeRegs.length - organiserCount);
   const totalCollectedPaise = players.reduce(
     (sum, r) => sum + (r.paymentStatus === "paid" || r.paymentStatus === "wallet_locked" ? (r.amountPaidPaise || 0) : 0),
     0

@@ -556,7 +556,7 @@ export function EditEventModal({
             <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginTop: 2 }}>
               <input type="checkbox" checked={automationEnabled} onChange={(e) => setAutomationEnabled(e.target.checked)}
                 style={{ width: 17, height: 17, accentColor: "#c8ff3e", flexShrink: 0 }} />
-              <span style={{ fontSize: 14, color: "#ddd" }}>Automate confirm &amp; cancel at the 2nd check</span>
+              <span style={{ fontSize: 14, color: "#ddd" }}>Auto-cancel low-turnout games at the 2nd check (confirmation is always automatic)</span>
             </label>
           </Section>
 

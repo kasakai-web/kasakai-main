@@ -10,6 +10,7 @@ import { LifecycleAlertModal } from "@/components/dashboard/LifecycleAlertModal"
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { activeRegCount, filledCount } from "@/utils/playerCount";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import "../../organizer-dashboard.css";
@@ -152,17 +153,21 @@ export default function OrganizerDashboard() {
     return () => window.removeEventListener('kk-new-notification', onSocketNotif);
   }, [silentFetch]);
 
-  // Real-time game count: patch spotsRemaining + totalSlots instantly when backend
-  // broadcasts a player joining, leaving, or a guest being added/removed.
+  // Real-time game count: when the backend broadcasts a player joining/leaving or
+  // a guest being added/removed, silently re-fetch so the FULL registrations array
+  // (the single source of truth for the count) stays fresh — keeping the table,
+  // the players modal, and the count in perfect agreement. Guarded so we only
+  // refetch when the changed game is one of this organiser's.
+  const gameIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => { gameIdsRef.current = new Set(games.map((g) => g._id)); }, [games]);
   useEffect(() => {
     const handler = (e: Event) => {
-      const { gameId, spotsRemaining, totalSlots } = (e as CustomEvent<{ gameId: string; spotsRemaining: number; totalSlots: number }>).detail;
-      const patch = (g: any) => g._id === gameId ? { ...g, spotsRemaining, totalSlots } : g;
-      setGames((prev) => prev.map(patch));
+      const { gameId } = (e as CustomEvent<{ gameId: string }>).detail || {};
+      if (gameId && gameIdsRef.current.has(gameId)) silentFetch();
     };
     window.addEventListener('kk-game-update', handler);
     return () => window.removeEventListener('kk-game-update', handler);
-  }, []);
+  }, [silentFetch]);
 
   // Tick every 5 s to update "Updated X ago" text
   useEffect(() => {
@@ -395,11 +400,10 @@ export default function OrganizerDashboard() {
     return isInPast || isCompleted || isCancelled;
   });
 
-  const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
-  const getActiveRegs = (game: any) => (game.registrations || []).filter(
-    (r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
-  ).length;
-  const getTotalPlayers = (game: any) => getActiveRegs(game) + getOrganiserCount(game);
+  // All counts go through the shared single-source-of-truth helpers so the table,
+  // sorting, and the players modal can never disagree.
+  const getActiveRegs   = (game: any) => activeRegCount(game);
+  const getTotalPlayers = (game: any) => filledCount(game);
 
   const allFormats = [...new Set(games.map((g: any) => g.format).filter(Boolean))] as string[];
 
@@ -681,9 +685,7 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-players">
                       {(() => {
-                        const total = typeof game.spotsRemaining === 'number'
-                          ? game.totalSlots - game.spotsRemaining
-                          : getActiveRegs(game) + getOrganiserCount(game);
+                        const total = filledCount(game);
                         return (
                           <div className="players-info">
                             <div className="players-count">{total}/{game.totalSlots}</div>
@@ -856,9 +858,7 @@ export default function OrganizerDashboard() {
                     </div>
                     <div className="col col-players">
                       <div className="players-count">
-                        {typeof game.spotsRemaining === 'number'
-                          ? game.totalSlots - game.spotsRemaining
-                          : getTotalPlayers(game)}
+                        {getTotalPlayers(game)}
                       </div>
                     </div>
                     <div className="col col-postgame">
