@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { buildApiUrl, clearSession, getSession, isPassExpired } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive } from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -29,7 +29,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
-  const [playerPass, setPlayerPass] = useState<{ type: string; expiryDate: string | null; passMonthYear: string | null } | null>(null);
+  const [playerPass, setPlayerPass] = useState<{ type: string; startDate: string | null; expiryDate: string | null; passMonthYear: string | null } | null>(null);
 
   const PASS_LABELS: Record<string, string> = {
     weekday: "Weekday", weekend: "Weekend", day: "Day", night: "Night",
@@ -546,29 +546,33 @@ export default function DashboardLayout({
             {(() => {
               const hasPass = playerPass?.type && playerPass.type !== "none";
               const isExpired = hasPass && !!playerPass?.expiryDate && isPassExpired(playerPass.expiryDate);
-              const isActive = hasPass && !isExpired;
+              const isUpcoming = hasPass && !isExpired && isPassNotYetActive(playerPass?.startDate);
+              const isActive = hasPass && !isExpired && !isUpcoming;
               const passLabel = hasPass ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type) : "No Pass";
-              const accentColor = isActive ? "#4ade80" : isExpired ? "#fb923c" : "#444";
-              const badgeLabel = isActive ? "Active" : isExpired ? "Expired" : "No Pass";
+              const accentColor = isExpired ? "#fb923c" : isUpcoming ? "#60a5fa" : isActive ? "#4ade80" : "#444";
+              const badgeLabel = isExpired ? "Expired" : isUpcoming ? "Upcoming" : isActive ? "Active" : "No Pass";
+              const tint = (a: number) =>
+                isExpired ? `rgba(251,146,60,${a})` : isUpcoming ? `rgba(96,165,250,${a})` : `rgba(74,222,128,${a})`;
+              const fmt = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
               return (
                 <div style={{
                   background: "rgba(0,0,0,0.4)",
-                  border: `1px solid ${isActive ? "rgba(74,222,128,0.2)" : isExpired ? "rgba(251,146,60,0.2)" : "var(--border)"}`,
+                  border: `1px solid ${hasPass ? tint(0.2) : "var(--border)"}`,
                   borderRadius: "8px", padding: "14px 16px", marginBottom: "16px",
                 }}>
                   <div style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
                     My Pass
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPass ? "8px" : 0 }}>
-                    <span style={{ color: isActive ? "var(--white)" : "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+                    <span style={{ color: hasPass && !isExpired ? "var(--white)" : "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
                       {passLabel}
                     </span>
                     <span style={{
                       fontSize: "9px", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
                       padding: "2px 8px", borderRadius: "20px",
                       color: accentColor,
-                      background: isActive ? "rgba(74,222,128,0.1)" : isExpired ? "rgba(251,146,60,0.1)" : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${isActive ? "rgba(74,222,128,0.25)" : isExpired ? "rgba(251,146,60,0.25)" : "#222"}`,
+                      background: hasPass ? tint(0.1) : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${hasPass ? tint(0.25) : "#222"}`,
                     }}>
                       {badgeLabel}
                     </span>
@@ -576,11 +580,14 @@ export default function DashboardLayout({
                   {hasPass && (
                     <div style={{ fontSize: "11px", color: "var(--muted)", lineHeight: 1.5 }}>
                       {playerPass?.passMonthYear && (
-                        <span>Month: {playerPass.passMonthYear}{playerPass?.expiryDate ? " · " : ""}</span>
+                        <div>Month: {playerPass.passMonthYear}</div>
+                      )}
+                      {playerPass?.startDate && (
+                        <span>{isUpcoming ? "Starts" : "From"} {fmt(playerPass.startDate)}{playerPass?.expiryDate ? " · " : ""}</span>
                       )}
                       {playerPass?.expiryDate
-                        ? <span>Expires {new Date(playerPass.expiryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                        : !playerPass?.passMonthYear && <span style={{ color: "#555" }}>No expiry set</span>
+                        ? <span>Expires {fmt(playerPass.expiryDate)}</span>
+                        : !playerPass?.passMonthYear && !playerPass?.startDate && <span style={{ color: "#555" }}>No expiry set</span>
                       }
                     </div>
                   )}

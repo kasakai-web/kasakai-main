@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
-import { buildApiUrl, clearSession, getSession, isPassExpired, fetchWithRetry } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, fetchWithRetry } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { NavBtn } from "@/components/ui/NavBtn";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
@@ -44,6 +44,7 @@ type PlayerProfile = {
   };
   pass?: {
     type: string;
+    startDate?: string | null;
     expiryDate?: string | null;
     passMonthYear?: string | null;
     assignedAt?: string | null;
@@ -215,6 +216,7 @@ export default function PlayerProfilePage() {
         },
         pass: p.pass ? {
           type: p.pass.type || "none",
+          startDate: p.pass.startDate || null,
           expiryDate: p.pass.expiryDate || null,
           passMonthYear: p.pass.passMonthYear || null,
           assignedAt: p.pass.assignedAt || null,
@@ -757,12 +759,14 @@ export default function PlayerProfilePage() {
             const pass = profile.pass;
             const hasPass = pass?.type && pass.type !== "none";
             const isExpired = hasPass && !!pass?.expiryDate && isPassExpired(pass.expiryDate);
-            const isActive  = hasPass && !isExpired;
+            const isUpcoming = hasPass && !isExpired && isPassNotYetActive(pass?.startDate);
+            const isActive  = hasPass && !isExpired && !isUpcoming;
             const label     = hasPass ? (PASS_LABELS[pass!.type] ?? pass!.type) : "No Pass";
-            const statusColor  = isActive ? "#4ade80" : isExpired ? "#fb923c" : "#555";
-            const statusBg     = isActive ? "rgba(74,222,128,0.1)"  : isExpired ? "rgba(251,146,60,0.1)"  : "rgba(255,255,255,0.04)";
-            const statusBorder = isActive ? "rgba(74,222,128,0.25)" : isExpired ? "rgba(251,146,60,0.25)" : "#222";
-            const statusLabel  = isActive ? "Active" : isExpired ? "Expired" : "No Pass";
+            const statusColor  = isActive ? "#4ade80" : isUpcoming ? "#60a5fa" : isExpired ? "#fb923c" : "#555";
+            const statusBg     = isActive ? "rgba(74,222,128,0.1)"  : isUpcoming ? "rgba(96,165,250,0.1)"  : isExpired ? "rgba(251,146,60,0.1)"  : "rgba(255,255,255,0.04)";
+            const statusBorder = isActive ? "rgba(74,222,128,0.25)" : isUpcoming ? "rgba(96,165,250,0.25)" : isExpired ? "rgba(251,146,60,0.25)" : "#222";
+            const statusLabel  = isActive ? "Active" : isUpcoming ? "Upcoming" : isExpired ? "Expired" : "No Pass";
+            const fmtPass = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
             return (
               <div className="pp-card">
                 <div className="pp-card-header">
@@ -776,23 +780,31 @@ export default function PlayerProfilePage() {
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "16px", borderRadius: "10px", marginBottom: "12px",
-                  background: isActive ? "rgba(74,222,128,0.05)" : isExpired ? "rgba(251,146,60,0.05)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${isActive ? "rgba(74,222,128,0.2)" : isExpired ? "rgba(251,146,60,0.2)" : "#1a1a1a"}`,
+                  background: isActive ? "rgba(74,222,128,0.05)" : isUpcoming ? "rgba(96,165,250,0.05)" : isExpired ? "rgba(251,146,60,0.05)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${isActive ? "rgba(74,222,128,0.2)" : isUpcoming ? "rgba(96,165,250,0.2)" : isExpired ? "rgba(251,146,60,0.2)" : "#1a1a1a"}`,
                 }}>
                   <div>
-                    <div style={{ fontSize: "16px", fontWeight: 700, color: isActive ? "#fff" : "#666", marginBottom: "4px" }}>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: isActive || isUpcoming ? "#fff" : "#666", marginBottom: "4px" }}>
                       {label}
                     </div>
                     {hasPass && (
                       <div style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6 }}>
-                        {pass?.passMonthYear && <span>Month: {pass.passMonthYear}{pass?.expiryDate ? "  ·  " : ""}</span>}
+                        {pass?.passMonthYear && <div>Month: {pass.passMonthYear}</div>}
+                        {pass?.startDate && (
+                          <span>{isUpcoming ? "Starts" : "From"} {fmtPass(pass.startDate)}{pass?.expiryDate ? "  ·  " : ""}</span>
+                        )}
                         {pass?.expiryDate
-                          ? <span>Expires {new Date(pass.expiryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                          : !pass?.passMonthYear && <span>No expiry — valid until admin changes</span>
+                          ? <span>Expires {fmtPass(pass.expiryDate)}</span>
+                          : !pass?.passMonthYear && !pass?.startDate && <span>No expiry — valid until admin changes</span>
                         }
+                        {isUpcoming && (
+                          <div style={{ marginTop: "2px", color: "#60a5fa" }}>
+                            Not active yet — covers games from the start date.
+                          </div>
+                        )}
                         {pass?.assignedAt && (
                           <div style={{ marginTop: "2px" }}>
-                            Assigned {new Date(pass.assignedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                            Assigned {fmtPass(pass.assignedAt)}
                           </div>
                         )}
                       </div>

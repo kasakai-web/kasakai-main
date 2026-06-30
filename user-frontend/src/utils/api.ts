@@ -69,6 +69,16 @@ export const isPassExpired = (expiryDate?: string | null, now: Date = new Date()
   return now.getTime() >= cutoff;
 };
 
+// A pass with a start date only becomes active at the START of that day in IST
+// (matches backend passUtils.isPassNotYetActive). "Starts 1 July" → active from
+// 1 July 00:00 IST onwards. No start date = active from the beginning of time.
+export const isPassNotYetActive = (startDate?: string | null, now: Date = new Date()): boolean => {
+  if (!startDate) return false;
+  const startIstYMD = new Date(startDate).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const activeFrom = new Date(`${startIstYMD}T00:00:00+05:30`).getTime();
+  return now.getTime() < activeFrom;
+};
+
 // Resilient fetch for transient failures (cold starts, brief DB reconnects,
 // network blips). Retries on network error or 5xx — NOT on 4xx (auth/validation).
 // Use for read-only GETs where a transient failure should self-heal.
