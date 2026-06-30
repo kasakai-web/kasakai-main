@@ -1,3 +1,4 @@
+// Resolve the API base URL from env (falls back to localhost in dev).
 const rawApiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
   process.env.NEXT_PUBLIC_API_URL?.trim();
