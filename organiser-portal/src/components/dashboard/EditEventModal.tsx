@@ -15,11 +15,11 @@ const slotsFromFormat = (fmt: string) => {
 };
 
 const TIME_SLOT_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
-  const hours   = Math.floor(idx / 4);
+  const hours = Math.floor(idx / 4);
   const minutes = String((idx % 4) * 15).padStart(2, "0");
-  const value   = `${String(hours).padStart(2, "0")}:${minutes}`;
+  const value = `${String(hours).padStart(2, "0")}:${minutes}`;
   const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-  const period  = hours < 12 ? "AM" : "PM";
+  const period = hours < 12 ? "AM" : "PM";
   return { value, label: `${displayHour}:${minutes} ${period}` };
 });
 
@@ -67,14 +67,14 @@ export function EditEventModal({
 
   /* ── Live participation state (real-time, not batched) ── */
   const [organiserPlaying, setOrganiserPlaying] = useState(Boolean(initialData.organiserIsPlaying));
-  const [regsCount, setRegsCount]               = useState(() => liveActiveCount(initialData));
-  const [guests, setGuests]                     = useState<GuestReg[]>(() => extractOrgGuests(initialData));
+  const [regsCount, setRegsCount] = useState(() => liveActiveCount(initialData));
+  const [guests, setGuests] = useState<GuestReg[]>(() => extractOrgGuests(initialData));
 
   /* ── Action feedback ── */
-  const [actionLoading, setActionLoading]   = useState(false);
-  const [removingId, setRemovingId]         = useState<string | null>(null);
-  const [guestLoading, setGuestLoading]     = useState(false);
-  const [actionMsg, setActionMsg]           = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   /* ── Inline confirmation ── */
   type PendingAction =
@@ -83,21 +83,21 @@ export function EditEventModal({
   const [pending, setPending] = useState<PendingAction | null>(null);
 
   /* ── Guest pref mini-modal ── */
-  const [prefOpen, setPrefOpen]     = useState(false);
-  const [prefName, setPrefName]     = useState("");
+  const [prefOpen, setPrefOpen] = useState(false);
+  const [prefName, setPrefName] = useState("");
   const [prefPosition, setPrefPosition] = useState("Any");
-  const [prefTeam, setPrefTeam]     = useState("No Preference");
+  const [prefTeam, setPrefTeam] = useState("No Preference");
 
   /* ── Form settings state (batched, saved via Save button) ── */
-  const [turfs, setTurfs]           = useState<Turf[]>([]);
-  const [loading, setLoading]       = useState(false);
-  const [errors, setErrors]         = useState<Record<string, string>>({});
-  const [title, setTitle]           = useState(initialData.title ?? "");
-  const [turf, setTurf]             = useState(initialData.turf?._id || "");
-  const [status, setStatus]         = useState(initialData.status ?? "open");
-  const [format, setFormat]         = useState<Format>((initialData.format as Format) ?? "5v5");
+  const [turfs, setTurfs] = useState<Turf[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [title, setTitle] = useState(initialData.title ?? "");
+  const [turf, setTurf] = useState(initialData.turf?._id || "");
+  const [status, setStatus] = useState(initialData.status ?? "open");
+  const [format, setFormat] = useState<Format>((initialData.format as Format) ?? "5v5");
   const [totalSlots, setTotalSlots] = useState(initialData.totalSlots ?? slotsFromFormat(initialData.format ?? "5v5"));
-  const [feeInRs, setFeeInRs]       = useState(initialData.feeInPaise ? initialData.feeInPaise / 100 : 0);
+  const [feeInRs, setFeeInRs] = useState(initialData.feeInPaise ? initialData.feeInPaise / 100 : 0);
   const [durationMins, setDurationMins] = useState(initialData.durationMins ?? 60);
   const [minPlayers, setMinPlayers] = useState(initialData.minPlayers ?? 7);
   const [reportingMins, setReportingMins] = useState(initialData.reportingMinsBeforeGame ?? 30);
@@ -108,7 +108,7 @@ export function EditEventModal({
     // Read both date and time in IST — never browser TZ or UTC, so late-night IST
     // games keep the correct calendar date and hour when editing.
     const istDate = scheduled.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
-    const istHM   = scheduled.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); // HH:MM
+    const istHM = scheduled.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }); // HH:MM
     const [hh, mmRaw] = istHM.split(":");
     const mm = String(Math.round(Number(mmRaw) / 15) * 15 % 60).padStart(2, "0");
     return { date: istDate, time: `${hh}:${mm}` };
@@ -138,9 +138,9 @@ export function EditEventModal({
   };
 
   /* ── Capacity (live) ── */
-  const hardCap    = Number(totalSlots);
-  const filled     = regsCount + (organiserPlaying ? 1 : 0);
-  const openSlots  = Math.max(0, hardCap - filled);
+  const hardCap = Number(totalSlots);
+  const filled = regsCount + (organiserPlaying ? 1 : 0);
+  const openSlots = Math.max(0, hardCap - filled);
 
   /* ── Execute confirmed action ── */
   const executeAction = async () => {
@@ -223,8 +223,8 @@ export function EditEventModal({
     e.preventDefault();
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = "Title is required";
-    if (!turf)         newErrors.turf  = "Venue is required";
-    if (!date)         newErrors.date  = "Date is required";
+    if (!turf) newErrors.turf = "Venue is required";
+    if (!date) newErrors.date = "Date is required";
     if (Number(minPlayers) > Number(totalSlots))
       newErrors.minMax = "Min players cannot exceed total slots";
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
@@ -237,27 +237,27 @@ export function EditEventModal({
       // Entered time is IST — anchor with +05:30 so the stored UTC instant is correct
       // regardless of the organiser's browser timezone.
       const scheduledAt = new Date(`${date}T${time}:00+05:30`);
-      const cutoffAt    = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
+      const cutoffAt = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
 
       // organiserIsPlaying is NOT included — it's managed in real-time above
       const payload = {
-        title:                   title.trim(),
+        title: title.trim(),
         turf,
-        scheduledAt:             scheduledAt.toISOString(),
-        cutoffAt:                cutoffAt.toISOString(),
+        scheduledAt: scheduledAt.toISOString(),
+        cutoffAt: cutoffAt.toISOString(),
         status,
         format,
-        totalSlots:              Number(totalSlots),
-        feeInRs:                 Number(feeInRs),
-        durationMins:            Number(durationMins),
-        minPlayers:              Number(minPlayers),
+        totalSlots: Number(totalSlots),
+        feeInRs: Number(feeInRs),
+        durationMins: Number(durationMins),
+        minPlayers: Number(minPlayers),
         reportingMinsBeforeGame: Number(reportingMins),
       };
 
-      const res  = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body:   JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const text = await res.text();
       const data = res.headers.get("content-type")?.includes("application/json")
@@ -276,8 +276,8 @@ export function EditEventModal({
 
   /* ── Inline confirmation UI ── */
   const ConfirmBar = ({ action }: { action: PendingAction }) => {
-    const isJoin   = action.type === "join";
-    const isLeave  = action.type === "leave";
+    const isJoin = action.type === "join";
+    const isLeave = action.type === "leave";
     const isRemove = action.type === "remove-guest";
     const msg = isJoin
       ? "Reserve 1 slot and join this game?"
@@ -519,16 +519,20 @@ export function EditEventModal({
                     {(posLabel || teamLabel) ? (
                       <div style={{ display: "flex", gap: 5, marginTop: 5, flexWrap: "wrap" as const }}>
                         {posLabel && (
-                          <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
-                            background: "rgba(147,197,253,0.12)", color: "#93c5fd", border: "1px solid rgba(147,197,253,0.25)" }}>
+                          <span style={{
+                            fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
+                            background: "rgba(147,197,253,0.12)", color: "#93c5fd", border: "1px solid rgba(147,197,253,0.25)"
+                          }}>
                             {posLabel}
                           </span>
                         )}
                         {teamLabel && (
-                          <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
+                          <span style={{
+                            fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
                             background: g.teamPreference === "red" ? "rgba(231,76,60,0.12)" : "rgba(52,152,219,0.12)",
                             color: g.teamPreference === "red" ? "#ff6b6b" : "#74b9ff",
-                            border: `1px solid ${g.teamPreference === "red" ? "rgba(231,76,60,0.3)" : "rgba(52,152,219,0.3)"}` }}>
+                            border: `1px solid ${g.teamPreference === "red" ? "rgba(231,76,60,0.3)" : "rgba(52,152,219,0.3)"}`
+                          }}>
                             {teamLabel}
                           </span>
                         )}
@@ -575,88 +579,7 @@ export function EditEventModal({
             </button>
           </Section>
 
-          {/* ── Guest Preferences Mini-Modal ── */}
-          {prefOpen && (
-            <div
-              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9999,
-                display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-              onClick={() => setPrefOpen(false)}
-            >
-              <div
-                style={{ background: "#0f0f1e", border: "1px solid #333", borderRadius: 12,
-                  padding: "24px 20px", width: "100%", maxWidth: 360 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h3 style={{ color: "#c8ff3e", margin: "0 0 4px", fontSize: 17 }}>Add Guest</h3>
-                <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>
-                  Set guest name, position and team preference.
-                </p>
 
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ color: "#aaa", fontSize: 11, display: "block", marginBottom: 6,
-                    textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>
-                    Guest Name <span style={{ color: "#555", textTransform: "none" as const }}>(optional)</span>
-                  </label>
-                  <input type="text" value={prefName} onChange={(e) => setPrefName(e.target.value)}
-                    placeholder="e.g. Rahul" maxLength={40}
-                    style={{ width: "100%", background: "#1a1a2e", border: "1px solid #444", borderRadius: 7,
-                      padding: "9px 12px", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box" as const }}
-                    onFocus={(e) => (e.target.style.borderColor = "#c8ff3e")}
-                    onBlur={(e) =>  (e.target.style.borderColor = "#444")}
-                  />
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ color: "#aaa", fontSize: 11, display: "block", marginBottom: 8,
-                    textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Position</label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-                    {["Any","GK","DEF","MID","FWD"].map((pos) => (
-                      <button key={pos} type="button" onClick={() => setPrefPosition(pos)} style={{
-                        padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                        background: prefPosition === pos ? "rgba(200,255,62,0.18)" : "rgba(255,255,255,0.04)",
-                        color: prefPosition === pos ? "#c8ff3e" : "#888",
-                        border: `1px solid ${prefPosition === pos ? "rgba(200,255,62,0.5)" : "rgba(255,255,255,0.08)"}`,
-                      }}>{pos}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ color: "#aaa", fontSize: 11, display: "block", marginBottom: 8,
-                    textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Team</label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-                    {["No Preference","Red Team","Blue Team"].map((t) => (
-                      <button key={t} type="button" onClick={() => setPrefTeam(t)} style={{
-                        padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                        background: prefTeam === t
-                          ? t === "Red Team" ? "rgba(220,38,38,0.18)" : t === "Blue Team" ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.08)"
-                          : "rgba(255,255,255,0.04)",
-                        color: prefTeam === t
-                          ? t === "Red Team" ? "#f87171" : t === "Blue Team" ? "#60a5fa" : "#c8ff3e"
-                          : "#888",
-                        border: `1px solid ${prefTeam === t
-                          ? t === "Red Team" ? "rgba(220,38,38,0.4)" : t === "Blue Team" ? "rgba(59,130,246,0.4)" : "rgba(200,255,62,0.4)"
-                          : "rgba(255,255,255,0.08)"}`,
-                      }}>{t === "No Preference" ? "No Pref" : t}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={() => setPrefOpen(false)}
-                    style={{ flex: 1, padding: "10px", borderRadius: 7, background: "transparent",
-                      border: "1px solid #444", color: "#888", fontSize: 14, cursor: "pointer" }}>
-                    Cancel
-                  </button>
-                  <button type="button" onClick={() => addGuest(prefName, prefPosition, prefTeam)}
-                    style={{ flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e",
-                      color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}>
-                    Add Guest
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="form-actions" style={{ marginTop: 24 }}>
             <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>Cancel</button>
@@ -666,6 +589,104 @@ export function EditEventModal({
           </div>
         </form>
       </div>
+      {/* ── Guest Preferences Mini-Modal ── */}
+      {prefOpen && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9999,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+          }}
+          onClick={() => setPrefOpen(false)}
+        >
+          <div
+            style={{
+              background: "#0f0f1e", border: "1px solid #333", borderRadius: 12,
+              padding: "24px 20px", width: "100%", maxWidth: 360
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ color: "#c8ff3e", margin: "0 0 4px", fontSize: 17 }}>Add Guest</h3>
+            <p style={{ color: "#666", fontSize: 12, margin: "0 0 20px" }}>
+              Set guest name, position and team preference.
+            </p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{
+                color: "#aaa", fontSize: 11, display: "block", marginBottom: 6,
+                textTransform: "uppercase" as const, letterSpacing: "0.08em"
+              }}>
+                Guest Name <span style={{ color: "#555", textTransform: "none" as const }}>(optional)</span>
+              </label>
+              <input type="text" value={prefName} onChange={(e) => setPrefName(e.target.value)}
+                placeholder="e.g. Rahul" maxLength={40}
+                style={{
+                  width: "100%", background: "#1a1a2e", border: "1px solid #444", borderRadius: 7,
+                  padding: "9px 12px", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box" as const
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#c8ff3e")}
+                onBlur={(e) => (e.target.style.borderColor = "#444")}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{
+                color: "#aaa", fontSize: 11, display: "block", marginBottom: 8,
+                textTransform: "uppercase" as const, letterSpacing: "0.08em"
+              }}>Position</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                {["Any", "GK", "DEF", "MID", "FWD"].map((pos) => (
+                  <button key={pos} type="button" onClick={() => setPrefPosition(pos)} style={{
+                    padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    background: prefPosition === pos ? "rgba(200,255,62,0.18)" : "rgba(255,255,255,0.04)",
+                    color: prefPosition === pos ? "#c8ff3e" : "#888",
+                    border: `1px solid ${prefPosition === pos ? "rgba(200,255,62,0.5)" : "rgba(255,255,255,0.08)"}`,
+                  }}>{pos}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{
+                color: "#aaa", fontSize: 11, display: "block", marginBottom: 8,
+                textTransform: "uppercase" as const, letterSpacing: "0.08em"
+              }}>Team</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                {["No Preference", "Red Team", "Blue Team"].map((t) => (
+                  <button key={t} type="button" onClick={() => setPrefTeam(t)} style={{
+                    padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    background: prefTeam === t
+                      ? t === "Red Team" ? "rgba(220,38,38,0.18)" : t === "Blue Team" ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.08)"
+                      : "rgba(255,255,255,0.04)",
+                    color: prefTeam === t
+                      ? t === "Red Team" ? "#f87171" : t === "Blue Team" ? "#60a5fa" : "#c8ff3e"
+                      : "#888",
+                    border: `1px solid ${prefTeam === t
+                      ? t === "Red Team" ? "rgba(220,38,38,0.4)" : t === "Blue Team" ? "rgba(59,130,246,0.4)" : "rgba(200,255,62,0.4)"
+                      : "rgba(255,255,255,0.08)"}`,
+                  }}>{t === "No Preference" ? "No Pref" : t}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={() => setPrefOpen(false)}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 7, background: "transparent",
+                  border: "1px solid #444", color: "#888", fontSize: 14, cursor: "pointer"
+                }}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => addGuest(prefName, prefPosition, prefTeam)}
+                style={{
+                  flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e",
+                  color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer"
+                }}>
+                Add Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -674,8 +695,10 @@ export function EditEventModal({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em",
-        color: "#666", marginBottom: 12, paddingBottom: 6, borderBottom: "1px solid #222" }}>
+      <div style={{
+        fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em",
+        color: "#666", marginBottom: 12, paddingBottom: 6, borderBottom: "1px solid #222"
+      }}>
         {title}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
