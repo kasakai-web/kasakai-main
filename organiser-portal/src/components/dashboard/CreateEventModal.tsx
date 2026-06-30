@@ -91,8 +91,10 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   const [altTurf, setAltTurf]     = useState<string>(lastAlt?.turf?._id || (typeof lastAlt?.turf === "string" ? lastAlt.turf : ""));
   const [altMin, setAltMin]       = useState<string>(lastAlt?.minPlayers ? String(lastAlt.minPlayers) : "");
   const [altMax, setAltMax]       = useState<string>(lastAlt?.maxPlayers ? String(lastAlt.maxPlayers) : "");
+  const [altFee, setAltFee]       = useState<string>(lastAlt?.feeInPaise ? String(lastAlt.feeInPaise / 100) : "");
   const altDefaultsSet = useRef(!!lastAlt);
-  // Alternate format always uses the SAME fee as the main format.
+  // Alternate format has its OWN fee (must be LOWER than the main fee). When the
+  // game switches to it, each player is refunded the per-player fee difference.
 
   // Automation master switch (section 3.1): ON = auto confirm/cancel at check-ins;
   // OFF = only notify the organiser to decide.
@@ -231,6 +233,14 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
         newErrors.alt = `Alternate max must be at least ${altSlots} for ${altFormat}`;
       else if (Number(altMax) < Number(altMin))
         newErrors.alt = "Alternate max cannot be less than min";
+      // Alternate fee must be set and strictly LOWER than the main fee.
+      else {
+        const altFeeNum = Number(altFee);
+        if (altFee === "" || isNaN(altFeeNum) || altFeeNum < 0)
+          newErrors.alt = "Alternate fee is required (₹0 or more)";
+        else if (feeInRs !== "" && altFeeNum >= Number(feeInRs))
+          newErrors.alt = `Alternate fee must be less than the main fee (₹${feeInRs})`;
+      }
     }
 
     // Check-in times: second after first, and both before kickoff
@@ -286,7 +296,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
           turf:       altTurf || turf,
           minPlayers: Number(altMin),
           maxPlayers: Number(altMax),
-          feeInRs:    Number(feeInRs), // same fee as the main format
+          feeInRs:    Number(altFee), // alternate format's own (lower) fee
         }] : [],
       };
 
@@ -576,8 +586,18 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                     <input type="number" min={slotsFromFormat(altFormat)} className="form-input" value={altMax} onChange={(e) => setAltMax(e.target.value)} placeholder={String(slotsFromFormat(altFormat))} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label"><span className="label-text">Fee</span></label>
-                    <input type="text" className="form-input" value={feeInRs ? `₹${feeInRs}` : "—"} readOnly disabled style={{ opacity: 0.55 }} />
+                    <label className="form-label"><span className="label-text">Alt. fee</span></label>
+                    <div className="input-with-prefix">
+                      <span className="input-prefix">₹</span>
+                      <input
+                        type="number" min="0" step="1"
+                        className="form-input"
+                        value={altFee}
+                        onChange={(e) => setAltFee(e.target.value)}
+                        placeholder={feeInRs ? `< ${feeInRs}` : "0"}
+                      />
+                    </div>
+                    <div className="field-hint">Must be less than the main fee{feeInRs ? ` (₹${feeInRs})` : ""}</div>
                   </div>
                 </div>
                 {errors.alt && <div className="field-error">{errors.alt}</div>}
