@@ -33,6 +33,7 @@ type PlayerPassRow = {
   rating: number;
   totalSpentPaise: number;
   passType: PassType;
+  passStart: string | null;
   passExpiry: string | null;
   passMonthYear?: string | null;
 };
@@ -41,6 +42,7 @@ type PendingConfirm = {
   playerId: string;
   playerName: string;
   passType: PassType;
+  passStart: string;
   passExpiry: string;
   passMonthYear: string;
 } | null;
@@ -48,6 +50,7 @@ type PendingConfirm = {
 type HistoryEntry = {
   type: string;
   label: string;
+  startDate: string | null;
   expiryDate: string | null;
   passMonthYear: string | null;
   assignedBy: { name: string; email: string } | null;
@@ -129,6 +132,28 @@ function fmtDate(iso: string | null | undefined) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// Mirror of backend passUtils.computeMonthPassDates — derives the start/expiry
+// window for a month-based pass from its "YYYY-MM" value so the admin can preview
+// the exact dates that the server will assign. Returned as "YYYY-MM-DD" strings.
+//   full_month   → 1st  … last day of month
+//   half_month_1 → 1st  … 15th
+//   half_month_2 → 16th … last day of month
+function computeMonthPassDates(passType: PassType, passMonthYear: string): { startDate: string; expiryDate: string } | null {
+  if (!MONTH_REQUIRED.includes(passType) || !/^\d{4}-\d{2}$/.test(passMonthYear)) return null;
+  const [year, month] = passMonthYear.split("-").map(Number); // month is 1-12
+  // Day 0 of the next month = last day of this month (timezone-independent).
+  const lastDay = new Date(year, month, 0).getDate();
+  let startDay: number, endDay: number;
+  if (passType === "full_month")        { startDay = 1;  endDay = lastDay; }
+  else if (passType === "half_month_1") { startDay = 1;  endDay = 15; }
+  else                                  { startDay = 16; endDay = lastDay; } // half_month_2
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    startDate:  `${year}-${pad(month)}-${pad(startDay)}`,
+    expiryDate: `${year}-${pad(month)}-${pad(endDay)}`,
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function PassPage() {
@@ -142,7 +167,7 @@ export function PassPage() {
   const [savingMap, setSavingMap] = useState<Record<string, string | null>>({});
 
   // Local draft state (fields being edited, not yet confirmed)
-  const [localPass, setLocalPass] = useState<Record<string, { passType: PassType; passExpiry: string; passMonthYear: string }>>({});
+  const [localPass, setLocalPass] = useState<Record<string, { passType: PassType; passStart: string; passExpiry: string; passMonthYear: string }>>({});
 
   // Confirmation popup
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
@@ -172,12 +197,19 @@ export function PassPage() {
 
   // ── API calls ──────────────────────────────────────────────────────────────
 
-  const savePass = async (playerId: string, passType: PassType, passExpiry: string, passMonthYear: string) => {
+  const savePass = async (playerId: string, passType: PassType, passStart: string, passExpiry: string, passMonthYear: string) => {
     setSavingMap((prev) => ({ ...prev, [playerId]: "saving" }));
     try {
       const token = getAdminToken();
-      const body: Record<string, string | null> = { passType, expiryDate: passExpiry || null };
-      if (MONTH_REQUIRED.includes(passType)) body.passMonthYear = passMonthYear || null;
+      // Month passes derive start/expiry server-side from the month; dated passes
+      // send the (optional) start and expiry; "none" clears everything.
+      const body: Record<string, string | null> = { passType };
+      if (MONTH_REQUIRED.includes(passType)) {
+        body.passMonthYear = passMonthYear || null;
+      } else if (passType !== "none") {
+        body.startDate  = passStart  || null;
+        body.expiryDate = passExpiry || null;
+      }
       const res = await fetch(`${API_BASE}/admin/players/${playerId}/pass`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -186,11 +218,16 @@ export function PassPage() {
       const data = await res.json();
       if (!data.success) throw new Error(data.message || "Failed to save");
       setSavingMap((prev) => ({ ...prev, [playerId]: null }));
-      // Commit local draft into canonical player list
+      // Commit local draft into the canonical player list. For month passes we
+      // derive the dates client-side so the card reflects them without a refetch.
+      const derived = MONTH_REQUIRED.includes(passType) ? computeMonthPassDates(passType, passMonthYear) : null;
+      const committedStart  = passType === "none" ? null : derived ? derived.startDate  : (passStart  || null);
+      const committedExpiry = passType === "none" ? null : derived ? derived.expiryDate : (passExpiry || null);
+      const committedMonth  = MONTH_REQUIRED.includes(passType) ? (passMonthYear || null) : null;
       setPlayers((prev) =>
         prev.map((p) =>
           p.id === playerId
-            ? { ...p, passType, passExpiry: passExpiry || null, passMonthYear: passMonthYear || null }
+            ? { ...p, passType, passStart: committedStart, passExpiry: committedExpiry, passMonthYear: committedMonth }
             : p
         )
       );
@@ -221,22 +258,26 @@ export function PassPage() {
 
   const getLocal = (p: PlayerPassRow) => ({
     passType:      (localPass[p.id]?.passType      ?? p.passType)      as PassType,
+    passStart:      localPass[p.id]?.passStart     ?? (p.passStart     ? p.passStart.split("T")[0]   : ""),
     passExpiry:     localPass[p.id]?.passExpiry    ?? (p.passExpiry    ? p.passExpiry.split("T")[0]  : ""),
     passMonthYear:  localPass[p.id]?.passMonthYear ?? (p.passMonthYear || ""),
   });
 
-  const setLocal = (playerId: string, patch: Partial<{ passType: PassType; passExpiry: string; passMonthYear: string }>, current: ReturnType<typeof getLocal>) => {
+  const setLocal = (playerId: string, patch: Partial<{ passType: PassType; passStart: string; passExpiry: string; passMonthYear: string }>, current: ReturnType<typeof getLocal>) => {
     setLocalPass((prev) => ({ ...prev, [playerId]: { ...current, ...patch } }));
   };
 
-  // Confirm button is enabled when: removing a pass (none) OR a real pass type with expiry filled in
+  // Confirm button is enabled when: removing a pass (none); a month pass with a
+  // month picked (start/expiry are derived server-side); or a dated pass with an
+  // expiry filled in (start date is optional).
   const canConfirm = (passType: PassType, passExpiry: string, passMonthYear: string) =>
     passType === "none" ||
-    (passExpiry !== "" && (!MONTH_REQUIRED.includes(passType) || passMonthYear !== ""));
+    (MONTH_REQUIRED.includes(passType) ? passMonthYear !== "" : passExpiry !== "");
 
   // True only when local draft differs from what's saved on the server
-  const hasUnsavedChanges = (p: PlayerPassRow, passType: PassType, passExpiry: string, passMonthYear: string) =>
+  const hasUnsavedChanges = (p: PlayerPassRow, passType: PassType, passStart: string, passExpiry: string, passMonthYear: string) =>
     passType     !== p.passType ||
+    passStart    !== (p.passStart     ? p.passStart.split("T")[0]  : "") ||
     passExpiry   !== (p.passExpiry    ? p.passExpiry.split("T")[0] : "") ||
     passMonthYear !== (p.passMonthYear ?? "");
 
@@ -298,19 +339,26 @@ export function PassPage() {
                   </div>
                 </div>
 
-                {/* Details row */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-                  {pendingConfirm.passMonthYear && (
-                    <div style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
-                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Month</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{pendingConfirm.passMonthYear}</div>
+                {/* Details row — month passes show the auto-derived window. */}
+                {(() => {
+                  const isMonth = MONTH_REQUIRED.includes(pendingConfirm.passType);
+                  const derived = isMonth ? computeMonthPassDates(pendingConfirm.passType, pendingConfirm.passMonthYear) : null;
+                  const startStr  = isMonth ? (derived?.startDate  ?? "") : pendingConfirm.passStart;
+                  const expiryStr = isMonth ? (derived?.expiryDate ?? "") : pendingConfirm.passExpiry;
+                  const Cell = ({ label, value }: { label: string; value: string }) => (
+                    <div style={{ flex: 1, minWidth: 110, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
+                      <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{value}</div>
                     </div>
-                  )}
-                  <div style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid #1a1a1a" }}>
-                    <div style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Expires</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{fmtDate(pendingConfirm.passExpiry)}</div>
-                  </div>
-                </div>
+                  );
+                  return (
+                    <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+                      {isMonth && pendingConfirm.passMonthYear && <Cell label="Month" value={pendingConfirm.passMonthYear} />}
+                      {startStr && <Cell label="Starts" value={fmtDate(startStr)} />}
+                      <Cell label="Expires" value={expiryStr ? fmtDate(expiryStr) : "No expiry"} />
+                    </div>
+                  );
+                })()}
               </>
             )}
 
@@ -324,9 +372,9 @@ export function PassPage() {
               </button>
               <button
                 onClick={() => {
-                  const { playerId, passType, passExpiry, passMonthYear } = pendingConfirm;
+                  const { playerId, passType, passStart, passExpiry, passMonthYear } = pendingConfirm;
                   setPendingConfirm(null);
-                  savePass(playerId, passType, passExpiry, passMonthYear);
+                  savePass(playerId, passType, passStart, passExpiry, passMonthYear);
                 }}
                 style={{
                   flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: "pointer",
@@ -382,8 +430,11 @@ export function PassPage() {
                         {historyModal.current.passMonthYear && (
                           <div style={{ fontSize: 11, color: "#555", marginTop: 3 }}>Month: {historyModal.current.passMonthYear}</div>
                         )}
+                        {historyModal.current.startDate && (
+                          <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Valid from: {fmtDate(historyModal.current.startDate)}</div>
+                        )}
                         <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-                          Expires: {fmtDate(historyModal.current.expiryDate)}
+                          Expires: {historyModal.current.expiryDate ? fmtDate(historyModal.current.expiryDate) : "No expiry"}
                         </div>
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 800, color: "#4ade80", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "3px 10px" }}>
@@ -420,8 +471,11 @@ export function PassPage() {
                             {h.passMonthYear && (
                               <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Month: {h.passMonthYear}</div>
                             )}
+                            {h.startDate && (
+                              <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Valid from: {fmtDate(h.startDate)}</div>
+                            )}
                             <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-                              Expired: {fmtDate(h.expiryDate)}
+                              Expired: {h.expiryDate ? fmtDate(h.expiryDate) : "No expiry"}
                             </div>
                           </div>
                           <span style={{ fontSize: 10, fontWeight: 700, color: "#555", background: "rgba(255,255,255,0.04)", border: "1px solid #1a1a1a", borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>
@@ -507,12 +561,14 @@ export function PassPage() {
         }}>
           {filtered.map((p) => {
             const local = getLocal(p);
-            const { passType, passExpiry, passMonthYear } = local;
+            const { passType, passStart, passExpiry, passMonthYear } = local;
             const saving = savingMap[p.id];
             const needsMonth = MONTH_REQUIRED.includes(passType);
             const hasSavedPass = p.passType !== "none";
             const isExpired = hasSavedPass && !!p.passExpiry && new Date(p.passExpiry) < new Date();
-            const ready = hasUnsavedChanges(p, passType, passExpiry, passMonthYear) && canConfirm(passType, passExpiry, passMonthYear);
+            // A pass whose start date is still in the future is assigned but not yet active.
+            const isUpcoming = hasSavedPass && !!p.passStart && new Date(p.passStart) > new Date();
+            const ready = hasUnsavedChanges(p, passType, passStart, passExpiry, passMonthYear) && canConfirm(passType, passExpiry, passMonthYear);
 
             return (
               <div
@@ -547,7 +603,10 @@ export function PassPage() {
                     {!saving && isExpired && (
                       <span style={{ fontSize: 10, fontWeight: 800, color: "#fb923c", background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.25)", borderRadius: 20, padding: "3px 10px", letterSpacing: "0.04em" }}>Expired</span>
                     )}
-                    {!saving && hasSavedPass && !isExpired && (
+                    {!saving && !isExpired && isUpcoming && (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#60a5fa", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 20, padding: "3px 10px", letterSpacing: "0.04em" }}>Upcoming</span>
+                    )}
+                    {!saving && hasSavedPass && !isExpired && !isUpcoming && (
                       <span style={{ fontSize: 10, fontWeight: 800, color: "#4ade80", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "3px 10px", letterSpacing: "0.04em" }}>Approved</span>
                     )}
                     {!saving && !hasSavedPass && (
@@ -608,53 +667,84 @@ export function PassPage() {
                     </select>
                   </div>
 
-                  {/* Month + Expiry side by side */}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <label style={{ fontSize: 10, color: needsMonth ? "#555" : "#333", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Month</label>
+                  {/* Validity window — month passes pick a month (start/expiry are
+                      auto-derived); dated passes set an optional start + expiry. */}
+                  {needsMonth ? (
+                    <div>
+                      <label style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Month</label>
                       <input
                         type="month"
                         value={passMonthYear}
-                        disabled={!needsMonth}
+                        min={new Date().toISOString().slice(0, 7)}
                         onChange={(e) => setLocal(p.id, { passMonthYear: e.target.value }, local)}
                         style={{
                           background: "#0a0a0a",
-                          border: `1px solid ${needsMonth ? PASS_TEXT[passType] + "55" : "#222"}`,
+                          border: `1px solid ${PASS_TEXT[passType] + "55"}`,
                           borderRadius: 6, padding: "8px 10px",
-                          color: needsMonth ? "#ccc" : "#333",
+                          color: "#ccc",
                           fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
-                          cursor: needsMonth ? "pointer" : "not-allowed",
-                          colorScheme: "dark" as const,
+                          cursor: "pointer", colorScheme: "dark" as const,
                         }}
-                        title={needsMonth ? "Select the month for this pass" : "Only needed for Full/Half month passes"}
+                        title="Select the month for this pass — start & expiry are set automatically"
                       />
+                      {(() => {
+                        const d = passMonthYear ? computeMonthPassDates(passType, passMonthYear) : null;
+                        return (
+                          <div style={{ fontSize: 10, color: d ? "#777" : "#555", marginTop: 6, lineHeight: 1.4 }}>
+                            {d
+                              ? <>Auto-validity: <span style={{ color: "#aaa" }}>{fmtDate(d.startDate)} – {fmtDate(d.expiryDate)}</span></>
+                              : "Start & expiry are set automatically from the month."}
+                          </div>
+                        );
+                      })()}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <label style={{ fontSize: 10, color: passType === "none" ? "#333" : "#555", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Expiry</label>
-                      <input
-                        type="date"
-                        value={passExpiry}
-                        min={new Date().toISOString().split("T")[0]}
-                        disabled={passType === "none"}
-                        onChange={(e) => setLocal(p.id, { passExpiry: e.target.value }, local)}
-                        style={{
-                          background: "#0a0a0a",
-                          border: "1px solid #222", borderRadius: 6,
-                          padding: "8px 10px", color: passType === "none" ? "#444" : "#ccc",
-                          fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
-                          cursor: passType === "none" ? "not-allowed" : "pointer",
-                          colorScheme: "dark" as const,
-                        }}
-                        title={passType === "none" ? "Assign a pass first" : "Required to enable Confirm"}
-                      />
+                  ) : passType !== "none" ? (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <label style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>
+                          Start <span style={{ color: "#444", textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={passStart}
+                          min={new Date().toISOString().split("T")[0]}
+                          max={passExpiry || undefined}
+                          onChange={(e) => setLocal(p.id, { passStart: e.target.value }, local)}
+                          style={{
+                            background: "#0a0a0a",
+                            border: "1px solid #222", borderRadius: 6,
+                            padding: "8px 10px", color: "#ccc",
+                            fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
+                            cursor: "pointer", colorScheme: "dark" as const,
+                          }}
+                          title="Optional — pass only covers games on/after this date. Leave blank to cover from the beginning."
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <label style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 4 }}>Expiry</label>
+                        <input
+                          type="date"
+                          value={passExpiry}
+                          min={passStart || new Date().toISOString().split("T")[0]}
+                          onChange={(e) => setLocal(p.id, { passExpiry: e.target.value }, local)}
+                          style={{
+                            background: "#0a0a0a",
+                            border: "1px solid #222", borderRadius: 6,
+                            padding: "8px 10px", color: "#ccc",
+                            fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" as const,
+                            cursor: "pointer", colorScheme: "dark" as const,
+                          }}
+                          title="Required to enable Confirm"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 {/* ── Confirm button ── */}
                 {ready && saving !== "saving" && (
                   <button
-                    onClick={() => setPendingConfirm({ playerId: p.id, playerName: p.name, passType, passExpiry, passMonthYear })}
+                    onClick={() => setPendingConfirm({ playerId: p.id, playerName: p.name, passType, passStart, passExpiry, passMonthYear })}
                     style={{
                       padding: "9px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800,
                       background: passType === "none" ? "rgba(248,113,113,0.1)" : "rgba(200,255,62,0.12)",
