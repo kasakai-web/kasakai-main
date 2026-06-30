@@ -2769,6 +2769,9 @@ type AdminWalletRow = {
 type AdminWalletListResponse = {
   success: boolean;
   count?: number;
+  total?: number;
+  page?: number;
+  totalPages?: number;
   summary?: { totalBalancePaise: number; totalTopUpPaise: number; totalSpentPaise: number; totalRefundedPaise: number };
   data: AdminWalletRow[];
   message?: string;
@@ -2892,35 +2895,46 @@ function AdjustWalletModal({ target, onClose, onSuccess }: {
   );
 }
 
+const WALLET_PAGE_SIZE = 25;
+
 function WalletAdmin() {
   const [wallets, setWallets]   = useState<AdminWalletRow[]>([]);
   const [summary, setSummary]   = useState<AdminWalletListResponse["summary"] | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
   const [search, setSearch]     = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage]         = useState(1);
+  const [total, setTotal]       = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [adjustTarget, setAdjustTarget] = useState<AdjustTarget | null>(null);
   const [toast, setToast]       = useState<string | null>(null);
+
+  // Debounce the search box, and reset to page 1 whenever the query changes.
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const fetchWallets = useCallback(async () => {
     setLoading(true); setError("");
     try {
       const token = getAdminToken();
       if (!token) { setError("Admin session missing."); return; }
-      const res  = await fetch(`${API_BASE}/admin/wallets`, { headers: { Authorization: `Bearer ${token}` } });
+      const params = new URLSearchParams({ page: String(page), limit: String(WALLET_PAGE_SIZE) });
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      const res  = await fetch(`${API_BASE}/admin/wallets?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
       const data = (await res.json()) as AdminWalletListResponse;
       if (!res.ok) { setError(data.message || "Failed to load wallets."); return; }
       setWallets(data.data || []);
       setSummary(data.summary || null);
+      setTotal(data.total ?? (data.data?.length || 0));
+      setTotalPages(data.totalPages ?? 1);
     } catch { setError("Cannot reach the server."); }
     finally { setLoading(false); }
-  }, []);
+  }, [page, debouncedSearch]);
 
   useEffect(() => { fetchWallets(); }, [fetchWallets]);
-
-  const filtered = wallets.filter(w => {
-    const q = search.trim().toLowerCase();
-    return [w.user?.name || "", w.user?.phone || "", w.user?.email || ""].join(" ").toLowerCase().includes(q);
-  });
 
   const handleAdjustSuccess = (userId: string, newBalancePaise: number) => {
     setWallets(prev => prev.map(w => w.user?._id === userId ? { ...w, balancePaise: newBalancePaise } : w));
@@ -2945,7 +2959,7 @@ function WalletAdmin() {
         </div>
       )}
 
-      <Head title="Player Wallets" sub={loading ? "Loading…" : `${wallets.length} player wallets`} />
+      <Head title="Player Wallets" sub={loading ? "Loading…" : `${total} player wallets`} />
 
       {/* Summary cards */}
       {summary && (
@@ -2981,10 +2995,10 @@ function WalletAdmin() {
             </tr>
           </thead>
           <tbody>
-            {!loading && filtered.length === 0 && (
+            {!loading && wallets.length === 0 && (
               <tr><td colSpan={9} style={{ textAlign: "center", padding: "32px", color: "var(--muted)" }}>No wallets found.</td></tr>
             )}
-            {filtered.map(w => {
+            {wallets.map(w => {
               const available = (w.balancePaise || 0) - (w.lockedPaise || 0);
               return (
                 <tr key={w._id}>
@@ -3014,6 +3028,23 @@ function WalletAdmin() {
           </tbody>
         </table>
       </div>
+
+      {!loading && total > 0 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginTop: "14px" }}>
+          <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+            Showing <strong style={{ color: "var(--white)" }}>{(page - 1) * WALLET_PAGE_SIZE + 1}</strong>–
+            <strong style={{ color: "var(--white)" }}>{Math.min(page * WALLET_PAGE_SIZE, total)}</strong> of{" "}
+            <strong style={{ color: "var(--white)" }}>{total}</strong> wallets
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <button style={pagerBtnStyle(page <= 1)} type="button" disabled={page <= 1} onClick={() => setPage(1)}>« First</button>
+            <button style={pagerBtnStyle(page <= 1)} type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</button>
+            <span style={pagerPillStyle}>Page {page} / {totalPages}</span>
+            <button style={pagerBtnStyle(page >= totalPages)} type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next ›</button>
+            <button style={pagerBtnStyle(page >= totalPages)} type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last »</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
