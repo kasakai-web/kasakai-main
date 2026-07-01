@@ -24,6 +24,8 @@ const TIME_SLOT_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
   return { value, label: `${displayHour}:${minutes} ${period}` };
 });
 
+const timeLabel = (v: string) => TIME_SLOT_OPTIONS.find((o) => o.value === v)?.label || v;
+
 interface GuestReg {
   _id: string; plusOneName: string;
   preferredPosition?: string; teamPreference?: string;
@@ -480,7 +482,13 @@ export function EditEventModal({
           </Section>
 
           {/* ── Format Change ── */}
-          <Section title="Format Change">
+          <Section
+            title="Format Change"
+            collapsible
+            defaultOpen={allowSizeChange}
+            forceOpen={!!errors.alt}
+            summary={allowSizeChange ? `${altFormat} · ₹${altFee || "—"}` : "Off"}
+          >
             <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
               <input type="checkbox" checked={allowSizeChange} onChange={(e) => setAllowSizeChange(e.target.checked)}
                 style={{ width: 17, height: 17, accentColor: "#c8ff3e", flexShrink: 0 }} />
@@ -522,7 +530,13 @@ export function EditEventModal({
           </Section>
 
           {/* ── Confirmation Check-ins ── */}
-          <Section title="Confirmation Check-ins">
+          <Section
+            title="Confirmation Check-ins"
+            collapsible
+            defaultOpen={false}
+            forceOpen={!!errors.checks}
+            summary={`${timeLabel(firstCheckTime)} → ${timeLabel(secondCheckTime)}${automationEnabled ? " · auto-cancel" : ""}`}
+          >
             <div style={{ fontSize: 11, color: "#666" }}>
               Two automatic turnout reviews — to confirm, switch format, or cancel. Pop-up &amp; WhatsApp follow these date/times.
             </div>
@@ -831,16 +845,52 @@ export function EditEventModal({
 }
 
 /* ── tiny layout helpers ── */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{
-        fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em",
-        color: "#666", marginBottom: 12, paddingBottom: 6, borderBottom: "1px solid #222"
-      }}>
-        {title}
+const sectionLabel = (color: string): React.CSSProperties => ({
+  fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color,
+});
+
+// A section is a flat titled group, or — when `collapsible` — a tidy box that
+// folds away its fields and shows a one-line summary, so the form isn't a wall.
+// `forceOpen` re-expands it (e.g. when one of its fields has a validation error).
+function Section({
+  title, children, collapsible = false, defaultOpen = true, summary, forceOpen = false,
+}: {
+  title: string; children: React.ReactNode;
+  collapsible?: boolean; defaultOpen?: boolean; summary?: React.ReactNode; forceOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
+
+  if (!collapsible) {
+    return (
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ ...sectionLabel("#666"), marginBottom: 12, paddingBottom: 6, borderBottom: "1px solid #222" }}>
+          {title}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 12, border: "1px solid #242424", borderRadius: 10, background: "rgba(255,255,255,0.015)", overflow: "hidden" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+      >
+        <span style={sectionLabel(open ? "#c8ff3e" : "#999")}>{title}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          {!open && summary != null && (
+            <span style={{ fontSize: 12, color: "#7a7a7a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{summary}</span>
+          )}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s", flexShrink: 0 }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
+      {open && <div style={{ padding: "0 14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>{children}</div>}
     </div>
   );
 }
