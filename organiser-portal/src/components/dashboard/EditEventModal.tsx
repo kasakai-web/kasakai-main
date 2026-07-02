@@ -135,6 +135,7 @@ export function EditEventModal({
   const [firstCheckTime, setFirstCheckTime]   = useState(istHHmm(initialData.lifecycle?.firstCheckAt) || defaultCheckTimes(initialDateTime.time).first);
   const [secondCheckDate, setSecondCheckDate] = useState(istYMD(initialData.lifecycle?.secondCheckAt)  || checkInDate(initialDateTime.date, initialDateTime.time));
   const [secondCheckTime, setSecondCheckTime] = useState(istHHmm(initialData.lifecycle?.secondCheckAt) || defaultCheckTimes(initialDateTime.time).second);
+  const [checkTip, setCheckTip] = useState<"first" | "second" | null>(null);
 
   useEffect(() => {
     const { token } = getSession();
@@ -541,7 +542,7 @@ export function EditEventModal({
               Two automatic turnout reviews — to confirm, switch format, or cancel. Pop-up &amp; WhatsApp follow these date/times.
             </div>
             <div className="form-row">
-              <Field label="First check-in date">
+              <Field label={<>First check-in date <button type="button" title="What is the first check-in?" onClick={() => setCheckTip(checkTip === "first" ? null : "first")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}>ℹ️</button></>}>
                 <input type="date" className="form-input" value={firstCheckDate} min={todayStr} max={date || undefined}
                   onChange={(e) => setFirstCheckDate(e.target.value)} />
               </Field>
@@ -551,8 +552,13 @@ export function EditEventModal({
                 </select>
               </Field>
             </div>
+            {checkTip === "first" && (
+              <div style={{ marginTop: 4, marginBottom: 2, padding: "8px 11px", background: "rgba(233,179,56,0.08)", border: "1px solid rgba(233,179,56,0.22)", borderRadius: 8, fontSize: 12, color: "#e7dcb8", lineHeight: 1.55 }}>
+                <b>First check-in — early heads-up.</b> Only <i>suggests</i> (confirm, switch, SOS, or cancel). Nothing is automatic — you decide, or wait for the second check.
+              </div>
+            )}
             <div className="form-row">
-              <Field label="Second check-in date">
+              <Field label={<>Second check-in date <button type="button" title="What is the second check-in?" onClick={() => setCheckTip(checkTip === "second" ? null : "second")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}>ℹ️</button></>}>
                 <input type="date" className="form-input" value={secondCheckDate} min={firstCheckDate || todayStr} max={date || undefined}
                   onChange={(e) => setSecondCheckDate(e.target.value)} />
               </Field>
@@ -562,6 +568,11 @@ export function EditEventModal({
                 </select>
               </Field>
             </div>
+            {checkTip === "second" && (
+              <div style={{ marginTop: 4, marginBottom: 2, padding: "8px 11px", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.22)", borderRadius: 8, fontSize: 12, color: "#c9efdd", lineHeight: 1.55 }}>
+                <b>Second check-in — the deadline.</b> Acts automatically: enough players → confirm; too few → auto-cancel + refund (if automation ON), else asks you to <b>Cancel</b> or <b>Keep Waiting</b>.
+              </div>
+            )}
             {(checkOrderBad || errors.checks) && (
               <div className="field-error" style={{ fontSize: 11, color: "#f87171" }}>
                 {checkOrderBad ? "Second check-in must be after the first." : errors.checks}
@@ -895,7 +906,7 @@ function Section({
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, children }: { label: React.ReactNode; error?: string; children: React.ReactNode }) {
   return (
     <div className="form-group" style={{ flex: 1 }}>
       <label className="form-label" style={{ marginBottom: 6, display: "block", fontSize: 12, color: "#aaa", fontWeight: 600 }}>{label}</label>
