@@ -248,7 +248,19 @@ export default function OrganizerDashboard() {
     const diffNote  = (altFeeRs != null && mainFeeRs != null && altFeeRs < mainFeeRs)
       ? ` Remaining players are refunded the ₹${mainFeeRs - altFeeRs} fee difference.`
       : "";
-    setConfirmMessage(`Switch this game to the alternate format${alt?.format ? ` (${alt.format})` : ""}? Players who opted out of format changes are removed and fully refunded.${diffNote}`);
+    // Rule 1 — how many active players said "No" to a format change at signup?
+    // They're removed + fully refunded automatically when the switch goes through.
+    const optOutCount = (game.registrations || []).filter((r: any) =>
+      r?.player && !r?.plusOneName &&
+      !["refunded", "forfeited"].includes(r?.paymentStatus) && !r?.optedOut &&
+      r?.willingIfFormatChange === false
+    ).length;
+    const isConfirmed = game.status === "confirmed";
+    const optOutNote = optOutCount > 0
+      ? ` ${optOutCount} player${optOutCount === 1 ? "" : "s"} who said No to format changes will be removed and fully refunded.`
+      : " Players who said No to format changes are removed and fully refunded.";
+    const undoNote = isConfirmed ? " This game is already confirmed — this cannot be undone." : "";
+    setConfirmMessage(`Switch this game to the alternate format${alt?.format ? ` (${alt.format})` : ""}?${optOutNote}${diffNote}${undoNote}`);
     setConfirmLabel("Switch");
     confirmActionRef.current = () => handleSwitchFormat(game._id);
     setConfirmVisible(true);
@@ -824,7 +836,7 @@ export default function OrganizerDashboard() {
                             <span className="btn-label">Confirm</span>
                           </button>
                         )}
-                        {['open','tentative'].includes(game.status) && game.alternateFormats?.length > 0 && !game.lifecycle?.switchedAt && (
+                        {['open','tentative','confirmed'].includes(game.status) && game.alternateFormats?.length > 0 && !game.lifecycle?.switchedAt && (
                           <button
                             className="btn-action btn-edit"
                             onClick={() => requestSwitchFormat(game)}
