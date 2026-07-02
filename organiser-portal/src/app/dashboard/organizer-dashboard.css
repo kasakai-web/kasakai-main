@@ -1186,6 +1186,80 @@
   }
 }
 
+/* ───────── Responsive: tablet — tighten the grid ───────── */
+@media (max-width: 980px) {
+  .games-table .table-header,
+  .games-table .table-row {
+    grid-template-columns: 1.6fr 1.5fr 0.8fr 0.7fr 0.8fr auto;
+    gap: 10px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ───────── Responsive: phone — stack each row into a card ───────── */
+@media (max-width: 640px) {
+  .games-table .table-header { display: none; }
+
+  .games-table .table-body {
+    max-height: none;
+    overflow: visible;
+    background: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px;
+  }
+
+  .games-table .table-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 15px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    background: rgba(255,255,255,.025);
+  }
+  .games-table .table-row::before { display: none; }
+
+  .games-table .col { padding: 0; min-width: 0; }
+  .games-table .col-title,
+  .games-table .col-details { flex: 1 1 100%; }
+
+  /* meta strip: format + fee on the left, count pushed to the right */
+  .games-table .col-format,
+  .games-table .col-fee,
+  .games-table .col-players,
+  .games-table .col-postgame,
+  .games-table .col-revenue { flex: 0 0 auto; }
+  .games-table .col-players { margin-left: auto; text-align: right; }
+
+  /* actions on their own full-width row with a divider */
+  .games-table .col-actions {
+    flex: 1 1 100%;
+    margin-top: 2px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.07);
+  }
+  .games-table .action-buttons {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .games-table .btn-action {
+    width: auto;
+    height: 34px;
+    padding: 0 12px;
+  }
+  .games-table .btn-action .btn-label { display: inline; }
+}
+
+/* very small phones — let action buttons share the row evenly */
+@media (max-width: 380px) {
+  .games-table .btn-action { flex: 1 1 auto; justify-content: center; }
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
