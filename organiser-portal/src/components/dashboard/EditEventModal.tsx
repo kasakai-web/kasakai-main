@@ -257,6 +257,7 @@ export function EditEventModal({
     if (allowSizeChange) {
       const altSlots = slotsFromFormat(altFormat);
       if (!altMin || Number(altMin) < 2) newErrors.alt = "Alternate min must be at least 2";
+      else if (Number(altMin) >= Number(minPlayers)) newErrors.alt = `Alternate min (${altMin}) must be less than the main format min (${minPlayers})`;
       else if (Number(altMax) < altSlots) newErrors.alt = `Alternate max must be at least ${altSlots} for ${altFormat}`;
       else if (Number(altMax) < Number(altMin)) newErrors.alt = "Alternate max cannot be less than min";
       else {
@@ -510,7 +511,7 @@ export function EditEventModal({
                   </Field>
                 </div>
                 <div className="form-row">
-                  <Field label="Alt. min">
+                  <Field label={`Alt. min (< main min ${minPlayers})`}>
                     <input type="number" className="form-input" min={2} value={altMin}
                       onChange={(e) => setAltMin(e.target.value)} placeholder={String(Math.ceil(slotsFromFormat(altFormat) / 2))} />
                   </Field>

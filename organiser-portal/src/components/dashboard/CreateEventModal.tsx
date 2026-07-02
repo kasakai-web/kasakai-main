@@ -234,6 +234,8 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
       const altSlots = slotsFromFormat(altFormat);
       if (!altMin || Number(altMin) < 2)
         newErrors.alt = "Alternate min players must be at least 2";
+      else if (minPlayers !== "" && Number(altMin) >= Number(minPlayers))
+        newErrors.alt = `Alternate min (${altMin}) must be less than the main format min (${minPlayers})`;
       else if (Number(altMin) > altSlots)
         newErrors.alt = `Alternate min cannot exceed ${altSlots} (slots for ${altFormat})`;
       else if (Number(altMax) < altSlots)
@@ -589,7 +591,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 </div>
                 <div className="form-row-3">
                   <div className="form-group">
-                    <label className="form-label"><span className="label-text">Alt. min</span></label>
+                    <label className="form-label"><span className="label-text">Alt. min (&lt; main min {minPlayers || "—"})</span></label>
                     <input type="number" min={2} className="form-input" value={altMin} onChange={(e) => setAltMin(e.target.value)} placeholder={String(Math.ceil(slotsFromFormat(altFormat) / 2))} />
                   </div>
                   <div className="form-group">
