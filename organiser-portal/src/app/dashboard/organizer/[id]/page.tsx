@@ -669,6 +669,16 @@ export default function OrganizerDashboard() {
                             {game.endsAt && ` · Ends: ${new Date(game.endsAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`}
                           </div>
                         )}
+                        {(game.lifecycle?.firstCheckAt || game.lifecycle?.secondCheckAt) && (
+                          <div className="date-time" style={{ color: '#8fbf3e', fontSize: 11, marginTop: 2 }} title="Automatic confirmation check-in times">
+                            ⏱ Check-ins: {(() => {
+                              const f = (v: any) => v
+                                ? new Date(v).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                                : '—';
+                              return `${f(game.lifecycle?.firstCheckAt)} → ${f(game.lifecycle?.secondCheckAt)}`;
+                            })()}
+                          </div>
+                        )}
                         {game.organiserIsPlaying && (
                           <div style={{ fontSize: 10, color: '#c8ff3e', marginTop: 2 }}>⚽ You are playing</div>
                         )}
