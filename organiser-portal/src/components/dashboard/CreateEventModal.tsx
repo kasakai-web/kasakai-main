@@ -653,7 +653,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             </div>
             {checkTip === "first" && (
               <div style={{ marginTop: 6, marginBottom: 6, padding: "8px 11px", background: "rgba(233,179,56,0.08)", border: "1px solid rgba(233,179,56,0.22)", borderRadius: 8, fontSize: 12, color: "#e7dcb8", lineHeight: 1.55 }}>
-                <b>First check-in — early heads-up.</b> The system reviews turnout and only <i>suggests</i> what to do (confirm the format, switch to the alternate, send an SOS, or cancel). Nothing happens automatically — you decide, or wait for the second check.
+                <b>First check-in — early heads-up.</b> Only <i>suggests</i> (confirm, switch, SOS, or cancel). Nothing is automatic — you decide, or wait for the second check.
               </div>
             )}
             {/* Second check-in — editable date + time */}
@@ -687,7 +687,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             </div>
             {checkTip === "second" && (
               <div style={{ marginTop: 6, marginBottom: 6, padding: "8px 11px", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.22)", borderRadius: 8, fontSize: 12, color: "#c9efdd", lineHeight: 1.55 }}>
-                <b>Second check-in — the deadline.</b> The system acts on its own: enough players → auto-confirm (main or alternate format); too few → auto-cancel &amp; refund everyone if automation is ON, otherwise it asks you to <b>Cancel</b> or <b>Keep Waiting</b>.
+                <b>Second check-in — the deadline.</b> Acts automatically: enough players → confirm; too few → auto-cancel + refund (if automation ON), else asks you to <b>Cancel</b> or <b>Keep Waiting</b>.
               </div>
             )}
             <div className="field-hint">
