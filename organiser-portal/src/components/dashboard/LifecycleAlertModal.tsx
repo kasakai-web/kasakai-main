@@ -49,9 +49,15 @@ function alertKey(g: any, kind: "decision" | "reminder") {
 }
 
 function pickAlert(games: any[], dismissed: Set<string>) {
+  const now = Date.now();
   for (const g of games || []) {
     if (!g?._id) continue;
+    // Only show for a live game that hasn't started yet. Skip completed/cancelled/
+    // confirmed (by status) AND any game whose scheduled time has already passed —
+    // once the game has happened, its check-in pop-up must never appear again,
+    // even if it's still stuck 'open' (never confirmed/cancelled/completed).
     if (!["open", "tentative"].includes(g.status)) continue;
+    if (g.scheduledAt && new Date(g.scheduledAt).getTime() <= now) continue;
     const lc = g.lifecycle || {};
     if (lc.pendingDecision?.options?.length) {
       const key = alertKey(g, "decision");
