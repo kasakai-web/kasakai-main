@@ -28,6 +28,7 @@ export default function OrganizerDashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPlayersModal, setShowPlayersModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [sosModal, setSosModal] = useState<null | { gameId: string; gameTitle: string; loading: boolean; sending?: boolean; error?: string; regulars: { name: string; games: number; phone: string }[] }>(null);
   const [showPostGameModal, setShowPostGameModal] = useState(false);
   const [postGameTarget, setPostGameTarget] = useState<any>(null);
   const [cancelTargetGame, setCancelTargetGame] = useState<any>(null);
@@ -269,11 +270,32 @@ export default function OrganizerDashboard() {
     }
   };
 
-  const requestSendSos = (game: any) => {
-    setConfirmMessage(`Send an SOS to this venue's regular players, inviting them to fill the open spots in "${game.title}"?`);
-    setConfirmLabel("Send SOS");
-    confirmActionRef.current = () => handleSendSos(game._id);
-    setConfirmVisible(true);
+  // SOS flow: first preview WHO is eligible (per the regulars algorithm), then the
+  // organiser confirms with a Send button in the pop-up.
+  const requestSendSos = async (game: any) => {
+    setSosModal({ gameId: game._id, gameTitle: game.title, loading: true, regulars: [] });
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=organiser"); return; }
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${game._id}/regulars`), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setSosModal((m) => (m ? { ...m, loading: false, error: data.message || "Couldn't load eligible players" } : m));
+        return;
+      }
+      setSosModal((m) => (m ? { ...m, loading: false, regulars: data.data?.regulars || [] } : m));
+    } catch {
+      setSosModal((m) => (m ? { ...m, loading: false, error: "Couldn't load eligible players" } : m));
+    }
+  };
+
+  const confirmSendSos = async () => {
+    if (!sosModal) return;
+    setSosModal((m) => (m ? { ...m, sending: true } : m));
+    await handleSendSos(sosModal.gameId);
+    setSosModal(null);
   };
 
   const handleOrganiserWithdraw = async (gameId: string) => {
@@ -493,6 +515,57 @@ export default function OrganizerDashboard() {
         onSos={requestSendSos}
         onCancel={(g) => { setCancelTargetGame(g); setCancelMessage(""); setShowCancelModal(true); }}
       />
+
+      {/* SOS preview — shows the eligible regulars before sending */}
+      {sosModal && (
+        <div className="modal-overlay" onClick={() => setSosModal(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: "#111214", border: "1px solid #2a2a2a", borderRadius: 16, padding: 22, color: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>📣 Send SOS</h2>
+              <button onClick={() => setSosModal(null)} style={{ background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>✕</button>
+            </div>
+            <p style={{ fontSize: 13, color: "#9aa", margin: "0 0 12px", lineHeight: 1.5 }}>
+              Eligible regulars for <b style={{ color: "#ddd" }}>{sosModal.gameTitle}</b> — players who've played at this venue &amp; time often. Review, then send.
+            </p>
+            {sosModal.loading ? (
+              <div style={{ padding: 22, textAlign: "center", color: "#888", fontSize: 13 }}>Finding eligible regulars…</div>
+            ) : sosModal.error ? (
+              <div style={{ padding: 12, color: "#f87171", fontSize: 13 }}>{sosModal.error}</div>
+            ) : sosModal.regulars.length === 0 ? (
+              <div style={{ padding: 18, textAlign: "center", color: "#999", fontSize: 13, background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid #222" }}>
+                No eligible regulars for this venue &amp; time yet.
+              </div>
+            ) : (
+              <div style={{ maxHeight: 280, overflowY: "auto", border: "1px solid #262626", borderRadius: 10 }}>
+                {sosModal.regulars.map((r, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderBottom: i < sosModal.regulars.length - 1 ? "1px solid #1c1c1c" : "none" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#eee" }}>{r.name}</div>
+                      <div style={{ fontSize: 11, color: "#777" }}>{r.phone}</div>
+                    </div>
+                    <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: "#c8ff3e", background: "rgba(200,255,62,0.1)", border: "1px solid rgba(200,255,62,0.25)", borderRadius: 20, padding: "2px 9px" }}>
+                      {r.games} games
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button onClick={() => setSosModal(null)} style={{ flex: 1, padding: 11, borderRadius: 9, border: "1px solid #333", background: "transparent", color: "#ccc", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+              <button
+                disabled={sosModal.loading || sosModal.sending || sosModal.regulars.length === 0}
+                onClick={confirmSendSos}
+                style={{ flex: 2, padding: 11, borderRadius: 9, border: "none", fontWeight: 800,
+                  background: sosModal.regulars.length === 0 || sosModal.loading ? "#2a2a2a" : "#c8ff3e",
+                  color: sosModal.regulars.length === 0 || sosModal.loading ? "#888" : "#000",
+                  cursor: sosModal.regulars.length === 0 || sosModal.loading ? "not-allowed" : "pointer", opacity: sosModal.sending ? 0.7 : 1 }}
+              >
+                {sosModal.sending ? "Sending…" : sosModal.regulars.length === 0 ? "No one to notify" : `Send SOS to ${sosModal.regulars.length} regular${sosModal.regulars.length !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {fetchError && (
         <div style={{
