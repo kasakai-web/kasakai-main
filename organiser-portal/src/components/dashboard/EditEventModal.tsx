@@ -407,12 +407,15 @@ export function EditEventModal({
               </select>
             </Field>
             <Field label="Status">
-              <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}
+                disabled={!["draft", "open", "tentative"].includes(status)}
+                title={!["draft", "open", "tentative"].includes(status) ? "Use the Confirm / Complete / Cancel action to change this" : undefined}>
                 <option value="draft">Draft</option>
                 <option value="open">Open</option>
                 <option value="tentative">Tentative</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="completed">Completed</option>
+                {!["draft", "open", "tentative"].includes(status) && (
+                  <option value={status}>{status.charAt(0).toUpperCase() + status.slice(1)} (use its own action)</option>
+                )}
               </select>
             </Field>
           </Section>
