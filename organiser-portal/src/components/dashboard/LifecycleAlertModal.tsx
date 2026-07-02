@@ -18,11 +18,20 @@ interface Props {
   onCancel: (game: any) => void;
 }
 
-// Dismissed alert keys live at module scope so a dismissal survives the
-// dashboard's 20s poll AND any remount of this component within the session
-// (component useState would reset on remount and the alert would wrongly return).
-// Cleared naturally on a full page reload.
-const dismissedKeys = new Set<string>();
+// Dismissed alert keys are persisted to sessionStorage so a dismissal reliably
+// survives the dashboard's 20s poll, a component remount, Next.js Fast Refresh,
+// AND a page reload. (Module-level or useState memory can be wiped by any of
+// those, which made the alert wrongly re-appear.) Cleared when the tab closes.
+const DISMISS_STORE = "kk_lifecycle_dismissed";
+
+function loadDismissed(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try { return new Set(JSON.parse(window.sessionStorage.getItem(DISMISS_STORE) || "[]")); }
+  catch { return new Set(); }
+}
+function saveDismissed(keys: Set<string>) {
+  try { window.sessionStorage.setItem(DISMISS_STORE, JSON.stringify([...keys])); } catch { /* ignore */ }
+}
 
 const activeCount = (g: any) =>
   (g.registrations || []).filter(
@@ -107,7 +116,7 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
-  const alert = pickAlert(games, dismissedKeys);
+  const alert = pickAlert(games, loadDismissed());
   if (!alert) return null;
 
   const { game, kind, key } = alert;
@@ -125,8 +134,9 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
   const mainPct = mainMin ? Math.min(100, (n / mainMin) * 100) : 0;
   const altPct = altMin ? Math.min(100, (n / altMin) * 100) : 0;
 
-  // Dismiss hides this exact alert for the session — it won't return on the next poll.
-  const close = () => { dismissedKeys.add(key); forceRender((x) => x + 1); };
+  // Dismiss persists this alert's key so it won't return on the next poll,
+  // remount, Fast Refresh, or reload (until the tab is closed).
+  const close = () => { const s = loadDismissed(); s.add(key); saveDismissed(s); forceRender((x) => x + 1); };
   const act = (fn: () => void) => () => { fn(); close(); };
 
   type A = { key: string; label: string; variant: string; icon: React.ReactNode; onClick: () => void; recommended?: boolean };
