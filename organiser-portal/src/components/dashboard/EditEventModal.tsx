@@ -422,13 +422,17 @@ export function EditEventModal({
 
           {/* ── Schedule ── */}
           <Section title="Schedule">
+            <div style={{ fontSize: 11, color: "#e9b338", marginBottom: 4 }}>
+              🔒 The date &amp; start time are fixed once a game is created — they can&apos;t be edited.
+            </div>
             <div className="form-row">
-              <Field label="Date" error={errors.date}>
-                <input type="date" className={`form-input ${errors.date ? "error" : ""}`} value={date}
-                  onChange={(e) => setDate(e.target.value)} required />
+              <Field label="Date 🔒">
+                <input type="date" className="form-input" value={date} disabled
+                  title="The game date is fixed at creation and can't be edited." />
               </Field>
-              <Field label="Game Start Time">
-                <select className="form-select" value={time} onChange={(e) => setTime(e.target.value)}>
+              <Field label="Game Start Time 🔒">
+                <select className="form-select" value={time} disabled
+                  title="The start time is fixed at creation and can't be edited.">
                   {TIME_SLOT_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
@@ -467,9 +471,9 @@ export function EditEventModal({
                   ))}
                 </select>
               </Field>
-              <Field label="Fee per Player (₹)">
-                <input type="number" className="form-input" min="0" step="1" value={feeInRs} disabled={status === "confirmed"}
-                  onChange={(e) => setFeeInRs(Number(e.target.value))} required />
+              <Field label="Fee per Player (₹) 🔒">
+                <input type="number" className="form-input" min="0" step="1" value={feeInRs} disabled
+                  onChange={(e) => setFeeInRs(Number(e.target.value))} required title="The fee is fixed at creation and can't be edited." />
               </Field>
             </div>
             <div className="form-row">
@@ -528,9 +532,10 @@ export function EditEventModal({
                       onChange={(e) => setAltMax(e.target.value)} placeholder={String(slotsFromFormat(altFormat))} />
                   </Field>
                 </div>
-                <Field label="Alt. fee (₹) — must be less than the main fee" error={errors.alt}>
-                  <input type="number" className="form-input" min="0" step="1" value={altFee}
-                    onChange={(e) => setAltFee(e.target.value)} placeholder={feeInRs ? `< ${feeInRs}` : "0"} />
+                <Field label="Alt. fee (₹) 🔒 — set at creation, can't be edited" error={errors.alt}>
+                  <input type="number" className="form-input" min="0" step="1" value={altFee} disabled
+                    onChange={(e) => setAltFee(e.target.value)} placeholder={feeInRs ? `< ${feeInRs}` : "0"}
+                    title="The alternate-format fee is fixed at creation and can't be edited." />
                 </Field>
                 <div style={{ fontSize: 11, color: "#666" }}>
                   On switch, players are refunded the per-player fee difference automatically.
@@ -539,60 +544,8 @@ export function EditEventModal({
             )}
           </Section>
 
-          {/* ── Confirmation Check-ins ── */}
-          <Section
-            title="Confirmation Check-ins"
-            collapsible
-            defaultOpen={false}
-            forceOpen={!!errors.checks}
-            summary={`${timeLabel(firstCheckTime)} → ${timeLabel(secondCheckTime)}${automationEnabled ? " · auto-cancel" : ""}`}
-          >
-            <div style={{ fontSize: 11, color: "#666" }}>
-              Two automatic turnout reviews — to confirm, switch format, or cancel. Pop-up &amp; WhatsApp follow these date/times.
-            </div>
-            <div className="form-row">
-              <Field label={<>First check-in date <button type="button" title="What is the first check-in?" onClick={() => setCheckTip(checkTip === "first" ? null : "first")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}>ℹ️</button></>}>
-                <input type="date" className="form-input" value={firstCheckDate} min={todayStr} max={date || undefined}
-                  onChange={(e) => setFirstCheckDate(e.target.value)} />
-              </Field>
-              <Field label="First check-in time">
-                <select className="form-select" value={firstCheckTime} onChange={(e) => setFirstCheckTime(e.target.value)}>
-                  {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </Field>
-            </div>
-            {checkTip === "first" && (
-              <div style={{ marginTop: 4, marginBottom: 2, padding: "8px 11px", background: "rgba(233,179,56,0.08)", border: "1px solid rgba(233,179,56,0.22)", borderRadius: 8, fontSize: 12, color: "#e7dcb8", lineHeight: 1.55 }}>
-                <b>First check-in — early heads-up.</b> Only <i>suggests</i> (confirm, switch, SOS, or cancel). Nothing is automatic — you decide, or wait for the second check.
-              </div>
-            )}
-            <div className="form-row">
-              <Field label={<>Second check-in date <button type="button" title="What is the second check-in?" onClick={() => setCheckTip(checkTip === "second" ? null : "second")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}>ℹ️</button></>}>
-                <input type="date" className="form-input" value={secondCheckDate} min={firstCheckDate || todayStr} max={date || undefined}
-                  onChange={(e) => setSecondCheckDate(e.target.value)} />
-              </Field>
-              <Field label="Second check-in time">
-                <select className="form-select" value={secondCheckTime} onChange={(e) => setSecondCheckTime(e.target.value)}>
-                  {TIME_SLOT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </Field>
-            </div>
-            {checkTip === "second" && (
-              <div style={{ marginTop: 4, marginBottom: 2, padding: "8px 11px", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.22)", borderRadius: 8, fontSize: 12, color: "#c9efdd", lineHeight: 1.55 }}>
-                <b>Second check-in — the deadline.</b> Acts automatically: enough players → confirm; too few → auto-cancel + refund (if automation ON), else asks you to <b>Cancel</b> or <b>Keep Waiting</b>.
-              </div>
-            )}
-            {(checkOrderBad || errors.checks) && (
-              <div className="field-error" style={{ fontSize: 11, color: "#f87171" }}>
-                {checkOrderBad ? "Second check-in must be after the first." : errors.checks}
-              </div>
-            )}
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginTop: 2 }}>
-              <input type="checkbox" checked={automationEnabled} onChange={(e) => setAutomationEnabled(e.target.checked)}
-                style={{ width: 17, height: 17, accentColor: "#c8ff3e", flexShrink: 0 }} />
-              <span style={{ fontSize: 14, color: "#ddd" }}>Auto-cancel low-turnout games at the 2nd check (confirmation is always automatic)</span>
-            </label>
-          </Section>
+          {/* Confirmation Check-ins are set at creation only — not editable here.
+              Saved check-in times / automation are preserved on save (state re-submitted unchanged). */}
 
           {/* ── Your Participation (real-time) ── */}
           <Section title="Your Participation">
