@@ -824,7 +824,7 @@ export default function OrganizerDashboard() {
                             <span className="btn-label">Confirm</span>
                           </button>
                         )}
-                        {['open','tentative'].includes(game.status) && game.alternateFormats?.length > 0 && (
+                        {['open','tentative'].includes(game.status) && game.alternateFormats?.length > 0 && !game.lifecycle?.switchedAt && (
                           <button
                             className="btn-action btn-edit"
                             onClick={() => requestSwitchFormat(game)}
