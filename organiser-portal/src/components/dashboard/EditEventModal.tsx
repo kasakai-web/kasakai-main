@@ -465,7 +465,7 @@ export function EditEventModal({
               </Field>
             </div>
             <div className="form-row">
-              <Field label="Total Slots (cap)">
+              <Field label="Max Players Allowed (cap)">
                 <input type="number" className="form-input" min={minPlayers || 2} value={totalSlots}
                   onChange={(e) => {
                     const val = Number(e.target.value);
