@@ -661,26 +661,38 @@ export default function OrganizerDashboard() {
                           {new Date(game.scheduledAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })} · {new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                         </div>
                         {game.reportingMinsBeforeGame > 0 && (
-                          <div className="date-time" style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
-                            Report: {(() => {
+                          <div className="date-time" style={{ color: '#7a7a7a', fontSize: 10.5, marginTop: 3 }}>
+                            Report {(() => {
                               const d = new Date(new Date(game.scheduledAt).getTime() - game.reportingMinsBeforeGame * 60000);
                               return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
                             })()}
-                            {game.endsAt && ` · Ends: ${new Date(game.endsAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`}
+                            {game.endsAt && ` · Ends ${new Date(game.endsAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}`}
                           </div>
                         )}
-                        {(game.lifecycle?.firstCheckAt || game.lifecycle?.secondCheckAt) && (
-                          <div className="date-time" style={{ color: '#8fbf3e', fontSize: 11, marginTop: 2 }} title="Automatic confirmation check-in times">
-                            ⏱ Check-ins: {(() => {
-                              const f = (v: any) => v
-                                ? new Date(v).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-                                : '—';
-                              return `${f(game.lifecycle?.firstCheckAt)} → ${f(game.lifecycle?.secondCheckAt)}`;
-                            })()}
-                          </div>
-                        )}
+                        {(game.lifecycle?.firstCheckAt || game.lifecycle?.secondCheckAt) && (() => {
+                          const gDay = new Date(game.scheduledAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+                          const fmt = (v: any) => {
+                            const dt = new Date(v);
+                            const t = dt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+                            return dt.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) === gDay
+                              ? t
+                              : `${dt.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' })}, ${t}`;
+                          };
+                          const pill = (label: string, v: any) => v ? (
+                            <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color: '#b7d16a', background: 'rgba(200,255,62,0.06)', border: '1px solid rgba(200,255,62,0.18)', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+                              <span style={{ color: '#87984f', fontWeight: 700 }}>{label}</span>{fmt(v)}
+                            </span>
+                          ) : null;
+                          return (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, marginTop: 6 }} title="Automatic confirmation check-in times">
+                              <span style={{ fontSize: 10, color: '#666', marginRight: 1 }}>⏱</span>
+                              {pill('1st', game.lifecycle?.firstCheckAt)}
+                              {pill('2nd', game.lifecycle?.secondCheckAt)}
+                            </div>
+                          );
+                        })()}
                         {game.organiserIsPlaying && (
-                          <div style={{ fontSize: 10, color: '#c8ff3e', marginTop: 2 }}>⚽ You are playing</div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#c8ff3e', fontWeight: 600, marginTop: 6 }}>⚽ You are playing</div>
                         )}
                       </div>
                     </div>
