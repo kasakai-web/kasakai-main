@@ -453,9 +453,14 @@ export function EditEventModal({
 
           {/* ── Game Configuration ── */}
           <Section title="Game Configuration">
+            {status === "confirmed" && (
+              <div style={{ fontSize: 11, color: "#e9b338", marginBottom: 4 }}>
+                🔒 Format, fee &amp; min players are locked once confirmed — use the <b>Switch</b> action to change the format.
+              </div>
+            )}
             <div className="form-row">
               <Field label="Format">
-                <select className="form-select" value={format}
+                <select className="form-select" value={format} disabled={status === "confirmed"}
                   onChange={(e) => handleFormatChange(e.target.value as Format)}>
                   {FORMATS.map((f) => (
                     <option key={f} value={f}>{f} ({slotsFromFormat(f)} players)</option>
@@ -463,7 +468,7 @@ export function EditEventModal({
                 </select>
               </Field>
               <Field label="Fee per Player (₹)">
-                <input type="number" className="form-input" min="0" step="1" value={feeInRs}
+                <input type="number" className="form-input" min="0" step="1" value={feeInRs} disabled={status === "confirmed"}
                   onChange={(e) => setFeeInRs(Number(e.target.value))} required />
               </Field>
             </div>
@@ -477,7 +482,7 @@ export function EditEventModal({
                   }} />
               </Field>
               <Field label="Min Players to Confirm" error={errors.minMax}>
-                <input type="number" className="form-input" min="2" max={totalSlots} value={minPlayers}
+                <input type="number" className="form-input" min="2" max={totalSlots} value={minPlayers} disabled={status === "confirmed"}
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     setMinPlayers(val > totalSlots ? totalSlots : val);
