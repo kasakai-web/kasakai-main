@@ -860,7 +860,7 @@ export default function OrganizerDashboard() {
                             <span className="btn-label">Withdraw</span>
                           </button>
                         )}
-                        {!['cancelled', 'completed'].includes(game.status) && (
+                        {!['cancelled', 'completed'].includes(game.status) && new Date(game.scheduledAt).getTime() <= Date.now() && (
                           <button
                             className="btn-action btn-complete"
                             onClick={() => { setPostGameTarget(game); setShowPostGameModal(true); }}
