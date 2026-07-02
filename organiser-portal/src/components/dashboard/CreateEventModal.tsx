@@ -629,8 +629,9 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                   <span className="label-text">First check-in date</span>
                   <button type="button" title="What is the first check-in?"
                     onClick={() => setCheckTip(checkTip === "first" ? null : "first")}
-                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", color: "#e9b338" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v4l2.5 2" /></svg>
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(233,179,56,0.12)", border: "1px solid rgba(233,179,56,0.4)", color: "#e9b338", borderRadius: 20, padding: "2px 9px 2px 7px", fontSize: 10, fontWeight: 700, cursor: "pointer", lineHeight: 1.6, whiteSpace: "nowrap" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v4l2.5 2" /></svg>
+                    {checkTip === "first" ? "Hide" : "What's this?"}
                   </button>
                 </label>
                 <input
@@ -665,8 +666,9 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                   <span className="label-text">Second check-in date</span>
                   <button type="button" title="What is the second check-in?"
                     onClick={() => setCheckTip(checkTip === "second" ? null : "second")}
-                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex", color: "#34d399" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.4)", color: "#34d399", borderRadius: 20, padding: "2px 9px 2px 7px", fontSize: 10, fontWeight: 700, cursor: "pointer", lineHeight: 1.6, whiteSpace: "nowrap" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>
+                    {checkTip === "second" ? "Hide" : "What's this?"}
                   </button>
                 </label>
                 <input
