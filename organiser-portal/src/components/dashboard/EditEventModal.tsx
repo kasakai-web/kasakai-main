@@ -131,7 +131,10 @@ export function EditEventModal({
   const [altTurf, setAltTurf] = useState<string>(lastAlt?.turf?._id || (typeof lastAlt?.turf === "string" ? lastAlt.turf : ""));
   const [altMin, setAltMin] = useState<string>(lastAlt?.minPlayers ? String(lastAlt.minPlayers) : "");
   const [altMax, setAltMax] = useState<string>(lastAlt?.maxPlayers ? String(lastAlt.maxPlayers) : "");
-  const [altFee, setAltFee] = useState<string>(lastAlt?.feeInPaise ? String(lastAlt.feeInPaise / 100) : "");
+  // Show the actual stored fee — including ₹0. The old `feeInPaise ? … : ""`
+  // treated 0 (a free alternate) as falsy, so the field went blank and showed a
+  // misleading "< main fee" placeholder instead of the real cost.
+  const [altFee, setAltFee] = useState<string>(hadAlternate ? String((lastAlt!.feeInPaise ?? 0) / 100) : "");
 
   /* ── Confirmation check-ins (3.1) — restore saved times/dates, else derive ── */
   const [automationEnabled, setAutomationEnabled] = useState(Boolean(initialData.lifecycle?.automationEnabled));
@@ -258,7 +261,9 @@ export function EditEventModal({
     if (Number(minPlayers) > Number(totalSlots))
       newErrors.minMax = "Min players cannot exceed total slots";
     // Alternate format: valid min/max and a fee strictly below the main fee.
-    if (allowSizeChange) {
+    // Only validated when the section is actually shown (an alternate existed at
+    // creation) — otherwise a hidden section could block submit with an unseeable error.
+    if (hadAlternate && allowSizeChange) {
       const altSlots = slotsFromFormat(altFormat);
       if (!altMin || Number(altMin) < 2) newErrors.alt = "Alternate min must be at least 2";
       else if (Number(altMin) >= Number(minPlayers)) newErrors.alt = `Alternate min (${altMin}) must be less than the main format min (${minPlayers})`;
@@ -293,7 +298,7 @@ export function EditEventModal({
       const cutoffAt = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
 
       // organiserIsPlaying is NOT included — it's managed in real-time above
-      const payload = {
+      const payload: Record<string, unknown> = {
         title: title.trim(),
         turf,
         scheduledAt: scheduledAt.toISOString(),
@@ -305,20 +310,26 @@ export function EditEventModal({
         durationMins: Number(durationMins),
         minPlayers: Number(minPlayers),
         reportingMinsBeforeGame: Number(reportingMins),
-        allowSizeChange,
-        alternateFormats: allowSizeChange ? [{
-          format:     altFormat,
-          turf:       altTurf || turf,
-          minPlayers: Number(altMin),
-          maxPlayers: Number(altMax),
-          feeInRs:    Number(altFee),
-        }] : [],
         lifecycle: {
           firstCheckAt:  checkInIsoFromParts(firstCheckDate, firstCheckTime),
           secondCheckAt: checkInIsoFromParts(secondCheckDate, secondCheckTime),
           automationEnabled,
         },
       };
+
+      // Format Change is only editable when an alternate was defined at creation.
+      // If none existed, leave allowSizeChange / alternateFormats untouched (don't
+      // send them) so a hidden section can never create a bogus alternate.
+      if (hadAlternate) {
+        payload.allowSizeChange = allowSizeChange;
+        payload.alternateFormats = allowSizeChange ? [{
+          format:     altFormat,
+          turf:       altTurf || turf,
+          minPlayers: Number(altMin),
+          maxPlayers: Number(altMax),
+          feeInRs:    Number(altFee),
+        }] : [];
+      }
 
       const res = await fetch(buildApiUrl(`/api/v1/games/organisers/${gameId}`), {
         method: "PATCH",
@@ -461,15 +472,14 @@ export function EditEventModal({
 
           {/* ── Game Configuration ── */}
           <Section title="Game Configuration">
-            {status === "confirmed" && (
-              <div style={{ fontSize: 11, color: "#e9b338", marginBottom: 4 }}>
-                🔒 Format, fee &amp; min players are locked once confirmed — use the <b>Switch</b> action to change the format.
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: "#e9b338", marginBottom: 4 }}>
+              🔒 The format &amp; fee are fixed at creation and can&apos;t be edited. To change a confirmed game&apos;s format, use the <b>Switch</b> action.
+            </div>
             <div className="form-row">
-              <Field label="Format">
-                <select className="form-select" value={format} disabled={status === "confirmed"}
-                  onChange={(e) => handleFormatChange(e.target.value as Format)}>
+              <Field label="Format 🔒">
+                <select className="form-select" value={format} disabled
+                  onChange={(e) => handleFormatChange(e.target.value as Format)}
+                  title="The format is fixed at creation. Use the Switch action to move to the alternate format.">
                   {FORMATS.map((f) => (
                     <option key={f} value={f}>{f} ({slotsFromFormat(f)} players)</option>
                   ))}
@@ -499,7 +509,10 @@ export function EditEventModal({
             </div>
           </Section>
 
-          {/* ── Format Change ── */}
+          {/* ── Format Change — shown ONLY when an alternate format was defined at
+                game creation. If none was set up, there's nothing to switch to, so
+                the whole section is hidden (a new alternate can't be added via edit). ── */}
+          {hadAlternate && (
           <Section
             title="Format Change"
             collapsible
@@ -514,14 +527,22 @@ export function EditEventModal({
             </label>
             {allowSizeChange && (
               <>
+                {hadAlternate && (
+                  <div style={{ fontSize: 11, color: "#e9b338", marginBottom: 2 }}>
+                    🔒 The alternate format &amp; fee are fixed at creation. You can still adjust the alt turf, min and max.
+                  </div>
+                )}
                 <div className="form-row">
-                  <Field label="Alt. format">
-                    <select className="form-select" value={altFormat} onChange={(e) => setAltFormat(e.target.value as Format)}>
+                  <Field label={hadAlternate ? "Alt. format 🔒" : "Alt. format"}>
+                    <select className="form-select" value={altFormat} disabled={hadAlternate}
+                      onChange={(e) => setAltFormat(e.target.value as Format)}
+                      title={hadAlternate ? "The alternate format is fixed at creation." : undefined}>
                       {FORMATS.map((f) => <option key={f} value={f}>{f} ({slotsFromFormat(f)})</option>)}
                     </select>
                   </Field>
                   <Field label="Alt. turf">
-                    <select className="form-select" value={altTurf || turf} onChange={(e) => setAltTurf(e.target.value)}>
+                    <select className="form-select" value={altTurf || turf}
+                      onChange={(e) => setAltTurf(e.target.value)}>
                       {turfs.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
                     </select>
                   </Field>
@@ -538,7 +559,7 @@ export function EditEventModal({
                 </div>
                 <Field label={hadAlternate ? "Alt. fee (₹) 🔒 — set at creation, can't be edited" : "Alt. fee (₹) — must be less than the main fee"} error={errors.alt}>
                   <input type="number" className="form-input" min="0" step="1" value={altFee} disabled={hadAlternate}
-                    onChange={(e) => setAltFee(e.target.value)} placeholder={feeInRs ? `< ${feeInRs}` : "0"}
+                    onChange={(e) => setAltFee(e.target.value)} placeholder={hadAlternate ? undefined : (feeInRs ? `< ${feeInRs}` : "0")}
                     title={hadAlternate ? "The alternate-format fee is fixed at creation and can't be edited." : undefined} />
                 </Field>
                 <div style={{ fontSize: 11, color: "#666" }}>
@@ -547,6 +568,7 @@ export function EditEventModal({
               </>
             )}
           </Section>
+          )}
 
           {/* Confirmation Check-ins are set at creation only — not editable here.
               Saved check-in times / automation are preserved on save (state re-submitted unchanged). */}

@@ -232,7 +232,9 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
     // Alternate format (when format change is enabled)
     if (allowSizeChange) {
       const altSlots = slotsFromFormat(altFormat);
-      if (!altMin || Number(altMin) < 2)
+      if (altFormat === format)
+        newErrors.alt = `Alternate format must be different from the main format (${format})`;
+      else if (!altMin || Number(altMin) < 2)
         newErrors.alt = "Alternate min players must be at least 2";
       else if (minPlayers !== "" && Number(altMin) >= Number(minPlayers))
         newErrors.alt = `Alternate min (${altMin}) must be less than the main format min (${minPlayers})`;
