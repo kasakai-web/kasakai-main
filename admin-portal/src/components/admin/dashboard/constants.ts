@@ -15,6 +15,7 @@ export const dashboardSections = [
   "scr-events",
   "scr-guests",
   "scr-finance",
+  "scr-crousels",
 ] as const;
 
 export type DashboardSection = (typeof dashboardSections)[number];
@@ -36,6 +37,7 @@ export const sectionTitles: Record<DashboardSection, string> = {
   "scr-events":  "Screening Events",
   "scr-guests":  "Guest List",
   "scr-finance": "Streaming Finance",
+  "scr-crousels": "Carousel Image",
 };
 
 export const sectionPaths: Record<DashboardSection, string> = {
@@ -55,6 +57,7 @@ export const sectionPaths: Record<DashboardSection, string> = {
   "scr-events":  "Streaming / Events",
   "scr-guests":  "Streaming / Guest List",
   "scr-finance": "Streaming / Finance",
+  "scr-crousels": "Streaming / Crousels",
 };
 
 export type SidebarItem = {
@@ -101,6 +104,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { section: "scr-events",  label: "Events",     accent: "teal"  },
       { section: "scr-guests",  label: "Guest List", accent: "blue"  },
       { section: "scr-finance", label: "Finance",    accent: "amber" },
+       { section: "scr-crousels", label: "Carousel Image", accent: "blue" }
     ],
   },
   {

@@ -11,6 +11,9 @@ import type { DashboardSection } from "@/components/admin/dashboard/constants";
 import styles from "@/components/admin/dashboard/dashboard.module.css";
 
 function pathnameToSection(p: string): DashboardSection | null {
+  if (p.startsWith("/dashboard/streaming/carousels")) return "scr-crousels";
+  if (p.startsWith("/dashboard/streaming/guests")) return "scr-guests";
+  if (p.startsWith("/dashboard/streaming/finance")) return "scr-finance";
   if (p.startsWith("/dashboard/streaming")) return "scr-events";
   return null;
 }
@@ -43,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (section === "scr-events")  { router.push("/dashboard/streaming");         return; }
     if (section === "scr-guests")  { router.push("/dashboard/streaming/guests");  return; }
     if (section === "scr-finance") { router.push("/dashboard/streaming/finance"); return; }
+    if (section === "scr-crousels") { router.push("/dashboard/streaming/carousels"); return; }
 
     /* non-streaming — navigate to /dashboard if currently on a streaming URL */
     if (pathname.startsWith("/dashboard/streaming")) {

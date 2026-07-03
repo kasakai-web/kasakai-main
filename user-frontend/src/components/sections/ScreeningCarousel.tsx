@@ -2,9 +2,58 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useScreeningEvents } from "@/hooks/useScreeningEvents";
-import type { Screening } from "@/components/screening/types";
+import { fetchPublicScreeningCarousels } from "@/utils/screening-api";
 
 const SLIDE_DURATION = 15_000;
+const CAROUSEL_CACHE_KEY = 'kk_scr_carousels';
+const CAROUSEL_CACHE_TTL =  5 * 60 * 1000;
+const CAROUSEL_POLL_MS = 30 * 1000;
+
+type CarouselFallback = {
+  title: string;
+  banner: string;
+  poster: string;
+};
+
+type SlideData = {
+  id: string;
+  title: string;
+  image: string;
+  poster?: string | null;
+  status?: 'published' | 'cancelled';
+  type?: 'event' | 'carousel';
+};
+
+function readCarouselCache(): CarouselFallback[] {
+  try {
+    if (typeof window === 'undefined') return [];
+    const raw = localStorage.getItem(CAROUSEL_CACHE_KEY);
+    if (!raw) return [];
+    const entry = JSON.parse(raw) as { slides: CarouselFallback[]; ts: number };
+    return entry.slides ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function isCarouselCacheFresh(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const raw = localStorage.getItem(CAROUSEL_CACHE_KEY);
+    if (!raw) return false;
+    const entry = JSON.parse(raw) as { slides: CarouselFallback[]; ts: number };
+    return Date.now() - entry.ts < CAROUSEL_CACHE_TTL;
+  } catch {
+    return false;
+  }
+}
+
+function writeCarouselCache(slides: CarouselFallback[]) {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(CAROUSEL_CACHE_KEY, JSON.stringify({ slides, ts: Date.now() }));
+  } catch {}
+}
 
 /* ── Arrow button ── */
 function ArrowBtn({ dir, onClick }: { dir: "prev" | "next"; onClick: () => void }) {
@@ -30,24 +79,29 @@ function FallbackHero() {
 }
 
 /* ── Slide content — title only, clean ── */
-function SlideContent({ s }: { s: Screening }) {
+function SlideContent({ s }: { s: SlideData }) {
+  const status = s.status ?? 'published';
+  const isEvent = s.type === 'event' || !s.type; // Default to event for backward compatibility
+  
   return (
     <div className="scr-content" style={{ animation: "scr-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both" }}>
-      {/* Live badge */}
-      <div className="scr-badge-wrap">
-        <span className="scr-badge" style={{
-          background: s.status === "cancelled" ? "rgba(239,68,68,0.15)" : "rgba(200,241,53,0.1)",
-          border: `1px solid ${s.status === "cancelled" ? "rgba(239,68,68,0.35)" : "rgba(200,241,53,0.28)"}`,
-        }}>
-          {s.status !== "cancelled" && <span className="scr-live-dot" />}
-          <span style={{ color: s.status === "cancelled" ? "#ef4444" : "#c8f135" }}>
-            {s.status === "cancelled" ? "Cancelled" : "Live Screening"}
+      {/* Live badge — only for events, not carousels */}
+      {isEvent && (
+        <div className="scr-badge-wrap">
+          <span className="scr-badge" style={{
+            background: status === "cancelled" ? "rgba(239,68,68,0.15)" : "rgba(200,241,53,0.1)",
+            border: `1px solid ${status === "cancelled" ? "rgba(239,68,68,0.35)" : "rgba(200,241,53,0.28)"}`,
+          }}>
+            {status !== "cancelled" && <span className="scr-live-dot" />}
+            <span style={{ color: status === "cancelled" ? "#ef4444" : "#c8f135" }}>
+              {status === "cancelled" ? "Cancelled" : "Live Screening"}
+            </span>
           </span>
-        </span>
-      </div>
+        </div>
+      )}
 
       {/* Title */}
-      <h2 className="scr-title">{s.matchTitle}</h2>
+      <h2 className="scr-title">{s.title}</h2>
     </div>
   );
 }
@@ -57,6 +111,8 @@ export function ScreeningCarousel() {
   const { screenings } = useScreeningEvents();
   const [current, setCurrent] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [carouselSlides, setCarouselSlides] = useState<SlideData[]>([]);
+  const [isCarouselLoading, setIsCarouselLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Track breakpoint to pick the right image per size
@@ -68,7 +124,71 @@ export function ScreeningCarousel() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const slides = screenings.slice(0, 6);
+  // Fetch carousel slides with polling
+  const loadCarouselSlides = useCallback(async () => {
+    setIsCarouselLoading(true);
+    try {
+    
+        const slides = await fetchPublicScreeningCarousels();
+        writeCarouselCache(slides);
+        setCarouselSlides(slides.map((slide, index) => ({
+          id: `carousel-${index}`,
+          title: slide.title,
+          image: slide.banner,
+          poster: slide.poster,
+          status: 'published',
+          type: 'carousel',
+        })));
+    } catch {
+      setCarouselSlides([]);
+    } finally {
+      setIsCarouselLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Load from localStorage first — instant render for returning users
+    const cached = readCarouselCache();
+    if (cached.length > 0) {
+      setCarouselSlides(cached.map((slide, index) => ({
+        id: `carousel-${index}`,
+        title: slide.title,
+        image: slide.banner,
+        poster: slide.poster,
+        status: 'published',
+        type: 'carousel',
+      })));
+      setIsCarouselLoading(false);
+    }
+    // Skip network fetch if cache is still fresh
+    if (isCarouselCacheFresh()) { 
+
+      const pid=setInterval(loadCarouselSlides, CAROUSEL_POLL_MS);
+      return () => clearInterval(pid);
+    } 
+
+    loadCarouselSlides();
+      
+    // Set up polling interval regardless of cache state
+    const pollId = setInterval(loadCarouselSlides, CAROUSEL_POLL_MS);
+    return () => clearInterval(pollId);
+  }, [loadCarouselSlides]);
+
+  // Combine slides: up to 4 events + remaining slots filled with carousels (up to 6 total)
+  const eventSlides: SlideData[] = screenings.slice(0, 4).map((s) => ({
+    id: s.id, 
+    title: s.matchTitle,
+    image: s.image || s.poster || '',
+    poster: s.poster || null,
+    status: s.status,
+    type: 'event',
+  }));
+
+  // If we have fewer than 4 events, fill remaining slots with carousels
+  // Otherwise, add up to 2 carousels after the 4 events
+  const remainingSlots = 6 - eventSlides.length;
+  const carouselsToAdd = carouselSlides.slice(0, Math.max(2, remainingSlots));
+  const slides = [...eventSlides, ...carouselsToAdd];
   const count = slides.length;
 
   useEffect(() => {
@@ -80,13 +200,15 @@ export function ScreeningCarousel() {
     if (count <= 1) return;
     timerRef.current = setInterval(() => setCurrent((i) => (i + 1) % count), SLIDE_DURATION);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [current, count]);
+  }, [count]);
 
   const goTo = useCallback((idx: number) => setCurrent(idx), []);
   const prev = useCallback(() => setCurrent((i) => (i - 1 + count) % count), [count]);
   const next = useCallback(() => setCurrent((i) => (i + 1) % count), [count]);
 
-  if (count === 0) return <FallbackHero />;
+  if (count === 0) {
+    return isCarouselLoading ? <FallbackHero /> : <FallbackHero />;
+  }
 
   const s = slides[Math.min(current, count - 1)];
   // Mobile ≤524px: portrait poster fills tall screen best

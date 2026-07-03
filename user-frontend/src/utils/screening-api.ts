@@ -1,4 +1,4 @@
-import { buildApiUrl, getSession, handleAuthExpiry } from './api';
+import { buildApiUrl, fetchWithRetry, getSession, handleAuthExpiry } from './api';
 import type { Screening, TicketTier, Ticket } from '@/components/screening/types';
 
 /* ── Raw API shapes (what the backend returns) ───────────────────────────── */
@@ -79,6 +79,20 @@ export async function fetchPublicScreenings(params?: {
   if (!res.ok) throw new Error('Failed to fetch screenings');
   const data = await res.json();
   return data.data as ScrListResponse;
+}
+
+export type ApiScrCarousel = {
+  title: string;
+  banner: string;
+  poster: string;
+};
+
+export async function fetchPublicScreeningCarousels(): Promise<ApiScrCarousel[]> {
+  const res = await fetch(buildApiUrl('/screening/carousels'));
+
+  if (!res.ok) throw new Error('Failed to fetch carousel slides');
+  const data = await res.json();
+  return data.data as ApiScrCarousel[];
 }
 
 export async function fetchPublicScreeningById(id: string): Promise<ApiScrEvent | null> {

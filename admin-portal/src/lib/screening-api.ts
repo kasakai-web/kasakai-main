@@ -235,6 +235,15 @@ export type ScrScanResult = {
   bookedAt:   string;
 };
 
+export type ScrCarousel = {
+  _id:      string;
+  title:    string;
+  banner:   string;
+  poster:   string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
 /* ── API helpers ──────────────────────────────────────────────────────────── */
 
 export const scrApi = {
@@ -284,6 +293,19 @@ export const scrApi = {
     apiFetch<ScrScanResult>(`/screening/admin/scan`, {
       method: 'POST',
       body: JSON.stringify({ entryCode, ...(eventId ? { eventId } : {}) }),
+    }),
+
+  listCarousels: () => apiFetch<ScrCarousel[]>(`/screening/admin/carousel`),
+
+  createCarousel: (payload: { title: string; banner: string; poster: string }) =>
+    apiFetch<ScrCarousel>(`/screening/admin/carousel`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteCarousel: (id: string) =>
+    apiFetch<null>(`/screening/admin/carousel/${id}`, {
+      method: 'DELETE',
     }),
 
   uploadImage: async (file: File): Promise<string> => {
