@@ -19,6 +19,7 @@ interface Registration {
   amountPaidPaise?: number;
   optedOut?: boolean;
   optedOutAt?: string;
+  optedOutReason?: "self" | "format_change" | null;
 }
 
 interface WaitlistEntry {
@@ -432,20 +433,26 @@ function downloadTeamExcel(result: {
     });
   };
 
-  const mainRegs  = players.filter((r) => !r.plusOneName);
-  const guestRegs = players.filter((r) => !!r.plusOneName);
+  // A player (or guest) removed because they said "No" to a format change is
+  // treated like a cancellation — they should NOT appear in the organiser's roster
+  // at all (not even as "Not Attending"). Self opt-outs stay visible. So all the
+  // display/count derivations below run off `roster`, not the raw `players`.
+  const roster = players.filter((r) => !(r.optedOut && r.optedOutReason === "format_change"));
+
+  const mainRegs  = roster.filter((r) => !r.plusOneName);
+  const guestRegs = roster.filter((r) => !!r.plusOneName);
 
   // Robust organiser-guest detection: covers both populated (player=null) and
   // unpopulated (player=organiser ObjectId string) states from the API.
   const loggedInOrgId = typeof window !== "undefined" ? (localStorage.getItem("userId") || "") : "";
-  const organiserGuests = players.filter((r) => {
+  const organiserGuests = roster.filter((r) => {
     if (!r.plusOneName) return false;
     if (!r.player) return true;
     return String((r.player as any)?._id ?? (r.player as any) ?? "") === loggedInOrgId;
   });
   // Player guests grouped by their owner's player ID (exclude organiser guests)
   const guestsByPlayer = new Map<string, Registration[]>();
-  players.filter((r) => {
+  roster.filter((r) => {
     if (!r.plusOneName || !r.player) return false;
     const pid = String((r.player as any)?._id ?? (r.player as any) ?? "");
     return pid && pid !== loggedInOrgId;

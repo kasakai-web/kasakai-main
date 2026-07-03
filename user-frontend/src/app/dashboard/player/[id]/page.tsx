@@ -553,6 +553,35 @@ export default function PlayerDashboard() {
     setConfirmVisible(true);
   };
 
+  // Rejoin a game the player was removed from by a format change. Confirms, then
+  // opts them back in (re-charges the new/alternate fee), and refreshes the lists.
+  const handleRejoinFormatChange = (game: any) => {
+    const fee = game.feeInPaise || 0;
+    const passCovered = Boolean(game.passEligible);
+    const feeMsg = passCovered
+      ? " Your pass covers this game, so you won't be charged."
+      : fee > 0 ? ` ₹${fee / 100} will be debited from your wallet.` : "";
+    setConfirmTitle("Rejoin the new format?");
+    setConfirmMessage(`The format is now ${game.format}. You'll be added back to the game.${feeMsg}`);
+    confirmActionRef.current = async () => {
+      const { token } = getSession();
+      if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+      try {
+        const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/opt-back-in`), {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) { showToast("error", data.message || "Unable to rejoin."); return; }
+        showToast("success", "You're back in!", `Rejoined "${game.title}" (${game.format}).`);
+        fetchMyGames(); fetchWalletBalance();
+      } catch {
+        showToast("error", "Unable to rejoin. Please try again.");
+      }
+    };
+    setConfirmVisible(true);
+  };
+
   const handleOptOut = (wantToPlay: boolean) => {
     if (!detailGame) return;
 
@@ -1009,6 +1038,18 @@ export default function PlayerDashboard() {
     const normalizedStatus = String(game.status || "").trim().toLowerCase();
     return normalizedStatus.startsWith("cancel");
   });
+  // The player's own primary (non-guest) registration in a game, if any.
+  const myOwnPrimaryReg = (game: any) => (game.registrations || []).find((r: any) =>
+    !r.plusOneName && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
+  );
+  // A game whose format switched after this player said "No" to format changes:
+  // they were removed + refunded. Treated like a cancellation FOR THEM — it leaves
+  // "My Games", appears in the Cancelled tab as "Format changed — rejoin?".
+  const isMyFormatChangeOptOut = (game: any) => {
+    const r = myOwnPrimaryReg(game);
+    return !!r && r.optedOut === true && r.optedOutReason === "format_change";
+  };
+  const formatChangeOptOutGames = myGames.filter(isMyFormatChangeOptOut);
   // A game counts as COMPLETED only when the organiser has actually marked it
   // complete. A game whose start time has merely passed but is still open/
   // tentative/confirmed is NOT completed — it's "awaiting result" (below) and
@@ -1037,7 +1078,9 @@ export default function PlayerDashboard() {
       const status = String(g.status || "").trim().toLowerCase();
       const isCancelled = status.startsWith("cancel");
       const isCompleted = status.startsWith("complete") || new Date(g.scheduledAt).getTime() < Date.now();
-      return !isCancelled && !isCompleted;
+      // A format-change opt-out is no longer an active registration — it moves to
+      // the Cancelled tab, so keep it out of My Games.
+      return !isCancelled && !isCompleted && !isMyFormatChangeOptOut(g);
     }),
     ...myWaitlist
       .filter((wg) => {
@@ -1054,7 +1097,9 @@ export default function PlayerDashboard() {
     : activeTab === 'my-games'
       ? myGamesWithWaitlist
       : activeTab === 'cancelled'
-        ? cancelledGames
+        // Cancelled tab = truly-cancelled games PLUS this player's format-change
+        // opt-outs (they're cancelled for them, with a Rejoin option).
+        ? [...cancelledGames, ...formatChangeOptOutGames]
         // Completed tab shows truly-completed games PLUS awaiting-result ones (so
         // past games aren't lost), but only the completed ones count in the badge.
         : [...completedGames, ...awaitingResultGames];
@@ -1124,8 +1169,10 @@ export default function PlayerDashboard() {
     ? (myWaitlist.find((wg: any) => wg._id === detailGame._id)?._myWaitlistStatus || "waiting")
     : "waiting";
   // Live registrations excluding locally-removed guests (so UI is instant, no re-flash on any refresh)
+  // AND excluding players/guests removed by a format change (they said "No") — they're
+  // treated as never having been in the game, so they don't appear in the roster/total.
   const liveRegistrations = (detailGame?.registrations || []).filter(
-    (r: any) => !removedGuestIds.has(String(r._id))
+    (r: any) => !removedGuestIds.has(String(r._id)) && !(r.optedOut && r.optedOutReason === "format_change")
   );
 
   // Player's own (non-guest) registration in the detail game
@@ -1136,6 +1183,10 @@ export default function PlayerDashboard() {
       })
     : null;
   const isOptedOut = myOwnReg?.optedOut === true;
+  // Removed by a format change (said "No") — NOT a voluntary opt-out. The player +
+  // their guests are gone from the game; we don't show the self-opt-out UI (which
+  // wrongly says "guests remain active"), only a clean Rejoin.
+  const detailIsFormatChangeOptOut = myOwnReg?.optedOut === true && myOwnReg?.optedOutReason === "format_change";
   // Player opted out AND is now on the waitlist to rejoin (game was full when they tried).
   // Use _isMine when present (set by getMyGames); fall back to direct ID compare for data
   // from getGameById (lean, no annotation) so the state survives the background refresh.
@@ -1177,6 +1228,8 @@ export default function PlayerDashboard() {
   const myGuests = (detailIsRegistered && detailGame)
     ? (detailGame?.registrations || []).filter((reg: any) => {
         if (removedGuestIds.has(String(reg._id))) return false;
+        // A guest removed by a format change (host said "No") is gone — don't list it.
+        if (reg.optedOut && reg.optedOutReason === "format_change") return false;
         const isMine = reg._isMyReg
           || reg.player?._id?.toString() === playerId
           || reg.player?.toString() === playerId;
@@ -1254,7 +1307,7 @@ export default function PlayerDashboard() {
             >
               <span className="tab-icon">🚫</span>
               <span className="tab-text">Cancelled</span>
-              <span className="tab-badge">{cancelledGames.length}</span>
+              <span className="tab-badge">{cancelledGames.length + formatChangeOptOutGames.length}</span>
             </button>
             <button
               className={`tab-btn player-tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
@@ -1288,6 +1341,8 @@ export default function PlayerDashboard() {
                   title={game.title}
                   status={game.status as EventStatus}
                   awaitingResult={isAwaitingResult(game)}
+                  formatChangedOptOut={isMyFormatChangeOptOut(game)}
+                  onRejoin={isMyFormatChangeOptOut(game) ? () => handleRejoinFormatChange(game) : undefined}
                   venue={game.turf?.name || 'TBC'}
                   city={game.turf?.address?.city || 'TBC'}
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}
@@ -1297,7 +1352,7 @@ export default function PlayerDashboard() {
                   passEligible={Boolean(game.passEligible)}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
-                  isRegistered={myGames.some(myGame => myGame._id === game._id)}
+                  isRegistered={myGames.some(myGame => myGame._id === game._id) && !isMyFormatChangeOptOut(game)}
                   isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
                   isWaitlistApproved={game._waitlistStatus === 'approved' || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')}
                   cancelReason={game.cancelReason}
@@ -1820,7 +1875,7 @@ export default function PlayerDashboard() {
             </div>
 
             {/* ── My Guests (CRUD section — only when registered and game active) ── */}
-            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
+            {detailIsRegistered && !detailIsFormatChangeOptOut && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -1916,8 +1971,10 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            {/* ── Attending toggle — after My Guests, only for registered active games ── */}
-            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
+            {/* ── Attending toggle — after My Guests, only for registered active games.
+                  Hidden for a format-change removal (no "guests remain active" toggle) —
+                  that case gets a clean Rejoin action instead. ── */}
+            {detailIsRegistered && !detailIsFormatChangeOptOut && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 12px",
                 padding: "12px 16px",
@@ -2257,40 +2314,65 @@ export default function PlayerDashboard() {
                     </button>
                   )}
 
-                {/* Registered User Actions — guest CRUD moved to My Guests section above */}
+                {/* Registered User Actions — guest CRUD moved to My Guests section above.
+                    If the player is NOT in the game (opted out), the bottom action is
+                    "Rejoin" (behaves like joining), not "Cancel Registration". */}
                 {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting ? (
-                  <button
-                    className="pd-modal-btn secondary"
-                    type="button"
-                    onClick={() => handleCancelRegistration(detailGame)}
-                    disabled={!!cancellingGameId}
-                    style={{
-                      background: cancellingGameId ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.12)",
-                      color: cancellingGameId ? "rgba(248,113,113,0.6)" : "#f87171",
-                      border: "1px solid rgba(220,38,38,0.3)",
-                      padding: "11px 18px",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: cancellingGameId ? "not-allowed" : "pointer",
-                      transition: "all 0.2s ease",
-                      whiteSpace: "nowrap"
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!cancellingGameId) {
-                        e.currentTarget.style.background = "rgba(220,38,38,0.18)";
-                        e.currentTarget.style.borderColor = "rgba(220,38,38,0.4)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!cancellingGameId) {
-                        e.currentTarget.style.background = "rgba(220,38,38,0.12)";
-                        e.currentTarget.style.borderColor = "rgba(220,38,38,0.3)";
-                      }
-                    }}
-                  >
-                    {cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}
-                  </button>
+                  isOptedOut ? (
+                    <button
+                      className="pd-modal-btn"
+                      type="button"
+                      onClick={() => handleOptOut(true)}
+                      disabled={optingOut}
+                      style={{
+                        background: "rgba(74,222,128,0.14)",
+                        color: "#4ade80",
+                        border: "1px solid rgba(74,222,128,0.35)",
+                        padding: "11px 18px",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: optingOut ? "not-allowed" : "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {optingOut ? "Rejoining…" : "🔄 Rejoin"}
+                    </button>
+                  ) : (
+                    <button
+                      className="pd-modal-btn secondary"
+                      type="button"
+                      onClick={() => handleCancelRegistration(detailGame)}
+                      disabled={!!cancellingGameId}
+                      style={{
+                        background: cancellingGameId ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.12)",
+                        color: cancellingGameId ? "rgba(248,113,113,0.6)" : "#f87171",
+                        border: "1px solid rgba(220,38,38,0.3)",
+                        padding: "11px 18px",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: cancellingGameId ? "not-allowed" : "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!cancellingGameId) {
+                          e.currentTarget.style.background = "rgba(220,38,38,0.18)";
+                          e.currentTarget.style.borderColor = "rgba(220,38,38,0.4)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!cancellingGameId) {
+                          e.currentTarget.style.background = "rgba(220,38,38,0.12)";
+                          e.currentTarget.style.borderColor = "rgba(220,38,38,0.3)";
+                        }
+                      }}
+                    >
+                      {cancellingGameId === detailGame._id ? "Cancelling..." : "Cancel Registration"}
+                    </button>
+                  )
                 ) : null}
 
                 {/* Waitlisted User Actions */}

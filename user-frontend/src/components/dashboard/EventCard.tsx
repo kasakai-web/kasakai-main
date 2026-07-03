@@ -11,6 +11,8 @@ export interface EventCardProps {
   city: string;
   status: EventStatus;
   awaitingResult?: boolean;
+  formatChangedOptOut?: boolean;
+  onRejoin?: () => void;
   date: string;
   time: string;
   format: string;
@@ -35,6 +37,8 @@ export function EventCard({
   city,
   status,
   awaitingResult = false,
+  formatChangedOptOut = false,
+  onRejoin,
   date,
   time,
   format,
@@ -92,8 +96,10 @@ export function EventCard({
       {/* Header with badge and price */}
       <div className="card-header">
         <div className="header-top">
-          <span className={`status-badge ${isAwaiting ? 'tentative' : effectiveStatus}`}>
-            {isAwaiting
+          <span className={`status-badge ${formatChangedOptOut ? 'cancelled' : isAwaiting ? 'tentative' : effectiveStatus}`}>
+            {formatChangedOptOut
+              ? '🔄 Format changed'
+              : isAwaiting
               ? '⏳ Awaiting result'
               : effectiveStatus === 'cancelled'
               ? '✕ Cancelled'
@@ -180,7 +186,11 @@ export function EventCard({
 
       {/* Action Buttons */}
       <div className="card-actions">
-        {isCancelled ? (
+        {formatChangedOptOut ? (
+          <button className="card-btn signup-btn" onClick={() => onRejoin?.()}>
+            <span>🔄 Rejoin the new format</span>
+          </button>
+        ) : isCancelled ? (
           <button className="card-btn cancelled-btn" disabled>
             <span>✕ Event Cancelled</span>
           </button>
