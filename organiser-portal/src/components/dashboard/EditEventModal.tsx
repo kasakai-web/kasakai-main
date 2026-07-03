@@ -122,6 +122,10 @@ export function EditEventModal({
 
   /* ── Format change + alternate format (3.2) ── */
   const lastAlt = initialData.alternateFormats?.[0] || null;
+  // An alternate's fee is locked only if it ALREADY existed at creation. A game
+  // with no alternate (e.g. the format review asked the organiser to define one)
+  // can still have its brand-new alternate fee set here.
+  const hadAlternate = Boolean(lastAlt && lastAlt.format);
   const [allowSizeChange, setAllowSizeChange] = useState(Boolean(initialData.allowSizeChange));
   const [altFormat, setAltFormat] = useState<Format>((lastAlt?.format as Format) ?? "5v5");
   const [altTurf, setAltTurf] = useState<string>(lastAlt?.turf?._id || (typeof lastAlt?.turf === "string" ? lastAlt.turf : ""));
@@ -532,10 +536,10 @@ export function EditEventModal({
                       onChange={(e) => setAltMax(e.target.value)} placeholder={String(slotsFromFormat(altFormat))} />
                   </Field>
                 </div>
-                <Field label="Alt. fee (₹) 🔒 — set at creation, can't be edited" error={errors.alt}>
-                  <input type="number" className="form-input" min="0" step="1" value={altFee} disabled
+                <Field label={hadAlternate ? "Alt. fee (₹) 🔒 — set at creation, can't be edited" : "Alt. fee (₹) — must be less than the main fee"} error={errors.alt}>
+                  <input type="number" className="form-input" min="0" step="1" value={altFee} disabled={hadAlternate}
                     onChange={(e) => setAltFee(e.target.value)} placeholder={feeInRs ? `< ${feeInRs}` : "0"}
-                    title="The alternate-format fee is fixed at creation and can't be edited." />
+                    title={hadAlternate ? "The alternate-format fee is fixed at creation and can't be edited." : undefined} />
                 </Field>
                 <div style={{ fontSize: 11, color: "#666" }}>
                   On switch, players are refunded the per-player fee difference automatically.

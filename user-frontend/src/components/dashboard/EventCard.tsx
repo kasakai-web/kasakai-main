@@ -10,6 +10,7 @@ export interface EventCardProps {
   venue: string;
   city: string;
   status: EventStatus;
+  awaitingResult?: boolean;
   date: string;
   time: string;
   format: string;
@@ -33,6 +34,7 @@ export function EventCard({
   venue,
   city,
   status,
+  awaitingResult = false,
   date,
   time,
   format,
@@ -50,7 +52,11 @@ export function EventCard({
   onRateGame,
 }: EventCardProps) {
   const isCancelled = status === "cancelled";
-  const isFull = !isCancelled && spotsLeft <= 0;
+  // A past game still open/tentative/confirmed is "awaiting result" — it happened
+  // but the organiser hasn't recorded the outcome. Show that instead of a stale
+  // "Confirmed"/"Open" badge, and don't let it read as "Completed".
+  const isAwaiting = awaitingResult && !isCancelled && status !== "completed";
+  const isFull = !isCancelled && !isAwaiting && spotsLeft <= 0;
   const effectiveStatus = isCancelled ? "cancelled" : isFull ? "full" : status;
 
   const getDateLabel = () => {
@@ -86,8 +92,10 @@ export function EventCard({
       {/* Header with badge and price */}
       <div className="card-header">
         <div className="header-top">
-          <span className={`status-badge ${effectiveStatus}`}>
-            {effectiveStatus === 'cancelled'
+          <span className={`status-badge ${isAwaiting ? 'tentative' : effectiveStatus}`}>
+            {isAwaiting
+              ? '⏳ Awaiting result'
+              : effectiveStatus === 'cancelled'
               ? '✕ Cancelled'
               : effectiveStatus === 'full'
               ? '🔴 Full'

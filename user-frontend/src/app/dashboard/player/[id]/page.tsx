@@ -1009,13 +1009,22 @@ export default function PlayerDashboard() {
     const normalizedStatus = String(game.status || "").trim().toLowerCase();
     return normalizedStatus.startsWith("cancel");
   });
-  const completedGames = myGames.filter((game) => {
-    const normalizedStatus = String(game.status || "").trim().toLowerCase();
-    if (normalizedStatus.startsWith("cancel")) return false;
-    if (normalizedStatus.startsWith("complete")) return true;
-
-    const scheduledAt = new Date(game.scheduledAt).getTime();
-    return Number.isFinite(scheduledAt) && scheduledAt < Date.now();
+  // A game counts as COMPLETED only when the organiser has actually marked it
+  // complete. A game whose start time has merely passed but is still open/
+  // tentative/confirmed is NOT completed — it's "awaiting result" (below) and
+  // must not inflate the Completed count.
+  const completedGames = myGames.filter((game) =>
+    String(game.status || "").trim().toLowerCase().startsWith("complete")
+  );
+  // Past games that never reached a terminal state (still open/tentative/confirmed
+  // after their start time). They happened but have no recorded result yet — shown
+  // in the Completed/history tab under an "Awaiting result" label, but NOT counted
+  // as Completed.
+  const awaitingResultGames = myGames.filter((game) => {
+    const s = String(game.status || "").trim().toLowerCase();
+    if (s.startsWith("cancel") || s.startsWith("complete")) return false;
+    const t = new Date(game.scheduledAt).getTime();
+    return Number.isFinite(t) && t < Date.now();
   });
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
   const getActiveRegs = (game: any) => (game.registrations || []).filter(
@@ -1046,8 +1055,16 @@ export default function PlayerDashboard() {
       ? myGamesWithWaitlist
       : activeTab === 'cancelled'
         ? cancelledGames
-        : completedGames;
+        // Completed tab shows truly-completed games PLUS awaiting-result ones (so
+        // past games aren't lost), but only the completed ones count in the badge.
+        : [...completedGames, ...awaitingResultGames];
   const isCancelledGame = (game: any) => String(game.status || "").trim().toLowerCase().startsWith("cancel");
+  const isAwaitingResult = (game: any) => {
+    const s = String(game.status || "").trim().toLowerCase();
+    if (s.startsWith("cancel") || s.startsWith("complete")) return false;
+    const t = new Date(game.scheduledAt).getTime();
+    return Number.isFinite(t) && t < Date.now();
+  };
   const filteredGames = gamesToDisplay.filter(g => 
     g.turf?.name?.toLowerCase().includes(search.toLowerCase()) ||
     g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
@@ -1270,6 +1287,7 @@ export default function PlayerDashboard() {
                   id={game._id}
                   title={game.title}
                   status={game.status as EventStatus}
+                  awaitingResult={isAwaitingResult(game)}
                   venue={game.turf?.name || 'TBC'}
                   city={game.turf?.address?.city || 'TBC'}
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}

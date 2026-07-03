@@ -120,6 +120,13 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
   const [mounted, setMounted] = useState(false);
   const [, forceRender] = useState(0);
   useEffect(() => setMounted(true), []);
+  // Self-tick: re-evaluate periodically so a pop-up whose game has since started
+  // (or been completed/cancelled elsewhere) disappears on its own, without waiting
+  // for the dashboard's next data poll. pickAlert re-runs with the live clock.
+  useEffect(() => {
+    const id = setInterval(() => forceRender((x) => x + 1), 15000);
+    return () => clearInterval(id);
+  }, []);
   if (!mounted) return null;
 
   const alert = pickAlert(games, loadDismissed());
@@ -143,7 +150,15 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
   // Dismiss persists this alert's key so it won't return on the next poll,
   // remount, Fast Refresh, or reload (until the tab is closed).
   const close = () => { const s = loadDismissed(); s.add(key); saveDismissed(s); forceRender((x) => x + 1); };
-  const act = (fn: () => void) => () => { fn(); close(); };
+  // Guard every pop-up action against a stale game. A game that has been completed
+  // (or otherwise finalised) is always past its start time, so the LIVE-clock check
+  // catches it even if this component still holds a stale 'open'/'tentative' status:
+  // we close the alert and do NOTHING rather than fire a confirm/switch/cancel that
+  // the server would (rightly) reject. Once a game is over, nothing here can change it.
+  const stillLive =
+    ["open", "tentative"].includes(game.status) &&
+    !(game.scheduledAt && new Date(game.scheduledAt).getTime() <= Date.now());
+  const act = (fn: () => void) => () => { if (stillLive) fn(); close(); };
 
   type A = { key: string; label: string; variant: string; icon: React.ReactNode; onClick: () => void; recommended?: boolean };
   const actions: A[] = [];
