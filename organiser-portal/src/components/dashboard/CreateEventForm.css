@@ -1,46 +1,21 @@
-/* Create Event Modal Styles */
+/* Create Event Page Styles */
 
-.create-event-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.78);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-sizing: border-box;
-}
-
-.create-event-modal {
-  /* Let the overlay's flexbox handle centering — no fixed positioning here */
-  position: relative;
-  z-index: 1001;
-  background: #141416;
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 18px;
-  max-width: 600px;
+.create-event-page {
   width: 100%;
-  max-height: calc(100vh - 32px);
+  /* max-width: 700px; */
+  margin: 0 auto;
+  background: #141416;
+  border: 1px solid rgba(158, 126, 126, 0.08);
+  border-radius: 24px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   box-shadow:
-    0 40px 100px rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(255,255,255,.05),
-    0 -1px 0 rgba(255,255,255,.07) inset;
-  animation: createModalIn 0.28s cubic-bezier(.34,1.35,.64,1) both;
+    0 18px 60px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255,255,255,.03);
 }
 
-@keyframes createModalIn {
-  from { opacity: 0; transform: translateY(12px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
-}
-
-/* Modal Header */
+/* Page Header */
 .create-event-header {
   display: flex;
   justify-content: space-between;
@@ -85,20 +60,6 @@
   font-weight: 400;
 }
 
-.header-close {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 24px;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.header-close:hover {
-  color: var(--white);
-}
 
 /* Form */
 .create-event-form {
@@ -366,7 +327,6 @@
   background: var(--mid);
   color: var(--white);
   border: 1px solid var(--border);
-  flex: 1;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -377,7 +337,6 @@
 .btn-primary {
   background: linear-gradient(135deg, var(--coral), #ff8b5c);
   color: #000;
-  flex: 1;
   justify-content: center;
   font-weight: 700;
 }
@@ -409,54 +368,80 @@
   cursor: not-allowed;
 }
 
-/* Scrollbar */
-.create-event-modal::-webkit-scrollbar {
-  width: 8px;
-}
 
-.create-event-modal::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.create-event-modal::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
-}
-
-.create-event-modal::-webkit-scrollbar-thumb:hover {
-  background: var(--coral);
-}
-
-/* Responsive — bottom sheet on mobile */
-@media (max-width: 600px) {
-  .create-event-overlay {
-    align-items: flex-end;
-    padding: 0;
-  }
-
-  .create-event-modal {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    transform: none;
-    width: 100%;
+@media (max-width: 900px) {
+  .create-event-page{
     max-width: 100%;
-    max-height: 92vh;
-    border-radius: 18px 18px 0 0;
-    box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+    border-radius: 20px;
   }
 
-  /* Drag handle */
-  .create-event-modal::before {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: rgba(255,255,255,0.18);
-    border-radius: 2px;
-    margin: 10px auto 0;
-    flex-shrink: 0;
+  .create-event-header {
+    padding: 18px 16px;
+  }
+
+  .header-title {
+    font-size: 20px;
+  }
+
+  .header-subtitle {
+    font-size: 13px;
+  }
+
+  .header-badge {
+    font-size: 11px;
+  }
+
+  .create-event-form {
+    padding: 18px 16px 22px;
+    gap: 18px;
+  }
+
+  .form-row,
+  .form-row-3 {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-section {
+    gap: 14px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    padding-bottom: 6px;
+  }
+
+  .form-input,
+  .form-select {
+    padding: 10px 11px;
+    font-size: 13px;
+  }
+
+  .form-label {
+    font-size: 12px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+  }
+
+  .btn {
+    padding: 11px 16px;
+    font-size: 13px;
+    justify-content: center;
+  }
+
+  .stepper-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+
+  .stepper-input {
+    font-size: 15px;
+    padding: 9px 6px;
   }
 
   .create-event-header {

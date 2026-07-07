@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import  { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { CreateEventModal } from "@/components/dashboard/CreateEventModal";
 import { EditEventModal } from "@/components/dashboard/EditEventModal";
 import { PlayerDetailsModal } from "@/components/dashboard/PlayerDetailsModal";
 import { PostGameModal } from "@/components/dashboard/PostGameModal";
@@ -24,7 +23,6 @@ export default function OrganizerDashboard() {
     routeUserId: organiserId,
     redirectTo: "/login?role=organiser",
   });
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPlayersModal, setShowPlayersModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -108,7 +106,21 @@ export default function OrganizerDashboard() {
       if (data.success) {
         const nextGames: any[] = data.data || [];
         setGames(nextGames);
-        setFetchError(null);
+        setFetchError(null);  
+
+        if(nextGames.length > 0) 
+         {
+          const lastEvent=  nextGames.length > 0
+              ? [...nextGames].sort(
+                  (a, b) =>
+                    new Date(b.createdAt || b.scheduledAt).getTime() -
+                    new Date(a.createdAt || a.scheduledAt).getTime()
+                )[0]
+              : undefined  
+
+              
+            localStorage.setItem("lastEvent", JSON.stringify(lastEvent));  
+          }
         setSelectedGame((prev: any) =>
           prev ? nextGames.find((g) => g._id === prev._id) ?? prev : prev
         );
@@ -492,7 +504,7 @@ export default function OrganizerDashboard() {
             Manage your events, track players, and monitor revenue
           </p>
         </div>
-        <button className="btn-primary btn-lg" onClick={() => setShowCreateModal(true)}>
+        <button className="btn-primary btn-lg" onClick={() => router.push(`/dashboard/organizer/${organiserId}/create-event`)}>
           <span className="btn-icon">+ </span>Create New Event
         </button>
       </div>
@@ -711,7 +723,7 @@ export default function OrganizerDashboard() {
                 <>
                   <h3>No upcoming events</h3>
                   <p>Create your first event to get started</p>
-                  <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+                  <button className="btn-primary" onClick={() => router.push(`/dashboard/organizer/${organiserId}/create-event`)}>
                     <span>+ </span>Create Event
                   </button>
                 </>
@@ -1061,28 +1073,6 @@ export default function OrganizerDashboard() {
       </div>
 
       {/* Modals */}
-      {showCreateModal && (
-        <CreateEventModal
-          lastEvent={
-            games.length > 0
-              ? [...games].sort(
-                  (a, b) =>
-                    new Date(b.createdAt || b.scheduledAt).getTime() -
-                    new Date(a.createdAt || a.scheduledAt).getTime()
-                )[0]
-              : undefined
-          }
-          onClose={() => setShowCreateModal(false)}
-          onCreate={() => {
-            showToast("success", "Game Created!", "Your event is now live.");
-            fetchGames({ silent: true });
-          }}
-          onSuccess={() => {
-            fetchGames({ silent: true });
-          }}
-        />
-      )}
-
       {showEditModal && selectedGame && (
         <EditEventModal
           gameId={selectedGame._id}

@@ -60,10 +60,7 @@ export default function Page() {
     }
   }
 
-  async function handleFileSelect(
-    event: ChangeEvent<HTMLInputElement>,
-    target: UploadType
-  ) {
+  async function handleFileSelect(event: ChangeEvent<HTMLInputElement>,target: UploadType) {
     const selected = event.target.files?.[0];
     if (!selected) return;
 
