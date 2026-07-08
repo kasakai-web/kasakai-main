@@ -848,7 +848,9 @@ export default function OrganizerDashboard() {
                             <span className="btn-label">Switch</span>
                           </button>
                         )}
-                        {['open','tentative'].includes(game.status) && (
+                        {/* SOS: open/tentative + confirmed — a confirmed game still accepts
+                            registrations, and the post-switch shortfall prompt offers SOS */}
+                        {['open','tentative','confirmed'].includes(game.status) && (
                           <button
                             className="btn-action btn-edit"
                             onClick={() => requestSendSos(game)}
