@@ -88,7 +88,9 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
   // Alternate format has its OWN fee (must be LOWER than the main fee). When the
   // game switches to it, each player is refunded the per-player fee difference.
 
-  // Automation master switch (section 3.1): ON = auto confirm/cancel at check-ins;
+  // Automation master switch (section 3.1, amended Jul 2026): governs EVERYTHING at
+  // the 2nd check-in. ON = auto-confirm main/alternate or auto-cancel by itself;
+  // OFF = the system only prompts (pop-up + WhatsApp) and waits for the organiser.
   // OFF = only notify the organiser to decide.
   const [automationEnabled, setAutomationEnabled] = useState(lastEvent?.lifecycle?.automationEnabled ?? false);
 
@@ -691,7 +693,7 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
             </div>
             {checkTip === "second" && (
               <div style={{ marginTop: 6, marginBottom: 6, padding: "8px 11px", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.22)", borderRadius: 8, fontSize: 12, color: "#c9efdd", lineHeight: 1.55 }}>
-                <b>Second check-in — the deadline.</b> Acts automatically: enough players → confirm; too few → auto-cancel + refund (if automation ON), else asks you to <b>Cancel</b> or <b>Keep Waiting</b>.
+                <b>Second check-in — the deadline.</b> Automation ON: the system acts by itself — enough players → confirm; enough for the alternate → switch &amp; confirm; too few → cancel + refund. Automation OFF: you get a pop-up + WhatsApp and <b>you</b> decide (confirm / switch / cancel / keep waiting).
               </div>
             )}
             <div className="field-hint">
@@ -712,12 +714,12 @@ export function CreateEventModal({ onClose, onCreate, onSuccess, lastEvent }: Cr
                 onChange={(e) => setAutomationEnabled(e.target.checked)}
                 className="toggle-checkbox"
               />
-              <span className="toggle-label">Auto-cancel if turnout is below the minimum</span>
+              <span className="toggle-label">Automation — auto-confirm / auto-cancel at the 2nd check-in</span>
             </label>
             <div className="field-hint">
               {automationEnabled
-                ? "If too few players by the 2nd check, the game is auto-cancelled & everyone refunded. Confirmation always happens automatically."
-                : "If too few players by the 2nd check, we'll ask you to Cancel or Keep Waiting. Confirmation still happens automatically."}
+                ? "ON: at the 2nd check-in the system acts by itself — enough players → game confirmed automatically; enough for the alternate → switched & confirmed; too few → auto-cancelled and everyone refunded."
+                : "OFF: the system never acts on its own. At the 2nd check-in you get a pop-up + WhatsApp with a recommendation — you confirm, switch, cancel, or keep waiting."}
             </div>
           </div>
 
