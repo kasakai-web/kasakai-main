@@ -47,6 +47,7 @@ export default function Page() {
   const [carousels, setCarousels] = useState<CarouselItem[]>([]);
   const [loadingCarousels, setLoadingCarousels] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function loadCarousels() {
     setLoadingCarousels(true);
@@ -63,6 +64,16 @@ export default function Page() {
   async function handleFileSelect(event: ChangeEvent<HTMLInputElement>,target: UploadType) {
     const selected = event.target.files?.[0];
     if (!selected) return;
+
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    const isAllowedExtension = /\.(png|jpe?g|webp)$/i.test(selected.name);
+    const isAllowedMimeType = allowedTypes.includes(selected.type);
+
+    if (!isAllowedExtension && !isAllowedMimeType) {
+      setMessage("Only PNG, JPG, and WebP images are supported.");
+      event.target.value = "";
+      return;
+    }
 
     if (selected.size > 2 * 1024 * 1024) {
       setMessage("File is too large. Maximum size is 2 MB.");
@@ -155,7 +166,6 @@ export default function Page() {
   }, [files]);
 
   async function deleteCarouselItem(id: string) {
-    if (!window.confirm("Delete this carousel?")) return;
     setDeletingId(id);
     setMessage(null);
 
@@ -168,6 +178,12 @@ export default function Page() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function confirmDeleteCarousel() {
+    if (!pendingDeleteId) return;
+    await deleteCarouselItem(pendingDeleteId);
+    setPendingDeleteId(null);
   }
 
   return (
@@ -219,7 +235,7 @@ export default function Page() {
                 <label className={styles.dropzone}>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/jpg,image/webp"
                     onChange={(e) => handleFileSelect(e, type)}
                   />
 
@@ -318,7 +334,7 @@ export default function Page() {
                   <button
                     type="button"
                     className={styles.carouselDeleteIcon}
-                    onClick={() => deleteCarouselItem(item._id)}
+                    onClick={() => setPendingDeleteId(item._id)}
                     disabled={deletingId === item._id}
                   >
                     {deletingId === item._id ? '…' : 'X'}
@@ -336,6 +352,48 @@ export default function Page() {
           </div>
         )}
       </div>
+
+      {pendingDeleteId && (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onClick={() => setPendingDeleteId(null)}
+        >
+          <div
+            className={styles.modalCard}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-carousel-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalIcon}>!</div>
+            <h3 id="delete-carousel-title" className={styles.modalTitle}>
+              Delete carousel creative?
+            </h3>
+            <p className={styles.modalText}>
+              This will remove the selected carousel image from the gallery. This action cannot be undone.
+            </p>
+
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelBtn}
+                onClick={() => setPendingDeleteId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalConfirmBtn}
+                onClick={confirmDeleteCarousel}
+                disabled={deletingId !== null}
+              >
+                {deletingId ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

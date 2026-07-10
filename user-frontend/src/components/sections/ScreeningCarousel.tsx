@@ -7,7 +7,6 @@ import { fetchPublicScreeningCarousels } from "@/utils/screening-api";
 const SLIDE_DURATION = 15_000;
 const CAROUSEL_CACHE_KEY = 'kk_scr_carousels';
 const CAROUSEL_CACHE_TTL =  5 * 60 * 1000;
-const CAROUSEL_POLL_MS = 30 * 1000;
 
 type CarouselFallback = {
   title: string;
@@ -53,6 +52,17 @@ function writeCarouselCache(slides: CarouselFallback[]) {
     if (typeof window === 'undefined') return;
     localStorage.setItem(CAROUSEL_CACHE_KEY, JSON.stringify({ slides, ts: Date.now() }));
   } catch {}
+}
+
+function mapCarouselSlides(slides: CarouselFallback[]): SlideData[] {
+  return slides.map((slide, index) => ({
+    id: `carousel-${index}`,
+    title: slide.title,
+    image: slide.banner,
+    poster: slide.poster,
+    status: 'published',
+    type: 'carousel',
+  }));
 }
 
 /* ── Arrow button ── */
@@ -124,55 +134,51 @@ export function ScreeningCarousel() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Fetch carousel slides with polling
-  const loadCarouselSlides = useCallback(async () => {
+  const loadCarouselSlides = useCallback(async (force = false) => {
+    if (!force && isCarouselCacheFresh()) {
+      return;
+    }
+
     setIsCarouselLoading(true);
     try {
-    
-        const slides = await fetchPublicScreeningCarousels();
-        writeCarouselCache(slides);
-        setCarouselSlides(slides.map((slide, index) => ({
-          id: `carousel-${index}`,
-          title: slide.title,
-          image: slide.banner,
-          poster: slide.poster,
-          status: 'published',
-          type: 'carousel',
-        })));
+      const slides = await fetchPublicScreeningCarousels();
+      writeCarouselCache(slides);
+      setCarouselSlides(mapCarouselSlides(slides));
     } catch {
-      setCarouselSlides([]);
+      const cached = readCarouselCache();
+      if (cached.length > 0) {
+        setCarouselSlides(mapCarouselSlides(cached));
+      } else {
+        setCarouselSlides([]);
+      }
     } finally {
       setIsCarouselLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Load from localStorage first — instant render for returning users
     const cached = readCarouselCache();
     if (cached.length > 0) {
-      setCarouselSlides(cached.map((slide, index) => ({
-        id: `carousel-${index}`,
-        title: slide.title,
-        image: slide.banner,
-        poster: slide.poster,
-        status: 'published',
-        type: 'carousel',
-      })));
+      setCarouselSlides(mapCarouselSlides(cached));
       setIsCarouselLoading(false);
     }
-    // Skip network fetch if cache is still fresh
-    if (isCarouselCacheFresh()) { 
 
-      const pid=setInterval(loadCarouselSlides, CAROUSEL_POLL_MS);
-      return () => clearInterval(pid);
-    } 
-
-    loadCarouselSlides();
-      
-    // Set up polling interval regardless of cache state
-    const pollId = setInterval(loadCarouselSlides, CAROUSEL_POLL_MS);
-    return () => clearInterval(pollId);
+    void loadCarouselSlides(true);
   }, [loadCarouselSlides]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+        void loadCarouselSlides();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadCarouselSlides]);
+
+ 
 
   // Combine slides: up to 4 events + remaining slots filled with carousels (up to 6 total)
   const eventSlides: SlideData[] = screenings.slice(0, 4).map((s) => ({
