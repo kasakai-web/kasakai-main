@@ -52,18 +52,33 @@ function pickAlert(games: any[], dismissed: Set<string>) {
   const now = Date.now();
   for (const g of games || []) {
     if (!g?._id) continue;
-    // Only show for a live game that hasn't started yet. Skip completed/cancelled/
-    // confirmed (by status) AND any game whose scheduled time has already passed —
-    // once the game has happened, its check-in pop-up must never appear again,
-    // even if it's still stuck 'open' (never confirmed/cancelled/completed).
-    if (!["open", "tentative"].includes(g.status)) continue;
+    // Only show for a live game that hasn't started yet — once the game has
+    // happened, its check-in pop-up must never appear again, even if it's still
+    // stuck 'open' (never confirmed/cancelled/completed).
     if (g.scheduledAt && new Date(g.scheduledAt).getTime() <= now) continue;
     const lc = g.lifecycle || {};
+    // Decisions normally only exist pre-confirmation (open/tentative). The ONE
+    // decision that fires on a CONFIRMED game is the post-switch shortfall prompt
+    // (stage 'format_review': Cancel / SOS) — surface that too; any other stale
+    // decision on a confirmed game stays hidden. Completed/cancelled: never.
+    const isOpenTentative = ["open", "tentative"].includes(g.status);
+    const isConfirmedReview =
+      g.status === "confirmed" && lc.pendingDecision?.stage === "format_review";
+    if (!isOpenTentative && !isConfirmedReview) continue;
+    // A shortfall prompt whose game has since RECOVERED (players joined
+    // organically after the prompt was raised) must not keep nagging with a
+    // stale low count — the organiser could cancel a now-healthy game. After a
+    // switch, g.minPlayers already holds the alternate's minimum.
+    if (isConfirmedReview) {
+      const min = typeof g.minPlayers === "number" ? g.minPlayers : null;
+      if (min != null && activeCount(g) >= min) continue;
+    }
     if (lc.pendingDecision?.options?.length) {
       const key = alertKey(g, "decision");
       if (!dismissed.has(key)) return { game: g, kind: "decision" as const, key };
       continue;
     }
+    if (!isOpenTentative) continue; // reminders are pre-confirmation only
     if (lc.reminderSentAt && !lc.secondCheckDoneAt) {
       const age = Date.now() - new Date(lc.reminderSentAt).getTime();
       if (age >= 0 && age < 45 * 60 * 1000) {
@@ -136,7 +151,13 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
   const isReminder = kind === "reminder";
   const lc = game.lifecycle || {};
   const decision = lc.pendingDecision;
-  const n = decision?.playerCount ?? activeCount(game);
+  // Shortfall (format_review) prompts show the LIVE count — players may have
+  // joined since the prompt was raised, and a stale low number could push the
+  // organiser into cancelling a recovering game. Check-time decisions keep the
+  // count captured at the check, as before.
+  const n = decision?.stage === "format_review"
+    ? activeCount(game)
+    : (decision?.playerCount ?? activeCount(game));
   const club = game.turf?.name || "";
   const mainMin: number | null = typeof game.minPlayers === "number" ? game.minPlayers : null;
   const alt = (game.alternateFormats || [])[0] || null;
@@ -155,8 +176,11 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
   // catches it even if this component still holds a stale 'open'/'tentative' status:
   // we close the alert and do NOTHING rather than fire a confirm/switch/cancel that
   // the server would (rightly) reject. Once a game is over, nothing here can change it.
+  // A CONFIRMED game is still actionable for the post-switch shortfall prompt
+  // (stage 'format_review': Cancel / SOS — both allowed on confirmed games).
   const stillLive =
-    ["open", "tentative"].includes(game.status) &&
+    (["open", "tentative"].includes(game.status) ||
+      (game.status === "confirmed" && decision?.stage === "format_review")) &&
     !(game.scheduledAt && new Date(game.scheduledAt).getTime() <= Date.now());
   const act = (fn: () => void) => () => { if (stillLive) fn(); close(); };
 
@@ -239,6 +263,8 @@ export function LifecycleAlertModal({ games, onConfirm, onSwitch, onSos, onCance
           <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.45, margin: "11px 2px 0" }}>
             {isReminder
               ? "Second check is ~30 min away — be ready to confirm, switch, or cancel."
+              : decision?.stage === "format_review"
+              ? "Below the minimum after the format change — cancel the game, or send an SOS to regulars to fill the spots."
               : (RECO_MSG[decision?.recommendation] || "This game needs your attention.")}
           </p>
 
