@@ -425,7 +425,7 @@ export function ScrEvents() {
           onManage={()        => router.push(`/dashboard/streaming/${ev.id}/manage`)}
           onViewAnalytics={()  => router.push(`/dashboard/streaming/${ev.id}/analytics`)}
           onViewEvent={()     => router.push(`/dashboard/streaming/${ev.id}`)}
-          onPublish={ev.status === "draft" ? () => handleQuickPublish(ev.id) : undefined}
+          onPublish={ev.status === "draft" || ev.status === "completed" ? () => handleQuickPublish(ev.id) : undefined}
           onComplete={ev.status === "published" ? () => setCompleteTarget({ id: ev.id, title: ev.title }) : undefined}
           onCancel={ev.status !== "cancelled" && ev.status !== "completed" ? () => setCancelTarget({ id: ev.id, title: ev.title }) : undefined}
           onDelete={(ev.status === "draft" || ev.status === "cancelled") ? () => setDeleteTarget({ id: ev.id, title: ev.title, status: ev.status }) : undefined}

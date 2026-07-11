@@ -108,7 +108,7 @@ export const ScrEventCard = memo(function ScrEventCard({ ev, onManage, onViewAna
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(34,197,94,0.15)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(34,197,94,0.08)"; }}>
               <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 13l4 4L19 7"/></svg>
-              Publish
+              {ev.status === "completed" ? "Reopen (Publish)" : "Publish"}
             </button>
           )}
           {onComplete && (
