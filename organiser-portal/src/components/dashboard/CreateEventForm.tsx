@@ -265,13 +265,8 @@ export function CreateEventForm({ lastEvent, onClose, onCreate, onSuccess }: Cre
         return;
       }
 
-      onCreate?.(data.data);  
-       
-      // After 2100 ms redirect to Dashboard Page
-      setTimeout(()=>{
-
-        onSuccess?.();
-      },2100);
+      onCreate?.(data.data);
+      onSuccess?.();
     } catch (err: any) {
       setErrors({ submit: err.message || "An error occurred" });
     } finally {

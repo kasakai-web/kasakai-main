@@ -4,20 +4,16 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { CreateEventForm } from "@/components/dashboard/CreateEventForm";
 import "../../../organizer-dashboard.css";
-import { useState } from "react"; 
-// import { showToast } from "@/components/Toast";
-import { Toast, useToast } from "@/components/ui/Toast";
+import { useState } from "react";
 
 export default function CreateEventPage() {
   const router = useRouter();
   const routeParams = useParams<{ id?: string | string[] }>();
   const organiserId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
-  const [lastEvent, setLastEvent] = useState<any>(() => {
+  const [lastEvent] = useState<any>(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("lastEvent") : null;
     return saved ? JSON.parse(saved) : null;
-  }); 
-
-  const {showToast,toast,hideToast } = useToast();
+  });
 
   useAuthGuard({
     requiredRole: "organiser",
@@ -30,10 +26,7 @@ export default function CreateEventPage() {
   };
 
   return (
-    <div className="organizer-dashboard-container"> 
-        {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={hideToast} />}
-
-
+    <div className="organizer-dashboard-container">
         <div className="dashboard-header-section">
           <div className="header-left">
             <h1  className="dashboard-title">Create Event</h1>
@@ -43,8 +36,8 @@ export default function CreateEventPage() {
         <CreateEventForm
          lastEvent={lastEvent}   
          onClose={()=>{router.push(`/dashboard/organizer/${organiserId}`)}}
-         onCreate={() => {showToast("success", "Game Created!", "Your event is now live.")}}
-         onSuccess={handleSuccess}/> 
+         onCreate={() => { sessionStorage.setItem("kk-game-created", "1"); }}
+         onSuccess={handleSuccess}/>
     </div>
   );
 }

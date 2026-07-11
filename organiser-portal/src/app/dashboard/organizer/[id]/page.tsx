@@ -51,6 +51,14 @@ export default function OrganizerDashboard() {
   const [sortBy, setSortBy] = useState('date-asc');
   const { toast, showToast, hideToast } = useToast();
 
+  // Arriving back from the create-event page: surface its success toast here
+  useEffect(() => {
+    if (sessionStorage.getItem("kk-game-created")) {
+      sessionStorage.removeItem("kk-game-created");
+      showToast("success", "Game Created!", "Your event is now live.");
+    }
+  }, [showToast]);
+
   const fetchWithLocalFallback = useCallback(
     async (url: string, init?: RequestInit): Promise<Response> => {
       try {
