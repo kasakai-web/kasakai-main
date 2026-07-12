@@ -1,30 +1,30 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminSession, saveAdminSession } from "@/lib/admin-session";
 import styles from "./admin-login.module.css";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:5000/api/v1";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
+  "http://localhost:5000/api/v1";
 
 export function AdminLogin() {
   const router = useRouter();
-  const [email, setEmail]       = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [ready, setReady]       = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (getAdminSession()) {
       router.replace("/dashboard");
       return;
-    }
-    setReady(true);
+    } else setReady(true);
   }, [router]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError("");
 
@@ -49,11 +49,11 @@ export function AdminLogin() {
       }
 
       saveAdminSession({
-        token:   data.token,
+        token: data.token,
         adminId: data.admin.id,
-        name:    data.admin.name,
-        email:   data.admin.email,
-        role:    data.admin.role,
+        name: data.admin.name,
+        email: data.admin.email,
+        role: data.admin.role,
       });
 
       router.replace("/dashboard");
@@ -74,8 +74,12 @@ export function AdminLogin() {
         <section className={styles.brand}>
           <div className={styles.loginLogo}>
             <div className={styles.logoBlock}>
-              <div className={styles.logoTop}><span>KASA</span></div>
-              <div className={styles.logoBottom}><span>KAI</span></div>
+              <div className={styles.logoTop}>
+                <span>KASA</span>
+              </div>
+              <div className={styles.logoBottom}>
+                <span>KAI</span>
+              </div>
             </div>
             <div className={styles.logoWordmark}>
               <p className={styles.logoWordTop}>KASA</p>
