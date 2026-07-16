@@ -6,6 +6,8 @@ import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
+import { InviteConfirmModal } from "@/components/InviteConfirmModal";
+import { InviteFriendsModal } from "@/components/InviteFriendsModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
@@ -41,6 +43,8 @@ export default function PlayerDashboard() {
   const [myGames, setMyGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const openGameId = searchParams.get("openGame");
+  const inviteToken = searchParams.get("invite");
+  const [inviteFriendsGame, setInviteFriendsGame] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [detailGame, setDetailGame] = useState<any>(null);
@@ -1157,6 +1161,13 @@ export default function PlayerDashboard() {
     { label: "Status", value: String(detailGame.status || "open") },
   ] : [];
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
+  // Whether *I* am seated (own non-guest, active slot) in this game — read straight
+  // from the game's registrations so it doesn't depend on the My Games list being fresh.
+  const detailAmSeated = !!detailGame && (detailGame.registrations || []).some((r: any) => {
+    if (r.plusOneName) return false;
+    const rid = r.player?._id?.toString?.() ?? r.player?.toString?.() ?? "";
+    return (r._isMyReg || rid === playerId) && !["refunded", "forfeited"].includes(r.paymentStatus) && !r.optedOut;
+  });
   const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
   // Once reporting time (start − reportingMinsBeforeGame) has passed, players can no
@@ -1251,6 +1262,25 @@ export default function PlayerDashboard() {
   return (
     <div className="player-dashboard-container">
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
+
+      {inviteToken && (
+        <InviteConfirmModal
+          token={inviteToken}
+          showToast={showToast}
+          onConfirmed={() => { silentRefresh(); }}
+          onRecharge={() => { if (playerId) router.push(`/dashboard/player/${playerId}/wallet`); }}
+          onClose={() => { if (playerId) router.replace(`/dashboard/player/${playerId}`); }}
+        />
+      )}
+
+      {inviteFriendsGame && (
+        <InviteFriendsModal
+          gameId={inviteFriendsGame._id}
+          gameTitle={inviteFriendsGame.title || inviteFriendsGame.turf?.name}
+          showToast={showToast}
+          onClose={() => setInviteFriendsGame(null)}
+        />
+      )}
 
 
       <div className="page-header">
@@ -1638,6 +1668,28 @@ export default function PlayerDashboard() {
                   </>
                 )}
               </button>
+
+              {/* Invite friends — private games the player is in (organiser approves each request) */}
+              {detailGame.visibility === "private" && (detailAmSeated || detailIsRegistered) && (
+                <button
+                  type="button"
+                  onClick={() => setInviteFriendsGame(detailGame)}
+                  style={{
+                    marginTop: 12, marginLeft: 8,
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    padding: "7px 14px", borderRadius: 99,
+                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    background: "rgba(200,255,62,0.12)", color: "#c8ff3e",
+                    border: "1px solid rgba(200,255,62,0.35)",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" />
+                    <line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+                  </svg>
+                  Invite friends
+                </button>
+              )}
             </div>
 
             {/* ── Scrollable Body ── */}
