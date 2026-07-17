@@ -2,33 +2,36 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { NAV_LINKS, LOGIN_OPTIONS } from "@/config/navigation";
+import { NAV_LINKS } from "@/config/navigation";
 
 export function Header() {
-  const [loginOpen, setLoginOpen] = useState(false);
+  // const [loginOpen, setLoginOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const closeMobile = () => setMobileOpen(false);
   const toggleMobile = () => setMobileOpen((v) => !v);
-  const closeLogin = () => setLoginOpen(false);
-  const toggleLogin = () => setLoginOpen((v) => !v);
+  // const closeLogin = () => setLoginOpen(false);
+  // const toggleLogin = () => setLoginOpen((v) => !v);
 
   return (
     <>
       {/* ── NAVBAR ── */}
-      <nav style={{
-        position: "fixed",
-        top: 0, left: 0, right: 0,
-        zIndex: 500,
-        height: "52px",
-        display: "flex",
-        alignItems: "center",
-        background: "rgba(8,8,8,0.96)",
-        borderBottom: "1px solid var(--border)",
-        backdropFilter: "blur(20px)",
-        animation: "navIn 0.6s cubic-bezier(0.22,1,0.36,1) both",
-      }}>
-
+      <nav
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 500,
+          height: "52px",
+          display: "flex",
+          alignItems: "center",
+          background: "rgba(8,8,8,0.96)",
+          borderBottom: "1px solid var(--border)",
+          backdropFilter: "blur(20px)",
+          animation: "navIn 0.6s cubic-bezier(0.22,1,0.36,1) both",
+        }}
+      >
         {/* Logo */}
         <Link
           href="/"
@@ -45,26 +48,74 @@ export function Header() {
             transition: "background 0.18s",
           }}
         >
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            width: "34px",
-            height: "34px",
-            overflow: "hidden",
-            border: "1.5px solid #333",
-            flexShrink: 0,
-          }}>
-            <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "8px", letterSpacing: "0.08em", color: "#000" }}>KASA</span>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              width: "34px",
+              height: "34px",
+              overflow: "hidden",
+              border: "1.5px solid #333",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                background: "var(--white)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--cond)",
+                  fontWeight: 900,
+                  fontSize: "8px",
+                  letterSpacing: "0.08em",
+                  color: "#000",
+                }}
+              >
+                KASA
+              </span>
             </div>
-            <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #333" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "8px", letterSpacing: "0.08em", color: "var(--white)" }}>KAI</span>
+            <div
+              style={{
+                flex: 1,
+                background: "#000",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderTop: "1.5px solid #333",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--cond)",
+                  fontWeight: 900,
+                  fontSize: "8px",
+                  letterSpacing: "0.08em",
+                  color: "var(--white)",
+                }}
+              >
+                KAI
+              </span>
             </div>
           </div>
         </Link>
 
         {/* Desktop nav links */}
-        <div className="site-desktop-links" style={{ display: "flex", alignItems: "center", height: "100%", padding: "0 8px 0 16px", gap: "2px" }}>
+        <div
+          className="site-desktop-links"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            height: "100%",
+            padding: "0 8px 0 16px",
+            gap: "2px",
+          }}
+        >
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
@@ -82,8 +133,12 @@ export function Header() {
                 alignItems: "center",
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--white)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "var(--white)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "var(--muted)")
+              }
             >
               {link.label}
             </a>
@@ -95,8 +150,8 @@ export function Header() {
 
         {/* Desktop login button */}
         <div className="site-desktop-login" style={{ alignItems: "center" }}>
-          <button
-            onClick={toggleLogin}
+          <a
+            href="/login"
             style={{
               display: "flex",
               alignItems: "center",
@@ -107,6 +162,7 @@ export function Header() {
               background: "var(--white)",
               color: "var(--black)",
               fontFamily: "var(--body)",
+              textDecoration: "none",
               fontSize: "13.5px",
               fontWeight: 700,
               letterSpacing: "0.06em",
@@ -116,14 +172,17 @@ export function Header() {
               transition: "background 0.2s, color 0.2s",
               flexShrink: 0,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--white)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--white)"; e.currentTarget.style.color = "var(--black)"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--white)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--white)";
+              e.currentTarget.style.color = "var(--black)";
+            }}
           >
             Login
-            <svg style={{ width: "11px", height: "11px", transition: "transform 0.22s", transform: loginOpen ? "rotate(180deg)" : "rotate(0deg)" }} fill="none" viewBox="0 0 12 12">
-              <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
+          </a>
         </div>
 
         {/* Mobile hamburger */}
@@ -148,18 +207,28 @@ export function Header() {
         >
           {mobileOpen ? (
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-              <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M6 6l12 12M6 18L18 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           ) : (
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-              <path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M3 7h18M3 12h18M3 17h18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           )}
         </button>
       </nav>
 
       {/* ── DESKTOP LOGIN DROPDOWN ── */}
-      {loginOpen && (
+      {/* {loginOpen && (
         <div
           style={{ position: "fixed", top: "74px", right: "18px", zIndex: 490, animation: "modalIn .25s cubic-bezier(.4,0,.2,1) both" }}
           onMouseLeave={closeLogin}
@@ -184,12 +253,18 @@ export function Header() {
             ))}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* ── MOBILE DROPDOWN MENU ── */}
       {mobileOpen && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 490, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 490,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+          }}
           onClick={closeMobile}
         >
           <div
@@ -204,7 +279,6 @@ export function Header() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Nav links */}
             {NAV_LINKS.map((link, i) => (
               <a
                 key={link.href}
@@ -219,18 +293,61 @@ export function Header() {
                   color: "var(--muted)",
                   textDecoration: "none",
                   padding: "11px 20px",
-                  borderBottom: i < NAV_LINKS.length - 1 ? "1px solid var(--border)" : "none",
+                  borderBottom:
+                    i < NAV_LINKS.length - 1
+                      ? "1px solid var(--border)"
+                      : "none",
                   transition: "color 0.15s, background 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--white)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; e.currentTarget.style.background = "transparent"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--white)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--muted)";
+                  e.currentTarget.style.background = "transparent";
+                }}
               >
                 {link.label}
               </a>
             ))}
 
-            {/* Login options */}
-            <div style={{ borderTop: "1px solid var(--border)" }}>
+            <div style={{ alignItems: "center" }}>
+              <a
+                href="/login"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  height: "36px",
+                  padding: "0 20px",
+                  // margin: "0 16px",
+                  background: "var(--white)",
+                  color: "var(--black)",
+                  fontFamily: "var(--body)",
+                  textDecoration: "none",
+                  fontSize: "13.5px",
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  border: "1px solid var(--white)",
+                  cursor: "pointer",
+                  transition: "background 0.2s, color 0.2s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--white)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--white)";
+                  e.currentTarget.style.color = "var(--black)";
+                }}
+              >
+                Login
+              </a>
+            </div>
+            {/* <div style={{ borderTop: "1px solid var(--border)" }}>
               {LOGIN_OPTIONS.map((opt) => (
                 <a
                   key={opt.href ?? opt.role}
@@ -254,7 +371,7 @@ export function Header() {
                   </div>
                 </a>
               ))}
-            </div>
+            </div> */}
           </div>
         </div>
       )}
