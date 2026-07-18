@@ -24,6 +24,7 @@ interface InviteData {
     invitedByRole: "organiser" | "player";
     invitedByName: string | null;
     inviteeName: string | null;
+    mine?: boolean | null; // true = yours · false = someone else's · null = can't tell
   };
 }
 
@@ -175,6 +176,23 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
           <div style={{ padding: 24, textAlign: "center", color: "#888", fontSize: 13 }}>Loading invitation…</div>
         ) : error ? (
           <div style={{ padding: 14, color: "#f87171", fontSize: 13, textAlign: "center" }}>{error}</div>
+        ) : data && data.invite.mine === false ? (
+          // The link was forwarded to someone it wasn't sent to — never show the
+          // game details or a way to register. The backend refuses confirm too.
+          <div style={{ padding: "20px 8px", textAlign: "center" }}>
+            <div style={{ fontSize: 34, marginBottom: 10 }}>🔒</div>
+            <div style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 8 }}>This invitation isn&apos;t for you</div>
+            <div style={{ fontSize: 13, color: "#aaa", lineHeight: 1.6, marginBottom: 18 }}>
+              This private-game invite was sent to a different number. Invite links can&apos;t be shared —
+              ask the organiser to send an invite to your registered number if you&apos;d like to play.
+            </div>
+            <button
+              onClick={onClose}
+              style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#eee", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+            >
+              Close
+            </button>
+          </div>
         ) : data ? (
           <>
             <div style={{ fontSize: 12.5, color: "#c8ff3e", fontWeight: 700, marginBottom: 10 }}>{invitedBy}</div>
