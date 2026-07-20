@@ -15,6 +15,7 @@ type BookingGame = {
   spots: number;
   waitlist?: boolean;
   passEligible?: boolean;
+  requiresApproval?: boolean;
 };
 
 type Guest = {
@@ -216,6 +217,9 @@ export function BookingModal({
   if (!game || !game.venue) return null;
 
   const isWaitlist    = game.waitlist;
+  // Approval-gated join: the player files a request the organiser must approve.
+  // No charge now (charged on approval), and guests are added after approval.
+  const needsApproval = !isWaitlist && Boolean(game.requiresApproval);
   const passEligible  = Boolean(game.passEligible);
   // How many guests can be confirmed (fit in available spots after player takes 1)
   const spotsForGuests = isWaitlist ? 0 : Math.max(0, (game.spots ?? 0) - 1);
@@ -456,6 +460,17 @@ export function BookingModal({
                 </div>
               )}
 
+              {needsApproval && (
+                <div style={{
+                  background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)",
+                  borderRadius: 10, padding: "11px 14px", marginBottom: 14, fontSize: 12.5, color: "#f59e0b", lineHeight: 1.6,
+                }}>
+                  ⏳ This game needs the organiser&apos;s approval to join. You&apos;ll be charged{" "}
+                  <b>₹{playerFee}</b> only once your request is approved. You can add guests after you&apos;re in.
+                </div>
+              )}
+
+              {!needsApproval && (
               <div className="bm-guests-section">
                 <div className="bm-guests-header">
                   <div>
@@ -501,6 +516,7 @@ export function BookingModal({
                   </div>
                 )}
               </div>
+              )}
 
               {isWaitlist ? (
                 <div className="wallet-summary" style={{ background: "rgba(200,255,62,0.06)", border: "1px solid rgba(200,255,62,0.2)" }}>
@@ -508,6 +524,14 @@ export function BookingModal({
                     <div className="ws-label">Waitlist</div>
                     <div className="ws-fee" style={{ color: "#c8ff3e" }}>No charge</div>
                     <div className="ws-balance" style={{ color: "#888" }}>Payment only required when you claim a spot</div>
+                  </div>
+                </div>
+              ) : needsApproval ? (
+                <div className="wallet-summary" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                  <div className="ws-left">
+                    <div className="ws-label">On approval</div>
+                    <div className="ws-fee" style={{ color: "#f59e0b" }}>{playerFee > 0 ? `₹${playerFee}` : "Free"}</div>
+                    <div className="ws-balance" style={{ color: "#888" }}>Charged only when the organiser approves · Wallet: ₹{walletBalance}</div>
                   </div>
                 </div>
               ) : (
@@ -589,12 +613,14 @@ export function BookingModal({
                 </div>
               )}
 
-              <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
+              <button className="bm-confirm-btn" disabled={(!needsApproval && !canAfford) || isLoading} onClick={handleConfirm} type="button">
                 <span>
                   {isLoading
                     ? "Processing..."
                     : isWaitlist
                     ? "Join Waitlist — No Charge Yet"
+                    : needsApproval
+                    ? (playerFee > 0 ? `Request to Join — ₹${playerFee} on Approval` : "Request to Join")
                     : passEligible && totalFee === 0
                     ? "Confirm — Free (Pass Covered)"
                     : `Confirm & Pay ₹${totalFee}`}

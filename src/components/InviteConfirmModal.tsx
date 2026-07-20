@@ -18,6 +18,8 @@ interface InviteData {
   status: string;
   spotsRemaining: number;
   organiserName: string;
+  requiresApproval?: boolean;               // shared link → "charged on approval"
+  linkType?: "personal" | "shared";
   invite: {
     token: string;
     status: string;
@@ -25,7 +27,12 @@ interface InviteData {
     invitedByName: string | null;
     inviteeName: string | null;
     mine?: boolean | null; // true = yours · false = someone else's · null = can't tell
-  };
+  } | null;                                 // null for a shared invite link
+  link?: {
+    enabled: boolean;
+    full: boolean;
+    myStatus: "seated" | "pending" | null;  // this player's current standing
+  } | null;
 }
 
 interface Props {
@@ -68,7 +75,12 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         if (!active) return;
         if (!d.success) { setError(d.message || "Invitation not found or expired."); return; }
         setData(d.data);
-        setStatus(d.data?.invite?.status || null);
+        // For a shared link the player's standing comes from link.myStatus; for a
+        // personal invite it's the invitation's own status.
+        const initialStatus = d.data?.linkType === "shared"
+          ? (d.data?.link?.myStatus === "seated" ? "accepted" : d.data?.link?.myStatus === "pending" ? "pending" : null)
+          : (d.data?.invite?.status || null);
+        setStatus(initialStatus);
       })
       .catch(() => { if (active) setError("Couldn't load this invitation."); })
       .finally(() => { if (active) setLoading(false); });
@@ -78,9 +90,13 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
   const confirm = async () => {
     const { token: auth } = getSession();
     if (!auth) return;
+    const isShared = data?.linkType === "shared";
     setSubmitting(true);
     try {
-      const res = await fetch(buildApiUrl(`/api/v1/games/invite/${token}/confirm`), {
+      const endpoint = isShared
+        ? `/api/v1/games/invite-link/${token}/join`
+        : `/api/v1/games/invite/${token}/confirm`;
+      const res = await fetch(buildApiUrl(endpoint), {
         method: "POST",
         headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
       });
@@ -90,7 +106,15 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         onRecharge();
         return;
       }
-      if (!res.ok || !d.success) { showToast("error", "Couldn't confirm", d.message); return; }
+      if (res.status === 403 && d.code === "LINK_DISABLED") {
+        showToast("error", "Link turned off", "The organiser has disabled this invite link.");
+        return;
+      }
+      if (res.status === 409 && d.code === "LINK_FULL") {
+        showToast("error", "Link full", "This invite link has reached its join limit.");
+        return;
+      }
+      if (!res.ok || !d.success) { showToast("error", "Couldn't join", d.message); return; }
       const newStatus = d.data?.status || "accepted";
       setStatus(newStatus);
       if (newStatus === "accepted") {
@@ -100,7 +124,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         showToast("success", "Request sent", "Awaiting organiser approval.");
       }
     } catch {
-      showToast("error", "Couldn't confirm", "Please try again.");
+      showToast("error", "Couldn't join", "Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -141,15 +165,25 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
     }
   };
 
-  const invitedBy = data?.invite.invitedByRole === "player"
-    ? `${data?.invite.invitedByName || "A player"} invited you`
-    : `${data?.organiserName || "The organiser"} invited you`;
+  const isShared = data?.linkType === "shared";
+  // Whether joining here needs organiser approval (→ charged only on approval).
+  // Shared link: driven by the game's requiresApproval. Personal invite: only
+  // player-sent invites need approval (organiser invites seat directly).
+  const needsApproval = isShared ? !!data?.requiresApproval : data?.invite?.invitedByRole === "player";
+
+  const invitedBy = isShared
+    ? `${data?.organiserName || "The organiser"} invited you to join`
+    : data?.invite?.invitedByRole === "player"
+      ? `${data?.invite?.invitedByName || "A player"} invited you`
+      : `${data?.organiserName || "The organiser"} invited you`;
 
   const payable = data ? (typeof data.payableFee === "number" ? data.payableFee : data.fee) : 0;
   const feeLabel = `₹${payable}`;
-  const ctaLabel = data
-    ? (data.invite.invitedByRole === "organiser" && payable > 0 ? `Confirm & Pay ${feeLabel}` : "Confirm spot")
-    : "Confirm";
+  const ctaLabel = !data
+    ? "Confirm"
+    : isShared
+      ? (needsApproval ? "Request to join" : payable > 0 ? `Join & Pay ${feeLabel}` : "Join game")
+      : (data.invite?.invitedByRole === "organiser" && payable > 0 ? `Confirm & Pay ${feeLabel}` : "Confirm spot");
 
   const dateText = data
     ? new Date(data.scheduledAt).toLocaleString("en-IN", {
@@ -176,7 +210,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
           <div style={{ padding: 24, textAlign: "center", color: "#888", fontSize: 13 }}>Loading invitation…</div>
         ) : error ? (
           <div style={{ padding: 14, color: "#f87171", fontSize: 13, textAlign: "center" }}>{error}</div>
-        ) : data && data.invite.mine === false ? (
+        ) : data && !isShared && data.invite?.mine === false ? (
           // The link was forwarded to someone it wasn't sent to — never show the
           // game details or a way to register. The backend refuses confirm too.
           <div style={{ padding: "20px 8px", textAlign: "center" }}>
@@ -218,11 +252,19 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
               <div style={{ padding: 12, borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontWeight: 700, fontSize: 13.5, textAlign: "center", marginBottom: 4 }}>
                 This invitation was declined.
               </div>
+            ) : isShared && data.link?.enabled === false ? (
+              <div style={{ padding: 12, borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontWeight: 700, fontSize: 13.5, textAlign: "center", marginBottom: 4 }}>
+                This invite link has been turned off by the organiser.
+              </div>
+            ) : isShared && data.link?.full ? (
+              <div style={{ padding: 12, borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontWeight: 700, fontSize: 13.5, textAlign: "center", marginBottom: 4 }}>
+                This invite link has reached its join limit.
+              </div>
             ) : (
               <>
-                {data.invite.invitedByRole === "player" && (
+                {needsApproval && (
                   <div style={{ fontSize: 11.5, color: "#888", marginBottom: 8, textAlign: "center" }}>
-                    Your spot needs organiser approval. You'll be charged only once approved.
+                    Your spot needs organiser approval. You&apos;ll be charged {feeLabel} only once approved.
                   </div>
                 )}
                 <button
