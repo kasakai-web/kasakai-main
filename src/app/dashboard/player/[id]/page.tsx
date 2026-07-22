@@ -483,8 +483,28 @@ export default function PlayerDashboard() {
       spots: Math.max(0, spotsLeft),
       waitlist: isFull,
       passEligible: Boolean(game.passEligible),
+      requiresApproval: Boolean(game.requiresApproval),
     };
     setSelectedGame(formattedGame);
+  };
+
+  // Withdraw a pending join request (approval-gated games).
+  const handleCancelRequest = async (game: any) => {
+    const { token } = getSession();
+    if (!token) { clearSession(); router.replace("/login?role=player"); return; }
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${game._id}/join-request`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { showToast("error", data.message || "Couldn't cancel request"); return; }
+      showToast("success", "Request cancelled");
+      setGames((prev) => prev.map((x) => x._id === game._id ? { ...x, _myRequestStatus: null } : x));
+      setDetailGame((prev: any) => prev && prev._id === game._id ? { ...prev, _myRequestStatus: null } : prev);
+    } catch {
+      showToast("error", "Couldn't cancel request. Please try again.");
+    }
   };
 
 
@@ -743,6 +763,14 @@ export default function PlayerDashboard() {
       const data = await res.json();
 
       if (data.success) {
+        // Approval-gated game → a join request was filed, nothing charged yet.
+        if (!isWaitlist && data.data?.status === "pending") {
+          setSelectedGame(null);
+          const fee = typeof data.data.payableFee === "number" ? data.data.payableFee : (game.feeInPaise || 0) / 100;
+          showToast("success", "Request sent", `Awaiting organiser approval.${fee > 0 ? ` You'll be charged ₹${fee} once approved.` : ""}`);
+          setGames((prev) => prev.map((x) => x._id === game._id ? { ...x, _myRequestStatus: "pending" } : x));
+          return;
+        }
         setSelectedGame(null);
         fetchWalletBalance();
         // Patch state immediately from the response — no setTimeout, no full re-fetch
@@ -1385,6 +1413,9 @@ export default function PlayerDashboard() {
                   isRegistered={myGames.some(myGame => myGame._id === game._id) && !isMyFormatChangeOptOut(game)}
                   isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
                   isWaitlistApproved={game._waitlistStatus === 'approved' || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')}
+                  requiresApproval={Boolean(game.requiresApproval)}
+                  requestStatus={game._myRequestStatus || null}
+                  onCancelRequest={() => handleCancelRequest(game)}
                   cancelReason={game.cancelReason}
                   players={game.registrations?.map((reg: any) => ({
                     name: reg.plusOneName || reg.player?.name || 'Player',
@@ -2489,38 +2520,61 @@ export default function PlayerDashboard() {
                   </>
                 ) : null}
 
-                {/* Not Registered - Book Now Button */}
+                {/* Not Registered — a pending join request shows a Cancel action;
+                    otherwise a Book / Request-to-Join button. */}
                 {!detailIsRegistered && !detailIsWaitlisted && !detailIsCancelled && (
-                  <button
-                    className="pd-modal-btn"
-                    type="button"
-                    onClick={() => {
-                      setDetailGame(null);
-                      handleBook(detailGame);
-                    }}
-                    style={{ 
-                      background: "#c8ff3e", 
-                      color: "#000", 
-                      border: "none",
-                      padding: "11px 24px", 
-                      borderRadius: 8, 
-                      fontSize: 13, 
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      whiteSpace: "nowrap"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#d4ff6d";
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "#c8ff3e";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                  >
-                    ⚽ Book Now
-                  </button>
+                  detailGame._myRequestStatus === "pending" ? (
+                    <button
+                      className="pd-modal-btn secondary"
+                      type="button"
+                      onClick={() => handleCancelRequest(detailGame)}
+                      title="Cancel your join request"
+                      style={{
+                        background: "rgba(245,158,11,0.12)",
+                        color: "#f59e0b",
+                        border: "1px solid rgba(245,158,11,0.35)",
+                        padding: "11px 18px",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      ⏳ Requested · Cancel
+                    </button>
+                  ) : (
+                    <button
+                      className="pd-modal-btn"
+                      type="button"
+                      onClick={() => {
+                        setDetailGame(null);
+                        handleBook(detailGame);
+                      }}
+                      style={{
+                        background: "#c8ff3e",
+                        color: "#000",
+                        border: "none",
+                        padding: "11px 24px",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#d4ff6d";
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#c8ff3e";
+                        e.currentTarget.style.transform = "translateY(0)";
+                      }}
+                    >
+                      {detailGame.requiresApproval ? "🙋 Request to Join" : "⚽ Book Now"}
+                    </button>
+                  )
                 )}
               </div>
             </div>

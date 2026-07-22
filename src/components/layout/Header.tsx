@@ -1,17 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NAV_LINKS } from "@/config/navigation";
+import { getSession } from "@/utils/api";
 
 export function Header() {
   // const [loginOpen, setLoginOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const closeMobile = () => setMobileOpen(false);
   const toggleMobile = () => setMobileOpen((v) => !v);
   // const closeLogin = () => setLoginOpen(false);
   // const toggleLogin = () => setLoginOpen((v) => !v);
+
+  useEffect(() => {
+    const syncSession = () => setIsLoggedIn(Boolean(getSession().token));
+    syncSession();
+
+    window.addEventListener("kk-auth-changed", syncSession);
+    return () => window.removeEventListener("kk-auth-changed", syncSession);
+  }, []);
+
+  const dashboardHref = "/dashboard";
 
   return (
     <>
@@ -151,7 +163,7 @@ export function Header() {
         {/* Desktop login button */}
         <div className="site-desktop-login" style={{ alignItems: "center" }}>
           <a
-            href="/login"
+            href={isLoggedIn ? dashboardHref : "/login"}
             style={{
               display: "flex",
               alignItems: "center",
@@ -181,7 +193,7 @@ export function Header() {
               e.currentTarget.style.color = "var(--black)";
             }}
           >
-            Login
+            {isLoggedIn ? "Dashboard" : "Login"}
           </a>
         </div>
 
@@ -314,7 +326,7 @@ export function Header() {
 
             <div style={{ alignItems: "center" }}>
               <a
-                href="/login"
+                href={isLoggedIn ? dashboardHref : "/login"}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -344,7 +356,7 @@ export function Header() {
                   e.currentTarget.style.color = "var(--black)";
                 }}
               >
-                Login
+                {isLoggedIn ? "Dashboard" : "Login"}
               </a>
             </div>
             {/* <div style={{ borderTop: "1px solid var(--border)" }}>

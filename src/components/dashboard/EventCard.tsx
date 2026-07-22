@@ -23,6 +23,9 @@ export interface EventCardProps {
   isRegistered: boolean;
   isWaitlisted?: boolean;
   isWaitlistApproved?: boolean;
+  requiresApproval?: boolean;
+  requestStatus?: "pending" | "approved_unpaid" | null;
+  onCancelRequest?: () => void;
   cancelReason?: string;
   players: { name: string; initials: string; pos: string }[];
   onBook: (game: any) => void;
@@ -49,6 +52,9 @@ export function EventCard({
   isRegistered,
   isWaitlisted = false,
   isWaitlistApproved = false,
+  requiresApproval = false,
+  requestStatus = null,
+  onCancelRequest,
   cancelReason,
   players,
   onBook,
@@ -113,6 +119,8 @@ export function EventCard({
           </span>
           {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
           {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
+          {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending" && <span className="registered-badge waitlisted-badge">⏳ Requested</span>}
+          {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "approved_unpaid" && <span className="registered-badge waitlist-approved-badge">✅ Approved — pay to lock</span>}
           {isRegistered && !isCancelled && <span className="registered-badge">✓ Registered</span>}
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
         </div>
@@ -214,6 +222,17 @@ export function EventCard({
           <button className="card-btn waitlist-btn" disabled>
             <span>📋 On Waitlist</span>
           </button>
+        ) : requestStatus === "pending" ? (
+          <button className="card-btn waitlist-btn" onClick={() => onCancelRequest?.()} title="Cancel your join request">
+            <span>⏳ Requested · Cancel</span>
+          </button>
+        ) : requestStatus === "approved_unpaid" ? (
+          <button
+            className="card-btn signup-btn"
+            onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
+          >
+            <span>✅ Pay to lock your spot</span>
+          </button>
         ) : (
           <>
             {isFull ? (
@@ -228,7 +247,7 @@ export function EventCard({
                 className="card-btn signup-btn"
                 onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
               >
-                <span>⚽ Book</span>
+                <span>{requiresApproval ? "🙋 Request to Join" : "⚽ Book"}</span>
               </button>
             )}
           </>
