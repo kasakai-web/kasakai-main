@@ -11,7 +11,7 @@ import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";
 import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
 import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";
 import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
-import { buildApiUrl } from "@/utils/api";
+import { buildApiUrl, resolveImageUrl } from "@/utils/api";
 
 function AuthFlow() {
   const router = useRouter();
@@ -127,8 +127,7 @@ function AuthFlow() {
                   if (imgRes.ok) {
                     const imgData = await imgRes.json();
                     if (imgData.data?.profileImage) {
-                      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
-                      localStorage.setItem("userProfileImage", `${base}${imgData.data.profileImage}`);
+                      localStorage.setItem("userProfileImage", resolveImageUrl(imgData.data.profileImage));
                     }
                   }
                 } catch { /* non-critical */ }
