@@ -329,4 +329,4 @@ npm start        # starts the Next.js production server
 
 ### CORS note
 
-The production backend `CORS_ORIGIN` must include the deployed player app URL, e.g. `https://app.kasakai.in`.
+The production backend `CORS_ORIGIN` must include the deployed player app URL, e.g. `https://wwww.kasakai.in`.
