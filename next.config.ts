@@ -13,13 +13,30 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "media.insider.in" },
       { protocol: "https", hostname: "b.zmtcdn.com" },
       // Backend-served uploads (dev)
-      { protocol: "http",  hostname: "localhost", port: "5000", pathname: "/uploads/**" },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "5000",
+        pathname: "/uploads/**",
+      },
       // Backend-served uploads (prod)
-      { protocol: "https", hostname: "api.kasakai.in", pathname: "/uploads/**" },
-      { protocol: "http",  hostname: "api.kasakai.in", pathname: "/uploads/**" },
+      {
+        protocol: "https",
+        hostname: "api.kasakai.in",
+        pathname: "/uploads/**",
+      },
+      { protocol: "http", hostname: "api.kasakai.in", pathname: "/uploads/**" },
       // Azure App Service backend
-      { protocol: "https", hostname: "kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net", pathname: "/uploads/**" },
-      { protocol: "http",  hostname: "kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net", pathname: "/uploads/**" },
+      {
+        protocol: "https",
+        hostname:
+          "kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "pub-ccd9e78e9dec4ad6a14a20eeea6cb535.r2.dev",
+      },
     ],
   },
   experimental: {

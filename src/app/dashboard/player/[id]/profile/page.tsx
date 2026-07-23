@@ -3,20 +3,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import "../../../player-dashboard.css";
-import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, fetchWithRetry } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, fetchWithRetry, resolveImageUrl } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { NavBtn } from "@/components/ui/NavBtn";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import Image from "next/image";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 
 type PlayerProfile = {
   name: string;
   email?: string;
   phone: string;
   whatsappNumber: string;
-  profileImage?: string;
+  profileImage: string;
   isVerified?: boolean;
   referralCode?: string;
   createdAt?: string;
@@ -140,7 +140,7 @@ export default function PlayerProfilePage() {
     email: "",
     phone: "",
     whatsappNumber: "",
-    profileImage: undefined,
+    profileImage: "",
     isVerified: false,
     rating: 0,
     totalGamesPlayed: 0,
@@ -181,17 +181,16 @@ export default function PlayerProfilePage() {
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) { setError(data.message || `HTTP ${res.status}`); return; }
       const p = data.data || {};
-      const imageUrl = p.profileImage ? `${API_BASE_URL}${p.profileImage}` : null;
-      setImagePreview(imageUrl);
-      if (imageUrl) {
-        localStorage.setItem("userProfileImage", imageUrl);
+
+      if (p.profileImage) {
+        localStorage.setItem("profileImage", p.profileImage);
       }
       setProfile({
         name: p.name || "",
         email: p.email || "",
         phone: p.phone || "",
         whatsappNumber: p.whatsappNumber || "",
-        profileImage: p.profileImage || undefined,
+        profileImage: p.profileImage || "",
         isVerified: p.isVerified ?? false,
         referralCode: p.referralCode || "",
         createdAt: p.createdAt || "",
@@ -256,17 +255,17 @@ export default function PlayerProfilePage() {
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) {
         setError(data.message || "Failed to upload image");
-        setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
+        setImagePreview(profile.profileImage ? resolveImageUrl(profile.profileImage) : null);
         return;
       }
       const newImagePath = data.data?.profileImage;
-      const newImageUrl = newImagePath ? `${API_BASE_URL}${newImagePath}` : null;
+      const newImageUrl = newImagePath ? resolveImageUrl(newImagePath) : null;
       setProfile((prev) => ({ ...prev, profileImage: newImagePath }));
       setImagePreview(newImageUrl);
       if (newImageUrl) { localStorage.setItem("userProfileImage", newImageUrl); localStorage.removeItem("requirePhotoUpload"); }
     } catch {
       setError("Failed to upload image");
-      setImagePreview(profile.profileImage ? `${API_BASE_URL}${profile.profileImage}` : null);
+      setImagePreview(profile.profileImage ? resolveImageUrl(profile.profileImage) : null);
     } finally {
       setImageUploading(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
@@ -469,8 +468,8 @@ export default function PlayerProfilePage() {
               }}
               style={{ cursor: imagePreview ? "zoom-in" : "pointer" }}
             >
-              {imagePreview
-                ? <img src={imagePreview} alt="Profile" onError={() => { setImagePreview(null); localStorage.removeItem("userProfileImage"); }} />
+              {profile.profileImage
+                ? <Image width={200} height={200} src={resolveImageUrl(profile.profileImage)} alt="Profile" onError={() => { localStorage.removeItem("profileImage"); }} />
                 : <span className="pp-avatar-placeholder">{profile.name ? profile.name.substring(0, 2).toUpperCase() : "?"}</span>
               }
               <div

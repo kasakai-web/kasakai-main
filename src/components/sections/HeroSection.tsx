@@ -120,11 +120,11 @@ export function HeroSection() {
             {/* Mobile crop below the 524px breakpoint, desktop otherwise */}
             <source
               media="(max-width: 524px)"
-              srcSet="https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/uploads/scr-1783774221022-fcnpk0pftd8.jpg"
+              srcSet="https://pub-ccd9e78e9dec4ad6a14a20eeea6cb535.r2.dev/images/scr-1783774221022-fcnpk0pftd8.jpg"
             />
             <img
               alt="turf meets real people"
-              src="https://kasakai-backend-hta7fydfarbdf8bh.centralindia-01.azurewebsites.net/uploads/scr-1783774213911-94kyh5t0fvu.jpg"
+              src="https://pub-ccd9e78e9dec4ad6a14a20eeea6cb535.r2.dev/images/scr-1783774213911-94kyh5t0fvu.jpg"
               className="hero-img"
               fetchPriority="high"
               decoding="async"

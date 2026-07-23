@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, resolveImageUrl } from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
-
-const SERVER_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000").replace(/\/api\/v1\/?$/, "");
 import "./dashboard.css";
+import Image from "next/image";
 
 export default function DashboardLayout({
   children,
@@ -41,15 +40,10 @@ export default function DashboardLayout({
   useEffect(() => {
     const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
     const storedUserName = typeof window !== "undefined" ? localStorage.getItem("userName") : null;
-    const storedProfileImage = typeof window !== "undefined" ? localStorage.getItem("userProfileImage") : null;
 
     if (storedUserName) {
       setUserName(storedUserName);
     }
-    if (storedProfileImage) {
-      setUserProfileImage(storedProfileImage);
-    }
-
     if (storedUserId) {
       setUserId(storedUserId);
     }
@@ -70,8 +64,7 @@ export default function DashboardLayout({
 
   // Re-read profile image from localStorage whenever path changes (e.g. after profile page update)
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("userProfileImage") : null;
-    if (stored) setUserProfileImage(stored);
+    const stored = typeof window !== "undefined" ? localStorage.getItem("profileImage") : null;
     // Hide reminder once user is on profile page or has uploaded a photo
     if (pathname.includes("/profile") || stored) {
       setShowPhotoReminder(false);
@@ -90,10 +83,9 @@ export default function DashboardLayout({
       });
       const data = await res.json();
       const img = data?.data?.profileImage;
-      if (img && !localStorage.getItem("userProfileImage")) {
-        const url = `${SERVER_BASE}${img}`;
-        localStorage.setItem("userProfileImage", url);
-        setUserProfileImage(url);
+      if (img) {
+        localStorage.setItem("profileImage", img)
+        setUserProfileImage(resolveImageUrl(img));
       }
       // Always sync pass — set to its current value (incl. "none" when removed)
       setPlayerPass(data?.data?.pass ?? null);
@@ -515,7 +507,7 @@ export default function DashboardLayout({
             >
               <div className="user-avatar" style={{ overflow: "hidden" }}>
                 {userProfileImage ? (
-                  <img src={userProfileImage} alt={userName} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => { setUserProfileImage(""); localStorage.removeItem("userProfileImage"); }} />
+                  <Image width={100} height={100} src={userProfileImage} alt={userName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   userName.substring(0, 2).toUpperCase()
                 )}
