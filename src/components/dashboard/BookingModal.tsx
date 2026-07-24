@@ -579,19 +579,6 @@ export function BookingModal({
                     )}
                   </div>
 
-                  {!canAfford && (
-                    <div style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
-                      Insufficient balance.{" "}
-                      {playerId && (
-                        <Link
-                          href={`/dashboard/player/${playerId}/wallet`}
-                          style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}
-                        >
-                          Recharge your wallet
-                        </Link>
-                      )}
-                    </div>
-                  )}
                 </>
               )}
 
@@ -613,7 +600,25 @@ export function BookingModal({
                 </div>
               )}
 
-              <button className="bm-confirm-btn" disabled={(!needsApproval && !canAfford) || isLoading} onClick={handleConfirm} type="button">
+              {/* A join REQUEST is charged only on approval, but the player must already
+                  hold the fee — otherwise an approved request could never be seated. So
+                  we block the request (not just direct bookings) when balance is short. */}
+              {!isWaitlist && !canAfford && (
+                <div style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
+                  Insufficient balance.{" "}
+                  {playerId && (
+                    <Link
+                      href={`/dashboard/player/${playerId}/wallet`}
+                      style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}
+                    >
+                      Recharge your wallet
+                    </Link>
+                  )}
+                  {needsApproval && " before requesting to join."}
+                </div>
+              )}
+
+              <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
                 <span>
                   {isLoading
                     ? "Processing..."
