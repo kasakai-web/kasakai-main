@@ -15,6 +15,8 @@ interface InviteData {
   payableFee?: number;      // what this player actually pays (pass-adjusted)
   passCovered?: boolean;
   passLabel?: string | null;
+  walletAvailable?: number | null; // spendable wallet balance (₹); null = not logged in
+  canAfford?: boolean | null;      // can this player cover payableFee now? null = unknown
   status: string;
   spotsRemaining: number;
   organiserName: string;
@@ -179,6 +181,10 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
 
   const payable = data ? (typeof data.payableFee === "number" ? data.payableFee : data.fee) : 0;
   const feeLabel = `₹${payable}`;
+  // The player can't cover the fee → block the request/join and prompt a recharge.
+  // canAfford is null before login (we fall back to the 402 on submit), so only
+  // block on an explicit false, and only when there's actually a fee to pay.
+  const insufficient = !!data && data.canAfford === false && payable > 0;
   const ctaLabel = !data
     ? "Confirm"
     : isShared
@@ -260,6 +266,19 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
               <div style={{ padding: 12, borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontWeight: 700, fontSize: 13.5, textAlign: "center", marginBottom: 4 }}>
                 This invite link has reached its join limit.
               </div>
+            ) : insufficient ? (
+              <>
+                <div style={{ padding: 11, borderRadius: 10, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.3)", color: "#ff6b6b", fontWeight: 600, fontSize: 12.5, textAlign: "center", marginBottom: 10, lineHeight: 1.55 }}>
+                  Insufficient wallet balance{typeof data.walletAvailable === "number" ? ` — you have ₹${data.walletAvailable}, need ${feeLabel}` : ""}.
+                  <br />{needsApproval ? "Recharge before requesting to join." : "Recharge to confirm your spot."}
+                </div>
+                <button
+                  onClick={onRecharge}
+                  style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", fontWeight: 800, fontSize: 14, background: "#c8ff3e", color: "#000", cursor: "pointer", marginBottom: 6 }}
+                >
+                  Recharge wallet
+                </button>
+              </>
             ) : (
               <>
                 {needsApproval && (
