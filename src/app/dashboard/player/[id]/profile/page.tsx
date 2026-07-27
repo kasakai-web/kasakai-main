@@ -9,6 +9,7 @@ import { NavBtn } from "@/components/ui/NavBtn";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import Image from "next/image";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 
 
 type PlayerProfile = {
@@ -523,37 +524,8 @@ export default function PlayerProfilePage() {
           </div>
 
           {/* ── Lightbox ── */}
-          {lightboxOpen && imagePreview && (
-            <div
-              onClick={() => setLightboxOpen(false)}
-              style={{
-                position: "fixed", inset: 0, zIndex: 2000,
-                background: "rgba(0,0,0,0.92)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "zoom-out",
-              }}
-            >
-              <img
-                src={imagePreview}
-                alt="Profile full size"
-                style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, objectFit: "contain", boxShadow: "0 8px 48px rgba(0,0,0,0.6)" }}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <button
-                type="button"
-                onClick={() => setLightboxOpen(false)}
-                style={{
-                  position: "absolute", top: 20, right: 24,
-                  background: "rgba(255,255,255,0.1)", border: "none",
-                  color: "#fff", fontSize: 28, lineHeight: 1,
-                  width: 44, height: 44, borderRadius: "50%",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
+          {imagePreview && lightboxOpen && ( 
+            <ImageLightbox   lightboxImage={imagePreview} setLightboxOpen={setLightboxOpen} />
           )}
 
           {/* Info */}

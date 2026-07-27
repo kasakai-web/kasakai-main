@@ -10,18 +10,14 @@ import { InviteConfirmModal } from "@/components/InviteConfirmModal";
 import { InviteFriendsModal } from "@/components/InviteFriendsModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
-import { buildApiUrl, clearSession, getSession } from "@/utils/api";
+import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/api";
+import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import "../../player-dashboard.css";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 
-function formatRelativeTime(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 5)  return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  const mins = Math.floor(seconds / 60);
-  return `${mins}m ago`;
-}
+
 
 const POPUP_SHOWN_KEY = "kk_feedback_popup_shown";
 const getShownPopupIds = (): string[] => {
@@ -80,6 +76,9 @@ export default function PlayerDashboard() {
   const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
   const [guestPrefName, setGuestPrefName] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+
+   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<"players" | "details">("players");
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -363,6 +362,7 @@ export default function PlayerDashboard() {
       myWaitlist.find((g: any) => g._id === game._id);
     setDetailGame(annotated || game);
     setDetailGameFeedback(null);
+    setDetailTab("players");
 
     const { token } = getSession();
     if (!token) return;
@@ -1103,7 +1103,6 @@ export default function PlayerDashboard() {
   const getActiveRegs = (game: any) => (game.registrations || []).filter(
     (r: any) => !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
   ).length;
-  const getTotalPlayers = (game: any) => getActiveRegs(game) + getOrganiserCount(game);
   // In "My Games" tab, merge registered + waitlisted games; exclude cancelled and completed games
   const myGamesWithWaitlist = [
     ...myGames.filter((g) => {
@@ -1159,14 +1158,16 @@ export default function PlayerDashboard() {
     return aTime - bTime;
   });
 
-  const detailRows = detailGame ? [
-    { label: "Venue", value: detailGame.turf?.name || "TBC" },
-    { label: "City", value: detailGame.turf?.address?.city || "TBC" },
-    { label: "Date", value: new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" }) },
-    { label: "Start Time", value: new Date(detailGame.scheduledAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) },
-    {
-      label: "Report By",
-      value: (() => {
+  const detailVenueName = detailGame ? (detailGame.turf?.name || "TBC") : "";
+  const detailCityName = detailGame ? (detailGame.turf?.address?.city || "TBC") : "";
+  const detailDateLabel = detailGame
+    ? new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" })
+    : "";
+  const detailKickoffLabel = detailGame
+    ? new Date(detailGame.scheduledAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })
+    : "";
+  const detailReportByLabel = detailGame
+    ? (() => {
         const scheduled = new Date(detailGame.scheduledAt);
         const reportMins = Number(detailGame.reportingMinsBeforeGame ?? 30);
         if (Number.isNaN(scheduled.getTime())) return "TBC";
@@ -1175,19 +1176,22 @@ export default function PlayerDashboard() {
           hour: "2-digit",
           minute: "2-digit",
         });
-      })(),
-    },
-    { label: "Duration", value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins" },
-    { label: "Format", value: detailGame.format || "TBC", info: "Turf and team size may change based on player turnout" },
-    { label: "Fee", value: detailGame.passEligible && (detailGame.feeInPaise || 0) > 0 ? `₹0 (Pass Covered — was ₹${(detailGame.feeInPaise || 0) / 100})` : `₹${(detailGame.feeInPaise || 0) / 100}` },
-    { label: "Total Slots", value: String(detailGame.totalSlots || 0) },
-    { label: "Players", value: String(
-      typeof detailGame.spotsRemaining === 'number'
-        ? detailGame.totalSlots - detailGame.spotsRemaining
-        : getTotalPlayers(detailGame)
-    ) },
-    { label: "Status", value: String(detailGame.status || "open") },
-  ] : [];
+      })()
+    : "";
+  const detailEndsLabel = detailGame
+    ? (() => {
+        const scheduled = new Date(detailGame.scheduledAt);
+        const durationMins = Number(detailGame.durationMins ?? 60);
+        if (Number.isNaN(scheduled.getTime())) return "TBC";
+        return new Date(scheduled.getTime() + durationMins * 60000).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      })()
+    : "";
+  const detailFeeInRupees = detailGame ? (detailGame.feeInPaise || 0) / 100 : 0;
+  const detailFeeIsPassCovered = !!detailGame?.passEligible && detailFeeInRupees > 0;
   const detailIsRegistered = !!detailGame && myGames.some((myGame) => myGame._id === detailGame._id);
   // Whether *I* am seated (own non-guest, active slot) in this game — read straight
   // from the game's registrations so it doesn't depend on the My Games list being fresh.
@@ -1245,6 +1249,26 @@ export default function PlayerDashboard() {
         )
     : 0;
   const detailFilledSlots = detailGame ? detailGame.totalSlots - detailSpotsLeft : 0;
+  // Cells for the redesigned "Details" tab grid.
+  const pdDetailCells: Array<{ label: string; value: string; sub?: string; accent?: boolean; full?: boolean; info?: string }> = detailGame ? [
+    { label: "Format", value: detailGame.format || "TBC", info: "Turf and team size may change based on player turnout" },
+    { label: "Duration", value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins" },
+    {
+      label: "Fee",
+      value: detailFeeIsPassCovered ? "₹0" : `₹${detailFeeInRupees}`,
+      sub: detailFeeIsPassCovered ? `Pass covered — was ₹${detailFeeInRupees}` : "per player",
+    },
+    {
+      label: "Total slots",
+      value: `${detailFilledSlots} / ${detailGame.totalSlots || 0}`,
+      sub: detailSpotsLeft > 0 ? `${detailSpotsLeft} spot${detailSpotsLeft === 1 ? "" : "s"} left` : "Full",
+      accent: true,
+    },
+    { label: "Report by", value: detailReportByLabel },
+    { label: "Kick-off", value: detailKickoffLabel },
+    { label: "Ends", value: detailEndsLabel },
+    { label: "Venue", value: `${detailVenueName}, ${detailCityName}`, full: true },
+  ] : [];
   const organiserEntry = detailGame?.organiserIsPlaying
     ? [{ key: "organiser", regId: null, name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false, isOrganiser: true, canRemove: false }]
     : [];
@@ -1287,7 +1311,9 @@ export default function PlayerDashboard() {
       })
     : [];
 
-  return (
+  return ( 
+    <>
+   
     <div className="player-dashboard-container">
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 
@@ -1394,7 +1420,7 @@ export default function PlayerDashboard() {
               : game.totalSlots - getActiveRegs(game) - organiserCount;
             return (
               <EventCard
-                key={game._id}
+                  key={game._id}
                   id={game._id}
                   title={game.title}
                   status={game.status as EventStatus}
@@ -1417,11 +1443,24 @@ export default function PlayerDashboard() {
                   requestStatus={game._myRequestStatus || null}
                   onCancelRequest={() => handleCancelRequest(game)}
                   cancelReason={game.cancelReason}
-                  players={game.registrations?.map((reg: any) => ({
-                    name: reg.plusOneName || reg.player?.name || 'Player',
-                    initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
-                    pos: reg.preferredPosition || 'any',
-                  })) || []}
+                  players={[
+                    ...(game.organiserIsPlaying
+                      ? [{
+                          name: game.organiser?.name || 'Organiser',
+                          initials: (game.organiser?.name || 'O').substring(0, 2).toUpperCase(),
+                          pos: 'any',
+                          profileImage: game.organiser?.profileImage,
+                        }]
+                      : []),
+                    ...(game.registrations || [])
+                      .filter((reg: any) => !['refunded', 'forfeited'].includes(reg.paymentStatus) && !reg.optedOut)
+                      .map((reg: any) => ({
+                        name: reg.plusOneName || reg.player?.name || 'Player',
+                        initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
+                        pos: reg.preferredPosition || 'any',
+                        profileImage: reg.plusOneName ? undefined : reg.player?.profileImage,
+                      })),
+                  ]}
                   onBook={() => handleBook(game)}
                   onViewDetails={() => openGameDetail(game)}
                   onRateGame={
@@ -1435,7 +1474,7 @@ export default function PlayerDashboard() {
             )
           }) : (
             <div className="empty-state">
-              <h3>No games found</h3>
+              <h3>No games found</h3>/
               <p>There are no games matching your criteria.</p>
             </div>
           )}
@@ -1631,7 +1670,7 @@ export default function PlayerDashboard() {
       )}
 
       {detailGame && (
-        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setShowFormatTip(false); }}>
+        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setShowFormatTip(false);setLightboxImage(null);}}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -1648,6 +1687,9 @@ export default function PlayerDashboard() {
                   <h2 className="pd-event-modal-title">
                     {detailGame.title || detailGame.turf?.name || "Game"}
                   </h2>
+                  <div className="pd-event-modal-meta">
+                    <span>{detailVenueName}</span> · {detailCityName} · {detailDateLabel}
+                  </div>
                 </div>
                 <span style={{
                   flexShrink: 0, marginTop: 2,
@@ -1723,11 +1765,29 @@ export default function PlayerDashboard() {
               )}
             </div>
 
+            {/* ── Players / Details tabs ── */}
+            <div className="pd-event-tabs">
+              <button
+                type="button"
+                className={`pd-event-tab${detailTab === "players" ? " active" : ""}`}
+                onClick={() => setDetailTab("players")}
+              >
+                Players <span className="pd-event-tab-badge">{detailFilledSlots}</span>
+              </button>
+              <button
+                type="button"
+                className={`pd-event-tab${detailTab === "details" ? " active" : ""}`}
+                onClick={() => setDetailTab("details")}
+              >
+                Details
+              </button>
+            </div>
+
             {/* ── Scrollable Body ── */}
             <div className="pd-event-modal-body">
 
             {/* Pass banner in detail view */}
-            {detailGame.passEligible && (detailGame.feeInPaise || 0) > 0 && (
+            {detailTab === "details" && detailGame.passEligible && (detailGame.feeInPaise || 0) > 0 && (
               <div style={{
                 background: "rgba(200,255,62,0.07)",
                 border: "1px solid rgba(200,255,62,0.25)",
@@ -1747,46 +1807,48 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            <div className="pd-event-detail-grid">
-              {(detailRows as Array<{ label: string; value: string; info?: string }>).map((row) => (
-                <div
-                  key={row.label}
-                  className="pd-event-detail-card"
-                  style={row.label === "Status" ? { gridColumn: "1 / -1" } : undefined}
-                >
-                  <div className="pd-event-detail-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    {row.label}
-                    {row.info && (
-                      <button
-                        type="button"
-                        onClick={() => setShowFormatTip((v) => !v)}
-                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}
-                        title={row.info}
-                      >ℹ️</button>
+            {detailTab === "details" && (
+              <div className="dt-grid">
+                {pdDetailCells.map((cell) => (
+                  <div
+                    key={cell.label}
+                    className={`dt-cell${cell.full ? " full" : ""}`}
+                  >
+                    <div className="dt-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      {cell.label}
+                      {cell.info && (
+                        <button
+                          type="button"
+                          onClick={() => setShowFormatTip((v) => !v)}
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}
+                          title={cell.info}
+                        >ℹ️</button>
+                      )}
+                    </div>
+                    <div className={`dt-val${cell.accent ? " accent" : ""}`}>
+                      {cell.value}
+                    </div>
+                    {cell.sub && <div className="dt-sub">{cell.sub}</div>}
+                    {cell.info && showFormatTip && (
+                      <div style={{
+                        marginTop: 8,
+                        padding: "8px 10px",
+                        background: "rgba(91,230,178,0.08)",
+                        border: "1px solid rgba(91,230,178,0.2)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: "#a7f3d0",
+                        lineHeight: 1.5,
+                      }}>
+                        {cell.info}
+                      </div>
                     )}
                   </div>
-                  <div className={`pd-event-detail-value${row.label === "Status" ? " pd-event-detail-status" : ""}`}>
-                    {row.value}
-                  </div>
-                  {row.info && showFormatTip && (
-                    <div style={{
-                      marginTop: 8,
-                      padding: "8px 10px",
-                      background: "rgba(91,230,178,0.08)",
-                      border: "1px solid rgba(91,230,178,0.2)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      color: "#a7f3d0",
-                      lineHeight: 1.5,
-                    }}>
-                      {row.info}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
-            {detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft > 0 && !detailIsCancelled && (
+            {detailTab === "players" && detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft > 0 && !detailIsCancelled && (
               <div style={{
                 border: "1px solid rgba(74,222,128,0.4)",
                 padding: "14px 16px",
@@ -1827,7 +1889,7 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            {detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft === 0 && !detailIsCancelled && (
+            {detailTab === "players" && detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft === 0 && !detailIsCancelled && (
               <div style={{
                 border: myWaitlistStatus === "approved" ? "1px solid rgba(74,222,128,0.35)" : "1px solid rgba(245,158,11,0.3)",
                 padding: "12px 16px",
@@ -1847,7 +1909,7 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            {detailIsCancelled && (
+            {detailTab === "details" && detailIsCancelled && (
               <div style={{ border: "1px solid #5c1b1b", padding: "12px", background: "#1a0808", marginBottom: 16, borderRadius: 4 }}>
                 <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#e05050", marginBottom: 6, fontWeight: 700 }}>
                   Event Cancelled
@@ -1860,7 +1922,7 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            {detailGame.notes && (
+            {detailTab === "details" && detailGame.notes && (
               <div style={{ border: "1px solid #1f1f1f", padding: "12px", background: "#111", marginBottom: 16 }}>
                 <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#777", marginBottom: 6 }}>
                   Notes
@@ -1869,96 +1931,110 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            <div className="pd-event-player-section">
-              <div className="pd-event-player-section-head">
-                <span className="pd-event-player-title">Player Details</span>
-                <span className="pd-event-player-total">Total: {detailFilledSlots}</span>
-              </div>
-              {detailPlayers.length === 0 ? (
-                <div style={{ color: "#888", fontSize: 13 }}>No players registered yet.</div>
-              ) : (
-                <div className="pd-event-player-list">
-                  {(() => {
-                    const regs = liveRegistrations;
-                    const orgGuests = regs.filter((r: any) => r.plusOneName && !r.player);
-                    const guestsByPlayerId = new Map<string, any[]>();
-                    regs.filter((r: any) => r.plusOneName && r.player).forEach((r: any) => {
-                      const k = r.player?._id?.toString() ?? r.player?.toString() ?? "";
-                      if (k) {
-                        if (!guestsByPlayerId.has(k)) guestsByPlayerId.set(k, []);
-                        guestsByPlayerId.get(k)!.push(r);
-                      }
-                    });
-                    const mainRegs = regs.filter((r: any) => !r.plusOneName);
-
-                    const orgChip = (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, letterSpacing: "0.1em",
-                        textTransform: "uppercase" as const, color: "#c4d56c",
-                        background: "rgba(196,213,108,0.12)", border: "1px solid rgba(196,213,108,0.25)",
-                        borderRadius: 4, padding: "2px 6px", fontFamily: "var(--mono, monospace)",
-                      }}>Organiser</span>
-                    );
-
-                    const notAttendingChip = (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, letterSpacing: "0.08em",
-                        textTransform: "uppercase" as const, color: "#f59e0b",
-                        background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)",
-                        borderRadius: 4, padding: "2px 6px",
-                      }}>Not Attending</span>
-                    );
-
-                    const renderRow = (name: string, chip: React.ReactNode, key: string, optedOutRow = false) => (
-                      <div key={key} className="pd-event-player-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", opacity: optedOutRow ? 0.55 : 1 }}>
-                        <div className="pd-event-player-name" style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                          {name}{chip}{optedOutRow && notAttendingChip}
-                        </div>
-                      </div>
-                    );
-
-                    return (
-                      <>
-                        {detailGame.organiserIsPlaying && (
-                          <div className="pd-player-group">
-                            {renderRow(detailGame.organiser?.name || "Organiser", orgChip, "organiser")}
-                            {orgGuests.length > 0 && (
-                              <div className="pd-player-guest-group">
-                                {orgGuests.map((r: any, i: number) =>
-                                  renderRow(r.plusOneName, null, `og-${r._id || i}`)
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {!detailGame.organiserIsPlaying && orgGuests.map((r: any, i: number) =>
-                          renderRow(r.plusOneName, null, `og-${r._id || i}`)
-                        )}
-                        {mainRegs.map((reg: any, idx: number) => {
-                          const pId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
-                          const myGsts = guestsByPlayerId.get(pId) ?? [];
-                          return (
-                            <div className="pd-player-group" key={reg._id || idx}>
-                              {renderRow(reg.player?.name || "Player", null, `p-${reg._id || idx}`, !!reg.optedOut)}
-                              {myGsts.length > 0 && (
-                                <div className="pd-player-guest-group">
-                                  {myGsts.map((gr: any, gi: number) =>
-                                    renderRow(gr.plusOneName, null, `pg-${gr._id || gi}`)
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
+            {detailTab === "players" && (
+              <>
+                <div className="pd-roster-section-head">
+                  <span className="pd-roster-section-title">Players</span>
+                  <span className="pd-roster-section-meta"><strong>{detailFilledSlots}</strong> of {detailGame.totalSlots || 0}</span>
                 </div>
-              )}
-            </div>
+
+                <div className="pd-roster-progress-wrap">
+                  <div
+                    className="pd-roster-progress-fill"
+                    style={{ width: `${detailGame.totalSlots ? Math.min(100, (detailFilledSlots / detailGame.totalSlots) * 100) : 0}%` }}
+                  />
+                </div>
+
+                {detailPlayers.length === 0 ? (
+                  <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>No players registered yet.</div>
+                ) : (
+                  <div className="pd-roster-list">
+                    {(() => {
+                      const regs = liveRegistrations;
+                      const orgGuests = regs.filter((r: any) => r.plusOneName && !r.player);
+                      const guestsByPlayerId = new Map<string, any[]>();
+                      regs.filter((r: any) => r.plusOneName && r.player).forEach((r: any) => {
+                        const k = r.player?._id?.toString() ?? r.player?.toString() ?? "";
+                        if (k) {
+                          if (!guestsByPlayerId.has(k)) guestsByPlayerId.set(k, []);
+                          guestsByPlayerId.get(k)!.push(r);
+                        }
+                      });
+                      const mainRegs = regs.filter((r: any) => !r.plusOneName);
+                      const posFullLabel: Record<string, string> = {
+                        goalkeeper: "Goalkeeper", defender: "Defender", midfielder: "Midfielder", forward: "Forward", any: "Any",
+                      };
+
+                      const renderRosterRow = (name: string,subLabel: string,key: string, opts: { badge?: "organiser" | "guest"; optedOut?: boolean; guestRow?: boolean; imageUrl?: string } = {}) => {
+                        const { badge, optedOut = false, guestRow = false, imageUrl } = opts;
+                        return (
+                          <div key={key} className={`pd-roster-item${guestRow ? " pd-roster-guest-row" : ""}`} style={optedOut ? { opacity: 0.55 } : undefined}>
+                            <div
+                              className={`pd-roster-avatar${guestRow ? " pd-roster-avatar-sm" : ""}`}
+                              style={{ background: guestRow ? "#374151" : avatarColorFor(name) }}
+                            >
+                              {imageUrl && (
+                                <img
+                                  src={imageUrl}
+                                  alt={name} 
+                                  onClick={() => setLightboxImage(imageUrl)}
+                                  className="pd-roster-avatar-img"
+                                  onError={(e) => {
+                                    const img = e.currentTarget;
+                                    img.style.display = "none";
+                                    const fallback = img.nextElementSibling as HTMLElement | null;
+                                    if (fallback) fallback.style.display = "flex";
+                                  }}
+                                />
+                              )}
+                              <span className="pd-roster-avatar-fallback" style={imageUrl ? { display: "none" } : undefined}>
+                                {avatarInitials(name)}
+                              </span>
+                            </div>
+                            <div className="pd-roster-info">
+                              <div className="pd-roster-name" style={guestRow ? { fontSize: 13 } : undefined}>{name}</div>
+                              <div className="pd-roster-sub">{optedOut ? "Not attending" : subLabel}</div>
+                            </div>
+                            {badge === "organiser" && <span className="pd-roster-badge pd-roster-badge-org">Organiser</span>}
+                            {badge === "guest" && <span className="pd-roster-badge pd-roster-badge-guest">Guest</span>}
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {detailGame.organiserIsPlaying && renderRosterRow(detailGame.organiser?.name || "Organiser", "Organiser", "organiser", { badge: "organiser", imageUrl: resolveImageUrl(detailGame.organiser?.profileImage) })}
+                          {orgGuests.map((r: any, i: number) =>
+                            renderRosterRow(r.plusOneName, posFullLabel[r.preferredPosition]|| "Any", `og-${r._id || i}`, { badge: "guest", guestRow: true })
+                          )}
+                          {mainRegs.map((reg: any, idx: number) => {
+                            const pId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
+                            const myGsts = guestsByPlayerId.get(pId) ?? [];
+                            return (
+                              <React.Fragment key={reg._id || idx}>
+                                {renderRosterRow(reg.player?.name || "Player", posFullLabel[reg.preferredPosition] || "Any", `p-${reg._id || idx}`, { optedOut: !!reg.optedOut, imageUrl: resolveImageUrl(reg.player?.profileImage) })}
+                                {myGsts.map((gr: any, gi: number) =>
+                                  renderRosterRow(gr.plusOneName, posFullLabel[gr.preferredPosition]|| "Any", `pg-${gr._id || gi}`, { badge: "guest", guestRow: true })
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                    <div className="pd-roster-slots-row">
+                      <span className="pd-roster-slots-text">
+                        {detailSpotsLeft > 0 ? `${detailSpotsLeft} spot${detailSpotsLeft === 1 ? "" : "s"} remaining` : "Game full"}
+                      </span>
+                      <span className="pd-roster-slots-count">{detailGame.totalSlots || 0} total slots</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* ── My Guests (CRUD section — only when registered and game active) ── */}
-            {detailIsRegistered && !detailIsFormatChangeOptOut && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
+            {detailTab === "players" && detailIsRegistered && !detailIsFormatChangeOptOut && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -2039,7 +2115,7 @@ export default function PlayerDashboard() {
             )}
 
             {/* ── Reporting-time lock notice ── */}
-            {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && detailPastReporting && (
+            {detailTab === "players" && detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && detailPastReporting && (
               <div style={{
                 margin: "0 0 12px",
                 padding: "12px 16px",
@@ -2057,7 +2133,7 @@ export default function PlayerDashboard() {
             {/* ── Attending toggle — after My Guests, only for registered active games.
                   Hidden for a format-change removal (no "guests remain active" toggle) —
                   that case gets a clean Rejoin action instead. ── */}
-            {detailIsRegistered && !detailIsFormatChangeOptOut && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
+            {detailTab === "players" && detailIsRegistered && !detailIsFormatChangeOptOut && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 12px",
                 padding: "12px 16px",
@@ -2144,7 +2220,7 @@ export default function PlayerDashboard() {
             )}
 
             {/* ── Guest Waitlist ── */}
-            {(detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
+            {detailTab === "players" && (detailIsRegistered || detailIsWaitlisted) && myGuestWaitlist.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
@@ -2230,7 +2306,7 @@ export default function PlayerDashboard() {
             )}
 
             {/* ── My Submitted Feedback ── */}
-            {detailGame.status === "completed" && detailGameFeedback && (
+            {detailTab === "details" && detailGame.status === "completed" && detailGameFeedback && (
               <div style={{ margin: "0 0 16px", padding: "14px 16px", background: "rgba(74,222,128,0.05)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 10 }}>
                 <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", color: "#4ade80", marginBottom: 10, fontWeight: 700 }}>
                   ✓ Your Feedback Submitted
@@ -2274,8 +2350,10 @@ export default function PlayerDashboard() {
               </div>
             )}
 
-            {/* ── Full Waitlist ── */}
-            {(() => {
+            {/* ── Full Waitlist ── */} 
+
+            {
+              detailTab === "players" && (() => {
               const waitlistPlayers = (detailGame.waitlist || [])
                 .filter((w: any) => {
                   if (['declined', 'expired'].includes(w.status) || !w.player?.name) return false;
@@ -2339,16 +2417,19 @@ export default function PlayerDashboard() {
                   </div>
                 </div>
               );
-            })()}
+            })()
+            }
 
             </div>{/* end pd-event-modal-body */}
+
+            {lightboxImage && <ImageLightbox  lightboxImage={lightboxImage}  setLightboxImage={setLightboxImage}/> }
 
             {/* ── Sticky Footer ── */}
             <div className="pd-event-modal-footer">
               {/* Close — always left */}
               <button
                 type="button"
-                onClick={() => { setDetailGame(null); setDetailGameFeedback(null); }}
+                onClick={() => { setDetailGame(null); setDetailGameFeedback(null);setLightboxImage(null);}}
                 style={{
                   padding: "10px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600,
                   cursor: "pointer", background: "rgba(255,255,255,0.06)",
@@ -2579,8 +2660,11 @@ export default function PlayerDashboard() {
               </div>
             </div>
           </div>
-        </div>
+         
+        </div> 
+    
       )}
     </div>
+    </>
   );
 }
