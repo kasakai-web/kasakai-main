@@ -1,8 +1,21 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import   { useEffect, useRef, useState } from "react";
+import { avatarColorFor, avatarInitials } from "@/utils/avatar"; 
+import {resolveImageUrl} from "@/utils/api";
+import Image from "next/image";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
+
+
+function buildAvatarStackLabel(names: string[]): string|null {  
+  const total = names.length;
+  if (total === 0) return null;
+  if (total === 1) return names[0];
+  if (total === 2) return `${names[0]} and ${names[1]}`;
+  const othersCount = total - 2;
+  return `${names[0]}, ${names[1]} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
+}
 
 export interface EventCardProps {
   id: string;
@@ -27,7 +40,7 @@ export interface EventCardProps {
   requestStatus?: "pending" | "approved_unpaid" | null;
   onCancelRequest?: () => void;
   cancelReason?: string;
-  players: { name: string; initials: string; pos: string }[];
+  players: { name: string; initials: string; pos: string; profileImage?: string }[];
   onBook: (game: any) => void;
   onViewDetails: () => void;
   onRateGame?: () => void;
@@ -164,6 +177,41 @@ export function EventCard({
           <span className="detail-value">{format}</span>
         </div>
       </div>
+
+      {/* Signed-up players — stacked photos (signup order, capped at 3) + names */}
+      {players.length > 0 && (
+        <div className="card-avatars-row">
+          <div className="avatar-stack">
+            {players.slice(0, 3).map((p, i) => {
+              const imageUrl = resolveImageUrl(p.profileImage);
+              return (
+                <div key={i} className="avatar-mini" style={{ background: avatarColorFor(p.name) }}>
+                  {imageUrl && (
+                    <Image 
+                    width={30}
+                    height={30}
+                      loading="lazy"
+                      src={imageUrl}
+                      alt={p.name}
+                      className="avatar-mini-img"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        img.style.display = "none";
+                        const fallback = img.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                  )}
+                  <span className="avatar-mini-fallback" style={imageUrl ? { display: "none" } : undefined}>
+                    {avatarInitials(p.name)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <span className="players-names-label">{buildAvatarStackLabel(players.map((p) => p.name))}</span>
+        </div>
+      )}
 
       {/* Players Capacity Bar */}
       <div className="capacity-section">
