@@ -924,7 +924,9 @@ export default function PlayerDashboard() {
       setMyGames((prev) => prev.map((x) => x._id === g._id ? g : x));
       setGames((prev) => prev.map((x) => x._id === g._id ? { ...x, spotsRemaining: g.spotsRemaining, totalSlots: g.totalSlots } : x));
       fetchWalletBalance();
-      if (data.waitlisted) {
+      if (data.pending) {
+        showToast("success", "Guest Requested", "Awaiting the organiser's approval. You'll be notified.");
+      } else if (data.waitlisted) {
         showToast("success", "Added to Waitlist", "You'll be notified when a spot opens.");
       } else {
         showToast("success", "Guest Added!", data.message || undefined);
@@ -977,7 +979,11 @@ export default function PlayerDashboard() {
       setGames((prev) => prev.map((x) => x._id === cg._id ? { ...x, spotsRemaining: cg.spotsRemaining, totalSlots: cg.totalSlots } : x));
       fetchWalletBalance();
       const feeAmt = detailGame?.feeInPaise || 0;
-      showToast("success", "Guest Confirmed!", feeAmt > 0 ? `₹${Math.round(feeAmt / 100)} debited from your wallet.` : undefined);
+      if (data.pending) {
+        showToast("success", "Guest Requested", "Awaiting the organiser's approval. You'll be notified.");
+      } else {
+        showToast("success", "Guest Confirmed!", feeAmt > 0 ? `₹${Math.round(feeAmt / 100)} debited from your wallet.` : undefined);
+      }
     } catch {
       showToast("error", "Failed to confirm guest. Please try again.");
     } finally {
@@ -1310,10 +1316,12 @@ export default function PlayerDashboard() {
         return isMine && ['waiting', 'notified'].includes(g.status);
       })
     : [];
+  // Guests this player added to an approval-gated game that are awaiting the
+  // organiser's decision (charged up front; refunded if rejected). Surfaced from the
+  // backend's _myPendingGuests summary (raw invitations are never sent to players).
+  const myPendingGuests: any[] = (detailIsRegistered && detailGame?._myPendingGuests) || [];
 
-  return ( 
-    <>
-   
+  return (
     <div className="player-dashboard-container">
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 
@@ -2216,6 +2224,41 @@ export default function PlayerDashboard() {
                     </div>
                   </label>
                 )}
+              </div>
+            )}
+
+            {/* ── Guests awaiting organiser approval ── */}
+            {detailIsRegistered && myPendingGuests.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && (
+              <div style={{
+                margin: "0 0 16px",
+                padding: "14px 16px",
+                background: "rgba(245,158,11,0.05)",
+                border: "1px solid rgba(245,158,11,0.2)",
+                borderRadius: 10,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#f59e0b" }}>
+                    Guests Awaiting Approval ({myPendingGuests.length})
+                  </span>
+                  <span style={{ fontSize: 11, color: "#888" }}>Organiser will approve or reject</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {myPendingGuests.map((pg: any) => (
+                    <div key={pg._id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 12px",
+                      background: "rgba(245,158,11,0.08)",
+                      borderRadius: 7,
+                      border: "1px solid rgba(245,158,11,0.35)",
+                    }}>
+                      <div style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 600 }}>{pg.plusOneName}</div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#f59e0b" }}>⏳ Awaiting approval</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 10, lineHeight: 1.5 }}>
+                  You've been charged for {myPendingGuests.length > 1 ? "these guests" : "this guest"}. If the organiser rejects the request, the fee is refunded to your wallet.
+                </div>
               </div>
             )}
 
