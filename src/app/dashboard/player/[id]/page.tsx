@@ -1322,6 +1322,7 @@ export default function PlayerDashboard() {
   const myPendingGuests: any[] = (detailIsRegistered && detailGame?._myPendingGuests) || [];
 
   return (
+  <>
     <div className="player-dashboard-container">
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 
