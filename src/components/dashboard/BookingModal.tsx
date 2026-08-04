@@ -2,6 +2,12 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import {
+  PreferenceDisclaimer,
+  TeamRequestPicker,
+  type RosterEntry,
+  type TeamRequest,
+} from "@/components/PlayPreferences";
 
 type BookingGame = {
   id?: string;
@@ -35,10 +41,13 @@ interface BookingModalProps {
     teamPreference: string,
     willingIfFormatChange: boolean,
     waitlistGuests?: Guest[],
+    teamRequests?: TeamRequest[],
   ) => Promise<void> | void;
   walletBalance: number;
   playerPositions?: string[];
   playerId?: string;
+  /** Who is already in this game, so the player can ask to play with or against them. */
+  roster?: RosterEntry[];
 }
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"] as const;
@@ -205,8 +214,10 @@ export function BookingModal({
   walletBalance,
   playerPositions = [],
   playerId,
+  roster = [],
 }: BookingModalProps) {
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
+  const [teamRequests, setTeamRequests] = useState<TeamRequest[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
   const [showFormatTip, setShowFormatTip] = useState(false);
@@ -276,7 +287,7 @@ export function BookingModal({
     try {
       const confirmedGuests = isWaitlist ? guests : guests.slice(0, spotsForGuests);
       const overflowGuests  = isWaitlist ? []     : guests.slice(spotsForGuests);
-      await onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests);
+      await onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests, teamRequests);
     } finally {
       setIsLoading(false);
     }
@@ -426,6 +437,19 @@ export function BookingModal({
                         </div>
                       )}
                     </div>
+
+                    {/* Who to line up with — only offered when the squad is visible */}
+                    {roster.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        <TeamRequestPicker
+                          roster={roster}
+                          value={teamRequests}
+                          onChange={setTeamRequests}
+                        />
+                      </div>
+                    )}
+
+                    <PreferenceDisclaimer />
                   </div>
                 )}
               </div>

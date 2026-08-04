@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
+import { TeamOutcomeBadge } from "@/components/PlayPreferences";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
 import { InviteConfirmModal } from "@/components/InviteConfirmModal";
@@ -484,6 +485,18 @@ export default function PlayerDashboard() {
       waitlist: isFull,
       passEligible: Boolean(game.passEligible),
       requiresApproval: Boolean(game.requiresApproval),
+      // Who is already in, so the player can ask to line up with or against them.
+      // Guests are keyed by name because a +1 has no player account.
+      roster: (game.registrations || [])
+        .filter((r: any) =>
+          !["refunded", "forfeited"].includes(r.paymentStatus) && !r.optedOut)
+        .map((r: any) => (
+          r.plusOneName
+            ? { id: `guest:${r.plusOneName}`, name: r.plusOneName, isGuest: true }
+            : { id: String(r.player?._id || r.player || ""), name: r.player?.name || "Player" }
+        ))
+        .filter((r: any, i: number, all: any[]) =>
+          r.id && r.id !== `guest:` && all.findIndex((x) => x.id === r.id) === i),
     };
     setSelectedGame(formattedGame);
   };
@@ -717,6 +730,7 @@ export default function PlayerDashboard() {
     teamPreference: string,
     willingIfFormatChange: boolean,
     waitlistGuests?: BookingGuest[],
+    teamRequests?: { playerId?: string; guestName?: string; relation: "with" | "against" }[],
   ) => {
     try {
       const { token } = getSession();
@@ -734,6 +748,7 @@ export default function PlayerDashboard() {
       const body: any = {
         teamPreference,
         positions: playerPositions,
+        teamRequests: teamRequests || [],
         guests: guests.map((g, index) => {
           const fallbackName = `Guest ${index + 1}`;
           return {
@@ -1529,6 +1544,7 @@ export default function PlayerDashboard() {
           onConfirm={handleConfirmBooking}
           playerPositions={playerPositions}
           playerId={playerId}
+          roster={selectedGame.roster || []}
         />
       )}
 
@@ -2225,6 +2241,17 @@ export default function PlayerDashboard() {
                     </div>
                   </label>
                 )}
+              </div>
+            )}
+
+            {/* ── Your side, once the organiser has published teams ── */}
+            {detailIsRegistered && detailGame.teamsPublished && myOwnReg?.assignedColour && (
+              <div style={{ margin: "0 0 16px" }}>
+                <TeamOutcomeBadge
+                  colour={myOwnReg.assignedColour}
+                  outcome={myOwnReg.colourOutcome}
+                  reason={myOwnReg.colourReason}
+                />
               </div>
             )}
 

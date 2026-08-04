@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { buildApiUrl, getSession } from "@/utils/api";
+import { PreferenceDisclaimer, QuickPositionTeam } from "@/components/PlayPreferences";
 
 type ShowToast = (type: "success" | "error", title: string, message?: string) => void;
 
@@ -65,6 +66,12 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
   const [fPhone, setFPhone] = useState("");
   const [fSending, setFSending] = useState(false);
 
+  // Somebody arriving through an invite link used to be seated as "any position,
+  // no preference" without ever being asked. They get the same say as anyone
+  // registering the normal way now.
+  const [position, setPosition] = useState("Any");
+  const [teamPreference, setTeamPreference] = useState("No Preference");
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -101,6 +108,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       const res = await fetch(buildApiUrl(endpoint), {
         method: "POST",
         headers: { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ position, teamPreference }),
       });
       const d = await res.json();
       if (res.status === 402 && d.code === "INSUFFICIENT_BALANCE") {
@@ -281,6 +289,16 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
               </>
             ) : (
               <>
+                <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid #242424" }}>
+                  <QuickPositionTeam
+                    position={position}
+                    onPosition={setPosition}
+                    teamPreference={teamPreference}
+                    onTeamPreference={setTeamPreference}
+                  />
+                  <PreferenceDisclaimer compact />
+                </div>
+
                 {needsApproval && (
                   <div style={{ fontSize: 11.5, color: "#888", marginBottom: 8, textAlign: "center" }}>
                     Your spot needs organiser approval. You&apos;ll be charged {feeLabel} only once approved.
