@@ -1147,7 +1147,7 @@ export default function PlayerDashboard() {
   });
   const getOrganiserCount = (game: any) => (game.organiserIsPlaying ? 1 : 0);
   const getActiveRegs = (game: any) => (game.registrations || []).filter(
-    (r: any) => !r.backedOutAt && !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
+    (r: any) => !r.backedOutAt && !r.removedAt && !['refunded', 'forfeited'].includes(r.paymentStatus) && !r.optedOut
   ).length;
   // In "My Games" tab, merge registered + waitlisted games; exclude cancelled and completed games
   const myGamesWithWaitlist = [
@@ -1244,7 +1244,7 @@ export default function PlayerDashboard() {
   const detailAmSeated = !!detailGame && (detailGame.registrations || []).some((r: any) => {
     if (r.plusOneName) return false;
     const rid = r.player?._id?.toString?.() ?? r.player?.toString?.() ?? "";
-    return (r._isMyReg || rid === playerId) && !r.backedOutAt && !["refunded", "forfeited"].includes(r.paymentStatus) && !r.optedOut;
+    return (r._isMyReg || rid === playerId) && !r.backedOutAt && !r.removedAt && !["refunded", "forfeited"].includes(r.paymentStatus) && !r.optedOut;
   });
   const detailIsWaitlisted = !!detailGame && myWaitlist.some((wg) => wg._id === detailGame._id);
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
@@ -1272,7 +1272,7 @@ export default function PlayerDashboard() {
   // and the stale one would drive the opt-out UI off a seat they no longer hold.
   const myOwnReg = (detailIsRegistered && detailGame)
     ? (detailGame.registrations || []).find((r: any) => {
-        if (r.plusOneName || r.backedOutAt) return false;
+        if (r.plusOneName || r.backedOutAt || r.removedAt) return false;
         return r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId;
       })
     : null;
@@ -1295,7 +1295,7 @@ export default function PlayerDashboard() {
       ? detailGame.spotsRemaining
       : Math.max(0,
           detailGame.totalSlots
-          - (liveRegistrations.filter((r: any) => !r.backedOutAt && !['refunded','forfeited'].includes(r.paymentStatus) && !r.optedOut).length)
+          - (liveRegistrations.filter((r: any) => !r.backedOutAt && !r.removedAt && !['refunded','forfeited'].includes(r.paymentStatus) && !r.optedOut).length)
           - (detailGame.organiserIsPlaying ? 1 : 0)
         )
     : 0;
@@ -1344,7 +1344,7 @@ export default function PlayerDashboard() {
         if (removedGuestIds.has(String(reg._id))) return false;
         // A guest removed by a format change (host said "No"), or cancelled when the
         // host backed out, is gone — don't list it.
-        if (reg.backedOutAt) return false;
+        if (reg.backedOutAt || reg.removedAt) return false;
         if (reg.optedOut && reg.optedOutReason === "format_change") return false;
         const isMine = reg._isMyReg
           || reg.player?._id?.toString() === playerId
@@ -1509,7 +1509,7 @@ export default function PlayerDashboard() {
                         }]
                       : []),
                     ...(game.registrations || [])
-                      .filter((reg: any) => !reg.backedOutAt && !['refunded', 'forfeited'].includes(reg.paymentStatus) && !reg.optedOut)
+                      .filter((reg: any) => !reg.backedOutAt && !reg.removedAt && !['refunded', 'forfeited'].includes(reg.paymentStatus) && !reg.optedOut)
                       .map((reg: any) => ({
                         name: reg.plusOneName || reg.player?.name || 'Player',
                         initials: (reg.plusOneName || reg.player?.name || 'P').substring(0, 2).toUpperCase(),
