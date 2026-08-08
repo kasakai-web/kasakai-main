@@ -21,7 +21,7 @@ interface PlayerDetailsModalProps {
 
 export function PlayerDetailsModal({ gameName, players, totalSlots, spotsRemaining, onClose }: PlayerDetailsModalProps) {
   const activePlayers = (players || []).filter(
-    (p: any) => !p.optedOut && !['refunded', 'forfeited'].includes(p.paymentStatus || '')
+    (p: any) => !p.backedOutAt && !p.optedOut && !['refunded', 'forfeited'].includes(p.paymentStatus || '')
   );
   const spotsLeft = typeof spotsRemaining === 'number' ? spotsRemaining : totalSlots - activePlayers.length;
 
