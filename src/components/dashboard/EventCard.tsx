@@ -34,6 +34,10 @@ export interface EventCardProps {
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
+  // Gave up their own seat but still has a row on the game (guests may play on, and
+  // they can rejoin). Still "registered" as far as the game is concerned, so the
+  // badge must say so rather than claiming they are playing.
+  optedOut?: boolean;
   isWaitlisted?: boolean;
   isWaitlistApproved?: boolean;
   requiresApproval?: boolean;
@@ -63,6 +67,7 @@ export function EventCard({
   spotsTotal,
   spotsLeft,
   isRegistered,
+  optedOut = false,
   isWaitlisted = false,
   isWaitlistApproved = false,
   requiresApproval = false,
@@ -134,7 +139,8 @@ export function EventCard({
           {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
           {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending" && <span className="registered-badge waitlisted-badge">⏳ Requested</span>}
           {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "approved_unpaid" && <span className="registered-badge waitlist-approved-badge">✅ Approved — pay to lock</span>}
-          {isRegistered && !isCancelled && <span className="registered-badge">✓ Registered</span>}
+          {isRegistered && !isCancelled && optedOut && <span className="registered-badge waitlisted-badge">↩ Not attending</span>}
+          {isRegistered && !isCancelled && !optedOut && <span className="registered-badge">✓ Registered</span>}
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
         </div>
         <div className="card-price">
@@ -253,6 +259,11 @@ export function EventCard({
         ) : isRegistered && onRateGame ? (
           <button className="card-btn signup-btn" onClick={onRateGame}>
             <span>⭐ Rate this game</span>
+          </button>
+        ) : isRegistered && optedOut ? (
+          // Not a dead end: the detail modal is where they rejoin or leave for good.
+          <button className="card-btn waitlist-btn" onClick={onViewDetails}>
+            <span>↩ Not attending · Manage</span>
           </button>
         ) : isRegistered ? (
           <button className="card-btn registered-btn" disabled>

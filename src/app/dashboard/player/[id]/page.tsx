@@ -603,8 +603,12 @@ export default function PlayerDashboard() {
       }
     };
 
+    // Only guests still holding a seat — a guest already retired by an earlier
+      // cancellation or removed by the organiser is not losing anything now, and
+      // counting it warned about guests that were long gone.
     const guestCount = (game.registrations || []).filter((r: any) => {
       if (!r.plusOneName) return false;
+      if (r.backedOutAt || r.removedAt || ["refunded", "forfeited"].includes(r.paymentStatus)) return false;
       return r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId;
     }).length;
     const guestWarning = guestCount > 0
@@ -652,8 +656,11 @@ export default function PlayerDashboard() {
 
     // What the player actually paid for their own (non-guest) slot.
     // Pass-covered registrations store amountPaidPaise = 0, so there is nothing to refund.
+    // Skip tombstones for the same reason myOwnReg does: someone who left and signed
+    // up again has both rows, and the stale one quotes the wrong refund.
     const ownReg = (detailGame.registrations || []).find((r: any) =>
-      !r.plusOneName && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
+      !r.plusOneName && !r.backedOutAt && !r.removedAt
+        && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
     );
     const ownPaidPaise = ownReg?.amountPaidPaise ?? 0;
 
@@ -1117,8 +1124,11 @@ export default function PlayerDashboard() {
     return normalizedStatus.startsWith("cancel");
   });
   // The player's own primary (non-guest) registration in a game, if any.
+  // Tombstones are skipped: someone who backed out and signed up again has several
+  // rows here, and `find` would answer with the retired one — misreading their state.
   const myOwnPrimaryReg = (game: any) => (game.registrations || []).find((r: any) =>
-    !r.plusOneName && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
+    !r.plusOneName && !r.backedOutAt && !r.removedAt
+      && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
   );
   // A game whose format switched after this player said "No" to format changes:
   // they were removed + refunded. Treated like a cancellation FOR THEM — it leaves
@@ -1128,6 +1138,12 @@ export default function PlayerDashboard() {
     return !!r && r.optedOut === true && r.optedOutReason === "format_change";
   };
   const formatChangeOptOutGames = myGames.filter(isMyFormatChangeOptOut);
+  // Gave up their own seat voluntarily (guests may still be playing). The game stays in
+  // My Games so they can rejoin — but the card must not claim they're playing.
+  const isMyVoluntaryOptOut = (game: any) => {
+    const r = myOwnPrimaryReg(game);
+    return !!r && r.optedOut === true && r.optedOutReason !== "format_change";
+  };
   // A game counts as COMPLETED only when the organiser has actually marked it
   // complete. A game whose start time has merely passed but is still open/
   // tentative/confirmed is NOT completed — it's "awaiting result" (below) and
@@ -1261,9 +1277,16 @@ export default function PlayerDashboard() {
   // players/guests removed by a format change (they said "No"), and anyone who backed
   // out — the backend keeps backed-out rows in the payload as history, so without this
   // they would render in the roster as players who are no longer coming.
+  //
+  // Same definition of "live" the backend counts seats by (utils/registration.js):
+  // organiser-removed rows and settled (refunded/forfeited) rows hold no seat either,
+  // and leaving them in listed more names in the roster than the "X of Y" header.
+  // A voluntary opt-out is deliberately KEPT — the roster greys it as "Not attending".
   const liveRegistrations = (detailGame?.registrations || []).filter(
     (r: any) => !removedGuestIds.has(String(r._id))
       && !r.backedOutAt
+      && !r.removedAt
+      && !["refunded", "forfeited"].includes(r.paymentStatus)
       && !(r.optedOut && r.optedOutReason === "format_change")
   );
 
@@ -1493,6 +1516,7 @@ export default function PlayerDashboard() {
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={myGames.some(myGame => myGame._id === game._id) && !isMyFormatChangeOptOut(game)}
+                  optedOut={isMyVoluntaryOptOut(game)}
                   isWaitlisted={Boolean(game._isWaitlisted) || myWaitlist.some(wg => wg._id === game._id)}
                   isWaitlistApproved={game._waitlistStatus === 'approved' || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')}
                   requiresApproval={Boolean(game.requiresApproval)}
@@ -2030,16 +2054,30 @@ export default function PlayerDashboard() {
                   <div className="pd-roster-list">
                     {(() => {
                       const regs = liveRegistrations;
-                      const orgGuests = regs.filter((r: any) => r.plusOneName && !r.player);
+                      const mainRegs = regs.filter((r: any) => !r.plusOneName);
+                      const hostIdOf = (r: any) => r.player?._id?.toString() ?? r.player?.toString() ?? "";
+                      // Who actually holds a seat here, so a guest can be nested under them.
+                      const seatedHostIds = new Set(mainRegs.map(hostIdOf).filter(Boolean));
+                      // An organiser-added guest has no host player — `addedByOrganiser`
+                      // says so. Rows written before that carry the ORGANISER's id in
+                      // `player`, a Player ref that never resolves, so they arrive as a bare
+                      // id with no name. Keying only off `!r.player` missed both shapes: they
+                      // were grouped under a host who isn't in the roster and so never
+                      // rendered, leaving the list short of the "X of Y" header. Anything
+                      // whose host holds no seat here is one of them.
+                      const orgGuests = regs.filter((r: any) =>
+                        r.plusOneName && (r.addedByOrganiser || !seatedHostIds.has(hostIdOf(r)))
+                      );
                       const guestsByPlayerId = new Map<string, any[]>();
-                      regs.filter((r: any) => r.plusOneName && r.player).forEach((r: any) => {
-                        const k = r.player?._id?.toString() ?? r.player?.toString() ?? "";
+                      regs.filter((r: any) =>
+                        r.plusOneName && !r.addedByOrganiser && seatedHostIds.has(hostIdOf(r))
+                      ).forEach((r: any) => {
+                        const k = hostIdOf(r);
                         if (k) {
                           if (!guestsByPlayerId.has(k)) guestsByPlayerId.set(k, []);
                           guestsByPlayerId.get(k)!.push(r);
                         }
                       });
-                      const mainRegs = regs.filter((r: any) => !r.plusOneName);
                       const posFullLabel: Record<string, string> = {
                         goalkeeper: "Goalkeeper", defender: "Defender", midfielder: "Midfielder", forward: "Forward", any: "Any",
                       };
@@ -2606,10 +2644,14 @@ export default function PlayerDashboard() {
                   )}
 
                 {/* Registered User Actions — guest CRUD moved to My Guests section above.
-                    If the player is NOT in the game (opted out), the bottom action is
-                    "Rejoin" (behaves like joining), not "Cancel Registration". */}
+                    Opted out ⇒ "Rejoin" is the primary action (behaves like joining), but
+                    "Leave Game" stays next to it. Opting out keeps a live row so guests can
+                    play on, which means the game keeps showing as "✓ Registered" in My Games;
+                    without an exit here a player who gave up their seat had no way out of the
+                    game at all, only a Rejoin they didn't want. */}
                 {detailIsRegistered && !detailIsCancelled && detailGame.status !== "completed" && !detailPastReporting ? (
                   isOptedOut ? (
+                    <>
                     <button
                       className="pd-modal-btn"
                       type="button"
@@ -2630,6 +2672,27 @@ export default function PlayerDashboard() {
                     >
                       {optingOut ? "Rejoining…" : "🔄 Rejoin"}
                     </button>
+                    <button
+                      className="pd-modal-btn secondary"
+                      type="button"
+                      onClick={() => handleCancelRegistration(detailGame)}
+                      disabled={!!cancellingGameId}
+                      style={{
+                        background: cancellingGameId ? "rgba(220,38,38,0.05)" : "rgba(220,38,38,0.12)",
+                        color: cancellingGameId ? "rgba(248,113,113,0.6)" : "#f87171",
+                        border: "1px solid rgba(220,38,38,0.3)",
+                        padding: "11px 18px",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: cancellingGameId ? "not-allowed" : "pointer",
+                        transition: "all 0.2s ease",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {cancellingGameId === detailGame._id ? "Leaving..." : "Leave Game"}
+                    </button>
+                    </>
                   ) : (
                     <button
                       className="pd-modal-btn secondary"
