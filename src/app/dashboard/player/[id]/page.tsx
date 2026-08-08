@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
+import { TeamOutcomeBadge } from "@/components/PlayPreferences";
+import { PublishedTeamsView, type PublishedTeams } from "@/components/dashboard/PublishedTeams";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
 import { InviteConfirmModal } from "@/components/InviteConfirmModal";
@@ -78,7 +80,13 @@ export default function PlayerDashboard() {
   const [linkCopied, setLinkCopied] = useState(false);
 
    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<"players" | "details">("players");
+  const [detailTab, setDetailTab] = useState<"teams" | "players" | "details">("players");
+  // The published team sheet for the open game — null until it loads, and stays
+  // null for a game whose organiser has not published teams.
+  const [detailTeams, setDetailTeams] = useState<PublishedTeams | null>(null);
+  // Which game the open modal is showing. A slow teams response for a game the
+  // player has already navigated away from must not hijack the current one.
+  const detailRequestRef = useRef<string | null>(null);
   const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
@@ -362,10 +370,28 @@ export default function PlayerDashboard() {
       myWaitlist.find((g: any) => g._id === game._id);
     setDetailGame(annotated || game);
     setDetailGameFeedback(null);
+    setDetailTeams(null);
     setDetailTab("players");
+    detailRequestRef.current = game._id;
 
     const { token } = getSession();
     if (!token) return;
+
+    // Teams, if the organiser has published them. This tab then opens first —
+    // knowing your side is the reason most people tap into a game they have
+    // already joined.
+    fetch(buildApiUrl(`/api/v1/games/${game._id}/teams`), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d.success || !d.data) return;
+        if (detailRequestRef.current !== game._id) return;
+        setDetailTeams(d.data);
+        setDetailTab("teams");
+      })
+      .catch(() => {});
 
     // Silent background refresh — show cached data instantly, update arrays from fresh response
     fetch(buildApiUrl(`/api/v1/games/${game._id}`), {
@@ -484,6 +510,18 @@ export default function PlayerDashboard() {
       waitlist: isFull,
       passEligible: Boolean(game.passEligible),
       requiresApproval: Boolean(game.requiresApproval),
+      // Who is already in, so the player can ask to line up with or against them.
+      // Guests are keyed by name because a +1 has no player account.
+      roster: (game.registrations || [])
+        .filter((r: any) =>
+          !["refunded", "forfeited"].includes(r.paymentStatus) && !r.optedOut)
+        .map((r: any) => (
+          r.plusOneName
+            ? { id: `guest:${r.plusOneName}`, name: r.plusOneName, isGuest: true }
+            : { id: String(r.player?._id || r.player || ""), name: r.player?.name || "Player" }
+        ))
+        .filter((r: any, i: number, all: any[]) =>
+          r.id && r.id !== `guest:` && all.findIndex((x) => x.id === r.id) === i),
     };
     setSelectedGame(formattedGame);
   };
@@ -717,6 +755,7 @@ export default function PlayerDashboard() {
     teamPreference: string,
     willingIfFormatChange: boolean,
     waitlistGuests?: BookingGuest[],
+    teamRequests?: { playerId?: string; guestName?: string; relation: "with" | "against" }[],
   ) => {
     try {
       const { token } = getSession();
@@ -734,6 +773,7 @@ export default function PlayerDashboard() {
       const body: any = {
         teamPreference,
         positions: playerPositions,
+        teamRequests: teamRequests || [],
         guests: guests.map((g, index) => {
           const fallbackName = `Guest ${index + 1}`;
           return {
@@ -1536,6 +1576,7 @@ export default function PlayerDashboard() {
           onConfirm={handleConfirmBooking}
           playerPositions={playerPositions}
           playerId={playerId}
+          roster={selectedGame.roster || []}
         />
       )}
 
@@ -1781,8 +1822,26 @@ export default function PlayerDashboard() {
               )}
             </div>
 
-            {/* ── Players / Details tabs ── */}
+            {/* ── Teams / Players / Details tabs ── */}
             <div className="pd-event-tabs">
+              {/* No tab at all until the organiser publishes — an empty Teams
+                  tab would read as "no teams", which is a different thing from
+                  "not announced yet". */}
+              {detailTeams && (
+                <button
+                  type="button"
+                  className={`pd-event-tab${detailTab === "teams" ? " active" : ""}`}
+                  onClick={() => setDetailTab("teams")}
+                >
+                  Teams
+                  {detailTeams.yourColour && (
+                    <span
+                      className="pd-event-tab-dot"
+                      style={{ background: detailTeams.yourColour === "red" ? "#ff6b6b" : "#74b9ff" }}
+                    />
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 className={`pd-event-tab${detailTab === "players" ? " active" : ""}`}
@@ -1801,6 +1860,10 @@ export default function PlayerDashboard() {
 
             {/* ── Scrollable Body ── */}
             <div className="pd-event-modal-body">
+
+            {detailTab === "teams" && detailTeams && (
+              <PublishedTeamsView data={detailTeams} />
+            )}
 
             {/* Pass banner in detail view */}
             {detailTab === "details" && detailGame.passEligible && (detailGame.feeInPaise || 0) > 0 && (
@@ -2235,8 +2298,21 @@ export default function PlayerDashboard() {
               </div>
             )}
 
+            {/* ── Your side, once the organiser has published teams ── */}
+            {/* The Teams tab says this too, in more detail; this is the reminder
+                for someone reading the roster. */}
+            {detailTab === "players" && detailIsRegistered && detailGame.teamsPublished && myOwnReg?.assignedColour && (
+              <div style={{ margin: "0 0 16px" }}>
+                <TeamOutcomeBadge
+                  colour={myOwnReg.assignedColour}
+                  outcome={myOwnReg.colourOutcome}
+                  reason={myOwnReg.colourReason}
+                />
+              </div>
+            )}
+
             {/* ── Guests awaiting organiser approval ── */}
-            {detailIsRegistered && myPendingGuests.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && (
+            {detailTab === "players" && detailIsRegistered && myPendingGuests.length > 0 && !detailIsCancelled && detailGame.status !== "completed" && (
               <div style={{
                 margin: "0 0 16px",
                 padding: "14px 16px",
