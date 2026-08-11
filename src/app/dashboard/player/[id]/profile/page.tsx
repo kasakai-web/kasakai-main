@@ -690,7 +690,7 @@ export default function PlayerProfilePage() {
                     : profile.disciplineScore >= 3.5 ? "good"
                     : profile.disciplineScore >= 2.5 ? "fair"
                     : "needs work"
-                  } · ${profile.disciplineRatingCount ?? 0} ${(profile.disciplineRatingCount ?? 0) === 1 ? "game" : "games"}`}
+                  } · rated by ${profile.disciplineRatingCount ?? 0} ${(profile.disciplineRatingCount ?? 0) === 1 ? "organiser" : "organisers"}`}
             </div>
           </div>
         </div>
