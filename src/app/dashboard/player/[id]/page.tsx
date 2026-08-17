@@ -343,9 +343,38 @@ export default function PlayerDashboard() {
   useEffect(() => {
     if (loading || !openGameId) return;
     const target = [...games, ...myWaitlist, ...myGames].find((g) => g._id === openGameId);
-    // If data isn't ready yet (empty lists on premature load=false), bail without clearing
-    // the URL so this effect retries on the next loading→false transition.
-    if (!target) return;
+    
+    if (!target) {
+      // Game not found in lists — try to fetch from API for new signups
+      const fetchGameDetail = async () => {
+        try {
+          const { token } = getSession();
+          if (!token) return;
+          
+          const res = await fetch(buildApiUrl(`/games/${openGameId}`), {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (!res.ok) return;
+          
+          const data = await res.json();
+          if (data.success && data.data) {
+            openGameDetail(data.data);
+            setActiveTab("all");
+            // Clear the openGame param from URL
+            if (playerId) {
+              router.replace(`/dashboard/player/${playerId}`);
+            }
+          }
+        } catch {
+          // non-critical — if fetch fails, the game param stays in URL for retry
+        }
+      };
+      
+      fetchGameDetail();
+      return;
+    }
+    
     // Use the same function as the "View Details" button so the popup is identical
     // (annotated data, fresh server fetch, feedback for completed games).
     openGameDetail(target);

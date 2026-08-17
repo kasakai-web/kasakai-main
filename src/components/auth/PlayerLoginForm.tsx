@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { validatePhone, validatePassword } from "@/utils/auth";
 import { buildApiUrl, resolveImageUrl } from "@/utils/api";
 
@@ -9,10 +9,17 @@ interface PlayerLoginFormProps {
   onSignupClick: () => void;
   onForgotClick: () => void;
   redirectAfterLogin?: string | null;
+  targetGame?: string | null;
 }
 
-export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLogin }: PlayerLoginFormProps) {
+export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLogin, targetGame: propTargetGame }: PlayerLoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const fromSearchParams = searchParams.get("targetGame");
+  const fromStorage = typeof window !== "undefined" ? localStorage.getItem("targetGameId") : null;
+  const targetGame = propTargetGame || fromSearchParams || fromStorage;
+  
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -89,7 +96,17 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLog
       if (!hasImage) localStorage.setItem("requirePhotoUpload", "true");
 
       const isNew = localStorage.getItem("newSignup") === "true";
-      if (isNew) {
+
+      // If targetGame is provided, redirect to dashboard with the game modal opened
+      if (targetGame) {
+        if (isNew) {
+          localStorage.removeItem("newSignup");
+          localStorage.setItem("showProfileBanner", "true");
+        }
+        // Clear the targetGameId so it doesn't carry over to other flows
+        localStorage.removeItem("targetGameId");
+        router.replace(`/dashboard/player/${user.id}?openGame=${targetGame}`);
+      } else if (isNew) {
         localStorage.removeItem("newSignup");
         localStorage.setItem("showProfileBanner", "true");
         router.replace(`/dashboard/player/${user.id}/profile`);

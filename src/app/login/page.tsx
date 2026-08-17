@@ -17,7 +17,8 @@ function AuthFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectAfterLogin = searchParams.get("redirect") || null;
-
+  const targetGame = searchParams.get("targetGame") || null; // Game ID for auto-booking
+  const mode = searchParams.get("mode") || null;
   const [step, setStep] = useState<
     | "login"
     | "signup-form"
@@ -28,7 +29,19 @@ function AuthFlow() {
     | "forgot-step1"
     | "forgot-otp"
     | "forgot-newpass"
-  >("login");
+  >(mode === "signup" ? "signup-form" : "login");
+
+  const [persistedTargetGame] = useState(() => {
+    return targetGame || (typeof window !== "undefined" ? localStorage.getItem("targetGameId") : null);
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (targetGame) {
+        localStorage.setItem("targetGameId", targetGame);
+      }
+    }
+  }, [targetGame]);
 
   const [userData, setUserData] = useState({
     phone: "",
@@ -55,11 +68,14 @@ function AuthFlow() {
     <>
       {/* LOGIN */}
       {step === "login" && (
-        <PlayerLoginForm
-          onSignupClick={() => setStep("signup-form")}
-          onForgotClick={() => setStep("forgot-step1")}
-          redirectAfterLogin={redirectAfterLogin}
-        />
+        <>
+          <PlayerLoginForm
+            onSignupClick={() => setStep("signup-form")}
+            onForgotClick={() => setStep("forgot-step1")}
+            redirectAfterLogin={redirectAfterLogin}
+            targetGame={persistedTargetGame}
+          />
+        </>
       )}
 
       {/* SIGNUP - STEP 1: Personal details */}
@@ -110,6 +126,12 @@ function AuthFlow() {
               localStorage.setItem("userRole", "player");
               localStorage.setItem("userId", uid);
               localStorage.setItem("userName", authData.user.name || "User");
+              
+              // for auto-handoff to booking
+              if (persistedTargetGame) {
+                localStorage.setItem("targetGameId", persistedTargetGame);
+              }
+              
               window.dispatchEvent(new CustomEvent("kk-auth-changed"));
 
               // Upload profile photo chosen during signup
@@ -134,7 +156,14 @@ function AuthFlow() {
               }
 
               localStorage.setItem("showProfileBanner", "true");
-              router.replace(`/dashboard/player/${uid}/profile`);
+              
+              if (persistedTargetGame) {
+                router.replace(`/dashboard/player/${uid}?openGame=${persistedTargetGame}`);
+              } else if (redirectAfterLogin) {
+                router.replace(redirectAfterLogin);
+              } else {
+                router.replace(`/dashboard/player/${uid}/profile`);
+              }
             } else {
               setStep("signup-success");
             }

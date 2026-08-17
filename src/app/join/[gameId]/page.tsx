@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { UnregisteredGameLanding } from "@/components/UnregisteredGameLanding";
 
 /**
  * /join/[gameId]
@@ -15,17 +16,24 @@ import { useParams, useRouter } from "next/navigation";
  * Routing:
  *  - Invite token, logged-in player → dashboard with the invite confirm modal (?invite=token).
  *  - Game link, logged-in player    → dashboard with the game modal pre-opened (?openGame=id).
- *  - Not logged in                  → login with a return URL so they come back here.
+ *  - Not logged in                  → standalone landing page with game details.
  */
 export default function JoinGamePage() {
   const router = useRouter();
   const params = useParams<{ gameId: string }>();
   const rawParam = Array.isArray(params?.gameId) ? params.gameId[0] : params?.gameId;
+  
   // Private-game invite tokens are prefixed with "inv_" so they never look like an ObjectId.
   const isInviteToken = !!rawParam && /^inv_/.test(rawParam);
+  
   // Extract the trailing 24-char hex ObjectId from a readable link. Falls back to
   // the raw param so old bare-id links (already shared / in emails) keep working.
   const gameId = rawParam?.match(/[0-9a-f]{24}/gi)?.pop() || rawParam;
+
+  // Auth can only be read on the client, so the first render never knows it yet.
+  // Staying on "checking" until the effect resolves keeps logged-in players from
+  // seeing a flash of the unregistered landing page before the redirect lands.
+  const [authState, setAuthState] = useState<"checking" | "guest">("checking");
 
   useEffect(() => {
     if (!rawParam) return;
@@ -51,28 +59,41 @@ export default function JoinGamePage() {
       // No tab param: the openGame effect in the dashboard determines the correct tab
       // based on whether the player is registered/waitlisted or not.
       router.replace(`/dashboard/player/${userId}?openGame=${gameId}`);
-    } else {
-      // Not logged in — go to login, passing this page as the post-login redirect
-      router.replace(`/login?role=player&redirect=/join/${gameId}`);
+      return;
     }
+
+    // Not logged in — release the landing page.
+    setAuthState("guest");
   }, [rawParam, gameId, isInviteToken, router]);
 
+  const handleSignupClick = (targetGameId: string) => {
+    // Route to login with the game ID preserved
+    router.push(`/login?role=player&redirect=/join/${targetGameId}&mode=signup&targetGame=${targetGameId}`);
+  };
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#000",
-        color: "#fff",
-        fontFamily: "Arial, sans-serif",
-        flexDirection: "column",
-        gap: 16,
-      }}
-    >
-      <div style={{ fontSize: 40 }}>⚽</div>
-      <p style={{ color: "#aaa", fontSize: 14 }}>Redirecting you to the game…</p>
-    </div>
+    <>
+      {gameId && !isInviteToken && authState === "guest" ? (
+        <UnregisteredGameLanding gameId={gameId} onSignupClick={handleSignupClick} />
+      ) : (
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#000",
+            color: "#fff",
+            fontFamily: "Arial, sans-serif",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div style={{ fontSize: 40 }}>⚽</div>
+          <p style={{ color: "#aaa", fontSize: 14 }}>Redirecting you to the game…</p>
+        </div>
+      )}
+    </>
   );
 }
+
