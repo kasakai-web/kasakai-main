@@ -222,11 +222,27 @@ export type MetroOption = {
   venueCount: number;
 };
 
+/** Somewhere a player is that we have no venues in. */
+export type UnservedCity = {
+  label: string;
+  metroSlug: string;
+  /** The city registry knows this place; we just have no venues in it yet. */
+  known: boolean;
+  /** How we learnt where they are. */
+  source: "profile" | "geo";
+};
+
 export type BrowseContext = {
   metros: MetroOption[];
   suggestedMetro: string | null;
   /** 'profile' | 'history' | 'busiest' — how confident the suggestion is. */
   suggestedFrom: string | null;
+  /**
+   * The player's own city, when we do not run games there. Null in the normal
+   * case. Present means the list they are about to see is somewhere else, and
+   * they should be told so rather than left to work it out.
+   */
+  unservedCity: UnservedCity | null;
   formats: string[];
   dayparts: { key: string; label: string; fromHour: number; toHour: number }[];
   sorts: string[];

@@ -1634,6 +1634,14 @@ export default function PlayerDashboard() {
             // Ask only when we genuinely could not work it out. A 'busiest'
             // suggestion is a guess, so that is the one case worth confirming.
             needsChoice={!!browseContext && (!filters.metro || browseContext.suggestedFrom === "busiest")}
+            // Only while they are still on the fallback city. Once they have
+            // chosen somewhere themselves, "you are not in your city" stops
+            // being news and becomes nagging.
+            unservedCity={
+              browseContext?.unservedCity && !getStoredMetro()
+                ? browseContext.unservedCity
+                : null
+            }
             loading={loading}
           />
         </div>
