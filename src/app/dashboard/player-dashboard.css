@@ -1061,8 +1061,13 @@
 
 .player-tab-navigation {
   display: flex;
-  gap: 2px;
-  margin-bottom: 2px;
+  gap: 10px;
+  /* overflow-x makes this a scroll container, so it clips at its padding box —
+     which cuts the active tab's scale(1.02) and glow off at the first/last tab.
+     Pad it out, then pull the padding back with margins so the row still lines
+     up with the cards below. */
+  padding: 4px;
+  margin: -4px -4px -2px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1144,6 +1149,22 @@
   color: var(--lime) !important;
 }
 
+/* dashboard.css styles a bare .tab-btn as a classic underlined tab (2px lime
+   bottom border on the active one, hairline under the row). These tabs are
+   pills, so neutralise both and keep the border even on all four sides. */
+.tab-navigation.player-tab-navigation {
+  gap: 10px;
+  border-bottom: none !important;
+}
+
+.player-tab-navigation .player-tab-btn {
+  border-bottom: 1px solid #1a1a1f;
+}
+
+.player-tab-navigation .player-tab-btn.active {
+  border-bottom-color: rgba(196, 213, 108, 0.4) !important;
+}
+
 /* Tab scroll indicator - removed */
 .tab-scroll-indicator {
   display: none;
@@ -1186,7 +1207,7 @@
     display: none !important;
   }
 
-  .player-tab-navigation {
+  .tab-navigation.player-tab-navigation {
     display: flex;
     width: 100%;
     gap: 5px;
@@ -1195,10 +1216,10 @@
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 14px;
     overflow: visible;
-    margin-bottom: 0;
+    margin: 0;
   }
 
-  .player-tab-btn {
+  .player-tab-navigation .player-tab-btn {
     flex: 1;
     flex-direction: column;
     align-items: center;
@@ -1237,7 +1258,7 @@
     flex-shrink: 0;
   }
 
-  .player-tab-btn.active {
+  .player-tab-navigation .player-tab-btn.active {
     background: rgba(200, 255, 62, 0.1) !important;
     border-color: rgba(200, 255, 62, 0.3) !important;
     color: var(--lime) !important;

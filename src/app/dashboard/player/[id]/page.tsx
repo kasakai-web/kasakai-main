@@ -16,10 +16,29 @@ import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/a
 import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { useIncrementalList } from "@/hooks/useIncrementalList";
+import CityPicker from "@/components/dashboard/CityPicker";
+import GameFilters from "@/components/dashboard/GameFilters";
+import {
+  type BrowseContext,
+  type BrowseFacets,
+  type BrowseFilters,
+  EMPTY_FILTERS,
+  activeFilterCount,
+  clearFilters,
+  filtersFromParams,
+  filtersToQuery,
+  filtersToSearchParams,
+  getStoredMetro,
+  setStoredMetro,
+} from "@/utils/browse";
 import "../../player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 
 
+
+// How many cards the Cancelled / Completed tabs reveal per scroll.
+const HISTORY_PAGE_SIZE = 20;
 
 const POPUP_SHOWN_KEY = "kk_feedback_popup_shown";
 const getShownPopupIds = (): string[] => {
@@ -43,7 +62,24 @@ export default function PlayerDashboard() {
   const openGameId = searchParams.get("openGame");
   const inviteToken = searchParams.get("invite");
   const [inviteFriendsGame, setInviteFriendsGame] = useState<any>(null);
-  const [search, setSearch] = useState("");
+  // ── Browse filters ────────────────────────────────────────────────────────
+  // The URL is the source of truth for what is applied, so a filtered view is
+  // shareable and the back button undoes a filter. The stored metro only seeds
+  // the very first render, before the browse context has loaded.
+  const [filters, setFilters] = useState<BrowseFilters>(() => ({
+    ...EMPTY_FILTERS,
+    metro: getStoredMetro(),
+  }));
+  const [browseContext, setBrowseContext] = useState<BrowseContext | null>(null);
+  const [facets, setFacets] = useState<BrowseFacets | null>(null);
+  const [totalGames, setTotalGames] = useState(0);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  // The 20-second background refresh runs from a callback created once, so it
+  // would otherwise re-fetch with whatever filters were set when that callback
+  // was built — silently wiping the player's selection every 20 seconds. The ref
+  // is what keeps it pointed at the current selection.
+  const filtersRef = useRef<BrowseFilters>(filters);
+
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [detailGame, setDetailGame] = useState<any>(null);
   const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
@@ -94,7 +130,11 @@ export default function PlayerDashboard() {
     redirectTo: "/login?role=player",
   });
 
-  const fetchAllGames = async () => {
+  // Filtering happens on the server (see backend gameFilters.js) — the query
+  // string IS the filter. The filter-change effect passes its selection in
+  // explicitly; the background refresh has no such value to hand and falls back
+  // to the ref, which tracks the latest one.
+  const fetchAllGames = async (applied?: BrowseFilters) => {
     try {
       const { token } = getSession();
       if (!token) {
@@ -102,10 +142,11 @@ export default function PlayerDashboard() {
         return;
       }
 
-      const res = await fetch(buildApiUrl("/games"), {
+      const query = filtersToQuery(applied ?? filtersRef.current, { limit: 50 });
+      const res = await fetch(buildApiUrl(`/games${query}`), {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      
+
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           clearSession();
@@ -119,9 +160,61 @@ export default function PlayerDashboard() {
       const data = await res.json();
       if (data.success) {
         setGames(data.data || []);
+        setFacets(data.facets || null);
+        setTotalGames(typeof data.total === "number" ? data.total : (data.data || []).length);
       }
     } catch {
       // non-critical — games will stay as-is on network error
+    }
+  };
+
+  // Remember the city on the player's profile too, not just in localStorage —
+  // that is what lets the backend infer it on their next device without asking.
+  // Fire-and-forget: the choice already took effect locally, so a failed write
+  // costs nothing more than one inference next time.
+  const persistMetro = async (slug: string) => {
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      await fetch(buildApiUrl("/players/me"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ location: { city: slug } }),
+      });
+    } catch {
+      // non-critical
+    }
+  };
+
+  // Cities, filter vocabularies, and this player's inferred city. Fetched once:
+  // it changes far more slowly than the game list, and re-fetching it would let
+  // the inferred city fight the one the player has since chosen.
+  const fetchBrowseContext = async () => {
+    try {
+      const { token } = getSession();
+      if (!token) return;
+      const res = await fetch(buildApiUrl("/games/browse-context"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.success) return;
+
+      const ctx: BrowseContext = data.data;
+      setBrowseContext(ctx);
+
+      // Adopt the inferred city only if the player has not already got one from
+      // the URL or from a previous visit — their explicit choice always wins.
+      setFilters((prev) => {
+        if (prev.metro) return prev;
+        if (!ctx.suggestedMetro) return prev;
+        // A 'busiest' suggestion is a fallback, not knowledge. Browse it, but do
+        // not remember it as though they had picked it.
+        if (ctx.suggestedFrom !== "busiest") setStoredMetro(ctx.suggestedMetro);
+        return { ...prev, metro: ctx.suggestedMetro };
+      });
+    } catch {
+      // non-critical — the picker falls back to an empty city list
     }
   };
 
@@ -232,7 +325,7 @@ export default function PlayerDashboard() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance()]);
+      await Promise.all([fetchAllGames(), fetchMyGames(), fetchMyWaitlist(), fetchPlayerProfile(), fetchWalletBalance(), fetchBrowseContext()]);
       setLastUpdated(new Date());
       fetchPendingFeedback();
     } finally {
@@ -339,6 +432,47 @@ export default function PlayerDashboard() {
     setActiveTab("all");
   }, [searchParams]);
 
+  // ── Filters ⇄ URL ─────────────────────────────────────────────────────────
+
+  // Seed from the address bar once, so a shared or bookmarked filtered link
+  // opens showing what it promised. Runs on mount only — after that the state
+  // drives the URL, not the other way round, or the two would fight.
+  useEffect(() => {
+    const fromUrl = filtersFromParams(new URLSearchParams(searchParams.toString()));
+    const hasUrlFilters = Array.from(searchParams.keys()).some((k) =>
+      ["metro", "city", "area", "date", "daypart", "format", "minFee", "maxFee", "availability", "sort"].includes(k)
+    );
+    if (hasUrlFilters) {
+      setFilters(fromUrl);
+      if (fromUrl.metro) setStoredMetro(fromUrl.metro);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch whenever the selection changes, and write it back to the URL.
+  // `replace` rather than `push`: every chip tap would otherwise become a
+  // history entry, and Back would walk through them one at a time instead of
+  // leaving the dashboard.
+  useEffect(() => {
+    if (!isAuthorized) return;
+
+    // Keep the background refresh pointed at the current selection.
+    filtersRef.current = filters;
+
+    let cancelled = false;
+    setGamesLoading(true);
+    fetchAllGames(filters).finally(() => { if (!cancelled) setGamesLoading(false); });
+
+    const next = filtersToSearchParams(filters, new URLSearchParams(searchParams.toString()));
+    const qs = next.toString();
+    if (qs !== searchParams.toString()) {
+      router.replace(`/dashboard/player/${playerId}${qs ? `?${qs}` : ""}`, { scroll: false });
+    }
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, isAuthorized]);
+
   // Auto-open game detail when arriving via a shared /join/[gameId] link
   useEffect(() => {
     if (loading || !openGameId) return;
@@ -361,9 +495,13 @@ export default function PlayerDashboard() {
           if (data.success && data.data) {
             openGameDetail(data.data);
             setActiveTab("all");
-            // Clear the openGame param from URL
+            // Clear the openGame param from URL, keeping any filters the link
+            // carried — dropping them would leave the address bar describing a
+            // different view from the one on screen.
             if (playerId) {
-              router.replace(`/dashboard/player/${playerId}`);
+              const kept = filtersToSearchParams(filtersRef.current, new URLSearchParams());
+              const qs = kept.toString();
+              router.replace(`/dashboard/player/${playerId}${qs ? `?${qs}` : ""}`);
             }
           }
         } catch {
@@ -1232,21 +1370,45 @@ export default function PlayerDashboard() {
     const t = new Date(game.scheduledAt).getTime();
     return Number.isFinite(t) && t < Date.now();
   };
-  const filteredGames = gamesToDisplay.filter(g => 
-    g.turf?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    g.turf?.location?.city?.toLowerCase().includes(search.toLowerCase())
-  );
-  const orderedGames = [...filteredGames].sort((a, b) => {
-    const aCancelled = isCancelledGame(a);
-    const bCancelled = isCancelledGame(b);
+  // Narrowing is entirely server-side now (city, area, date, format, price,
+  // availability — see backend gameFilters.js), so there is nothing left for the
+  // client to sift. What arrives is already the answer.
+  const filteredGames = gamesToDisplay;
 
-    if (aCancelled !== bCancelled) {
-      return aCancelled ? 1 : -1;
-    }
+  const orderedGames = activeTab === "all"
+    // Leave the server's order alone — it is what the player asked for when they
+    // chose "cheapest" or "most spots left". Re-sorting by kickoff here would
+    // silently discard the sort control.
+    ? filteredGames
+    : [...filteredGames].sort((a, b) => {
+        const aCancelled = isCancelledGame(a);
+        const bCancelled = isCancelledGame(b);
 
-    const aTime = new Date(a.scheduledAt).getTime();
-    const bTime = new Date(b.scheduledAt).getTime();
-    return aTime - bTime;
+        if (aCancelled !== bCancelled) {
+          return aCancelled ? 1 : -1;
+        }
+
+        const aTime = new Date(a.scheduledAt).getTime();
+        const bTime = new Date(b.scheduledAt).getTime();
+        return aTime - bTime;
+      });
+
+  // Cancelled and Completed are history tabs: they only grow, and a player with
+  // a season behind them would otherwise render hundreds of cards at once. Show
+  // them a page at a time as they scroll. The other two tabs are bounded — the
+  // browse tab by its server-side page size, My Games by how many fixtures a
+  // person can actually have ahead of them — so they render whole.
+  const isHistoryTab = activeTab === "cancelled" || activeTab === "completed";
+  const {
+    visible: pagedGames,
+    hasMore: hasMoreGames,
+    sentinelRef: loadMoreRef,
+    loadMore: loadMoreGames,
+    shown: shownGameCount,
+  } = useIncrementalList(orderedGames, {
+    pageSize: HISTORY_PAGE_SIZE,
+    resetKey: activeTab,
+    enabled: isHistoryTab,
   });
 
   const detailVenueName = detailGame ? (detailGame.turf?.name || "TBC") : "";
@@ -1455,16 +1617,25 @@ export default function PlayerDashboard() {
           </div>
           <div className="page-title">Your Football <span>World</span></div>
         </div>
+        {/* The city sits where the venue search used to. Searching by venue or
+            area was the old way to narrow the list; the city picker plus the
+            filter row below do that properly now, so a free-text box beside them
+            is a second, weaker answer to a question already answered. */}
         <div className="page-actions">
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search by venue or city..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+          <CityPicker
+            metros={browseContext?.metros || []}
+            value={filters.metro}
+            onChange={(slug) => {
+              // Changing city clears the narrower place filters — a Gurugram
+              // area chip means nothing once you are browsing Bengaluru.
+              setFilters((f) => ({ ...f, metro: slug, city: null, area: null }));
+              persistMetro(slug);
+            }}
+            // Ask only when we genuinely could not work it out. A 'busiest'
+            // suggestion is a guess, so that is the one case worth confirming.
+            needsChoice={!!browseContext && (!filters.metro || browseContext.suggestedFrom === "busiest")}
+            loading={loading}
+          />
         </div>
       </div>
 
@@ -1481,7 +1652,9 @@ export default function PlayerDashboard() {
             >
               <span className="tab-icon">⚽</span>
               <span className="tab-text">All Games</span>
-              <span className="tab-badge">{games.length}</span>
+              {/* The total that MATCHES, not the page that was fetched — with
+                  server-side paging `games.length` is capped at the page size. */}
+              <span className="tab-badge">{totalGames}</span>
             </button>
             <button
               className={`tab-btn player-tab-btn ${activeTab === 'my-games' ? 'active' : ''}`}
@@ -1516,12 +1689,26 @@ export default function PlayerDashboard() {
           </button>
         </div>
       </div>
-      
+
+      {/* Filters belong to browsing, not to the player's own fixtures — showing
+          a price slider over "My Games" would be offering to hide games they
+          have already paid for. */}
+      {activeTab === 'all' && (
+        <GameFilters
+          filters={filters}
+          facets={facets}
+          onChange={setFilters}
+          resultCount={totalGames}
+          loading={gamesLoading}
+        />
+      )}
+
       {loading ? (
         <div className="loading-container"><div className="spinner"></div><p>Loading games...</p></div>
       ) : (
+        <>
         <div className="events-grid">
-          {orderedGames.length > 0 ? orderedGames.map(game => {
+          {orderedGames.length > 0 ? pagedGames.map(game => {
             const organiserCount = getOrganiserCount(game);
             const spotsLeft = typeof game.spotsRemaining === 'number'
               ? game.spotsRemaining
@@ -1581,13 +1768,52 @@ export default function PlayerDashboard() {
                   }
                 />
             )
-          }) : (
+          }) : activeTab === 'all' && activeFilterCount(filters) > 0 ? (
+            // A filtered dead end always offers the way out. Without this the
+            // player is left staring at an empty grid with no clue which of six
+            // chips is responsible.
+            <div className="kk-no-results">
+              <div className="kk-no-results-icon" aria-hidden="true">🔍</div>
+              <div className="kk-no-results-title">No games match these filters</div>
+              <div className="kk-no-results-body">
+                {browseContext?.metros.find((m) => m.slug === filters.metro)?.label
+                  ? <>There are other games in {browseContext.metros.find((m) => m.slug === filters.metro)!.label} — try removing a filter.</>
+                  : <>Try removing a filter, or look in another city.</>}
+              </div>
+              <div className="kk-no-results-actions">
+                <button
+                  type="button"
+                  className="kk-btn kk-btn-primary"
+                  onClick={() => setFilters(clearFilters(filters))}
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
+          ) : (
             <div className="empty-state">
-              <h3>No games found</h3>/
-              <p>There are no games matching your criteria.</p>
+              <h3>No games found</h3>
+              <p>
+                {activeTab === 'all'
+                  ? "No upcoming games here yet. Check back soon, or switch to another city."
+                  : "There are no games matching your criteria."}
+              </p>
             </div>
           )}
         </div>
+        {/* Scrolling to here reveals the next page. The button is the fallback
+            for keyboard users and for anything without IntersectionObserver. */}
+        {hasMoreGames && (
+          <div className="kk-load-more" ref={loadMoreRef}>
+            <button type="button" className="kk-load-more-btn" onClick={loadMoreGames}>
+              Show more games
+            </button>
+            <span className="kk-load-more-count" aria-live="polite">
+              {shownGameCount} of {orderedGames.length}
+            </span>
+          </div>
+        )}
+        </>
       )}
 
       {/* One-time popup: shown once per game after organiser marks it complete */}

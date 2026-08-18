@@ -3600,3 +3600,39 @@ body::after {
   border-radius: 16px !important;
   box-shadow: 0 32px 80px rgba(0,0,0,.75) !important;
 }
+/* ── Infinite-scroll footer (Cancelled / Completed history tabs) ── */
+.kk-load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 0 10px;
+}
+
+.kk-load-more-btn {
+  height: 38px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.03);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, color .2s;
+}
+.kk-load-more-btn:hover {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: rgba(200,255,62,.06);
+}
+.kk-load-more-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(200,255,62,.25);
+}
+
+.kk-load-more-count {
+  font-size: 11.5px;
+  letter-spacing: .02em;
+  color: var(--muted);
+}

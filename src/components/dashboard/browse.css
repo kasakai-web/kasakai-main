@@ -1,0 +1,547 @@
+/* Browse controls: the city picker and the filter chip row.
+ *
+ * Mobile-first throughout — this list is read on a phone, one-handed, usually
+ * while deciding whether to play tonight. So:
+ *   • every control is a bottom sheet, reachable by the thumb, not a dropdown
+ *     anchored to the top of the screen
+ *   • the chip row scrolls horizontally rather than wrapping into a wall that
+ *     pushes the games themselves below the fold
+ *   • touch targets are 44px minimum, and sheets respect the home-indicator inset
+ * The desktop treatment (>= 768px) is the same components re-laid out, so there
+ * is one set of behaviour to reason about rather than two.
+ */
+
+/* ── City pill (Zomato-style) ─────────────────────────────────────────────── */
+/* Lives in `.page-actions`, in the slot the venue search box used to occupy.
+ * No outer margin: the page header owns the spacing around it. */
+
+.kk-city-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.kk-city-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  /* Carries a visible edge because it replaced a bordered input — in that
+     position, unbordered text reads as a label rather than something to tap. */
+  background: linear-gradient(135deg, rgba(30, 30, 35, .95), rgba(25, 25, 30, .9));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--white);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+  max-width: 100%;
+}
+.kk-city-pill:hover  { border-color: var(--lime); background: rgba(35, 35, 40, .98); }
+.kk-city-pill:active { background: rgba(255, 255, 255, .07); }
+
+.kk-city-pin { font-size: 18px; line-height: 1; color: var(--lime); flex-shrink: 0; }
+
+.kk-city-text { min-width: 0; }
+
+.kk-city-eyebrow {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.kk-city-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--cond);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: .01em;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kk-city-caret { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+/* ── Filter chip row ──────────────────────────────────────────────────────── */
+
+.kk-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Bleed to the screen edges on mobile so the row reads as scrollable rather
+     than as a boxed-in list that happens to be clipped. */
+  padding: 2px 16px 8px;
+  margin-left: -16px;
+  margin-right: -16px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.kk-filter-bar::-webkit-scrollbar { display: none; }
+
+.kk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .15s;
+  scroll-snap-align: start;
+}
+.kk-chip:hover { color: var(--white); border-color: #333; }
+
+.kk-chip.is-active {
+  color: var(--black);
+  background: var(--lime);
+  border-color: var(--lime);
+  font-weight: 700;
+}
+.kk-chip.is-active .kk-chip-caret { color: rgba(0, 0, 0, .55); }
+
+.kk-chip-caret { font-size: 9px; color: var(--muted); }
+
+.kk-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--black);
+  background: var(--lime);
+  border-radius: 999px;
+}
+.kk-chip.is-active .kk-chip-count { color: var(--lime); background: var(--black); }
+
+/* "Filters ⚙ 3" — the one that opens the combined sheet */
+.kk-chip-filters { font-weight: 700; color: var(--white); border-color: #333; }
+
+.kk-chip-clear {
+  color: var(--coral);
+  background: none;
+  border-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.kk-chip-clear:hover { color: var(--coral); border-color: transparent; }
+
+/* ── Bottom sheet ─────────────────────────────────────────────────────────── */
+
+.kk-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, .66);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: kk-fade-in .16s ease;
+}
+
+.kk-sheet {
+  position: relative;
+  width: 100%;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: #0e0e0e;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, .6);
+  animation: kk-sheet-up .22s cubic-bezier(.2, .8, .3, 1);
+}
+
+@keyframes kk-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes kk-sheet-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
+
+/* Grab handle — the affordance that says "this drags/dismisses". */
+.kk-sheet-grip {
+  width: 38px;
+  height: 4px;
+  margin: 10px auto 2px;
+  background: #333;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.kk-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.kk-sheet-title {
+  font-family: var(--cond);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--white);
+}
+
+.kk-sheet-close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .04);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.kk-sheet-close:hover { color: var(--white); background: rgba(255, 255, 255, .09); }
+
+.kk-sheet-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+}
+
+.kk-sheet-foot {
+  display: flex;
+  gap: 10px;
+  padding: 12px 18px;
+  /* Clear of the iOS home indicator, and of Android gesture nav. */
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: #0e0e0e;
+  flex-shrink: 0;
+}
+
+.kk-btn {
+  flex: 1;
+  min-height: 48px;
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.kk-btn-primary { color: var(--black); background: var(--lime); border: none; }
+.kk-btn-primary:hover { filter: brightness(1.08); }
+.kk-btn-ghost {
+  flex: 0 0 auto;
+  padding: 0 20px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+}
+.kk-btn-ghost:hover { color: var(--white); border-color: #333; }
+
+/* ── Sheet contents ───────────────────────────────────────────────────────── */
+
+.kk-group + .kk-group { margin-top: 22px; }
+
+.kk-group-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.kk-options { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.kk-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 10px 15px;
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.kk-option:hover { color: var(--white); border-color: #333; }
+.kk-option.is-on {
+  color: var(--black);
+  background: var(--lime);
+  border-color: var(--lime);
+  font-weight: 700;
+}
+
+/* A count of 0 stays visible but reads as unavailable — the player learns the
+   option exists and simply has nothing today, instead of it vanishing. */
+.kk-option.is-empty { opacity: .38; }
+.kk-option-count { font-family: var(--mono); font-size: 11px; opacity: .75; }
+
+/* Full-width rows, for lists where each line carries a hint (availability, sort) */
+.kk-rows { display: flex; flex-direction: column; gap: 8px; }
+
+.kk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 11px 14px;
+  text-align: left;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.kk-row:hover { border-color: #333; }
+.kk-row.is-on { border-color: var(--lime); background: rgba(196, 213, 108, .09); }
+
+.kk-row-label { font-family: var(--body); font-size: 14px; font-weight: 600; color: var(--white); }
+.kk-row-hint  { font-family: var(--body); font-size: 12px; color: var(--muted); margin-top: 2px; }
+.kk-row-tick  { color: var(--lime); font-size: 15px; flex-shrink: 0; }
+
+/* ── Price ────────────────────────────────────────────────────────────────── */
+
+.kk-price-value {
+  font-family: var(--cond);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--lime);
+  margin-bottom: 12px;
+}
+
+.kk-range {
+  width: 100%;
+  height: 32px;
+  accent-color: var(--lime);
+  cursor: pointer;
+}
+
+.kk-price-ends {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── City sheet ───────────────────────────────────────────────────────────── */
+
+.kk-city-search {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  font-family: var(--body);
+  font-size: 15px;
+  color: var(--white);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+}
+.kk-city-search:focus { border-color: var(--lime); }
+.kk-city-search::placeholder { color: #666; }
+
+.kk-detect {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 48px;
+  margin: 10px 0 18px;
+  padding: 12px 14px;
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lime);
+  background: rgba(196, 213, 108, .08);
+  border: 1px dashed rgba(196, 213, 108, .4);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.kk-detect:hover { background: rgba(196, 213, 108, .14); }
+.kk-detect:disabled { opacity: .6; cursor: default; }
+
+.kk-detect-note {
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--muted);
+  margin: -12px 0 16px;
+}
+.kk-detect-note.is-error { color: var(--coral); }
+
+.kk-city-list { display: flex; flex-direction: column; gap: 6px; }
+
+.kk-city-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.kk-city-item:hover { background: rgba(255, 255, 255, .04); }
+.kk-city-item.is-on { border-color: var(--lime); background: rgba(196, 213, 108, .09); }
+
+.kk-city-item-name { font-family: var(--body); font-size: 15px; font-weight: 600; color: var(--white); }
+.kk-city-item-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; }
+.kk-city-item-meta.is-empty { color: #555; }
+
+.kk-empty-note {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 26px 10px;
+}
+
+/* ── First-run prompt ─────────────────────────────────────────────────────── */
+/* Only ever shown when the city genuinely could not be inferred — see
+ * CityPicker's `needsChoice`. It is a sheet, not a blocking modal, so a player
+ * who wants to look around first can dismiss it. */
+
+.kk-first-run-lede {
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ── Result summary ───────────────────────────────────────────────────────── */
+
+.kk-result-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -4px 0 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kk-result-line strong { color: var(--white); font-weight: 700; }
+
+.kk-link-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--lime);
+  background: none;
+  border: none;
+  padding: 6px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.kk-no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 52px 20px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+}
+.kk-no-results-icon  { font-size: 34px; margin-bottom: 12px; }
+.kk-no-results-title {
+  font-family: var(--cond);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+.kk-no-results-body {
+  font-family: var(--body);
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 18px;
+  max-width: 380px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+.kk-no-results-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.kk-no-results-actions .kk-btn { flex: 0 0 auto; min-width: 150px; padding: 0 18px; }
+
+/* ── Desktop ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  /* The header stacks, and `.page-actions` goes full width — let the pill fill
+     it, so the tap target spans the row instead of hugging the left edge. */
+  .kk-city-bar  { width: 100%; }
+  .kk-city-pill { flex: 1; }
+}
+
+@media (min-width: 768px) {
+  /* The sheet becomes a centred dialog. Same component, same states — only the
+     placement changes, so there is no second interaction model to maintain. */
+  .kk-sheet-backdrop { align-items: center; padding: 24px; }
+  .kk-sheet {
+    max-width: 520px;
+    max-height: 78vh;
+    border-radius: 18px;
+    border-bottom: 1px solid var(--border);
+    animation: kk-fade-in .16s ease;
+  }
+  .kk-sheet-grip { display: none; }
+  .kk-sheet-foot { padding-bottom: 12px; }
+
+  .kk-filter-bar {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding: 0;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 22px;
+  }
+}
