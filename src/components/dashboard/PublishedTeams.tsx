@@ -16,6 +16,7 @@ export type PublishedTeamPlayer = {
   isGuest?: boolean;
   isOrganiser?: boolean;
   hostName?: string | null;
+  /** Sent by the API, deliberately not rendered — see the row below. */
   isGoalkeeper?: boolean;
   isYou?: boolean;
 };
@@ -100,7 +101,9 @@ export function PublishedTeamsView({ data }: { data: PublishedTeams }) {
                     <span className="pd-teams-name">
                       {p.name}
                       {p.isYou && <span className="pd-teams-chip you">You</span>}
-                      {p.isGoalkeeper && <span className="pd-teams-chip" title="Goalkeeper">🧤 GK</span>}
+                      {/* No keeper chip: the distributor balances the sides on who can
+                          go in goal, but that stays between the algorithm and the
+                          organiser — a player reads only names and shirt colours. */}
                       {p.isOrganiser && <span className="pd-teams-chip">Organiser</span>}
                       {p.isGuest && (
                         <span className="pd-teams-chip">

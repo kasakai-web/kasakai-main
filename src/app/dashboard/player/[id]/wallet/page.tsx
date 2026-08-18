@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Script from "next/script";
 import { buildApiUrl, getSession, clearSession } from "@/utils/api";
@@ -33,6 +33,7 @@ interface RazorpayResponse {
 }
 interface RazorpayInstance {
   open: () => void;
+  close?: () => void;
 }
 
 interface WalletData {
@@ -99,6 +100,7 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reconciling, setReconciling] = useState(false);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -107,6 +109,16 @@ export default function WalletPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [razorpayReady, setRazorpayReady] = useState(false);
+
+  // "processing" covers two very different waits: handing off to the Razorpay
+  // window, and verifying a payment that already went through. Only the first
+  // one is safe to abandon.
+  const [processingPhase, setProcessingPhase] = useState<"checkout" | "verifying">("checkout");
+  const [showStuckEscape, setShowStuckEscape] = useState(false);
+  const rzpRef = useRef<RazorpayInstance | null>(null);
+  // Bumped on every payment attempt and on every abandon, so a slow order-create
+  // that resolves after the user backed out can't open checkout behind their back.
+  const attemptRef = useRef(0);
 
   const fetchWallet = useCallback(async () => {
     const { token } = getSession();
@@ -132,10 +144,43 @@ export default function WalletPage() {
     }
   }, [router]);
 
+  // Ask the backend to settle any pending topups against Razorpay, then show the
+  // reconciled ledger. Used both on demand and automatically when pending rows exist.
+  const reconcilePending = useCallback(async () => {
+    const { token } = getSession();
+    if (!token) return;
+    setReconciling(true);
+    try {
+      const res = await fetch(buildApiUrl("/players/me/wallet/reconcile"), {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWallet(data.data.wallet);
+        setTransactions(data.data.transactions);
+      }
+    } catch {
+      // Non-critical — the hourly job will resolve these anyway.
+    } finally {
+      setReconciling(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthorized) { setLoading(false); return; }
     fetchWallet();
   }, [isAuthorized, fetchWallet]);
+
+  // One automatic sweep per visit when something is unresolved, so a stuck
+  // PENDING row settles itself instead of sitting there until the job runs.
+  const hasPending = transactions.some((t) => t.status === "pending");
+  const sweptRef = useRef(false);
+  useEffect(() => {
+    if (!isAuthorized || loading || !hasPending || sweptRef.current) return;
+    sweptRef.current = true;
+    reconcilePending();
+  }, [isAuthorized, loading, hasPending, reconcilePending]);
 
   // If checkout.js was already loaded on a previous visit (cached), the <Script>
   // onLoad may not fire — pick up the existing global so the Pay button works.
@@ -161,17 +206,42 @@ export default function WalletPage() {
     return () => window.removeEventListener("kk-wallet-update", handler);
   }, [fetchWallet]);
 
+  // A blocked pop-up means checkout never opens, so ondismiss never fires and
+  // nothing else can move us off the spinner. Offer a way out after a grace
+  // period long enough that a normally-slow handoff doesn't trip it.
+  useEffect(() => {
+    if (modalStep !== "processing" || processingPhase !== "checkout") return;
+    const t = setTimeout(() => setShowStuckEscape(true), 5000);
+    return () => clearTimeout(t);
+  }, [modalStep, processingPhase]);
+
   const openModal = () => {
     setModalStep("amount");
     setAmountStr("");
     setTermsAccepted(false);
     setModalError(null);
+    setProcessingPhase("checkout");
+    setShowStuckEscape(false);
     setShowModal(true);
   };
 
   const closeModal = () => {
     if (modalStep === "processing") return; // don't close mid-payment
     setShowModal(false);
+  };
+
+  // Bail out of a handoff that never landed. If checkout did open behind the
+  // page, close it too so the user isn't left with an orphaned payment window.
+  const abandonCheckout = () => {
+    try {
+      rzpRef.current?.close?.();
+    } catch {
+      // Checkout may never have opened — nothing to close.
+    }
+    rzpRef.current = null;
+    attemptRef.current += 1; // invalidate any order-create still in flight
+    setShowStuckEscape(false);
+    setModalStep("cancelled");
   };
 
   // Step 1 → Step 2: validate amount then show T&C
@@ -214,7 +284,11 @@ export default function WalletPage() {
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
 
     setModalError(null);
+    setProcessingPhase("checkout");
+    setShowStuckEscape(false);
     setModalStep("processing");
+
+    const attempt = (attemptRef.current += 1);
 
     try {
       // Create order on backend — amount is validated and stored server-side
@@ -224,6 +298,10 @@ export default function WalletPage() {
         body:    JSON.stringify({ amountPaise }),
       });
       const orderData = await orderRes.json();
+
+      // User hit "Cancel & try again" (or restarted) while this was in flight —
+      // don't yank them back into a checkout they already walked away from.
+      if (attemptRef.current !== attempt) return;
 
       if (!orderRes.ok || !orderData.success) {
         setModalError(orderData.message || "Failed to create payment order.");
@@ -246,11 +324,17 @@ export default function WalletPage() {
         modal: {
           ondismiss: () => {
             // Payment cancelled or popup closed by user
+            rzpRef.current = null;
+            setShowStuckEscape(false);
             setModalStep("cancelled");
           },
         },
         handler: async (response: RazorpayResponse) => {
-          // Payment succeeded on Razorpay side — verify on our backend
+          // Payment succeeded on Razorpay side — verify on our backend. Past this
+          // point the wait is ours, not the browser's, so no escape hatch.
+          rzpRef.current = null;
+          setShowStuckEscape(false);
+          setProcessingPhase("verifying");
           setModalStep("processing");
           try {
             const verifyRes = await fetch(buildApiUrl("/players/me/wallet/verify"), {
@@ -280,8 +364,10 @@ export default function WalletPage() {
         },
       });
 
+      rzpRef.current = rzp;
       rzp.open();
     } catch {
+      if (attemptRef.current !== attempt) return;
       setModalError("Something went wrong. Please try again.");
       setModalStep("terms");
     }
@@ -356,9 +442,45 @@ export default function WalletPage() {
 
             {/* Transaction history */}
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666", marginBottom: 14 }}>
-                Transaction History
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                gap: 12, marginBottom: 14,
+              }}>
+                <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#666" }}>
+                  Transaction History
+                </div>
+                {hasPending && (
+                  <button
+                    onClick={reconcilePending}
+                    disabled={reconciling}
+                    style={{
+                      background: "transparent", border: "1px solid #2a2a2a",
+                      color: reconciling ? "#555" : "#888", borderRadius: 6,
+                      padding: "5px 12px", fontSize: 11, fontWeight: 600,
+                      cursor: reconciling ? "default" : "pointer", whiteSpace: "nowrap",
+                    }}
+                  >
+                    {reconciling ? "Checking…" : "Check pending"}
+                  </button>
+                )}
               </div>
+
+              {hasPending && (
+                <div style={{
+                  background: "rgba(245,158,11,0.05)",
+                  border: "1px solid rgba(245,158,11,0.18)",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  marginBottom: 12,
+                  fontSize: 11,
+                  color: "#c99a4a",
+                  lineHeight: 1.6,
+                }}>
+                  Pending recharges haven&apos;t been added to your balance yet. We check
+                  these against Razorpay automatically — if a payment went through it
+                  will be credited, and if it didn&apos;t you were never charged.
+                </div>
+              )}
 
               {transactions.length === 0 ? (
                 <div style={{
@@ -379,6 +501,14 @@ export default function WalletPage() {
                     const cfg = TX_CONFIG[tx.type] ?? { label: tx.type, sign: "", color: "#ccc", icon: "•" };
                     const isCredit = ["topup", "refund", "bonus", "unlock", "pass_cover"].includes(tx.type);
                     const desc = tx.description || (tx.game?.title ? `${cfg.label} – ${tx.game.title}` : cfg.label);
+                    // Only a settled transaction has actually moved money. Pending and
+                    // failed rows must not be dressed up in credit green, and their
+                    // balanceAfterPaise is a stale snapshot from order-creation time —
+                    // showing it as "Bal:" claims a balance that never existed.
+                    const isSettled = tx.status === "success";
+                    const amountColor = !isSettled
+                      ? (tx.status === "failed" ? "#555" : "#f59e0b")
+                      : cfg.color;
                     return (
                       <div key={tx._id} style={{
                         display: "flex",
@@ -393,7 +523,11 @@ export default function WalletPage() {
                           width: 36,
                           height: 36,
                           borderRadius: 8,
-                          background: isPassCover ? "rgba(200,255,62,0.12)" : isCredit ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)",
+                          background: !isSettled ? "rgba(255,255,255,0.04)"
+                            : isPassCover ? "rgba(200,255,62,0.12)"
+                            : isCredit ? "rgba(74,222,128,0.1)"
+                            : "rgba(248,113,113,0.1)",
+                          opacity: isSettled ? 1 : 0.55,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -423,11 +557,18 @@ export default function WalletPage() {
                         </div>
 
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: cfg.color }}>
-                            {isPassCover ? "FREE" : `${cfg.sign}${fmtRupees(tx.amountPaise)}`}
+                          <div style={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: amountColor,
+                            textDecoration: tx.status === "failed" ? "line-through" : "none",
+                          }}>
+                            {isPassCover ? "FREE" : `${isSettled ? cfg.sign : ""}${fmtRupees(tx.amountPaise)}`}
                           </div>
                           <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>
-                            Bal: {fmtRupees(tx.balanceAfterPaise)}
+                            {isSettled
+                              ? `Bal: ${fmtRupees(tx.balanceAfterPaise)}`
+                              : tx.status === "failed" ? "Not charged" : "Awaiting confirmation"}
                           </div>
                         </div>
                       </div>
@@ -542,9 +683,43 @@ export default function WalletPage() {
                   <div style={{ fontSize: 15, fontWeight: 600, color: "#ccc" }}>
                     Processing payment…
                   </div>
-                  <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>
-                    Please do not close this window.
-                  </div>
+                  {!showStuckEscape && (
+                    <div style={{ fontSize: 12, color: "#555", marginTop: 8 }}>
+                      Please do not close this window.
+                    </div>
+                  )}
+
+                  {/* Escape hatch: a blocked pop-up means checkout never opens and
+                      ondismiss never fires, so the spinner would otherwise sit here
+                      forever with no explanation and no way out. */}
+                  {showStuckEscape && (
+                    <div style={{
+                      background: "rgba(245,158,11,0.06)",
+                      border: "1px solid rgba(245,158,11,0.22)",
+                      borderRadius: 8,
+                      padding: "14px",
+                      marginTop: 20,
+                      textAlign: "left",
+                    }}>
+                      <div style={{ fontSize: 11, color: "#c99a4a", lineHeight: 1.6, marginBottom: 12 }}>
+                        <strong style={{ color: "#f59e0b", fontWeight: 700 }}>Payment window didn&apos;t open?</strong>{" "}
+                        Your browser has probably blocked the pop-up. Look for the blocked
+                        pop-up icon in your address bar and allow pop-ups for this site,
+                        then cancel below and try again. Nothing has been charged.
+                      </div>
+                      <button
+                        onClick={abandonCheckout}
+                        style={{
+                          width: "100%", background: "transparent",
+                          border: "1px solid rgba(245,158,11,0.4)", color: "#f59e0b",
+                          borderRadius: 8, padding: "10px",
+                          fontSize: 12, fontWeight: 700, cursor: "pointer",
+                        }}
+                      >
+                        Cancel &amp; try again
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -686,6 +861,26 @@ export default function WalletPage() {
                         <span style={{ fontSize: 12, fontWeight: 600, color: "#aaa" }}>{value}</span>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Pop-up warning — Razorpay checkout opens in a pop-up, and UPI
+                      apps are launched from it. If pop-ups are blocked the checkout
+                      never opens and the user is left on the processing spinner. */}
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    background: "rgba(245,158,11,0.06)",
+                    border: "1px solid rgba(245,158,11,0.22)",
+                    borderRadius: 8,
+                    padding: "12px 14px",
+                    marginBottom: 14,
+                  }}>
+                    <span style={{ fontSize: 14, lineHeight: 1.4, flexShrink: 0 }}>⚠</span>
+                    <span style={{ fontSize: 11, color: "#c99a4a", lineHeight: 1.6 }}>
+                      <strong style={{ color: "#f59e0b", fontWeight: 700 }}>Allow pop-ups for this site.</strong>{" "}
+                      The payment window opens as a pop-up. If pop-ups are blocked, your
+                      UPI or banking app won&apos;t open and this page will stay stuck on
+                      the loading screen.
+                    </span>
                   </div>
 
                   {/* Terms checkbox */}
