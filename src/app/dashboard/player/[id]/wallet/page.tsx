@@ -6,6 +6,13 @@ import Script from "next/script";
 import { buildApiUrl, getSession, clearSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import {
+  type RechargeOffer,
+  INACTIVE_OFFER,
+  activeTiers,
+  bonusForAmount,
+  nextTierUpsell,
+} from "@/utils/rechargeOffer";
 import "../../../player-dashboard.css";
 
 // Razorpay checkout type (loaded via CDN script)
@@ -110,6 +117,12 @@ export default function WalletPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [razorpayReady, setRazorpayReady] = useState(false);
 
+  // The live recharge offer, already filtered to what THIS player can earn.
+  // `creditedBonusPaise` is what the server actually paid on the last recharge —
+  // the success screen shows that number, never the one computed on the client.
+  const [offer, setOffer] = useState<RechargeOffer>(INACTIVE_OFFER);
+  const [creditedBonusPaise, setCreditedBonusPaise] = useState(0);
+
   // "processing" covers two very different waits: handing off to the Razorpay
   // window, and verifying a payment that already went through. Only the first
   // one is safe to abandon.
@@ -144,6 +157,21 @@ export default function WalletPage() {
     }
   }, [router]);
 
+  const fetchOffer = useCallback(async () => {
+    const { token } = getSession();
+    if (!token) return;
+    try {
+      const res  = await fetch(buildApiUrl("/players/me/wallet/offer"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setOffer(data?.success && data.data?.active ? data.data : INACTIVE_OFFER);
+    } catch {
+      // No offer strip is a fine outcome — never let a promo break the wallet.
+      setOffer(INACTIVE_OFFER);
+    }
+  }, []);
+
   // Ask the backend to settle any pending topups against Razorpay, then show the
   // reconciled ledger. Used both on demand and automatically when pending rows exist.
   const reconcilePending = useCallback(async () => {
@@ -170,7 +198,8 @@ export default function WalletPage() {
   useEffect(() => {
     if (!isAuthorized) { setLoading(false); return; }
     fetchWallet();
-  }, [isAuthorized, fetchWallet]);
+    fetchOffer();
+  }, [isAuthorized, fetchWallet, fetchOffer]);
 
   // One automatic sweep per visit when something is unresolved, so a stuck
   // PENDING row settles itself instead of sitting there until the job runs.
@@ -222,6 +251,10 @@ export default function WalletPage() {
     setModalError(null);
     setProcessingPhase("checkout");
     setShowStuckEscape(false);
+    setCreditedBonusPaise(0);
+    // An offer can start, end or be used up while this page sits open — re-check
+    // before quoting a bonus the player is about to pay against.
+    fetchOffer();
     setShowModal(true);
   };
 
@@ -350,8 +383,12 @@ export default function WalletPage() {
 
             if (verifyData.success) {
               if (verifyData.data?.wallet) setWallet(verifyData.data.wallet);
+              // Whatever the server credited — a limited offer may have run out
+              // between opening this modal and paying.
+              setCreditedBonusPaise(Number(verifyData.data?.bonusPaise) || 0);
               setModalStep("success");
               fetchWallet(); // refresh transactions too
+              fetchOffer();  // a one-per-player offer may now be spent
             } else {
               setModalError(verifyData.message || "Payment verification failed. Contact support.");
               setModalStep("terms");
@@ -374,6 +411,14 @@ export default function WalletPage() {
   };
 
   if (!isAuthorized) return null;
+
+  // What the amount currently typed would earn, and the cheapest way to earn
+  // more. Both are previews — the server recomputes before crediting anything.
+  const typedPaise    = Math.round((parseFloat(amountStr) || 0) * 100);
+  const previewBonus  = bonusForAmount(typedPaise, offer);
+  const upsell        = nextTierUpsell(typedPaise, offer);
+  const offerTiers    = activeTiers(offer);
+  const offerEndsAt   = offer.active ? offer.endsAt : null;
 
   return (
     <>
@@ -439,6 +484,57 @@ export default function WalletPage() {
                 + Recharge Wallet
               </button>
             </div>
+
+            {/* ── Live recharge offer ──
+                Only rendered when this player can actually earn it: the server
+                resolves the window, the per-player limit and any first-recharge
+                restriction before it ever reaches here. */}
+            {offerTiers.length > 0 && (
+              <div style={{
+                background: "linear-gradient(160deg, rgba(74,222,128,0.08), rgba(74,222,128,0.02))",
+                border: "1px solid rgba(74,222,128,0.28)",
+                borderRadius: 12,
+                padding: "18px 20px",
+                marginBottom: 24,
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  gap: 12, marginBottom: 14, flexWrap: "wrap",
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#4ade80", letterSpacing: "0.02em" }}>
+                    🎁 Recharge Bonus Live
+                  </div>
+                  {offerEndsAt && (
+                    <div style={{ fontSize: 11, color: "#888" }}>
+                      Ends {fmtDate(offerEndsAt)}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {offerTiers.map((t) => (
+                    <div key={t.key} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      gap: 12, padding: "8px 12px",
+                      background: "rgba(255,255,255,0.03)",
+                      borderRadius: 7,
+                    }}>
+                      <span style={{ fontSize: 12.5, color: "#aaa" }}>Recharge {t.rangeLabel}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#4ade80", whiteSpace: "nowrap" }}>
+                        Get {t.rewardLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: 11, color: "#777", marginTop: 10, lineHeight: 1.6 }}>
+                  {offer.active && offer.firstRechargeOnly && "Valid on your first recharge only. "}
+                  {offer.active && !offer.firstRechargeOnly && offer.remainingUses != null &&
+                    `You can claim this ${offer.remainingUses} more time${offer.remainingUses === 1 ? "" : "s"}. `}
+                  Bonus is added to your Kasa Kai wallet — spend it on games; it can&apos;t be withdrawn to a bank account.
+                </div>
+              </div>
+            )}
 
             {/* Transaction history */}
             <div style={{ marginBottom: 8 }}>
@@ -600,13 +696,50 @@ export default function WalletPage() {
               {/* ── Step: success ── */}
               {modalStep === "success" && (
                 <div style={{ textAlign: "center", padding: "16px 0" }}>
-                  <div style={{ fontSize: 52, marginBottom: 14 }}>✓</div>
+                  <div style={{ fontSize: 52, marginBottom: 14 }}>{creditedBonusPaise > 0 ? "🎁" : "✓"}</div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: "#4ade80", marginBottom: 8 }}>
-                    Wallet Recharged!
+                    {creditedBonusPaise > 0 ? "Recharged + Bonus!" : "Wallet Recharged!"}
                   </div>
                   <div style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>
                     ₹{amountStr} has been added to your wallet.
                   </div>
+
+                  {/* The balance below includes the bonus, so the bonus has to be
+                      on screen — otherwise the numbers look like they don't add up. */}
+                  {creditedBonusPaise > 0 && (
+                    <div style={{
+                      display: "inline-block",
+                      background: "rgba(74,222,128,0.1)",
+                      border: "1px solid rgba(74,222,128,0.3)",
+                      borderRadius: 8,
+                      padding: "8px 16px",
+                      marginBottom: 10,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#4ade80",
+                    }}>
+                      + {fmtRupees(creditedBonusPaise)} recharge bonus
+                      <div style={{ color: "#888", fontWeight: 500, fontSize: 11.5, marginTop: 3 }}>
+                        {fmtRupees(typedPaise + creditedBonusPaise)} credited in total
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Offers are limited — a budget or a per-player cap can run out
+                      between opening this modal and the payment landing. Say so
+                      rather than leaving a promised bonus quietly missing. */}
+                  {previewBonus > 0 && creditedBonusPaise === 0 && (
+                    <div style={{
+                      fontSize: 11.5, color: "#c99a4a", lineHeight: 1.6,
+                      background: "rgba(245,158,11,0.06)",
+                      border: "1px solid rgba(245,158,11,0.2)",
+                      borderRadius: 8, padding: "10px 14px", marginBottom: 10, textAlign: "left",
+                    }}>
+                      The recharge offer wasn&apos;t applied to this payment — it may have
+                      ended or been fully claimed. Your recharge itself is unaffected.
+                    </div>
+                  )}
+
                   <div style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
                     New balance: {wallet ? fmtRupees(wallet.availablePaise ?? wallet.balancePaise) : "—"}
                   </div>
@@ -754,23 +887,73 @@ export default function WalletPage() {
                     />
                   </div>
 
+                  {/* What this amount earns right now, and the cheapest step up.
+                      Both are previews of the server's own calculation. */}
+                  {previewBonus > 0 && (
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      gap: 10, flexWrap: "wrap",
+                      background: "rgba(74,222,128,0.08)",
+                      border: "1px solid rgba(74,222,128,0.3)",
+                      borderRadius: 8,
+                      padding: "10px 14px",
+                      marginBottom: 10,
+                    }}>
+                      <span style={{ fontSize: 12.5, color: "#4ade80", fontWeight: 700 }}>
+                        🎁 {fmtRupees(previewBonus)} bonus
+                      </span>
+                      <span style={{ fontSize: 12, color: "#888" }}>
+                        {fmtRupees(typedPaise + previewBonus)} credited
+                      </span>
+                    </div>
+                  )}
+
+                  {upsell && (
+                    <button
+                      onClick={() => setAmountStr(String(upsell.atPaise / 100))}
+                      style={{
+                        width: "100%", textAlign: "left",
+                        background: "rgba(200,255,62,0.06)",
+                        border: "1px dashed rgba(200,255,62,0.35)",
+                        borderRadius: 8,
+                        padding: "10px 14px",
+                        marginBottom: 10,
+                        cursor: "pointer",
+                        color: "#c8ff3e",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Add {fmtRupees(upsell.addPaise)} more → get {fmtRupees(upsell.bonusPaise)} bonus
+                      <span style={{ color: "#666", fontWeight: 500 }}> (tap to set {fmtRupees(upsell.atPaise)})</span>
+                    </button>
+                  )}
+
                   {/* Quick amount chips */}
                   <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-                    {[100, 200, 500, 1000].map((amt) => (
-                      <button
-                        key={amt}
-                        onClick={() => setAmountStr(String(amt))}
-                        style={{
-                          background: amountStr === String(amt) ? "rgba(200,255,62,0.15)" : "rgba(255,255,255,0.05)",
-                          border: `1px solid ${amountStr === String(amt) ? "rgba(200,255,62,0.4)" : "#2a2a2a"}`,
-                          color: amountStr === String(amt) ? "#c8ff3e" : "#aaa",
-                          borderRadius: 6, padding: "6px 14px", fontSize: 13,
-                          fontWeight: 600, cursor: "pointer",
-                        }}
-                      >
-                        ₹{amt}
-                      </button>
-                    ))}
+                    {[100, 200, 500, 1000].map((amt) => {
+                      const chipBonus = bonusForAmount(amt * 100, offer);
+                      return (
+                        <button
+                          key={amt}
+                          onClick={() => setAmountStr(String(amt))}
+                          style={{
+                            background: amountStr === String(amt) ? "rgba(200,255,62,0.15)" : "rgba(255,255,255,0.05)",
+                            border: `1px solid ${amountStr === String(amt) ? "rgba(200,255,62,0.4)" : "#2a2a2a"}`,
+                            color: amountStr === String(amt) ? "#c8ff3e" : "#aaa",
+                            borderRadius: 6, padding: "6px 14px", fontSize: 13,
+                            fontWeight: 600, cursor: "pointer", lineHeight: 1.3,
+                          }}
+                        >
+                          ₹{amt}
+                          {chipBonus > 0 && (
+                            <span style={{ color: "#4ade80", fontSize: 11, fontWeight: 700 }}>
+                              {" "}+{fmtRupees(chipBonus)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {modalError && (
@@ -834,7 +1017,16 @@ export default function WalletPage() {
                     <div style={{ fontSize: 38, fontWeight: 900, color: "#c8ff3e", letterSpacing: "-1px", lineHeight: 1 }}>
                       ₹{amountStr}
                     </div>
-                    <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>Kasa Kai Wallet</div>
+                    {previewBonus > 0 ? (
+                      <div style={{ fontSize: 12, color: "#4ade80", marginTop: 8, fontWeight: 700 }}>
+                        + {fmtRupees(previewBonus)} recharge bonus 🎁
+                        <div style={{ color: "#666", fontWeight: 500, marginTop: 3 }}>
+                          {fmtRupees(typedPaise + previewBonus)} lands in your wallet — you pay ₹{amountStr}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 11, color: "#444", marginTop: 6 }}>Kasa Kai Wallet</div>
+                    )}
                   </div>
 
                   {/* Summary rows */}
