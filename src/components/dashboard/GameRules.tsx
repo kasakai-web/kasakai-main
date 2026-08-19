@@ -10,6 +10,7 @@ const GAME_RULES: string[] = [
   "Guests are your responsibility. Misconduct by your +1 reflects on you.",
   "Acknowledge the pre-game message. Confirm you are on your way when you receive the morning message.",
   "Rate your experience. Honest feedback after each game helps improve the community for everyone.",
+  "If you can't make it and transferring your slot to someone else, inform the organiser.",
 ];
 
 export function GameRules() {
