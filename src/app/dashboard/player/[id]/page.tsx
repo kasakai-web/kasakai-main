@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import { TeamOutcomeBadge } from "@/components/PlayPreferences";
@@ -34,11 +35,13 @@ import {
 } from "@/utils/browse";
 import "../../player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
-
+import { GameRules } from "@/components/dashboard/GameRules";
 
 
 // How many cards the Cancelled / Completed tabs reveal per scroll.
 const HISTORY_PAGE_SIZE = 20;
+
+
 
 const POPUP_SHOWN_KEY = "kk_feedback_popup_shown";
 const getShownPopupIds = (): string[] => {
@@ -116,7 +119,7 @@ export default function PlayerDashboard() {
   const [linkCopied, setLinkCopied] = useState(false);
 
    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<"teams" | "players" | "details">("players");
+  const [detailTab, setDetailTab] = useState<"teams" | "players" | "details" | "rules">("players");
   // The published team sheet for the open game — null until it loads, and stays
   // null for a game whose organiser has not published teams.
   const [detailTeams, setDetailTeams] = useState<PublishedTeams | null>(null);
@@ -2143,6 +2146,13 @@ export default function PlayerDashboard() {
               >
                 Details
               </button>
+              <button
+                type="button"
+                className={`pd-event-tab${detailTab === "rules" ? " active" : ""}`}
+                onClick={() => setDetailTab("rules")}
+              >
+                Game Rules
+              </button>
             </div>
 
             {/* ── Scrollable Body ── */}
@@ -2213,6 +2223,8 @@ export default function PlayerDashboard() {
                 ))}
               </div>
             )}
+
+            {detailTab === "rules" && <GameRules/>}
 
             {detailTab === "players" && detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft > 0 && !detailIsCancelled && (
               <div style={{

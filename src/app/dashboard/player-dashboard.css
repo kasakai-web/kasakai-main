@@ -1929,6 +1929,44 @@
   color: #6b7280;
   margin-top: 2px;
 }
+.pd-rules-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pd-rules-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pd-rules-num {
+  flex-shrink: 0;
+  min-width: 22px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
+  color: #c8ff3e;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd-rules-text {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: #e5e5e5;
+}
+
+@media (max-width: 640px) {
+  .pd-rules-list { gap: 12px; }
+  .pd-rules-item { gap: 9px; }
+  .pd-rules-num { min-width: 19px; font-size: 12px; }
+  .pd-rules-text { font-size: 12px; }
+}
 
 /* ── Players tab: roster ── */
 .pd-roster-section-head {
@@ -2194,7 +2232,7 @@
 }
 
 @media (max-width: 640px) {
-  .pd-event-tab { padding: 10px 12px; font-size: 12px; }
+  .pd-event-tab { padding: 10px 6px; font-size: 12px; white-space: nowrap; }
   .dt-grid { gap: 6px; }
   .dt-cell { padding: 8px 10px; }
   .dt-val { font-size: 12px; }
