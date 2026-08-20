@@ -419,6 +419,9 @@ export default function WalletPage() {
   const upsell        = nextTierUpsell(typedPaise, offer);
   const offerTiers    = activeTiers(offer);
   const offerEndsAt   = offer.active ? offer.endsAt : null;
+  // Every rate on offer is a one-time first-recharge rate — said once under the
+  // strip rather than repeated on every row.
+  const firstOnlyStrip = offer.active && offer.firstRechargeOnly;
 
   return (
     <>
@@ -519,7 +522,19 @@ export default function WalletPage() {
                       background: "rgba(255,255,255,0.03)",
                       borderRadius: 7,
                     }}>
-                      <span style={{ fontSize: 12.5, color: "#aaa" }}>Recharge {t.rangeLabel}</span>
+                      <span style={{ fontSize: 12.5, color: "#aaa" }}>
+                        Recharge {t.rangeLabel}
+                        {/* A first-recharge rate can sit next to ordinary ones, so
+                            say which of them they only get this once. */}
+                        {t.audience === "first" && !firstOnlyStrip && (
+                          <span style={{
+                            marginLeft: 7, fontSize: 10, fontWeight: 700, color: "#fbbf24",
+                            letterSpacing: "0.05em", textTransform: "uppercase",
+                          }}>
+                            First recharge
+                          </span>
+                        )}
+                      </span>
                       <span style={{ fontSize: 12.5, fontWeight: 700, color: "#4ade80", whiteSpace: "nowrap" }}>
                         Get {t.rewardLabel}
                       </span>
@@ -528,8 +543,8 @@ export default function WalletPage() {
                 </div>
 
                 <div style={{ fontSize: 11, color: "#777", marginTop: 10, lineHeight: 1.6 }}>
-                  {offer.active && offer.firstRechargeOnly && "Valid on your first recharge only. "}
-                  {offer.active && !offer.firstRechargeOnly && offer.remainingUses != null &&
+                  {firstOnlyStrip && "Valid on your first recharge only. "}
+                  {offer.active && !firstOnlyStrip && offer.remainingUses != null &&
                     `You can claim this ${offer.remainingUses} more time${offer.remainingUses === 1 ? "" : "s"}. `}
                   Bonus is added to your Kasa Kai wallet — spend it on games; it can&apos;t be withdrawn to a bank account.
                 </div>

@@ -6,10 +6,17 @@
 // the server on two things: percentages round to the nearest whole rupee, and a
 // tier's range is min-inclusive / max-exclusive.
 //
+// Audiences need no logic here: the server has already narrowed `tiers` to the
+// ones THIS player can earn, so whatever arrives is theirs to match against.
+//
 // Nothing here is trusted — the credited bonus is whatever the server computes.
+
+export type Audience = "all" | "first" | "repeat";
 
 export type OfferTier = {
   key: string;
+  /** Who the tier is for. 'first' rates are gone once they have topped up once. */
+  audience: Audience;
   minPaise: number;
   maxPaise: number | null;
   mode: "flat" | "percent";
@@ -25,6 +32,7 @@ export type RechargeOffer =
   | {
       active: true;
       endsAt: string | null;
+      /** True only when every tier shown is a one-time first-recharge rate. */
       firstRechargeOnly: boolean;
       remainingUses: number | null;
       tiers: OfferTier[];
