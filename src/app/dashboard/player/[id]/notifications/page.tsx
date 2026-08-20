@@ -119,7 +119,7 @@ export default function PlayerNotificationsPage() {
 
   const handleNav = () => {
     if (routeUserId) {
-      router.push(`/dashboard/player/${routeUserId}?tab=all`);
+      router.push(`/dashboard/player/${routeUserId}`);
     }
   };
 

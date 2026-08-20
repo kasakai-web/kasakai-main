@@ -187,7 +187,7 @@ export default function CityPicker({
             className={`kk-city-item ${m.slug === value ? "is-on" : ""}`}
             onClick={() => pick(m.slug)}
           >
-            <span>
+            <span className="kk-city-item-text">
               <span className="kk-city-item-name">{m.label}</span>
               <span className={`kk-city-item-meta ${m.gameCount === 0 ? "is-empty" : ""}`}>
                 {m.gameCount > 0

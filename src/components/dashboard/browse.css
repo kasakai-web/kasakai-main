@@ -486,8 +486,9 @@
 .kk-city-item:hover { background: rgba(255, 255, 255, .04); }
 .kk-city-item.is-on { border-color: var(--lime); background: rgba(196, 213, 108, .09); }
 
+.kk-city-item-text { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .kk-city-item-name { font-family: var(--body); font-size: 15px; font-weight: 600; color: var(--white); }
-.kk-city-item-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; }
+.kk-city-item-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 .kk-city-item-meta.is-empty { color: #555; }
 
 .kk-empty-note {

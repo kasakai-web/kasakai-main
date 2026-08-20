@@ -11,7 +11,9 @@ import "./ratings.css";
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface GameFeedbackData {
   _id: string;
-  game: { _id: string; title?: string; format?: string; scheduledAt?: string };
+  // Populated by the server. Null only if the game was deleted out from under
+  // the feedback, which the card renders as "Completed Game".
+  game: { _id: string; title?: string; format?: string; scheduledAt?: string } | null;
   gameRating: number;
   organiserRating?: number;
   venueRating?: number;
@@ -56,15 +58,50 @@ export default function MyRatingsPage() {
   const [loading, setLoading] = useState(true);
   // The game the player is currently submitting feedback for
   const [feedbackGame, setFeedbackGame] = useState<PendingGame | null>(null);
+  // Submitted feedback is paged — it only ever grows, and a regular player
+  // builds up a season of it.
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // How many the player has submitted in total, not how many are on screen —
+  // the server counts them, so the section header can state a real number.
+  const [totalFeedbacks, setTotalFeedbacks] = useState(0);
+  const PAGE_SIZE = 12;
+
+  // One page of submitted feedback. This used to be built by fetching the
+  // player's completed games and then asking /games/:id/feedback about each one
+  // — N+1 requests to show N cards, and it could only ever find feedback on the
+  // games in that window. The list now comes from the feedback collection
+  // itself, so it is one request and it is complete.
+  const fetchFeedbackPage = useCallback(async (which = 1, append = false) => {
+    const { token } = getSession();
+    if (!token) return;
+    const res = await fetch(
+      buildApiUrl(`/games/my-feedback?page=${which}&limit=${PAGE_SIZE}`),
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return;
+    const d = await res.json();
+    if (!d.success) return;
+    const batch: GameFeedbackData[] = d.data || [];
+    setFeedbacks((prev) =>
+      append
+        ? [...prev, ...batch.filter((f) => !prev.some((p) => p._id === f._id))]
+        : batch,
+    );
+    setHasMore(Boolean(d.hasMore));
+    setTotalFeedbacks(typeof d.total === "number" ? d.total : batch.length);
+    setPage(which);
+  }, []);
 
   const fetchData = useCallback(async () => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
     setLoading(true);
     try {
-      const [pendingRes, myGamesRes] = await Promise.allSettled([
+      const [pendingRes] = await Promise.allSettled([
         fetch(buildApiUrl("/games/pending-feedback"), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(buildApiUrl("/games/my-games"),         { headers: { Authorization: `Bearer ${token}` } }),
+        fetchFeedbackPage(1),
       ]);
 
       // Pending feedback games
@@ -72,32 +109,22 @@ export default function MyRatingsPage() {
         const d = await pendingRes.value.json();
         if (d.success) setPendingGames(d.data || []);
       }
-
-      // Submitted feedbacks — fetch per completed game
-      if (myGamesRes.status === "fulfilled" && myGamesRes.value.ok) {
-        const myGamesData = await myGamesRes.value.json();
-        const completed = (myGamesData.data || []).filter((g: any) => g.status === "completed");
-        const fbResults = await Promise.allSettled(
-          completed.map((g: any) =>
-            fetch(buildApiUrl(`/api/v1/games/${g._id}/feedback`), {
-              headers: { Authorization: `Bearer ${token}` },
-            }).then((r) => r.json())
-          )
-        );
-        const collected: GameFeedbackData[] = [];
-        fbResults.forEach((result, i) => {
-          if (result.status === "fulfilled" && result.value?.success && result.value?.data) {
-            collected.push({ ...result.value.data, game: completed[i] });
-          }
-        });
-        setFeedbacks(collected);
-      }
     } catch {
       // non-critical
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, fetchFeedbackPage]);
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      await fetchFeedbackPage(page + 1, true);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthorized) { setLoading(false); return; }
@@ -176,16 +203,21 @@ export default function MyRatingsPage() {
           {/* Already submitted */}
           {feedbacks.length > 0 && (
             <div className="mpr-submitted-section">
-              {pendingGames.length > 0 && (
-                <div className="mpr-section-head">
-                  <span className="mpr-section-title">Submitted Feedback</span>
-                  <span className="mpr-section-count">{feedbacks.length} game{feedbacks.length > 1 ? "s" : ""}</span>
-                </div>
-              )}
+              {/* Shown even with nothing pending above it. The heading used to be
+                  hidden in that case, on the grounds that the list was the only
+                  thing on the page — but the count beside it is now a real
+                  total, and "you have rated 37 games" is worth stating whether
+                  or not anything is awaiting feedback. */}
+              <div className="mpr-section-head">
+                <span className="mpr-section-title">Submitted Feedback</span>
+                <span className="mpr-section-count">
+                  {totalFeedbacks} game{totalFeedbacks === 1 ? "" : "s"}
+                </span>
+              </div>
               <div className="mpr-cards">
-                {[...feedbacks]
-                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                  .map((fb) => (
+                {/* Already newest-first from the server — see getMyFeedbackList.
+                    Sorting here would only reorder the pages loaded so far. */}
+                {feedbacks.map((fb) => (
                     <div key={fb._id} className="mpr-card mpr-card-feedback">
                       <div className="mpr-card-header">
                         <div className="mpr-card-game">
@@ -233,6 +265,18 @@ export default function MyRatingsPage() {
                     </div>
                   ))}
               </div>
+
+              {hasMore && (
+                <div className="mpr-load-more-wrap">
+                  <button
+                    className="mpr-load-more"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

@@ -95,9 +95,11 @@ export default function DashboardLayout({
   // Re-fetch on auth resolve + on every navigation so the My Pass card stays current
   useEffect(() => { refreshProfileMeta(); }, [refreshProfileMeta, pathname]);
 
-  // Also refresh on window focus / tab visible (e.g. admin changed the pass in another tab)
+  // Refresh on window focus / tab visible (e.g. an admin changed the pass in
+  // another tab). No timer: this already re-runs on every navigation above, and
+  // a pass does not change while someone sits on a page.
   useAutoRefresh(authenticated ? refreshProfileMeta : null, {
-    interval:  60_000,
+    interval:  0,
     onFocus:   true,
     onVisible: true,
     enabled:   authenticated,
@@ -137,8 +139,11 @@ export default function DashboardLayout({
   }, [authenticated]);
 
   useEffect(() => { refreshUnreadCount(); }, [refreshUnreadCount, pathname]);
+  // The socket pushes `new-notification`, which bumps this count immediately
+  // (see the listener below) — so a 15-second timer was asking every open tab to
+  // re-ask the server for something it was already being told.
   useAutoRefresh(authenticated ? refreshUnreadCount : null, {
-    interval:  15_000,
+    interval:  0,
     onFocus:   true,
     onVisible: true,
     enabled:   authenticated,
@@ -156,8 +161,10 @@ export default function DashboardLayout({
     };
   }, [refreshUnreadCount]);
 
+  // Same again: `wallet-update` arrives over the socket the moment the balance
+  // moves, so polling only added load without adding freshness.
   useAutoRefresh(authenticated ? refreshWalletBalance : null, {
-    interval:  30_000,
+    interval:  0,
     onFocus:   true,
     onVisible: true,
     enabled:   authenticated,
@@ -181,8 +188,6 @@ export default function DashboardLayout({
   }, [authenticated, refreshUnreadCount]);
 
   useEffect(() => {
-    const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
-
     if (pathname.includes("/dashboard/player/") && pathname.endsWith("/notifications")) {
       setActiveSection("notifications");
       return;
@@ -203,16 +208,18 @@ export default function DashboardLayout({
       return;
     }
 
+    // The four game lists are routes now, so the path alone says which one is
+    // open — no query string to consult.
     if (pathname.includes("/dashboard/player/")) {
-      if (tab === "cancelled" || tab === "canceled") {
+      if (pathname.endsWith("/cancelled")) {
         setActiveSection("cancelled");
         return;
       }
-      if (tab === "completed") {
+      if (pathname.endsWith("/completed")) {
         setActiveSection("completed");
         return;
       }
-      if (tab === "my-games") {
+      if (pathname.endsWith("/my-games")) {
         setActiveSection("mygames");
         return;
       }
@@ -278,22 +285,12 @@ export default function DashboardLayout({
     if (!resolvedUserId) return;
 
     if (destination === "browse") {
-      router.push(`/dashboard/player/${resolvedUserId}?tab=all`);
+      router.push(`/dashboard/player/${resolvedUserId}`);
       return;
     }
 
-    if (destination === "my-games") {
-      router.push(`/dashboard/player/${resolvedUserId}?tab=my-games`);
-      return;
-    }
-
-    if (destination === "cancelled") {
-      router.push(`/dashboard/player/${resolvedUserId}?tab=cancelled`);
-      return;
-    }
-
-    if (destination === "completed") {
-      router.push(`/dashboard/player/${resolvedUserId}?tab=completed`);
+    if (destination === "my-games" || destination === "cancelled" || destination === "completed") {
+      router.push(`/dashboard/player/${resolvedUserId}/${destination}`);
       return;
     }
 

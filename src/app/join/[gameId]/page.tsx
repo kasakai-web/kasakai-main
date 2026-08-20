@@ -56,8 +56,8 @@ export default function JoinGamePage() {
 
     if (loggedInPlayer) {
       // Already logged in — open their dashboard with this game's modal
-      // No tab param: the openGame effect in the dashboard determines the correct tab
-      // based on whether the player is registered/waitlisted or not.
+      // The dashboard opens the game modal from ?openGame, fetching the game
+      // directly if it is not in the browse list it just loaded.
       router.replace(`/dashboard/player/${userId}?openGame=${gameId}`);
       return;
     }

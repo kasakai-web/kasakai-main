@@ -262,3 +262,33 @@
   .mpr-stat-value { font-size: 22px; }
   .mpr-ratings-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Load more (matches the notifications inbox button) ── */
+.mpr-load-more-wrap {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.mpr-load-more {
+  background: transparent;
+  border: 1px solid var(--border, #202020);
+  color: var(--muted, #666);
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.mpr-load-more:hover:not(:disabled) {
+  color: var(--white, #f4efe8);
+  border-color: #444;
+}
+
+.mpr-load-more:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

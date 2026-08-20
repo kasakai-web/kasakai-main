@@ -141,12 +141,15 @@ export function filtersToQuery(f: BrowseFilters, extra?: Record<string, string |
 
 /**
  * Rewrite the address bar to match the filters, preserving the params the
- * dashboard owns for its own reasons (which tab is open, which game modal is up)
- * so changing a filter never closes what the player was looking at.
+ * dashboard owns for its own reasons (which game modal is up, which invite is
+ * being resolved) so changing a filter never closes what the player was looking
+ * at. `tab` is not among them any more — the four lists are separate routes, so
+ * the path carries that, and carrying a stale `tab` would bounce the player
+ * back out of the page they are on.
  */
 export function filtersToSearchParams(f: BrowseFilters, preserve: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams();
-  for (const key of ["tab", "openGame", "invite"]) {
+  for (const key of ["openGame", "invite"]) {
     const v = preserve.get(key);
     if (v) next.set(key, v);
   }

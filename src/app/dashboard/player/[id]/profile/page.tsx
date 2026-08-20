@@ -78,7 +78,7 @@ export default function PlayerProfilePage() {
 
   const handleNav = () => {
     if (routeUserId) {
-      router.push(`/dashboard/player/${routeUserId}?tab=all`);
+      router.push(`/dashboard/player/${routeUserId}`);
     }
   };
 
@@ -364,11 +364,10 @@ export default function PlayerProfilePage() {
       const res = await fetch(buildApiUrl("/players/me"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        // email / phone / whatsappNumber are deliberately absent: they are the
+        // account's verified identity and the backend refuses to change them here.
         body: JSON.stringify({
           name: profile.name,
-          email: profile.email,
-          phone: profile.phone,
-          whatsappNumber: profile.whatsappNumber,
           location: { city: profile.location?.city, state: profile.location?.state },
           preferences: {
             skillLevel: profile.preferences?.skillLevel,
@@ -714,15 +713,15 @@ export default function PlayerProfilePage() {
               </div>
               <div className="pp-field">
                 <label className="pp-label">Email</label>
-                <input className="pp-input" type="email" value={profile.email || ""} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="your@email.com" />
+                <input className="pp-input pp-input-locked" type="email" value={profile.email || ""} readOnly aria-readonly="true" placeholder="your@email.com" />
               </div>
               <div className="pp-field">
-                <label className="pp-label">Phone *</label>
-                <input className="pp-input" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="10-digit number" required />
+                <label className="pp-label">Phone</label>
+                <input className="pp-input pp-input-locked" value={profile.phone} readOnly aria-readonly="true" />
               </div>
               <div className="pp-field">
-                <label className="pp-label">WhatsApp Number *</label>
-                <input className="pp-input" value={profile.whatsappNumber} onChange={(e) => setProfile({ ...profile, whatsappNumber: e.target.value })} placeholder="WhatsApp number" required />
+                <label className="pp-label">WhatsApp Number</label>
+                <input className="pp-input pp-input-locked" value={profile.whatsappNumber} readOnly aria-readonly="true" />
               </div>
               <div className="pp-field">
                 <label className="pp-label">City</label>
@@ -733,6 +732,11 @@ export default function PlayerProfilePage() {
                 <input className="pp-input" value={profile.location?.state || ""} onChange={(e) => setProfile({ ...profile, location: { ...profile.location, state: e.target.value } })} placeholder="e.g. Maharashtra" />
               </div>
             </div>
+            <p className="pp-lock-note">
+              Your email, phone and WhatsApp number are how we verify your account and
+              where your OTPs, game updates and receipts are sent, so they can&apos;t be
+              edited here. To change them, write to support@kasakai.in.
+            </p>
           </div>
 
           {/* Game Preferences */}
