@@ -71,7 +71,7 @@ const SECTION_META: Record<PlayerSection, {
   emptyBody: string;
 }> = {
   "all": {
-    eyebrow: "Browse",
+    eyebrow: "Live",
     title: <>Your Football <span>World</span></>,
     emptyTitle: "No games found",
     emptyBody: "No upcoming games here yet. Check back soon, or switch to another city.",

@@ -735,7 +735,7 @@ export default function PlayerProfilePage() {
             <p className="pp-lock-note">
               Your email, phone and WhatsApp number are how we verify your account and
               where your OTPs, game updates and receipts are sent, so they can&apos;t be
-              edited here. To change them, write to support@kasakai.in.
+              edited here. To change them, write to contact@kasakai.in.
             </p>
           </div>
 
