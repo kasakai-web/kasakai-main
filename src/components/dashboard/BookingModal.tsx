@@ -8,6 +8,7 @@ import {
   type RosterEntry,
   type TeamRequest,
 } from "@/components/PlayPreferences";
+import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 
 type BookingGame = {
   id?: string;
@@ -220,7 +221,6 @@ export function BookingModal({
   const [teamRequests, setTeamRequests] = useState<TeamRequest[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [willingIfFormatChange, setWillingIfFormatChange] = useState(true);
-  const [showFormatTip, setShowFormatTip] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [photoError, setPhotoError] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
@@ -395,48 +395,33 @@ export function BookingModal({
                     </div>
 
                     {/* Format change */}
-                    <div>
-                      <div className="bm-pref-row">
-                        <div className="bm-pref-row-label" style={{ display: "flex", alignItems: "center", gap: 5, width: "auto" }}>
-                          Format change
-                          <button
-                            type="button"
-                            onClick={() => setShowFormatTip((v) => !v)}
-                            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}
-                          >ℹ️</button>
+                    <InfoTip text="Turf and team size may change based on player turnout">
+                      <div>
+                        <div className="bm-pref-row">
+                          <div className="bm-pref-row-label" style={{ display: "flex", alignItems: "center", gap: 5, width: "auto" }}>
+                            Format change
+                            <InfoTipButton label="About format changes" />
+                          </div>
+                          <div className="bm-pref-row-val">
+                            <button
+                              type="button"
+                              onClick={() => setWillingIfFormatChange(true)}
+                              className={`bm-pref-opt${willingIfFormatChange ? " selected" : ""}`}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setWillingIfFormatChange(false)}
+                              className={`bm-pref-opt${!willingIfFormatChange ? " selected" : ""}`}
+                            >
+                              No
+                            </button>
+                          </div>
                         </div>
-                        <div className="bm-pref-row-val">
-                          <button
-                            type="button"
-                            onClick={() => setWillingIfFormatChange(true)}
-                            className={`bm-pref-opt${willingIfFormatChange ? " selected" : ""}`}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setWillingIfFormatChange(false)}
-                            className={`bm-pref-opt${!willingIfFormatChange ? " selected" : ""}`}
-                          >
-                            No
-                          </button>
-                        </div>
+                        <InfoTipPanel style={{ marginTop: 6, padding: "7px 10px" }} />
                       </div>
-                      {showFormatTip && (
-                        <div style={{
-                          marginTop: 6,
-                          padding: "7px 10px",
-                          background: "rgba(91,230,178,0.08)",
-                          border: "1px solid rgba(91,230,178,0.2)",
-                          borderRadius: 8,
-                          fontSize: 12,
-                          color: "#a7f3d0",
-                          lineHeight: 1.5,
-                        }}>
-                          Turf and team size may change based on player turnout
-                        </div>
-                      )}
-                    </div>
+                    </InfoTip>
 
                     {/* Who to line up with — only offered when the squad is visible */}
                     {roster.length > 0 && (
@@ -543,13 +528,19 @@ export function BookingModal({
               )}
 
               {isWaitlist ? (
-                <div className="wallet-summary" style={{ background: "rgba(200,255,62,0.06)", border: "1px solid rgba(200,255,62,0.2)" }}>
-                  <div className="ws-left">
-                    <div className="ws-label">Waitlist</div>
-                    <div className="ws-fee" style={{ color: "#c8ff3e" }}>No charge</div>
-                    <div className="ws-balance" style={{ color: "#888" }}>Payment only required when you claim a spot</div>
+                <InfoTip text="You will get a notification once a spot opens up. Register to confirm your spot">
+                  <div className="wallet-summary" style={{ background: "rgba(200,255,62,0.06)", border: "1px solid rgba(200,255,62,0.2)" }}>
+                    <div className="ws-left">
+                      <div className="ws-label">Waitlist</div>
+                      <div className="ws-fee" style={{ color: "#c8ff3e", display: "flex", alignItems: "center", gap: 8 }}>
+                        No charge
+                        <InfoTipButton label="How the waitlist works" size={16} />
+                      </div>
+                      <div className="ws-balance" style={{ color: "#888" }}>Payment only required when you claim a spot</div>
+                      <InfoTipPanel style={{ marginTop: 8, padding: "7px 10px" }} />
+                    </div>
                   </div>
-                </div>
+                </InfoTip>
               ) : needsApproval ? (
                 <div className="wallet-summary" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)" }}>
                   <div className="ws-left">

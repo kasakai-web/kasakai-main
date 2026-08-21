@@ -13,6 +13,7 @@ import { InviteConfirmModal } from "@/components/InviteConfirmModal";
 import { InviteFriendsModal } from "@/components/InviteFriendsModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
+import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/api";
 import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
@@ -175,7 +176,6 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [addingGuest, setAddingGuest] = useState(false);
   const [removingGuestId, setRemovingGuestId] = useState<string | null>(null);
-  const [showFormatTip, setShowFormatTip] = useState(false);
   const [confirmingGwId, setConfirmingGwId] = useState<string | null>(null);
   const [cancellingGwId, setCancellingGwId] = useState<string | null>(null);
   const [guestPrefOpen, setGuestPrefOpen] = useState(false);
@@ -2022,7 +2022,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       )}
 
       {detailGame && (
-        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setShowFormatTip(false);setLightboxImage(null);}}>
+        <div className="modal-overlay pd-event-modal-overlay" onClick={() => { setDetailGame(null); setDetailGameFeedback(null); setRemovedGuestIds(new Set()); setLightboxImage(null);}}>
           <div
             className="modal-content pd-event-modal"
             onClick={(e) => e.stopPropagation()}
@@ -2191,40 +2191,19 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             {detailTab === "details" && (
               <div className="dt-grid">
                 {pdDetailCells.map((cell) => (
-                  <div
-                    key={cell.label}
-                    className={`dt-cell${cell.full ? " full" : ""}`}
-                  >
-                    <div className="dt-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      {cell.label}
-                      {cell.info && (
-                        <button
-                          type="button"
-                          onClick={() => setShowFormatTip((v) => !v)}
-                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 1, fontSize: 13, opacity: 0.75 }}
-                          title={cell.info}
-                        >ℹ️</button>
-                      )}
-                    </div>
-                    <div className={`dt-val${cell.accent ? " accent" : ""}`}>
-                      {cell.value}
-                    </div>
-                    {cell.sub && <div className="dt-sub">{cell.sub}</div>}
-                    {cell.info && showFormatTip && (
-                      <div style={{
-                        marginTop: 8,
-                        padding: "8px 10px",
-                        background: "rgba(91,230,178,0.08)",
-                        border: "1px solid rgba(91,230,178,0.2)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        color: "#a7f3d0",
-                        lineHeight: 1.5,
-                      }}>
-                        {cell.info}
+                  <InfoTip key={cell.label} text={cell.info ?? ""}>
+                    <div className={`dt-cell${cell.full ? " full" : ""}`}>
+                      <div className="dt-label" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        {cell.label}
+                        {cell.info && <InfoTipButton label={`About ${cell.label}`} />}
                       </div>
-                    )}
-                  </div>
+                      <div className={`dt-val${cell.accent ? " accent" : ""}`}>
+                        {cell.value}
+                      </div>
+                      {cell.sub && <div className="dt-sub">{cell.sub}</div>}
+                      {cell.info && <InfoTipPanel />}
+                    </div>
+                  </InfoTip>
                 ))}
               </div>
             )}
@@ -2583,35 +2562,63 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   </div>
                 ) : (
                   /* ── Normal attend / opted-out toggle ── */
-                  <label style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    cursor: optingOut ? "not-allowed" : "pointer",
-                    opacity: optingOut ? 0.6 : 1,
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={!isOptedOut}
-                      onChange={(e) => handleOptOut(e.target.checked)}
-                      disabled={optingOut}
-                      style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
-                    />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
-                        {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
-                      </div>
-                      {isOptedOut && detailSpotsLeft === 0 && (
-                        <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
-                          Game is full — tick to join the waitlist and rejoin when a slot opens.
-                          {myGuestCount > 0 && <span style={{ color: "#c8ff3e" }}> Your guest is still registered.</span>}
+                  <InfoTip
+                    text={
+                      <>
+                        <div style={{ marginBottom: 6 }}>
+                          1) If you want to remove <strong>only yourself </strong> from the game,
+                          untick the &quot;I&apos;m attending this game&quot; box.
                         </div>
-                      )}
-                      {isOptedOut && detailSpotsLeft > 0 && (
-                        <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
-                          Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
+                        <div style={{ marginBottom: 6 }}>
+                          2) To remove a guest, click <strong>Remove </strong> beside their name.
                         </div>
-                      )}
+                        <div>
+                          3) Click <strong>Cancel Registration </strong> to cancel the registration
+                          for yourself and your guest(s).
+                        </div>
+                      </>
+                    }
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <label style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        flex: 1, minWidth: 0,
+                        cursor: optingOut ? "not-allowed" : "pointer",
+                        opacity: optingOut ? 0.6 : 1,
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={!isOptedOut}
+                          onChange={(e) => handleOptOut(e.target.checked)}
+                          disabled={optingOut}
+                          style={{ width: 16, height: 16, accentColor: "#c8ff3e", flexShrink: 0 }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: isOptedOut ? "#f59e0b" : "#e5e7eb" }}>
+                            {optingOut ? "Updating…" : isOptedOut ? "You're not attending" : "I'm attending this game"}
+                          </div>
+                          {isOptedOut && detailSpotsLeft === 0 && (
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
+                              Game is full — tick to join the waitlist and rejoin when a slot opens.
+                              {myGuestCount > 0 && <span style={{ color: "#c8ff3e" }}> Your guest is still registered.</span>}
+                            </div>
+                          )}
+                          {isOptedOut && detailSpotsLeft > 0 && (
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 2, lineHeight: 1.4 }}>
+                              Your guests' registrations remain active. Tick to rejoin{detailGame.feeInPaise > 0 ? ` (₹${detailGame.feeInPaise / 100} will be charged)` : ""}.
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                      {/* Explains unticking vs removing a guest vs cancelling outright */}
+                      <InfoTipButton
+                        label="How removing yourself or your guests works"
+                        size={16}
+                        style={{ flexShrink: 0 }}
+                      />
                     </div>
-                  </label>
+                    <InfoTipPanel style={{ fontSize: 11, marginTop: 10 }} />
+                  </InfoTip>
                 )}
               </div>
             )}

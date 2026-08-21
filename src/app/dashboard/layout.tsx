@@ -15,6 +15,7 @@ import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
+import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import "./dashboard.css";
 import Image from "next/image";
 
@@ -25,7 +26,6 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname() || "";
   const router = useRouter();
-  const [showFormatTip, setShowFormatTip] = useState(false);
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
@@ -681,7 +681,7 @@ export default function DashboardLayout({
                 navigateToPlayer("faq");
               }}
             >
-              <span className="sidebar-icon">❓</span>Faq
+              <span className="sidebar-icon">❓</span>FAQ
             </button>
             <button
               className={`sidebar-link ${activeSection === "notifications" ? "active" : ""}`}
@@ -891,57 +891,25 @@ export default function DashboardLayout({
                     marginBottom: "16px",
                   }}
                 >
-                  <div style={{ marginBottom: "8px" }}>
-                    {/* Flex row so the icon centres against the label instead
-                        of sitting on its text baseline */}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        color: "var(--muted)",
-                        fontSize: "11px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em", 
-                      }}
-                    >
-                      <span>My Pass</span><Image
-                        onClick={() => setShowFormatTip((v) => !v)} 
-                        aria-label="About passes"
-                        aria-expanded={showFormatTip}
-                          src="/info.png"
-                          alt="Info"
-                          width={16}
-                          height={16}
-                          style={{
-                            objectFit: "contain",
-                            display: "block",
-                            transition: "opacity 0.15s ease",
-                            cursor: "pointer",
-                            marginBottom: "2px"
-                          }}
-                          title="Passes allow you to join games free of charge. Contact an organizer to know more"
-                        />
-                    </div>
-                    {showFormatTip && (
+                  <InfoTip text="Passes allow you to join games free of charge. Contact an organizer to know more">
+                    <div style={{ marginBottom: "8px" }}>
                       <div
                         style={{
-                          marginTop: 8,
-                          padding: "8px 10px",
-                          background: "rgba(91,230,178,0.08)",
-                          border: "1px solid rgba(91,230,178,0.2)",
-                          borderRadius: 8,
-                          fontSize: 11,
-                          textTransform: "none",
-                          color: "#a7f3d0",
-                          lineHeight: 1.5,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          color: "var(--muted)",
+                          fontSize: "11px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
                         }}
                       >
-                        Passes allow you to join games free of charge. Contact
-                        an organizer to know more
+                        <span>My Pass</span>
+                        <InfoTipButton label="About passes" size={16} />
                       </div>
-                    )}
-                  </div>
+                      <InfoTipPanel style={{ fontSize: 11 }} />
+                    </div>
+                  </InfoTip>
                   <div
                     style={{
                       display: "flex",
