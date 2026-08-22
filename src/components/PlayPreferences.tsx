@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React from "react";
 
 /**
@@ -52,7 +53,11 @@ export function PreferenceDisclaimer({ compact = false }: { compact?: boolean })
         marginTop: 10,
       }}
     >
-      <span style={{ fontSize: 12, lineHeight: 1.4, flexShrink: 0 }}>ℹ️</span>
+    <Image src="/info.png" alt="Info Button"
+              width={15}
+              height={15}
+              style={{ lineHeight: 1.4, objectFit: "contain", display: "block",marginBottom:"3px", transition: "opacity 0.15s ease", cursor: "pointer"}}
+            />
       <div style={{ fontSize: 11.5, color: "#d6b26a", lineHeight: 1.55 }}>
         These are preferences, not guarantees. Teams are balanced on skill, position
         and goalkeeping first, so your final side and shirt colour may differ from
