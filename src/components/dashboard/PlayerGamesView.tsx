@@ -16,6 +16,7 @@ import { Toast, useToast } from "@/components/ui/Toast";
 import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/api";
 import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import CityPicker from "@/components/dashboard/CityPicker";
 import GameFilters from "@/components/dashboard/GameFilters";
 import {
@@ -61,6 +62,36 @@ const BROWSE_PAGE_SIZE = 12;
 // at the same size, since a history card costs the same to fetch and render as
 // a browse one.
 const HISTORY_PAGE_SIZE = 12;
+
+// How often the browse list re-reads itself in the background. The old page did
+// this every 20 seconds for all four lists at once, which is why it was taken
+// out. A minute, on browse alone, is enough to catch a game filling up or a new
+// one opening without the page talking to the server all the time.
+const BROWSE_REFRESH_MS = 60_000;
+
+// Returning to the tab also re-reads the list, so a player who has been away
+// does not sit in front of a stale one until the next tick. That fires on both
+// window focus and tab visibility — which can arrive together, and again on
+// every flick between windows — so no two refreshes run closer than this.
+const BROWSE_REFRESH_MIN_GAP_MS = 20_000;
+
+// The most a refresh can re-read in one request: the backend caps a page at 50
+// (MAX_LIMIT in gameFilters.js), so this stays a whole number of pages under it.
+// A player scrolled further than this keeps the rest of their list untouched —
+// only the head is re-read.
+const BROWSE_REFRESH_MAX = BROWSE_PAGE_SIZE * 4;
+
+// A `game-update` says a game's numbers moved but carries no roster, so the card
+// has to re-read the game to learn WHO moved. Two things keep that cheap: the
+// event is a global broadcast (every client hears about every game), so only
+// games actually on screen are ever re-read, and a burst — one booking with two
+// guests, or several people acting on the same game at once — is collected into
+// a single round of fetches rather than one request per event.
+const ROSTER_REFRESH_DEBOUNCE_MS = 1_500;
+
+// Ceiling on one round, for the pathological case where a burst touches half the
+// list. Anything dropped is picked up by the minute refresh.
+const ROSTER_REFRESH_MAX = 6;
 
 // With the tab strip gone, the heading is what tells the player which of the
 // four lists they are looking at.
@@ -143,14 +174,17 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // A callback ref rather than useRef: it re-runs the observer effect when the
   // sentinel node actually mounts, which a ref object's silent mutation cannot.
   const [loadMoreSentinel, setLoadMoreSentinel] = useState<HTMLElement | null>(null);
-  // The 20-second background refresh runs from a callback created once, so it
-  // would otherwise re-fetch with whatever filters were set when that callback
-  // was built — silently wiping the player's selection every 20 seconds. The ref
-  // is what keeps it pointed at the current selection.
+  // The background refresh re-reads the list without being handed a selection,
+  // so it would otherwise fetch with whatever filters were set when its callback
+  // was built — silently wiping the player's selection every minute. The ref is
+  // what keeps it pointed at the current selection.
   const filtersRef = useRef<BrowseFilters>(filters);
   // False until the first filter selection has been fetched by the mount load,
   // so the effect that watches `filters` doesn't duplicate it.
   const filtersSettled = useRef(false);
+  // When the browse list was last re-read in the background — the timer and the
+  // focus/visibility triggers all check it, so together they stay one request.
+  const lastBrowseRefresh = useRef(0);
 
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [detailGame, setDetailGame] = useState<any>(null);
@@ -207,7 +241,14 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // string IS the filter. The filter-change effect passes its selection in
   // explicitly; the background refresh has no such value to hand and falls back
   // to the ref, which tracks the latest one.
-  const fetchAllGames = async (applied?: BrowseFilters, page = 1) => {
+  const fetchAllGames = async (
+    applied?: BrowseFilters,
+    page = 1,
+    // Set by the minute refresh only. It re-reads the whole window the player
+    // has already scrolled through in one request, so it asks for `window`
+    // games rather than a page, and must leave their paging position alone.
+    refresh?: { window: number; coversAll: boolean },
+  ) => {
     try {
       const { token } = getSession();
       if (!token) {
@@ -215,7 +256,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         return;
       }
 
-      const query = filtersToQuery(applied ?? filtersRef.current, { limit: BROWSE_PAGE_SIZE, page });
+      const limit = refresh ? refresh.window : BROWSE_PAGE_SIZE;
+      const requested = applied ?? filtersRef.current;
+      const query = filtersToQuery(requested, { limit, page });
       const res = await fetch(buildApiUrl(`/games${query}`), {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -226,25 +269,47 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           router.replace("/login?role=player");
           return;
         }
-        setGames([]);
+        // A background refresh that fails is a non-event — the list on screen is
+        // still the best answer we have, so leave it rather than blanking it.
+        if (!refresh) setGames([]);
         return;
       }
 
+      // A refresh takes about a second; a player can change a filter inside it.
+      // Theirs is the answer that should win, so an in-flight refresh for the
+      // filters they just left is dropped rather than painted over the top.
+      if (refresh && filtersRef.current !== requested) return;
+
       const data = await res.json();
       if (data.success) {
+        // Every successful read counts against the refresh gap, not just the
+        // background ones — a list the mount load, a filter change or a "load
+        // more" has just fetched does not need re-reading on the next focus.
+        lastBrowseRefresh.current = Date.now();
         const batch: any[] = data.data || [];
         // Page 1 replaces (a new filter is a new list); later pages append, and
         // de-dupe because a game that filled up between two requests can shift
         // across the page boundary and arrive twice.
-        setGames((prev) =>
-          page > 1
+        setGames((prev) => {
+          if (refresh) {
+            // Anything past the re-read window stays exactly as it was. A game
+            // that shifted up into the window is in `batch` now, so drop the
+            // copy left behind in the tail.
+            const tail = prev
+              .slice(refresh.window)
+              .filter((g) => !batch.some((b) => b._id === g._id));
+            return [...batch, ...tail];
+          }
+          return page > 1
             ? [...prev, ...batch.filter((g) => !prev.some((p) => p._id === g._id))]
-            : batch,
-        );
+            : batch;
+        });
         setFacets(data.facets || null);
         setTotalGames(typeof data.total === "number" ? data.total : batch.length);
-        setListHasMore(Boolean(data.hasMore));
-        setListPage(page);
+        // `hasMore` from a refresh only describes the window it asked for, so it
+        // is only the truth when that window was the player's whole list.
+        if (!refresh || refresh.coversAll) setListHasMore(Boolean(data.hasMore));
+        if (!refresh) setListPage(page);
       }
     } catch {
       // non-critical — games will stay as-is on network error
@@ -447,8 +512,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   };
 
   // Re-read just this page's list — after a booking, a back-out, a guest change.
-  // There is no timer: the games list is not fetched again unless something the
-  // player did (or a socket event) says it changed.
+  // On the own-games lists this is the only thing that re-fetches them: they
+  // change when the player acts, so there is no timer on them. Browse has one
+  // (see `refreshBrowseList`), because it changes without the player.
   const refreshSection = useCallback(async () => {
     try {
       await (isBrowse ? fetchAllGames() : Promise.all([fetchMyGames(), fetchMyWaitlist()]));
@@ -482,6 +548,33 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     fetchDashboardData();
   }, [isAuthorized]);
 
+  // Browse goes stale on its own: games fill up, organisers open new ones or
+  // call them off, and nothing the player does on this page tells us about it.
+  // The socket already patches spot counts the moment they move, so this is the
+  // safety net for everything else — once a minute, browse only. The own-games
+  // lists change only when the player acts, and `refreshSection` covers that.
+  const refreshBrowseList = async () => {
+    if (!isBrowse || !isAuthorized) return;
+    // Never cut across a fetch the player is waiting on — a filter change or a
+    // "load more" would land after ours and fight over the same list.
+    if (loading || gamesLoading || loadingMore) return;
+    const now = Date.now();
+    if (now - lastBrowseRefresh.current < BROWSE_REFRESH_MIN_GAP_MS) return;
+    lastBrowseRefresh.current = now;
+    // An empty list is the one most worth re-reading — it is what a player
+    // staring at "no games found" is waiting on — so it still asks for a page.
+    const loaded = games.length;
+    const windowSize = Math.min(Math.max(loaded, BROWSE_PAGE_SIZE), BROWSE_REFRESH_MAX);
+    await fetchAllGames(undefined, 1, { window: windowSize, coversAll: windowSize >= loaded });
+  };
+
+  useAutoRefresh(isBrowse && isAuthorized ? refreshBrowseList : null, {
+    interval:  BROWSE_REFRESH_MS,
+    onFocus:   true,
+    onVisible: true,
+    enabled:   isBrowse && isAuthorized,
+  });
+
   // Real-time wallet: update balance immediately when backend emits wallet-update
   useEffect(() => {
     const handler = (e: Event) => {
@@ -494,9 +587,89 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
 
   useEffect(() => { detailGameIdRef.current = detailGame?._id ?? null; }, [detailGame]);
 
+  // Which games have a roster on screen. A `game-update` for anything else is a
+  // count patch and nothing more — there is no card to repaint, so no re-read.
+  const visibleGameIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    visibleGameIdsRef.current = new Set(
+      [...games, ...myGames, ...myWaitlist].map((g: any) => g._id),
+    );
+  }, [games, myGames, myWaitlist]);
+
+  // Browse and My Games tag the caller's own rows; getGameById does not, and the
+  // cards read that tag to tell this player's seat — and the guests they brought,
+  // which only they may remove — from everyone else's. Re-tag on the way in, or a
+  // refresh silently disowns their guests.
+  const annotateMyRows = (regs: any[] = []) => regs.map((r: any) => ({
+    ...r,
+    _isMyReg: (r.player?._id?.toString() ?? r.player?.toString() ?? "") === playerId,
+  }));
+
+  // Re-read one game and fold its roster into every list holding it, plus the
+  // modal if that is the game open. The socket payload carries counts only, so
+  // without this a player who joined or backed out kept their avatar and name on
+  // everyone else's card until the next browse refresh a minute later — the card
+  // said "7 of 10" over eight faces.
+  const refreshGameRoster = async (gameId: string) => {
+    const { token } = getSession();
+    if (!token) return;
+    try {
+      const res = await fetch(buildApiUrl(`/api/v1/games/${gameId}`), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const d = await res.json();
+      if (!d.success || !d.data) return;
+      const fresh = d.data;
+      const regs  = annotateMyRows(fresh.registrations);
+      // Cards read a handful of fields off the game; the rest of the list entry
+      // carries annotations this response has no idea about (_isWaitlisted,
+      // _myWaitlistStatus), so it is patched, never replaced.
+      const patch = (g: any) => g._id !== fresh._id ? g : {
+        ...g,
+        registrations:      regs,
+        spotsRemaining:     fresh.spotsRemaining ?? g.spotsRemaining,
+        totalSlots:         fresh.totalSlots ?? g.totalSlots,
+        organiserIsPlaying: fresh.organiserIsPlaying ?? g.organiserIsPlaying,
+      };
+      setGames((prev) => prev.map(patch));
+      setMyGames((prev) => prev.map(patch));
+      setMyWaitlist((prev) => prev.map(patch));
+      setDetailGame((prev: any) => {
+        if (!prev || prev._id !== fresh._id) return prev;
+        return {
+          ...fresh,
+          registrations: regs,
+          _isWaitlisted: prev._isWaitlisted,
+          _waitlistStatus: prev._waitlistStatus,
+          _myWaitlistStatus: prev._myWaitlistStatus,
+        };
+      });
+    } catch {
+      // A missed re-read is not worth surfacing: the counts are already patched,
+      // and the minute refresh catches the roster.
+    }
+  };
+
+  const rosterQueueRef = useRef<Set<string>>(new Set());
+  const rosterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueRosterRefresh = (gameId: string) => {
+    if (!visibleGameIdsRef.current.has(gameId)) return;
+    rosterQueueRef.current.add(gameId);
+    if (rosterTimerRef.current) return;
+    rosterTimerRef.current = setTimeout(() => {
+      rosterTimerRef.current = null;
+      const ids = [...rosterQueueRef.current].slice(0, ROSTER_REFRESH_MAX);
+      rosterQueueRef.current.clear();
+      ids.forEach((id) => { refreshGameRoster(id); });
+    }, ROSTER_REFRESH_DEBOUNCE_MS);
+  };
+
   // Real-time game count: patch spotsRemaining + totalSlots in state immediately
-  // when any player joins/leaves/adds or removes a guest on any game.
-  // If the modal is open for this game, also trigger a full refresh so waitlist statuses stay current.
+  // when any player joins/leaves/adds or removes a guest on any game, then re-read
+  // the roster behind it so the faces on the card agree with the number.
+  // The open modal is re-read straight away — it is the surface being read most
+  // closely, and its waitlist statuses move with the roster.
   useEffect(() => {
     const handler = (e: Event) => {
       const { gameId, spotsRemaining, totalSlots } = (e as CustomEvent<{ gameId: string; spotsRemaining: number; totalSlots: number }>).detail;
@@ -506,28 +679,18 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       setMyWaitlist((prev) => prev.map(patch));
       setDetailGame((prev: any) => prev?._id === gameId ? { ...prev, spotsRemaining, totalSlots } : prev);
 
-      if (detailGameIdRef.current === gameId) {
-        const { token } = getSession();
-        if (!token) return;
-        fetch(buildApiUrl(`/api/v1/games/${gameId}`), {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then(async (res) => {
-            if (!res.ok) return;
-            const d = await res.json();
-            if (!d.success || !d.data) return;
-            const fresh = d.data;
-            setDetailGame((prev: any) => {
-              if (!prev || prev._id !== fresh._id) return prev;
-              return { ...fresh, _isWaitlisted: prev._isWaitlisted, _waitlistStatus: prev._waitlistStatus, _myWaitlistStatus: prev._myWaitlistStatus };
-            });
-          })
-          .catch(() => {});
-      }
+      if (detailGameIdRef.current === gameId) refreshGameRoster(gameId);
+      else queueRosterRefresh(gameId);
     };
     window.addEventListener("kk-game-update", handler);
-    return () => window.removeEventListener("kk-game-update", handler);
-  }, []);
+    return () => {
+      window.removeEventListener("kk-game-update", handler);
+      if (rosterTimerRef.current) clearTimeout(rosterTimerRef.current);
+    };
+    // Subscribed once, for the life of the page. Both handlers read only refs,
+    // state setters and the route's playerId, so the mount-time copies stay
+    // correct — re-subscribing on every render would drop the pending queue.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filters ⇄ URL ─────────────────────────────────────────────────────────
 
@@ -802,12 +965,32 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         // Strip player's waitlist + guest-waitlist from games state immediately
         // so the 📋 Waitlist panel doesn't show stale names if the game is reopened
         const pid = playerId;
+        // Retire this player's rows (and the guests they brought) locally, exactly as
+        // the backend just did. Patching only the count left every roster reading off
+        // registrations that still held them: the card kept their avatar and name in
+        // the signed-up stack and still badged the game "✓ Registered".
+        //
+        // Taking the response's registrations wholesale is not the fix — backout
+        // populates `registrations.player` with name/email only, so every OTHER player
+        // on the card would lose their photo.
+        const backedOutAt = new Date().toISOString();
+        const retireMyRows = (regs: any[] = []) => regs.map((r: any) => {
+          const rPid = r.player?._id?.toString() ?? r.player?.toString() ?? '';
+          if (r.backedOutAt || !(r._isMyReg || rPid === pid)) return r;
+          // 'forfeited' money was never coming back; same carve-out the server makes.
+          return {
+            ...r,
+            backedOutAt,
+            paymentStatus: r.paymentStatus === 'forfeited' ? r.paymentStatus : 'refunded',
+          };
+        });
         setGames((prev) => prev.map((g) => {
           if (g._id !== game._id) return g;
           return {
             ...g,
             spotsRemaining: data.data?.spotsRemaining ?? g.spotsRemaining,
             totalSlots: data.data?.totalSlots ?? g.totalSlots,
+            registrations: retireMyRows(g.registrations),
             waitlist: (g.waitlist || []).filter((w: any) => {
               const wPid = w.player?._id?.toString() ?? w.player?.toString() ?? '';
               return wPid !== pid;
