@@ -3,11 +3,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, resolveImageUrl } from "@/utils/api";
+import {
+  buildApiUrl,
+  clearSession,
+  getSession,
+  isPassExpired,
+  isPassNotYetActive,
+  resolveImageUrl,
+} from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
+import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import "./dashboard.css";
 import Image from "next/image";
 
@@ -21,25 +29,54 @@ export default function DashboardLayout({
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
-  const [activeSection, setActiveSection] = useState<"browse" | "mygames" | "cancelled" | "completed" | "notifications" | "profile" | "wallet" | "ratings">("browse");
-  const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<
+    | "browse"
+    | "mygames"
+    | "cancelled"
+    | "completed"
+    | "notifications"
+    | "faq"
+    | "profile"
+    | "wallet"
+    | "ratings"
+  >("browse");
+  const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(
+    null,
+  );
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
-  const [playerPass, setPlayerPass] = useState<{ type: string; startDate: string | null; expiryDate: string | null; passMonthYear: string | null } | null>(null);
+  const [playerPass, setPlayerPass] = useState<{
+    type: string;
+    startDate: string | null;
+    expiryDate: string | null;
+    passMonthYear: string | null;
+  } | null>(null);
 
   const PASS_LABELS: Record<string, string> = {
-    weekday: "Weekday", weekend: "Weekend", day: "Day", night: "Night",
-    weekday_day: "Weekday + Day", weekday_night: "Weekday + Night",
-    weekend_day: "Weekend + Day", weekend_night: "Weekend + Night",
-    full_month: "Full Month", half_month_1: "Half Month (1–15)", half_month_2: "Half Month (16–31)",
+    weekday: "Weekday",
+    weekend: "Weekend",
+    day: "Day",
+    night: "Night",
+    weekday_day: "Weekday + Day",
+    weekday_night: "Weekday + Night",
+    weekend_day: "Weekend + Day",
+    weekend_night: "Weekend + Night",
+    full_month: "Full Month",
+    half_month_1: "Half Month (1–15)",
+    half_month_2: "Half Month (16–31)",
   };
 
   useEffect(() => {
-    const { token: authToken, role: storedRole, userId: storedUserId } = getSession();
-    const storedUserName = typeof window !== "undefined" ? localStorage.getItem("userName") : null;
+    const {
+      token: authToken,
+      role: storedRole,
+      userId: storedUserId,
+    } = getSession();
+    const storedUserName =
+      typeof window !== "undefined" ? localStorage.getItem("userName") : null;
 
     if (storedUserName) {
       setUserName(storedUserName);
@@ -64,7 +101,10 @@ export default function DashboardLayout({
 
   // Re-read profile image from localStorage whenever path changes (e.g. after profile page update)
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("profileImage") : null;
+    const stored =
+      typeof window !== "undefined"
+        ? localStorage.getItem("profileImage")
+        : null;
     // Hide reminder once user is on profile page or has uploaded a photo
     if (pathname.includes("/profile") || stored) {
       setShowPhotoReminder(false);
@@ -84,7 +124,7 @@ export default function DashboardLayout({
       const data = await res.json();
       const img = data?.data?.profileImage;
       if (img) {
-        localStorage.setItem("profileImage", img)
+        localStorage.setItem("profileImage", img);
         setUserProfileImage(resolveImageUrl(img));
       }
       // Always sync pass — set to its current value (incl. "none" when removed)
@@ -93,7 +133,9 @@ export default function DashboardLayout({
   }, [authenticated]);
 
   // Re-fetch on auth resolve + on every navigation so the My Pass card stays current
-  useEffect(() => { refreshProfileMeta(); }, [refreshProfileMeta, pathname]);
+  useEffect(() => {
+    refreshProfileMeta();
+  }, [refreshProfileMeta, pathname]);
 
   // Refresh on window focus / tab visible (e.g. an admin changed the pass in
   // another tab). No timer: this already re-runs on every navigation above, and
@@ -102,7 +144,7 @@ export default function DashboardLayout({
     interval:  0,
     onFocus:   true,
     onVisible: true,
-    enabled:   authenticated,
+    enabled: authenticated,
   });
 
   // Fetch + auto-refresh wallet balance in sidebar
@@ -122,7 +164,9 @@ export default function DashboardLayout({
     } catch {}
   }, [authenticated]);
 
-  useEffect(() => { refreshWalletBalance(); }, [refreshWalletBalance, pathname]);
+  useEffect(() => {
+    refreshWalletBalance();
+  }, [refreshWalletBalance, pathname]);
 
   // Fetch notification unread count for sidebar badge
   const refreshUnreadCount = useCallback(async () => {
@@ -146,7 +190,7 @@ export default function DashboardLayout({
     interval:  0,
     onFocus:   true,
     onVisible: true,
-    enabled:   authenticated,
+    enabled: authenticated,
   });
 
   useEffect(() => {
@@ -157,7 +201,10 @@ export default function DashboardLayout({
 
     window.addEventListener("player-notifications-read-all", handleReadAll);
     return () => {
-      window.removeEventListener("player-notifications-read-all", handleReadAll);
+      window.removeEventListener(
+        "player-notifications-read-all",
+        handleReadAll,
+      );
     };
   }, [refreshUnreadCount]);
 
@@ -167,13 +214,14 @@ export default function DashboardLayout({
     interval:  0,
     onFocus:   true,
     onVisible: true,
-    enabled:   authenticated,
+    enabled: authenticated,
   });
 
   // Real-time updates via Socket.io events relayed as DOM events by SocketClient
   useEffect(() => {
     const onWalletUpdate = (e: Event) => {
-      const { availablePaise } = (e as CustomEvent<{ availablePaise: number }>).detail;
+      const { availablePaise } = (e as CustomEvent<{ availablePaise: number }>)
+        .detail;
       setWalletBalancePaise(availablePaise);
     };
     const onNewNotification = () => {
@@ -193,18 +241,32 @@ export default function DashboardLayout({
       return;
     }
 
-    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/profile")) {
+    if (
+      pathname.includes("/dashboard/player/") &&
+      pathname.endsWith("/profile")
+    ) {
       setActiveSection("profile");
       return;
     }
 
-    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/wallet")) {
+    if (
+      pathname.includes("/dashboard/player/") &&
+      pathname.endsWith("/wallet")
+    ) {
       setActiveSection("wallet");
       return;
     }
 
-    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/ratings")) {
+    if (
+      pathname.includes("/dashboard/player/") &&
+      pathname.endsWith("/ratings")
+    ) {
       setActiveSection("ratings");
+      return;
+    }
+
+    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/faq")) {
+      setActiveSection("faq");
       return;
     }
 
@@ -252,12 +314,17 @@ export default function DashboardLayout({
       }
     };
 
-    window.addEventListener("player-tab-change", handleTabChange as EventListener);
+    window.addEventListener(
+      "player-tab-change",
+      handleTabChange as EventListener,
+    );
     return () => {
-      window.removeEventListener("player-tab-change", handleTabChange as EventListener);
+      window.removeEventListener(
+        "player-tab-change",
+        handleTabChange as EventListener,
+      );
     };
   }, []);
-
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
@@ -280,7 +347,18 @@ export default function DashboardLayout({
     return sessionUserId || "";
   };
 
-  const navigateToPlayer = (destination: "browse" | "my-games" | "cancelled" | "completed" | "profile" | "notifications" | "wallet" | "ratings") => {
+  const navigateToPlayer = (
+    destination:
+      | "browse"
+      | "my-games"
+      | "cancelled"
+      | "faq"
+      | "completed"
+      | "profile"
+      | "notifications"
+      | "wallet"
+      | "ratings",
+  ) => {
     const resolvedUserId = resolvePlayerId();
     if (!resolvedUserId) return;
 
@@ -308,7 +386,10 @@ export default function DashboardLayout({
       router.push(`/dashboard/player/${resolvedUserId}/ratings`);
       return;
     }
-
+    if (destination === "faq") {
+      router.push(`/dashboard/player/${resolvedUserId}/faq`);
+      return;
+    }
     router.push(`/dashboard/player/${resolvedUserId}/profile`);
   };
 
@@ -323,7 +404,10 @@ export default function DashboardLayout({
         title="Log Out"
         message="Are you sure you want to log out of Kasakai?"
         confirmLabel="Yes, Log Out"
-        onConfirm={() => { setShowLogoutConfirm(false); setShowLogoutSuccess(true); }}
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          setShowLogoutSuccess(true);
+        }}
         onCancel={() => setShowLogoutConfirm(false)}
       />
       <SuccessPopup
@@ -347,32 +431,113 @@ export default function DashboardLayout({
             transition: "background 0.18s",
           }}
         >
-          <div className="logo-block" style={{ display: "flex", flexDirection: "column", width: "36px", height: "36px", overflow: "hidden", border: "1.5px solid #2a2a2a", flexShrink: 0 }}>
-            <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "9.5px", letterSpacing: "0.1em", lineHeight: 1, color: "#000" }}>KASA</span>
+          <div
+            className="logo-block"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              width: "36px",
+              height: "36px",
+              overflow: "hidden",
+              border: "1.5px solid #2a2a2a",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                background: "var(--white)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--cond)",
+                  fontWeight: 800,
+                  fontSize: "9.5px",
+                  letterSpacing: "0.1em",
+                  lineHeight: 1,
+                  color: "#000",
+                }}
+              >
+                KASA
+              </span>
             </div>
-            <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #2a2a2a" }}>
-              <span style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "9.5px", letterSpacing: "0.1em", lineHeight: 1, color: "var(--white)" }}>KAI</span>
+            <div
+              style={{
+                flex: 1,
+                background: "#000",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderTop: "1.5px solid #2a2a2a",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--cond)",
+                  fontWeight: 800,
+                  fontSize: "9.5px",
+                  letterSpacing: "0.1em",
+                  lineHeight: 1,
+                  color: "var(--white)",
+                }}
+              >
+                KAI
+              </span>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1, gap: 0 }}>
-            <p className="logo-name-top" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--white)", lineHeight: 1 }}>KASA</p>
-            <p className="logo-name-bot" style={{ fontFamily: "var(--cond)", fontWeight: 800, fontSize: "18px", letterSpacing: "0.14em", color: "var(--muted)", lineHeight: 1 }}>KAI</p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              lineHeight: 1,
+              gap: 0,
+            }}
+          >
+            <p
+              className="logo-name-top"
+              style={{
+                fontFamily: "var(--cond)",
+                fontWeight: 800,
+                fontSize: "18px",
+                letterSpacing: "0.14em",
+                color: "var(--white)",
+                lineHeight: 1,
+              }}
+            >
+              KASA
+            </p>
+            <p
+              className="logo-name-bot"
+              style={{
+                fontFamily: "var(--cond)",
+                fontWeight: 800,
+                fontSize: "18px",
+                letterSpacing: "0.14em",
+                color: "var(--muted)",
+                lineHeight: 1,
+              }}
+            >
+              KAI
+            </p>
           </div>
         </Link>
 
-        <div className="nav-center">
-        </div>
+        <div className="nav-center"></div>
 
         {/* Mobile wallet display */}
         <div className="mobile-wallet-display">
           {walletBalancePaise !== null && (
-            <div 
+            <div
               className="mobile-wallet-pill"
               onClick={() => {
                 const resolvedId = resolvePlayerId();
-                if (resolvedId) router.push(`/dashboard/player/${resolvedId}/wallet`);
+                if (resolvedId)
+                  router.push(`/dashboard/player/${resolvedId}/wallet`);
               }}
             >
               <span className="mobile-wallet-icon">💰</span>
@@ -388,7 +553,8 @@ export default function DashboardLayout({
             unreadCount={sidebarUnread}
             onViewAll={() => {
               const resolvedId = resolvePlayerId();
-              if (resolvedId) router.push(`/dashboard/player/${resolvedId}/notifications`);
+              if (resolvedId)
+                router.push(`/dashboard/player/${resolvedId}/notifications`);
             }}
           />
         </div>
@@ -401,11 +567,21 @@ export default function DashboardLayout({
         >
           {sidebarOpen ? (
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-              <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M6 6l12 12M6 18L18 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           ) : (
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
-              <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M3 12h18M3 6h18M3 18h18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           )}
         </button>
@@ -419,40 +595,63 @@ export default function DashboardLayout({
         />
 
         {/* SIDEBAR */}
-        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} id="sidebar">
+        <aside
+          className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}
+          id="sidebar"
+        >
           <div className="sidebar-section">
             <button
-              className={`sidebar-link ${activeSection === 'browse' ? 'active' : ''}`}
-              onClick={() => { setActiveSection("browse"); setSidebarOpen(false); navigateToPlayer("browse"); }}
+              className={`sidebar-link ${activeSection === "browse" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("browse");
+                setSidebarOpen(false);
+                navigateToPlayer("browse");
+              }}
             >
               <span className="sidebar-icon">⚽</span>Browse Games
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'mygames' ? 'active' : ''}`}
-              onClick={() => { setActiveSection("mygames"); setSidebarOpen(false); navigateToPlayer("my-games"); }}
+              className={`sidebar-link ${activeSection === "mygames" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("mygames");
+                setSidebarOpen(false);
+                navigateToPlayer("my-games");
+              }}
             >
               <span className="sidebar-icon">📋</span>My Bookings
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'cancelled' ? 'active' : ''}`}
-              onClick={() => { setActiveSection("cancelled"); setSidebarOpen(false); navigateToPlayer("cancelled"); }}
+              className={`sidebar-link ${activeSection === "cancelled" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("cancelled");
+                setSidebarOpen(false);
+                navigateToPlayer("cancelled");
+              }}
             >
               <span className="sidebar-icon">⛔</span>Cancelled Events
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'completed' ? 'active' : ''}`}
-              onClick={() => { setActiveSection("completed"); setSidebarOpen(false); navigateToPlayer("completed"); }}
+              className={`sidebar-link ${activeSection === "completed" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("completed");
+                setSidebarOpen(false);
+                navigateToPlayer("completed");
+              }}
             >
               <span className="sidebar-icon">✅</span>Completed Games
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'ratings' ? 'active' : ''}`}
-              onClick={() => { setActiveSection("ratings"); setSidebarOpen(false); navigateToPlayer("ratings"); }}
+              className={`sidebar-link ${activeSection === "ratings" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("ratings");
+                setSidebarOpen(false);
+                navigateToPlayer("ratings");
+              }}
             >
               <span className="sidebar-icon">⭐</span>My Feedback
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'wallet' ? 'active' : ''}`}
+              className={`sidebar-link ${activeSection === "wallet" ? "active" : ""}`}
               onClick={() => {
                 setActiveSection("wallet");
                 setSidebarOpen(false);
@@ -461,13 +660,31 @@ export default function DashboardLayout({
             >
               <span className="sidebar-icon">💰</span>Wallet
               {walletBalancePaise !== null && (
-                <span style={{ marginLeft: "auto", color: "#c8ff3e", fontFamily: "var(--mono)", fontSize: "11px", fontWeight: 700 }}>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    color: "#c8ff3e",
+                    fontFamily: "var(--mono)",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                  }}
+                >
                   ₹{(walletBalancePaise / 100).toLocaleString("en-IN")}
                 </span>
               )}
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'notifications' ? 'active' : ''}`}
+              className={`sidebar-link ${activeSection === "faq" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("faq");
+                setSidebarOpen(false);
+                navigateToPlayer("faq");
+              }}
+            >
+              <span className="sidebar-icon">❓</span>FAQ
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "notifications" ? "active" : ""}`}
               onClick={() => {
                 setActiveSection("notifications");
                 setSidebarOpen(false);
@@ -476,13 +693,24 @@ export default function DashboardLayout({
             >
               <span className="sidebar-icon">🔔</span>Notifications
               {sidebarUnread > 0 && (
-                <span style={{ marginLeft: "auto", background: "#ff4444", color: "#fff", fontFamily: "var(--mono)", fontSize: "9px", padding: "2px 6px", borderRadius: "10px", fontWeight: 700 }}>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    background: "#ff4444",
+                    color: "#fff",
+                    fontFamily: "var(--mono)",
+                    fontSize: "9px",
+                    padding: "2px 6px",
+                    borderRadius: "10px",
+                    fontWeight: 700,
+                  }}
+                >
                   {sidebarUnread > 99 ? "99+" : sidebarUnread}
                 </span>
               )}
             </button>
             <button
-              className={`sidebar-link ${activeSection === 'profile' ? 'active' : ''}`}
+              className={`sidebar-link ${activeSection === "profile" ? "active" : ""}`}
               onClick={() => {
                 setActiveSection("profile");
                 setSidebarOpen(false);
@@ -504,28 +732,109 @@ export default function DashboardLayout({
             >
               <div className="user-avatar" style={{ overflow: "hidden" }}>
                 {userProfileImage ? (
-                  <Image width={100} height={100} src={userProfileImage} alt={userName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image
+                    width={100}
+                    height={100}
+                    src={userProfileImage}
+                    alt={userName}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
                 ) : (
                   userName.substring(0, 2).toUpperCase()
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <span className="user-name" style={{ fontWeight: 600, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</span>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  minWidth: 0,
+                }}
+              >
+                <span
+                  className="user-name"
+                  style={{
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {userName}
+                </span>
               </div>
             </button>
 
-            <div className="sidebar-wallet-card" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--border)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
-              <div className="swc-label" style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>Wallet Balance</div>
-              <div className="swc-amount" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--white)", fontSize: "20px", fontWeight: 600, marginBottom: "12px" }}>
-                <span className="wallet-dot" style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--lime)", display: "inline-block" }}></span>
+            <div
+              className="sidebar-wallet-card"
+              style={{
+                background: "rgba(0,0,0,0.4)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                padding: "16px",
+                marginBottom: "16px",
+              }}
+            >
+              <div
+                className="swc-label"
+                style={{
+                  color: "var(--muted)",
+                  fontSize: "11px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "6px",
+                }}
+              >
+                Wallet Balance
+              </div>
+              <div
+                className="swc-amount"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  color: "var(--white)",
+                  fontSize: "20px",
+                  fontWeight: 600,
+                  marginBottom: "12px",
+                }}
+              >
+                <span
+                  className="wallet-dot"
+                  style={{
+                    width: "6px",
+                    height: "6px",
+                    borderRadius: "50%",
+                    background: "var(--lime)",
+                    display: "inline-block",
+                  }}
+                ></span>
                 {walletBalancePaise !== null
                   ? `₹${(walletBalancePaise / 100).toLocaleString("en-IN")}`
                   : "₹—"}
               </div>
               <button
                 className="swc-topup"
-                style={{ width: "100%", padding: "8px", background: "var(--white)", color: "var(--black)", border: "none", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                onClick={() => { setActiveSection("wallet"); setSidebarOpen(false); navigateToPlayer("wallet"); }}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  background: "var(--white)",
+                  color: "var(--black)",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setActiveSection("wallet");
+                  setSidebarOpen(false);
+                  navigateToPlayer("wallet");
+                }}
               >
                 + Top Up
               </button>
@@ -534,50 +843,137 @@ export default function DashboardLayout({
             {/* Pass card */}
             {(() => {
               const hasPass = playerPass?.type && playerPass.type !== "none";
-              const isExpired = hasPass && !!playerPass?.expiryDate && isPassExpired(playerPass.expiryDate);
-              const isUpcoming = hasPass && !isExpired && isPassNotYetActive(playerPass?.startDate);
+              const isExpired =
+                hasPass &&
+                !!playerPass?.expiryDate &&
+                isPassExpired(playerPass.expiryDate);
+              const isUpcoming =
+                hasPass &&
+                !isExpired &&
+                isPassNotYetActive(playerPass?.startDate);
               const isActive = hasPass && !isExpired && !isUpcoming;
-              const passLabel = hasPass ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type) : "No Pass";
-              const accentColor = isExpired ? "#fb923c" : isUpcoming ? "#60a5fa" : isActive ? "#4ade80" : "#444";
-              const badgeLabel = isExpired ? "Expired" : isUpcoming ? "Upcoming" : isActive ? "Active" : "No Pass";
+              const passLabel = hasPass
+                ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type)
+                : "No Pass";
+              const accentColor = isExpired
+                ? "#fb923c"
+                : isUpcoming
+                  ? "#60a5fa"
+                  : isActive
+                    ? "#4ade80"
+                    : "#444";
+              const badgeLabel = isExpired
+                ? "Expired"
+                : isUpcoming
+                  ? "Upcoming"
+                  : isActive
+                    ? "Active"
+                    : "No Pass";
               const tint = (a: number) =>
-                isExpired ? `rgba(251,146,60,${a})` : isUpcoming ? `rgba(96,165,250,${a})` : `rgba(74,222,128,${a})`;
-              const fmt = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                isExpired
+                  ? `rgba(251,146,60,${a})`
+                  : isUpcoming
+                    ? `rgba(96,165,250,${a})`
+                    : `rgba(74,222,128,${a})`;
+              const fmt = (d: string) =>
+                new Date(d).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                });
               return (
-                <div style={{
-                  background: "rgba(0,0,0,0.4)",
-                  border: `1px solid ${hasPass ? tint(0.2) : "var(--border)"}`,
-                  borderRadius: "8px", padding: "14px 16px", marginBottom: "16px",
-                }}>
-                  <div style={{ color: "var(--muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                    My Pass
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: hasPass ? "8px" : 0 }}>
-                    <span style={{ color: hasPass && !isExpired ? "var(--white)" : "var(--muted)", fontSize: "13px", fontWeight: 600 }}>
+                <div
+                  style={{
+                    background: "rgba(0,0,0,0.4)",
+                    border: `1px solid ${hasPass ? tint(0.2) : "var(--border)"}`,
+                    borderRadius: "8px",
+                    padding: "14px 16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <InfoTip text="Passes allow you to join games free of charge. Contact an organizer to know more">
+                    <div style={{ marginBottom: "8px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          color: "var(--muted)",
+                          fontSize: "11px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        <span>My Pass</span>
+                        <InfoTipButton label="About passes" size={16} />
+                      </div>
+                      <InfoTipPanel style={{ fontSize: 11 }} />
+                    </div>
+                  </InfoTip>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: hasPass ? "8px" : 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color:
+                          hasPass && !isExpired
+                            ? "var(--white)"
+                            : "var(--muted)",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                      }}
+                    >
                       {passLabel}
                     </span>
-                    <span style={{
-                      fontSize: "9px", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
-                      padding: "2px 8px", borderRadius: "20px",
-                      color: accentColor,
-                      background: hasPass ? tint(0.1) : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${hasPass ? tint(0.25) : "#222"}`,
-                    }}>
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        fontWeight: 800,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        padding: "2px 8px",
+                        borderRadius: "20px",
+                        color: accentColor,
+                        background: hasPass
+                          ? tint(0.1)
+                          : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${hasPass ? tint(0.25) : "#222"}`,
+                      }}
+                    >
                       {badgeLabel}
                     </span>
                   </div>
                   {hasPass && (
-                    <div style={{ fontSize: "11px", color: "var(--muted)", lineHeight: 1.5 }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--muted)",
+                        lineHeight: 1.5,
+                      }}
+                    >
                       {playerPass?.passMonthYear && (
                         <div>Month: {playerPass.passMonthYear}</div>
                       )}
                       {playerPass?.startDate && (
-                        <span>{isUpcoming ? "Starts" : "From"} {fmt(playerPass.startDate)}{playerPass?.expiryDate ? " · " : ""}</span>
+                        <span>
+                          {isUpcoming ? "Starts" : "From"}{" "}
+                          {fmt(playerPass.startDate)}
+                          {playerPass?.expiryDate ? " · " : ""}
+                        </span>
                       )}
-                      {playerPass?.expiryDate
-                        ? <span>Expires {fmt(playerPass.expiryDate)}</span>
-                        : !playerPass?.passMonthYear && !playerPass?.startDate && <span style={{ color: "#555" }}>No expiry set</span>
-                      }
+                      {playerPass?.expiryDate ? (
+                        <span>Expires {fmt(playerPass.expiryDate)}</span>
+                      ) : (
+                        !playerPass?.passMonthYear &&
+                        !playerPass?.startDate && (
+                          <span style={{ color: "#555" }}>No expiry set</span>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -587,7 +983,15 @@ export default function DashboardLayout({
             <button
               className="sidebar-link"
               onClick={handleLogout}
-              style={{ color: "#ff4444", marginTop: "auto", borderTop: "1px solid var(--border)", paddingTop: "16px", width: "100%", justifyContent: "flex-start", opacity: 0.8 }}
+              style={{
+                color: "#ff4444",
+                marginTop: "auto",
+                borderTop: "1px solid var(--border)",
+                paddingTop: "16px",
+                width: "100%",
+                justifyContent: "flex-start",
+                opacity: 0.8,
+              }}
             >
               <span className="sidebar-icon">🚪</span>Log Out
             </button>
@@ -597,31 +1001,56 @@ export default function DashboardLayout({
         {/* MAIN CONTENT */}
         <main className="dashboard-main">
           {showPhotoReminder && (
-            <div style={{
-              background: "rgba(200,255,62,0.08)",
-              border: "1px solid rgba(200,255,62,0.3)",
-              borderRadius: "8px",
-              padding: "12px 16px",
-              margin: "16px 16px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              flexWrap: "wrap",
-            }}>
+            <div
+              style={{
+                background: "rgba(200,255,62,0.08)",
+                border: "1px solid rgba(200,255,62,0.3)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+                margin: "16px 16px 0",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
               <span style={{ fontSize: "18px" }}>📸</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, color: "#c8ff3e", fontWeight: 700, fontSize: "14px" }}>Profile photo required</p>
-                <p style={{ margin: 0, color: "var(--muted)", fontSize: "12px", marginTop: "2px" }}>
-                  Add a profile photo so organisers and teammates can recognise you.
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#c8ff3e",
+                    fontWeight: 700,
+                    fontSize: "14px",
+                  }}
+                >
+                  Profile photo required
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    color: "var(--muted)",
+                    fontSize: "12px",
+                    marginTop: "2px",
+                  }}
+                >
+                  Add a profile photo so organisers and teammates can recognise
+                  you.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigateToPlayer("profile")}
                 style={{
-                  background: "#c8ff3e", color: "#000", border: "none",
-                  borderRadius: "6px", padding: "7px 14px",
-                  fontSize: "12px", fontWeight: 700, cursor: "pointer", flexShrink: 0,
+                  background: "#c8ff3e",
+                  color: "#000",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "7px 14px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  flexShrink: 0,
                 }}
               >
                 Add Photo
@@ -631,8 +1060,14 @@ export default function DashboardLayout({
                 onClick={() => setShowPhotoReminder(false)}
                 aria-label="Dismiss"
                 style={{
-                  background: "none", border: "none", color: "var(--muted)",
-                  cursor: "pointer", fontSize: "18px", lineHeight: 1, flexShrink: 0, padding: "0 4px",
+                  background: "none",
+                  border: "none",
+                  color: "var(--muted)",
+                  cursor: "pointer",
+                  fontSize: "18px",
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  padding: "0 4px",
                 }}
               >
                 ×

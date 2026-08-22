@@ -1,77 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState,type ReactNode } from "react";
 
-const FAQS = [
+const FAQS: { q: string; a: ReactNode }[] = [
   {
-    q: "How do I join a game?",
-    a: "Browse open games, select one that fits your schedule, and pay the entry fee from your in-app wallet. Your spot is confirmed instantly. If the game is full, you can join the waitlist and get in automatically when a spot opens.",
+    q: "How do I sign up for a game?",
+    a: "Find a game on the listing page and click ‘Book Now’. Make sure your wallet has enough balance.",
   },
   {
-    q: "What if I want to cancel my registration?",
-    a: "You can cancel before the game takes place. Your registration fee is refunded to your Kasa Kai wallet — not to your bank account. The exact refund amount depends on the organiser's cancellation policy for that game, which is shown clearly before you confirm your cancellation.",
+    q: "How do I recharge my wallet?",
+    a: "Go to your wallet page and click Recharge. Pay via Razorpay to top up your wallet.",
   },
   {
-    q: "What happens if the organiser cancels the game?",
-    a: "If the organiser cancels, all registered players receive a full refund to their Kasa Kai wallet within minutes of the cancellation. No action is needed from your side.",
+    q: "What if I back out of a game?",
+    a: "You will receive a full refund to your wallet automatically.",
   },
   {
-    q: "Can I withdraw money from my wallet to my bank?",
-    a: "No. Wallet balances cannot be withdrawn as cash or transferred to a bank account. All refunds — from registration cancellations or game cancellations — are credited to your in-app wallet only. If a top-up payment fails and money is deducted from your account, Razorpay will automatically reverse it to your bank within 5–7 business days.",
+    q: "What if I don't show up?",
+    a: "No show refunds are not automatic. The organiser will decide on a case-by-case basis.",
   },
   {
-    q: "How does team balancing work?",
-    a: "Once the game is confirmed, the algorithm builds balanced sides using each player's skill rating, preferred position, and team preference. The organiser gets an edit window to adjust before the team sheet is published to all players.",
+    q: "Can I bring a friend?",
+    a: "Yes. Add them as a guest during game signup. Their fee comes from your wallet and their behaviour is your responsibility.",
   },
   {
-    q: "Is my payment information safe?",
-    a: "Yes. Kasa Kai never stores your card number, UPI ID, or banking credentials. All payments are processed by Razorpay. We only store your wallet balance and transaction IDs for reconciliation. All traffic is HTTPS-encrypted and payment callbacks are verified via HMAC-SHA256.",
+    q: "What if the game is cancelled?",
+    a: "You get a fully automatic refund to your wallet. No action needed from your end.",
   },
+  {
+    q: "What if the game format changes?",
+    a: "If you said no to format changes at signup, you are automatically opted out and refunded. If you said yes, you stay in and get notified.",
+  },
+{
+  q: "How do I raise a concern?",
+  a: (
+    <>
+      Contact the organiser after the game. For platform issues, reach out to
+      the Kasa Kai team at{" "}
+      <a
+        href="mailto:contact@kasakai.in"
+        style={{
+          color: "var(--lime)",
+          textDecoration: "underline",
+          cursor: "pointer",
+        }}
+      >
+        contact@kasakai.in
+      </a>
+      .
+    </>
+  ),
+},
 ];
 
-export function FAQSection() {
+export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const toggle = (i: number) => setOpenIndex(openIndex === i ? null : i);
 
   return (
-    <section
-      id="support"
-      style={{
-        background: "var(--black)",
-        padding: "100px 0 80px",
-        borderTop: "1px solid var(--border)",
-      }}
-    >
-      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "0 24px" }}>
-
-        {/* Label */}
-        <p style={{
-          fontFamily: "var(--mono)",
-          fontSize: "10px",
-          letterSpacing: ".22em",
-          textTransform: "uppercase",
-          color: "var(--muted)",
-          marginBottom: "16px",
-        }}>
-          Support
-        </p>
-
-        {/* Heading */}
-        <h2 style={{
-          fontFamily: "var(--cond)",
-          fontWeight: 900,
-          fontSize: "clamp(52px, 10vw, 80px)",
-          letterSpacing: "-.01em",
-          lineHeight: 0.9,
-          color: "var(--white)",
-          marginBottom: "56px",
-        }}>
-          FAQ
-        </h2>
-
-        {/* Accordion */}
-        <div>
+    <div className="player-dashboard-container">
+      <div className="page-header">
+        <div className="page-title-group">
+          <div className="page-title">Frequently Asked Questions (FAQs)</div>
+        </div>
+      </div>
+        <>
           {FAQS.map((item, i) => {
             const isOpen = openIndex === i;
             return (
@@ -162,9 +156,7 @@ export function FAQSection() {
               </div>
             );
           })}
-        </div>
-
+        </>
       </div>
-    </section>
   );
 }
