@@ -1,20 +1,20 @@
 "use client";
 
-import   { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { avatarColorFor, avatarInitials } from "@/utils/avatar"; 
 import {resolveImageUrl} from "@/utils/api";
-import Image from "next/image";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
 
-function buildAvatarStackLabel(names: string[]): string|null {  
-  const total = names.length;
+
+function buildAvatarStackLabel(players: { name: string }[]): string|null {  
+  const total = players.length;
   if (total === 0) return null;
-  if (total === 1) return names[0];
-  if (total === 2) return `${names[0]} and ${names[1]}`;
+  if (total === 1) return players[0].name;
+  if (total === 2) return `${players[0].name} and ${players[1].name}`;
   const othersCount = total - 2;
-  return `${names[0]}, ${names[1]} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
+  return `${players[0].name}, ${players[1].name} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
 }
 
 export interface EventCardProps {
@@ -191,11 +191,9 @@ export function EventCard({
             {players.slice(0, 3).map((p, i) => {
               const imageUrl = resolveImageUrl(p.profileImage);
               return (
-                <div key={i} className="avatar-mini" style={{ background: avatarColorFor(p.name) }}>
+                <div key={i} className="avatar-mini" style={imageUrl ? undefined : { background: avatarColorFor(p.name) }}>
                   {imageUrl && (
-                    <Image 
-                    width={30}
-                    height={30}
+                    <img  
                       loading="lazy"
                       src={imageUrl}
                       alt={p.name}
@@ -215,7 +213,7 @@ export function EventCard({
               );
             })}
           </div>
-          <span className="players-names-label">{buildAvatarStackLabel(players.map((p) => p.name))}</span>
+          <span className="players-names-label">{buildAvatarStackLabel(players)}</span>
         </div>
       )}
 
