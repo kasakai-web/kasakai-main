@@ -35,7 +35,7 @@ import {
 import "@/app/dashboard/player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
-import Image from "next/image";
+import ProgressBar from "../ui/ProgressBar";
 
 
 /**
@@ -2532,20 +2532,13 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               <>
                 <div className="pd-roster-section-head">
                   <span className="pd-roster-section-title">Players</span>
-                  <span className="pd-roster-section-meta"><strong>{detailFilledSlots}</strong> of {detailGame.totalSlots || 0}</span>
                 </div>
-
-                <div className="pd-roster-progress-wrap">
-                  <div
-                    className="pd-roster-progress-fill"
-                    style={{ width: `${detailGame.totalSlots ? Math.min(100, (detailFilledSlots / detailGame.totalSlots) * 100) : 0}%` }}
-                  />
-                </div>
+                <ProgressBar spotsTotal={detailGame.totalSlots } spotsLeft={detailGame.spotsRemaining} />
 
                 {detailPlayers.length === 0 ? (
-                  <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>No players registered yet.</div>
+                  <div style={{ color: "#888", fontSize: 13, marginBottom: 16,marginTop:"4px" }}>No players registered yet.</div>
                 ) : (
-                  <div className="pd-roster-list">
+                  <div className="pd-roster-list  ">
                     {(() => {
                       const regs = liveRegistrations;
                       const mainRegs = regs.filter((r: any) => !r.plusOneName);

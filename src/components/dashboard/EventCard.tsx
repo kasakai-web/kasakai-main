@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { avatarColorFor, avatarInitials } from "@/utils/avatar"; 
 import {resolveImageUrl} from "@/utils/api";
+import ProgressBar from "@/components/ui/ProgressBar";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
 
 
-function buildAvatarStackLabel(players: { name: string }[]): string|null {  
+function buildAvatarStackLabel(players: { name: string }[]): string|null {
   const total = players.length;
   if (total === 0) return null;
   if (total === 1) return players[0].name;
@@ -98,22 +98,6 @@ export function EventCard({
     if (gameIST === tomorrowIST) return "Tomorrow";
     return new Date(date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
   };
-
-  const fillPercentage = spotsTotal > 0 ? ((spotsTotal - spotsLeft) / spotsTotal) * 100 : 0;
-  let fillClass = "mid";
-  if (fillPercentage > 80) fillClass = "low";
-  if (fillPercentage < 50) fillClass = "high";
-
-  // Flash the spots count when it changes (someone just registered or backed out)
-  const prevSpots = useRef(spotsLeft);
-  const [spotsFlash, setSpotsFlash] = useState<"down" | "up" | null>(null);
-  useEffect(() => {
-    if (prevSpots.current === spotsLeft) return;
-    setSpotsFlash(spotsLeft < prevSpots.current ? "down" : "up");
-    prevSpots.current = spotsLeft;
-    const t = setTimeout(() => setSpotsFlash(null), 1200);
-    return () => clearTimeout(t);
-  }, [spotsLeft]);
 
   return (
     <div className={`event-card ${effectiveStatus} ${isRegistered ? 'registered' : ''}`}>
@@ -218,24 +202,7 @@ export function EventCard({
       )}
 
       {/* Players Capacity Bar */}
-      <div className="capacity-section">
-        <div className="capacity-bar">
-          <div
-            className={`capacity-fill ${fillClass}`}
-            style={{ width: `${fillPercentage}%`, transition: "width 0.6s ease" }}
-          ></div>
-        </div>
-        <div className="capacity-text">
-          <span
-            className="players-count"
-            style={spotsFlash === "down" ? { color: "#f87171" } : spotsFlash === "up" ? { color: "#4ade80" } : undefined}
-          >
-            {spotsTotal - spotsLeft}
-          </span>
-          <span className="total-slots">of {spotsTotal}</span>
-        </div>
-      </div>
-
+      <ProgressBar   spotsTotal={spotsTotal} spotsLeft={spotsLeft} />
       {/* Cancel Reason */}
       {isCancelled && cancelReason && (
         <div className="cancel-reason-section">
