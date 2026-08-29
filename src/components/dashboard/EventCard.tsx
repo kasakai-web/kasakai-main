@@ -1,20 +1,20 @@
 "use client";
 
-import   { useEffect, useRef, useState } from "react";
 import { avatarColorFor, avatarInitials } from "@/utils/avatar"; 
 import {resolveImageUrl} from "@/utils/api";
-import Image from "next/image";
+import ProgressBar from "@/components/ui/ProgressBar";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
 
-function buildAvatarStackLabel(names: string[]): string|null {  
-  const total = names.length;
+
+function buildAvatarStackLabel(players: { name: string }[]): string|null {
+  const total = players.length;
   if (total === 0) return null;
-  if (total === 1) return names[0];
-  if (total === 2) return `${names[0]} and ${names[1]}`;
+  if (total === 1) return players[0].name;
+  if (total === 2) return `${players[0].name} and ${players[1].name}`;
   const othersCount = total - 2;
-  return `${names[0]}, ${names[1]} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
+  return `${players[0].name}, ${players[1].name} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
 }
 
 export interface EventCardProps {
@@ -99,22 +99,6 @@ export function EventCard({
     return new Date(date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
   };
 
-  const fillPercentage = spotsTotal > 0 ? ((spotsTotal - spotsLeft) / spotsTotal) * 100 : 0;
-  let fillClass = "mid";
-  if (fillPercentage > 80) fillClass = "low";
-  if (fillPercentage < 50) fillClass = "high";
-
-  // Flash the spots count when it changes (someone just registered or backed out)
-  const prevSpots = useRef(spotsLeft);
-  const [spotsFlash, setSpotsFlash] = useState<"down" | "up" | null>(null);
-  useEffect(() => {
-    if (prevSpots.current === spotsLeft) return;
-    setSpotsFlash(spotsLeft < prevSpots.current ? "down" : "up");
-    prevSpots.current = spotsLeft;
-    const t = setTimeout(() => setSpotsFlash(null), 1200);
-    return () => clearTimeout(t);
-  }, [spotsLeft]);
-
   return (
     <div className={`event-card ${effectiveStatus} ${isRegistered ? 'registered' : ''}`}>
       {/* Header with badge and price */}
@@ -191,11 +175,9 @@ export function EventCard({
             {players.slice(0, 3).map((p, i) => {
               const imageUrl = resolveImageUrl(p.profileImage);
               return (
-                <div key={i} className="avatar-mini" style={{ background: avatarColorFor(p.name) }}>
+                <div key={i} className="avatar-mini" style={imageUrl ? undefined : { background: avatarColorFor(p.name) }}>
                   {imageUrl && (
-                    <Image 
-                    width={30}
-                    height={30}
+                    <img  
                       loading="lazy"
                       src={imageUrl}
                       alt={p.name}
@@ -215,29 +197,12 @@ export function EventCard({
               );
             })}
           </div>
-          <span className="players-names-label">{buildAvatarStackLabel(players.map((p) => p.name))}</span>
+          <span className="players-names-label">{buildAvatarStackLabel(players)}</span>
         </div>
       )}
 
       {/* Players Capacity Bar */}
-      <div className="capacity-section">
-        <div className="capacity-bar">
-          <div
-            className={`capacity-fill ${fillClass}`}
-            style={{ width: `${fillPercentage}%`, transition: "width 0.6s ease" }}
-          ></div>
-        </div>
-        <div className="capacity-text">
-          <span
-            className="players-count"
-            style={spotsFlash === "down" ? { color: "#f87171" } : spotsFlash === "up" ? { color: "#4ade80" } : undefined}
-          >
-            {spotsTotal - spotsLeft}
-          </span>
-          <span className="total-slots">of {spotsTotal}</span>
-        </div>
-      </div>
-
+      <ProgressBar   spotsTotal={spotsTotal} spotsLeft={spotsLeft} />
       {/* Cancel Reason */}
       {isCancelled && cancelReason && (
         <div className="cancel-reason-section">

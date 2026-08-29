@@ -1,0 +1,74 @@
+/* ─── Capacity Section ─── */
+.capacity-section {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.capacity-bar {
+  flex: 1;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.capacity-fill {
+  height: 100%;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 3px;
+} 
+
+/* ── Capacity bar glow on fills ── */
+.capacity-fill.high {
+  background: linear-gradient(90deg, #c8ff3e, #8dd44e);
+  box-shadow: 0 0 6px rgba(200,255,62,.4);
+}
+.capacity-fill.mid {
+  background: linear-gradient(90deg, #f59e0b, #fb923c);
+  box-shadow: 0 0 6px rgba(245,158,11,.3);
+}
+.capacity-fill.low {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  box-shadow: 0 0 6px rgba(239,68,68,.3);
+}
+
+.capacity-fill.high {
+  background: linear-gradient(90deg, var(--lime), #5dc570);
+}
+
+.capacity-fill.mid {
+  background: linear-gradient(90deg, var(--amber), #ffb347);
+}
+
+.capacity-fill.low {
+  background: linear-gradient(90deg, var(--coral), #ff7854);
+}
+
+.capacity-text {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #555;
+} 
+
+
+.players-count {
+  font-weight: 700;
+  color: #ccc;
+  font-size: 14px;
+}
+
+.total-slots {
+  color: #555;
+}
+
+
+@media (max-width: 767px) { 
+    .capacity-section { gap: 8px; }
+    .capacity-text { font-size: 11px; } 
+     .players-count { font-size: 13px; }
+}

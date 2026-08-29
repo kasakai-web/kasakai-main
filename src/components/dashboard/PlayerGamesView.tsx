@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import { TeamOutcomeBadge } from "@/components/PlayPreferences";
@@ -15,7 +14,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/api";
-import { avatarColorFor, avatarInitials } from "@/utils/avatar";
+import { avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import CityPicker from "@/components/dashboard/CityPicker";
@@ -36,6 +35,7 @@ import {
 import "@/app/dashboard/player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
+import ProgressBar from "../ui/ProgressBar";
 
 
 /**
@@ -140,6 +140,58 @@ const markPopupShown = (gameId: string) => {
     localStorage.setItem(POPUP_SHOWN_KEY, JSON.stringify([...shown, gameId]));
   }
 };
+
+const POS_FULL_LABEL: Record<string, string> = {
+  goalkeeper: "Goalkeeper", defender: "Defender", midfielder: "Midfielder", forward: "Forward", any: "Any",
+};
+
+type RosterRowProps = {
+  name: string;
+  subLabel: string;
+  badge?: "organiser" | "guest";
+  optedOut?: boolean;
+  guestRow?: boolean;
+  imageUrl?: string;
+  onAvatarClick: (url: string) => void;
+};
+
+const RosterRow = React.memo(function RosterRow({
+  name, subLabel, badge, optedOut = false, guestRow = false, imageUrl, onAvatarClick,
+}: RosterRowProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = !!imageUrl && failedUrl !== imageUrl;
+
+  const openLightbox = useCallback(
+    () => { if (imageUrl) onAvatarClick(imageUrl); },
+    [imageUrl, onAvatarClick],
+  );
+  const onImageError = useCallback(() => setFailedUrl(imageUrl ?? null), [imageUrl]);
+
+  return (
+    <div className={`pd-roster-item${guestRow ? " pd-roster-guest-row" : ""}${optedOut ? " pd-roster-item-out" : ""}`}>
+      <div className={`pd-roster-avatar${guestRow ? " pd-roster-avatar-sm" : ""}`}>
+        {showImage ? (
+          <img 
+            loading="lazy"
+            src={imageUrl}
+            alt={name}
+            onClick={openLightbox}
+            className="pd-roster-avatar-img"
+            onError={onImageError}
+          />
+        ) : (
+          <span className="pd-roster-avatar-fallback">{avatarInitials(name)}</span>
+        )}
+      </div>
+      <div className="pd-roster-info">
+        <div className="pd-roster-name">{name}</div>
+        <div className="pd-roster-sub">{optedOut ? "Not attending" : subLabel}</div>
+      </div>
+      {badge === "organiser" && <span className="pd-roster-badge pd-roster-badge-org">Organiser</span>}
+      {badge === "guest" && <span className="pd-roster-badge pd-roster-badge-guest">Guest</span>}
+    </div>
+  );
+});
 
 export default function PlayerGamesView({ section }: { section: PlayerSection }) {
   const router = useRouter();
@@ -2524,20 +2576,13 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               <>
                 <div className="pd-roster-section-head">
                   <span className="pd-roster-section-title">Players</span>
-                  <span className="pd-roster-section-meta"><strong>{detailFilledSlots}</strong> of {detailGame.totalSlots || 0}</span>
                 </div>
-
-                <div className="pd-roster-progress-wrap">
-                  <div
-                    className="pd-roster-progress-fill"
-                    style={{ width: `${detailGame.totalSlots ? Math.min(100, (detailFilledSlots / detailGame.totalSlots) * 100) : 0}%` }}
-                  />
-                </div>
+                <ProgressBar spotsTotal={detailGame.totalSlots } spotsLeft={detailGame.spotsRemaining} />
 
                 {detailPlayers.length === 0 ? (
-                  <div style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>No players registered yet.</div>
+                  <div style={{ color: "#888", fontSize: 13, marginBottom: 16,marginTop:"4px" }}>No players registered yet.</div>
                 ) : (
-                  <div className="pd-roster-list">
+                  <div className="pd-roster-list  ">
                     {(() => {
                       const regs = liveRegistrations;
                       const mainRegs = regs.filter((r: any) => !r.plusOneName);
@@ -2564,61 +2609,49 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                           guestsByPlayerId.get(k)!.push(r);
                         }
                       });
-                      const posFullLabel: Record<string, string> = {
-                        goalkeeper: "Goalkeeper", defender: "Defender", midfielder: "Midfielder", forward: "Forward", any: "Any",
-                      };
-
-                      const renderRosterRow = (name: string,subLabel: string,key: string, opts: { badge?: "organiser" | "guest"; optedOut?: boolean; guestRow?: boolean; imageUrl?: string } = {}) => {
-                        const { badge, optedOut = false, guestRow = false, imageUrl } = opts;
-                        return (
-                          <div key={key} className={`pd-roster-item${guestRow ? " pd-roster-guest-row" : ""}`} style={optedOut ? { opacity: 0.55 } : undefined}>
-                            <div
-                              className={`pd-roster-avatar${guestRow ? " pd-roster-avatar-sm" : ""}`}
-                              style={{ background: guestRow ? "#374151" : avatarColorFor(name) }}
-                            >
-                              {imageUrl && (
-                                <img
-                                  src={imageUrl}
-                                  alt={name} 
-                                  onClick={() => setLightboxImage(imageUrl)}
-                                  className="pd-roster-avatar-img"
-                                  onError={(e) => {
-                                    const img = e.currentTarget;
-                                    img.style.display = "none";
-                                    const fallback = img.nextElementSibling as HTMLElement | null;
-                                    if (fallback) fallback.style.display = "flex";
-                                  }}
-                                />
-                              )}
-                              <span className="pd-roster-avatar-fallback" style={imageUrl ? { display: "none" } : undefined}>
-                                {avatarInitials(name)}
-                              </span>
-                            </div>
-                            <div className="pd-roster-info">
-                              <div className="pd-roster-name" style={guestRow ? { fontSize: 13 } : undefined}>{name}</div>
-                              <div className="pd-roster-sub">{optedOut ? "Not attending" : subLabel}</div>
-                            </div>
-                            {badge === "organiser" && <span className="pd-roster-badge pd-roster-badge-org">Organiser</span>}
-                            {badge === "guest" && <span className="pd-roster-badge pd-roster-badge-guest">Guest</span>}
-                          </div>
-                        );
-                      };
-
                       return (
                         <>
-                          {detailGame.organiserIsPlaying && renderRosterRow(detailGame.organiser?.name || "Organiser", "Organiser", "organiser", { badge: "organiser", imageUrl: resolveImageUrl(detailGame.organiser?.profileImage) })}
-                          {orgGuests.map((r: any, i: number) =>
-                            renderRosterRow(r.plusOneName, posFullLabel[r.preferredPosition]|| "Any", `og-${r._id || i}`, { badge: "guest", guestRow: true })
+                          {detailGame.organiserIsPlaying && (
+                            <RosterRow
+                              name={detailGame.organiser?.name || "Organiser"}
+                              subLabel="Organiser"
+                              badge="organiser"
+                              imageUrl={resolveImageUrl(detailGame.organiser?.profileImage)}
+                              onAvatarClick={setLightboxImage}
+                            />
                           )}
+                          {orgGuests.map((r: any, i: number) => (
+                            <RosterRow
+                              key={`og-${r._id || i}`}
+                              name={r.plusOneName}
+                              subLabel={POS_FULL_LABEL[r.preferredPosition] || "Any"}
+                              badge="guest"
+                              guestRow
+                              onAvatarClick={setLightboxImage}
+                            />
+                          ))}
                           {mainRegs.map((reg: any, idx: number) => {
                             const pId = reg.player?._id?.toString() ?? reg.player?.toString() ?? "";
                             const myGsts = guestsByPlayerId.get(pId) ?? [];
                             return (
                               <React.Fragment key={reg._id || idx}>
-                                {renderRosterRow(reg.player?.name || "Player", posFullLabel[reg.preferredPosition] || "Any", `p-${reg._id || idx}`, { optedOut: !!reg.optedOut, imageUrl: resolveImageUrl(reg.player?.profileImage) })}
-                                {myGsts.map((gr: any, gi: number) =>
-                                  renderRosterRow(gr.plusOneName, posFullLabel[gr.preferredPosition]|| "Any", `pg-${gr._id || gi}`, { badge: "guest", guestRow: true })
-                                )}
+                                <RosterRow
+                                  name={reg.player?.name || "Player"}
+                                  subLabel={POS_FULL_LABEL[reg.preferredPosition] || "Any"}
+                                  optedOut={!!reg.optedOut}
+                                  imageUrl={resolveImageUrl(reg.player?.profileImage)}
+                                  onAvatarClick={setLightboxImage}
+                                />
+                                {myGsts.map((gr: any, gi: number) => (
+                                  <RosterRow
+                                    key={`pg-${gr._id || gi}`}
+                                    name={gr.plusOneName}
+                                    subLabel={POS_FULL_LABEL[gr.preferredPosition] || "Any"}
+                                    badge="guest"
+                                    guestRow
+                                    onAvatarClick={setLightboxImage}
+                                  />
+                                ))}
                               </React.Fragment>
                             );
                           })}

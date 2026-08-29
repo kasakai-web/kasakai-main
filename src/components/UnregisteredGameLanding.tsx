@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { buildApiUrl } from "@/utils/api";
 import "./UnregisteredGameLanding.css";
+import ProgressBar from "./ui/ProgressBar";
 
 interface GameDetails {
   _id: string;
@@ -221,17 +222,8 @@ export function UnregisteredGameLanding({ gameId, onSignupClick }: Props) {
           <div className="ugl-panel">
             <div className="ugl-section-head">
               <span className="ugl-section-title">Players</span>
-              <span className="ugl-section-count">
-                <b>{takenCount}</b> of {totalSlots}
-              </span>
             </div>
-            <div className="ugl-capacity">
-              <div
-                className={`ugl-capacity-fill${isFull ? " full" : ""}`}
-                style={{ width: `${fillPercent}%` }}
-              />
-            </div>
-
+            <ProgressBar spotsTotal={totalSlots} spotsLeft={spotsRemaining} />
             {takenCount === 0 ? (
               <p className="ugl-empty-text">No players confirmed yet — be the first in.</p>
             ) : (

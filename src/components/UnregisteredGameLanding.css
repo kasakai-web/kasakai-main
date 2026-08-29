@@ -186,36 +186,13 @@
   text-transform: uppercase;
   color: var(--ugl-muted);
 }
-.ugl-section-count {
-  font-family: var(--ugl-mono);
-  font-size: 11px;
-  color: var(--ugl-muted);
-}
-.ugl-section-count b {
-  color: var(--ugl-lime);
-  font-weight: 500;
-}
-
-.ugl-capacity {
-  height: 3px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, .07);
-  overflow: hidden;
-  margin-bottom: 14px;
-}
-.ugl-capacity-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: var(--ugl-lime);
-  transition: width .3s;
-}
-.ugl-capacity-fill.full { background: var(--ugl-amber); }
 
 /* ── player rows ── */
 .ugl-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 6px; 
+  margin-top: 4px;
 }
 .ugl-row {
   display: flex;
@@ -297,7 +274,9 @@
 .ugl-empty-text {
   font-size: 12.5px;
   color: #555;
-  padding: 6px 0;
+  padding: 6px 0; 
+  margin-top:4px; 
+  
 }
 
 .ugl-subgroup { margin-top: 20px; }
