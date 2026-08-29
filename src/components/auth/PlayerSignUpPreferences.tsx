@@ -10,13 +10,26 @@ const POSITIONS = [
   { id: "ANY", label: "Any Position",  short: "ANY" },
 ];
 
+// Saved to Player.location.city. These labels are resolved server-side by the
+// metro registry (src/utils/metro.js), so adding a city here only needs a label
+// the registry already knows — that is what drives the browse list's city.
+// const CITIES = ["Delhi", "Mumbai"];
+const CITIES=[{
+  slug: "delhi-ncr",
+  label: "Delhi",
+},{
+  slug: "mumbai",
+  label: "Mumbai",
+}]
+
 interface PlayerSignUpPreferencesProps {
   onBack: () => void;
-  onContinue: (data: { positions: string[]; preferredLocations: string[] }) => void;
+  onContinue: (data: { positions: string[]; preferredLocations: string[]; city: string }) => void;
 }
 
 export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPreferencesProps) {
   const [selected, setSelected] = useState<string>("");
+  const [city, setCity] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const selectPosition = (id: string) => {
@@ -26,11 +39,24 @@ export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPref
 
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selected) {
-      setErrors({ positions: "Select your preferred position" });
+    const newErrors: Record<string, string> = {};
+    if (!selected) newErrors.positions = "Select your preferred position";
+    if (!city) newErrors.city = "Select your city";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    onContinue({ positions: [selected], preferredLocations: [] });
+    onContinue({ positions: [selected], preferredLocations: [], city });
+  };
+
+  // "Skip" drops the position only — city is required either way.
+  const handleSkip = () => {
+    if (!city) {
+      setErrors({ city: "Select your city" });
+      return;
+    }
+    onContinue({ positions: [], preferredLocations: [], city });
   };
 
   return (
@@ -54,6 +80,49 @@ export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPref
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 2 of 3: Tell us about your game</p>
 
       <form onSubmit={handleContinue}>
+        {/* City */}
+        <div style={{ marginBottom: "28px" }}>
+          <label htmlFor="signup-city" style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "6px" }}>
+            City *
+          </label>
+          <p style={{ color: "#666", fontSize: "12px", marginBottom: "12px" }}>Where do you usually play?</p>
+          <select
+            id="signup-city"
+            value={city}
+            onChange={(e) => {
+              setCity(e.target.value);
+              setErrors({ ...errors, city: "" });
+            }}
+            required
+            style={{
+              width: "100%",
+              background: "#1a1a2e",
+              border: `1px solid ${errors.city ? "#ff6b6b" : "#444"}`,
+              borderRadius: "6px",
+              padding: "12px",
+              color: city ? "white" : "#666",
+              fontSize: "16px",
+              outline: "none",
+              cursor: "pointer",
+              boxSizing: "border-box",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = errors.city ? "#ff6b6b" : "#444")}
+          >
+            <option value="" disabled>
+              Select your city
+            </option>
+            {CITIES.map((c) => (
+              <option key={c.slug} value={c.slug} style={{ color: "white" }}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          {errors.city && (
+            <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "8px" }}>{errors.city}</small>
+          )}
+        </div>
+
         <div style={{ marginBottom: "28px" }}>
           <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "6px" }}>
             Preferred Position * <span style={{ color: "#666", fontWeight: 400 }}>(pick one)</span>
@@ -136,7 +205,7 @@ export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPref
 
         <button
           type="button"
-          onClick={() => onContinue({ positions: [], preferredLocations: [] })}
+          onClick={handleSkip}
           style={{
             width: "100%",
             background: "transparent",

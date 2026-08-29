@@ -9,6 +9,7 @@ interface PlayerSignUpStep2Props {
     phone: string;
     email: string;
     firstName: string;
+    city: string;
     preferences: { positions: string[]; preferredLocations: string[] };
   };
   onBack: () => void;
@@ -55,6 +56,7 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
           password: password,
           role: "player",
           preferences: userData.preferences,
+          location: { city: userData.city },
         }),
       });
 
@@ -130,6 +132,11 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
           <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
             <strong>Email:</strong> {userData.email}
           </p>
+          {userData.city && (
+            <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+              <strong>City:</strong> {userData.city}
+            </p>
+          )}
           {userData.preferences.positions.length > 0 && (
             <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
               <strong>Positions:</strong>{" "}

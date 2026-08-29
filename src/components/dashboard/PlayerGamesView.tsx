@@ -23,7 +23,6 @@ import {
   type BrowseContext,
   type BrowseFacets,
   type BrowseFilters,
-  EMPTY_FILTERS,
   activeFilterCount,
   clearFilters,
   filtersFromParams,
@@ -36,6 +35,7 @@ import "@/app/dashboard/player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
 import ProgressBar from "../ui/ProgressBar";
+import Image from "next/image";
 
 
 /**
@@ -171,7 +171,9 @@ const RosterRow = React.memo(function RosterRow({
     <div className={`pd-roster-item${guestRow ? " pd-roster-guest-row" : ""}${optedOut ? " pd-roster-item-out" : ""}`}>
       <div className={`pd-roster-avatar${guestRow ? " pd-roster-avatar-sm" : ""}`}>
         {showImage ? (
-          <img 
+          <Image 
+          width={guestRow?30:36}
+           height={guestRow?30:36}
             loading="lazy"
             src={imageUrl}
             alt={name}
@@ -213,12 +215,30 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const [inviteConfig, setInviteConfig] = useState<{ canInvite: boolean; code: string } | null>(null);
   // ── Browse filters ────────────────────────────────────────────────────────
   // The URL is the source of truth for what is applied, so a filtered view is
-  // shareable and the back button undoes a filter. The stored metro only seeds
-  // the very first render, before the browse context has loaded.
-  const [filters, setFilters] = useState<BrowseFilters>(() => ({
-    ...EMPTY_FILTERS,
-    metro: getStoredMetro(),
-  }));
+  // shareable and the back button undoes a filter.
+  //
+  // Read here, in the initial state, rather than in a mount effect. The list is
+  // fetched as soon as `isAuthorized` flips, and that flip lands in the SAME
+  // commit as an effect's seeding would — the fetch reads the filters first and
+  // gets the pre-URL ones. A link naming a city therefore fetched whatever city
+  // this browser had stored, while the picker showed the one from the link.
+  // Seeding here, one render earlier, is what makes the two agree.
+  //
+  // Both reads are client-only (localStorage; the address bar). Safe in an
+  // initialiser because the whole page renders inside a Suspense boundary — see
+  // the route's page.tsx — so its first render is already a client render.
+  const [filters, setFilters] = useState<BrowseFilters>(() => {
+    const fromUrl = filtersFromParams(new URLSearchParams(searchParams.toString()));
+    // The city is the one filter that falls back: everything else is off unless
+    // the link asks for it, but a remembered city beats no list at all.
+    return { ...fromUrl, metro: fromUrl.metro || getStoredMetro() };
+  });
+  // Whether the link the player arrived on named a city. It is the one thing
+  // that outranks the city on their profile (see fetchBrowseContext): a shared
+  // or bookmarked view has to open showing the city it promised, whoever opens
+  // it. A ref because it describes the visit, not the current selection — the
+  // player can change city afterwards without the link's claim following them.
+  const urlMetro = useRef<string | null>(searchParams.get("metro"));
   const [browseContext, setBrowseContext] = useState<BrowseContext | null>(null);
   const [facets, setFacets] = useState<BrowseFacets | null>(null);
   const [totalGames, setTotalGames] = useState(0);
@@ -333,10 +353,12 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         return;
       }
 
-      // A refresh takes about a second; a player can change a filter inside it.
-      // Theirs is the answer that should win, so an in-flight refresh for the
-      // filters they just left is dropped rather than painted over the top.
-      if (refresh && filtersRef.current !== requested) return;
+      // A read takes about a second, and the selection can move inside it — a
+      // player changing a filter, or the browse context arriving with the city
+      // from their profile. Whatever is selected NOW is the answer that should
+      // be on screen, so a response for the selection we have already left is
+      // dropped rather than painted over the top of the newer one.
+      if (filtersRef.current !== requested) return;
 
       const data = await res.json();
       if (data.success) {
@@ -409,15 +431,36 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       const ctx: BrowseContext = data.data;
       setBrowseContext(ctx);
 
-      // Adopt the inferred city only if the player has not already got one from
-      // the URL or from a previous visit — their explicit choice always wins.
+      // Which city this page opens on. The order below is by how much each
+      // source really knows about where the player wants to play:
+      //
+      //   1. the city in the link they followed — an explicit ask, and the only
+      //      one that beats their profile
+      //   2. the city saved on their profile ('profile'), which is the player's
+      //      own answer and follows them between devices
+      //   3. whatever this browser last remembered, or the server's weaker
+      //      guesses from their game history / the busiest city
+      //
+      // (2) used to sit below (3): the stored metro seeded the first render, and
+      // a city already set was left alone. So a player who changed their city in
+      // settings, or who last browsed elsewhere on this browser, kept landing in
+      // the old one until they picked again. Picking a city writes both places
+      // (persistMetro + setStoredMetro), so the two only diverge when the profile
+      // is the newer answer — which is exactly when it should win.
       setFilters((prev) => {
-        if (prev.metro) return prev;
+        if (urlMetro.current) return prev;
         if (!ctx.suggestedMetro) return prev;
+        const fromProfile = ctx.suggestedFrom === "profile";
+        if (prev.metro && !fromProfile) return prev;
+        // Same city either way: return `prev` untouched so React bails out and
+        // the filter effect below does not re-fetch a list we already have.
+        if (prev.metro === ctx.suggestedMetro) return prev;
         // A 'busiest' suggestion is a fallback, not knowledge. Browse it, but do
         // not remember it as though they had picked it.
         if (ctx.suggestedFrom !== "busiest") setStoredMetro(ctx.suggestedMetro);
-        return { ...prev, metro: ctx.suggestedMetro };
+        // Their old city's area/city chips mean nothing in the new one — same
+        // reset the picker does when they change city by hand.
+        return { ...prev, metro: ctx.suggestedMetro, city: null, area: null };
       });
     } catch {
       // non-critical — the picker falls back to an empty city list
@@ -763,19 +806,14 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
 
   // ── Filters ⇄ URL ─────────────────────────────────────────────────────────
 
-  // Seed from the address bar once, so a shared or bookmarked filtered link
-  // opens showing what it promised. Runs on mount only — after that the state
-  // drives the URL, not the other way round, or the two would fight.
+  // The filters themselves are seeded in the initial state above, not here.
+  // What is left is the write that could not go there: a city that arrived in a
+  // link becomes this browser's remembered city, so the next visit without one
+  // opens in the same place. Mount only — after this the state drives the URL,
+  // not the other way round, or the two would fight.
   useEffect(() => {
     if (!isBrowse) return;
-    const fromUrl = filtersFromParams(new URLSearchParams(searchParams.toString()));
-    const hasUrlFilters = Array.from(searchParams.keys()).some((k) =>
-      ["metro", "city", "area", "date", "daypart", "format", "minFee", "maxFee", "availability", "sort"].includes(k)
-    );
-    if (hasUrlFilters) {
-      setFilters(fromUrl);
-      if (fromUrl.metro) setStoredMetro(fromUrl.metro);
-    }
+    if (urlMetro.current) setStoredMetro(urlMetro.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -784,10 +822,14 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // history entry, and Back would walk through them one at a time instead of
   // leaving the dashboard.
   useEffect(() => {
-    if (!isAuthorized || !isBrowse) return;
-
-    // Keep any later re-read pointed at the current selection.
+    // Keep any later re-read pointed at the current selection. Above the guard
+    // below on purpose: a selection that moves before the player is authorised
+    // would otherwise leave the ref describing a selection we have left, and
+    // the mount load reads the ref — it would fetch the stale one, and
+    // fetchAllGames would then drop its own answer as out of date.
     filtersRef.current = filters;
+
+    if (!isAuthorized || !isBrowse) return;
 
     // The mount load already asked for this exact selection. Fetching again here
     // meant the browse list was requested twice on every single page load — the

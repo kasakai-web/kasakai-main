@@ -257,7 +257,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
 
         {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
         <p style={{ color: "#888", fontSize: "11px", marginTop: "8px", textAlign: "center", maxWidth: "260px", lineHeight: 1.5 }}>
-          Adding a photo is important to ensure quality of the game.
+           Helps us verify players and makes it easy for your teammates to recognize you at the venue.
         </p>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageChange} />
       </div>
