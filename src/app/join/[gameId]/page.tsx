@@ -7,9 +7,9 @@ import { UnregisteredGameLanding } from "@/components/UnregisteredGameLanding";
 /**
  * /join/[gameId]
  *
- * Landing page for shared game links, waitlist emails, and private-game invites.
+ * Landing page for shared game links, waitlist emails, and game invites.
  * The URL segment may be:
- *  - a private-game INVITE TOKEN     → "inv_ab12Cd34..."  (WhatsApp invitation link)
+ *  - an INVITE TOKEN                 → "inv_ab12Cd34..."  (WhatsApp invitation link)
  *  - a readable link ending in the id → "thursday-morning-game-12-jun-2026-6a2918fc9cddbe7d2051e4fa"
  *  - a bare Mongo ObjectId           → "6a2918fc9cddbe7d2051e4fa"  (old links / emails)
  *
@@ -23,7 +23,7 @@ export default function JoinGamePage() {
   const params = useParams<{ gameId: string }>();
   const rawParam = Array.isArray(params?.gameId) ? params.gameId[0] : params?.gameId;
   
-  // Private-game invite tokens are prefixed with "inv_" so they never look like an ObjectId.
+  // Invite tokens are prefixed with "inv_" so they never look like an ObjectId.
   const isInviteToken = !!rawParam && /^inv_/.test(rawParam);
   
   // Extract the trailing 24-char hex ObjectId from a readable link. Falls back to

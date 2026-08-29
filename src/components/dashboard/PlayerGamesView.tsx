@@ -155,6 +155,10 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const openGameId = searchParams.get("openGame");
   const inviteToken = searchParams.get("invite");
   const [inviteFriendsGame, setInviteFriendsGame] = useState<any>(null);
+  // Whether the OPEN game offers player invites at all. The platform can turn the
+  // feature off, cap it, or extend it to public games, so the affordance is drawn
+  // from the server's answer rather than from the game's visibility alone.
+  const [inviteConfig, setInviteConfig] = useState<{ canInvite: boolean; code: string } | null>(null);
   // ── Browse filters ────────────────────────────────────────────────────────
   // The URL is the source of truth for what is applied, so a filtered view is
   // shareable and the back button undoes a filter. The stored metro only seeds
@@ -804,6 +808,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     setDetailGameFeedback(null);
     setDetailTeams(null);
     setDetailTab("players");
+    setInviteConfig(null);
     detailRequestRef.current = game._id;
 
     const { token } = getSession();
@@ -1676,6 +1681,43 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   });
   const detailIsWaitlisted = !!detailGame
     && (Boolean(detailGame._isWaitlisted) || myWaitlist.some((wg) => wg._id === detailGame._id));
+
+  // Can I invite anyone to the open game? The answer depends on platform settings
+  // and on how many invites I have already spent on THIS game — neither of which
+  // is on the game object, so it has to be asked for.
+  //
+  // Keyed on seating as well as the game, because joining from inside this modal
+  // is exactly what earns the right to invite: without that the button would stay
+  // hidden until the player closed and reopened the game. A failed request leaves
+  // it null, which hides the button rather than offering one that can only fail.
+  const detailGameId = detailGame?._id;
+  const detailCanInviteFrom = detailAmSeated || detailIsRegistered;
+  // Optimistic, then corrected by the server. The button is drawn from the local
+  // rule until the config lands, and defers to the config once it does.
+  //
+  // Gating it on the round-trip ALONE was wrong: a request that never lands —
+  // backend mid-restart, expired token, a blip — took the button away with no
+  // explanation, which is a worse failure than the stale answer it was avoiding.
+  // Nothing is lost by being optimistic, because the same gate is re-evaluated on
+  // the POST and the modal renders whatever reason comes back.
+  const inviteAllowedByServer = inviteConfig
+    ? inviteConfig.canInvite || inviteConfig.code === "limit_reached"
+    : null;
+  const showInviteButton = detailCanInviteFrom
+    && (inviteAllowedByServer ?? detailGame?.visibility === "private");
+  useEffect(() => {
+    if (!detailGameId || !detailCanInviteFrom) return;
+    const { token } = getSession();
+    if (!token) return;
+    let cancelled = false;
+    fetch(buildApiUrl(`/api/v1/games/${detailGameId}/invite/config`), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled && d?.success) setInviteConfig(d.data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [detailGameId, detailCanInviteFrom]);
   const detailIsCancelled = !!detailGame && String(detailGame.status || "").toLowerCase().startsWith("cancel");
   // Once reporting time (start − reportingMinsBeforeGame) has passed, players can no
   // longer change participation. Mirrors the backend isPastReportingTime guard.
@@ -2277,8 +2319,10 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 )}
               </button>
 
-              {/* Invite friends — private games the player is in (organiser approves each request) */}
-              {detailGame.visibility === "private" && (detailAmSeated || detailIsRegistered) && (
+              {/* Invite friends — the server decides whether this game offers it.
+                  A spent cap still shows the button: the modal is where the
+                  "you've used all N" explanation lives. */}
+              {showInviteButton && (
                 <button
                   type="button"
                   onClick={() => setInviteFriendsGame(detailGame)}

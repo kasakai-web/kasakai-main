@@ -22,6 +22,7 @@ interface InviteData {
   spotsRemaining: number;
   organiserName: string;
   requiresApproval?: boolean;               // shared link → "charged on approval"
+  needsApproval?: boolean;                  // does THIS invite need the organiser's nod?
   linkType?: "personal" | "shared";
   invite: {
     token: string;
@@ -47,7 +48,7 @@ interface Props {
 }
 
 /**
- * Standalone confirm-spot experience for a private-game invitation. Triggered by
+ * Standalone confirm-spot experience for a game invitation. Triggered by
  * a `?invite=<token>` param on the player dashboard (the /join/[token] link routes
  * here after login). Resolves the invite, lets the player confirm their spot, and
  * — once they are in — lets them invite friends (which needs organiser approval).
@@ -177,9 +178,11 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
 
   const isShared = data?.linkType === "shared";
   // Whether joining here needs organiser approval (→ charged only on approval).
-  // Shared link: driven by the game's requiresApproval. Personal invite: only
-  // player-sent invites need approval (organiser invites seat directly).
-  const needsApproval = isShared ? !!data?.requiresApproval : data?.invite?.invitedByRole === "player";
+  // The SERVER decides this — it used to be re-derived here from invitedByRole
+  // alone, which stopped being true once an openly joinable public game began
+  // seating a player-invited person directly. Two copies of a rule this one
+  // drifts, and the half that lies is the one the invitee reads.
+  const needsApproval = !!data?.needsApproval;
 
   const invitedBy = isShared
     ? `${data?.organiserName || "The organiser"} invited you to join`
@@ -231,7 +234,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
             <div style={{ fontSize: 34, marginBottom: 10 }}>🔒</div>
             <div style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 8 }}>This invitation isn&apos;t for you</div>
             <div style={{ fontSize: 13, color: "#aaa", lineHeight: 1.6, marginBottom: 18 }}>
-              This private-game invite was sent to a different number. Invite links can&apos;t be shared —
+              This invite was sent to a different number. Personal invite links can&apos;t be shared —
               ask the organiser to send an invite to your registered number if you&apos;d like to play.
             </div>
             <button
@@ -319,7 +322,10 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
             {status === "accepted" && (
               <div style={{ marginTop: 18, borderTop: "1px solid #242424", paddingTop: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#c8ff3e", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 }}>Invite friends</div>
-                <div style={{ fontSize: 11.5, color: "#888", marginBottom: 10 }}>They'll get a WhatsApp link. The organiser approves each request.</div>
+                <div style={{ fontSize: 11.5, color: "#888", marginBottom: 10 }}>
+                  They&apos;ll get a WhatsApp link.{" "}
+                  {needsApproval ? "The organiser approves each request." : "They can join straight away, while spots last."}
+                </div>
 
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                   <input

@@ -187,7 +187,7 @@ export default function MyRatingsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="mpr-pending-hint">Your attendance was recorded. Share how it went!</div>
+                    <div className="mpr-pending-hint">You played this game. Share how it went!</div>
                     <button
                       className="mpr-btn-feedback"
                       onClick={() => setFeedbackGame(game)}
