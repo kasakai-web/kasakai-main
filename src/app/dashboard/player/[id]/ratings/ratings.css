@@ -106,6 +106,14 @@
   color: #555;
 }
 
+/* When the feedback was given — secondary to when the game was played, which
+   is what identifies the game on a card. */
+.mpr-card-submitted {
+  font-size: 10px;
+  color: #3f3f3f;
+  margin-top: 4px;
+}
+
 .mpr-card-organiser {
   font-size: 11px;
   color: #444;

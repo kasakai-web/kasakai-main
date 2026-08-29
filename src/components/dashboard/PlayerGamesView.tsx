@@ -262,6 +262,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const [pendingFeedback, setPendingFeedback] = useState<any[]>([]);
   const [feedbackTargetGame, setFeedbackTargetGame] = useState<any>(null);
   const [popupFeedbackGame, setPopupFeedbackGame] = useState<any>(null);
+  // One unprompted feedback popup per visit — see fetchPendingFeedback.
+  const promptedThisVisit = useRef(false);
   // Per-game feedback I already submitted — loaded when opening a completed game detail
   const [detailGameFeedback, setDetailGameFeedback] = useState<any>(null);
   const [addingGuest, setAddingGuest] = useState(false);
@@ -534,9 +536,20 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         const pending: any[] = data.data || [];
         setPendingFeedback(pending);
         // Show one-time popup for the first game the player hasn't been prompted for yet
+        // — and only ONE per visit. This runs again after every submission, so
+        // it used to re-open on the next pending game the instant the first was
+        // rated. With recurring games all carrying the same title, that second
+        // prompt looked like the first one coming back, and players rated
+        // "the same game" twice without realising it was a different week.
+        // The rest stay one click away: the "Rate Game" button on each
+        // completed card, and the Awaiting-Feedback list on My Feedback.
+        if (promptedThisVisit.current) return;
         const shown = getShownPopupIds();
         const unseen = pending.find((g: any) => !shown.includes(g._id));
-        if (unseen) setPopupFeedbackGame(unseen);
+        if (unseen) {
+          promptedThisVisit.current = true;
+          setPopupFeedbackGame(unseen);
+        }
       }
     } catch {
       // non-critical

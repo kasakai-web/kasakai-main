@@ -9,7 +9,8 @@ interface PendingGame {
   title?: string;
   format: string;
   scheduledAt: string;
-  turf?: { name?: string; location?: { city?: string } };
+  // Populated by the server as `name address.city` — see getPendingFeedback.
+  turf?: { name?: string; address?: { city?: string } };
 }
 
 interface Props {
@@ -116,9 +117,9 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
   };
 
   const turfName = game.turf?.name || "the venue";
-  const city     = (game.turf as any)?.address?.city ? `, ${(game.turf as any).address.city}` : "";
+  const city     = game.turf?.address?.city ? `, ${game.turf.address.city}` : "";
   const dateStr  = new Date(game.scheduledAt).toLocaleDateString("en-IN", {
-    day: "numeric", month: "long", year: "numeric",
+    weekday: "short", day: "numeric", month: "long", year: "numeric",
   });
 
   return (
@@ -128,7 +129,13 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
         <div className="gfm-header">
           <div className="gfm-header-icon">⭐</div>
           <div>
+            {/* The game being rated, named. A regular's games all carry the same
+                recurring title ("Tuesday Morning Game | Lakeside Turf"), so the
+                DATE is the only thing that tells one prompt from the next —
+                without it, two prompts in a row read as being asked to rate the
+                same game twice. */}
             <div className="gfm-title">How was your game?</div>
+            <div className="gfm-game-name">{game.title || "Completed game"}</div>
             <div className="gfm-subtitle">
               {turfName}{city} · {dateStr} · {game.format}
             </div>

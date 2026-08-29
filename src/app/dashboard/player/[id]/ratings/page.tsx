@@ -13,7 +13,13 @@ interface GameFeedbackData {
   _id: string;
   // Populated by the server. Null only if the game was deleted out from under
   // the feedback, which the card renders as "Completed Game".
-  game: { _id: string; title?: string; format?: string; scheduledAt?: string } | null;
+  game: {
+    _id: string;
+    title?: string;
+    format?: string;
+    scheduledAt?: string;
+    turf?: { name?: string; address?: { city?: string } };
+  } | null;
   gameRating: number;
   organiserRating?: number;
   venueRating?: number;
@@ -222,14 +228,26 @@ export default function MyRatingsPage() {
                       <div className="mpr-card-header">
                         <div className="mpr-card-game">
                           <div className="mpr-card-title">{fb.game?.title || "Completed Game"}</div>
+                          {/* The GAME's date, not just the submission date. A
+                              regular's recurring games all share one title, so
+                              two cards showing only "Submitted 26 Aug" read as
+                              the same game rated twice — which is exactly what
+                              players reported. The date below is what makes
+                              them different games again. */}
                           <div className="mpr-card-meta">
                             {fb.game?.format && <span className="mpr-badge">{fb.game.format}</span>}
-                            {fb.createdAt && (
+                            {fb.game?.scheduledAt && (
                               <span className="mpr-date">
-                                Submitted {new Date(fb.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                {new Date(fb.game.scheduledAt).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
                               </span>
                             )}
+                            {fb.game?.turf?.name && <span className="mpr-date">{fb.game.turf.name}</span>}
                           </div>
+                          {fb.createdAt && (
+                            <div className="mpr-card-submitted">
+                              Rated on {new Date(fb.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </div>
+                          )}
                         </div>
                         <span className="mpr-submitted-tick">✓ Submitted</span>
                       </div>
