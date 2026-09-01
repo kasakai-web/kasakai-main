@@ -39,6 +39,22 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // The player dashboard used to live under /dashboard/player/<id>. The id was
+  // always the logged-in player's own — the session already knows it — so the
+  // routes are now plain /dashboard/*. Notifications already stored in the DB,
+  // bookmarks and old links still name the id, so they are redirected here
+  // rather than 404ing. `:path*` matches zero segments too, so this one rule
+  // covers the bare /dashboard/player/<id> as well as every subpage.
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/player/:id/:path*",
+        destination: "/dashboard/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   experimental: {
     optimizePackageImports: ["react", "react-dom"],
   },

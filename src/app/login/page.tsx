@@ -60,7 +60,7 @@ function AuthFlow() {
     const uId = localStorage.getItem("userId");
 
     if (token && uRole === "player" && uId && step === "login") {
-      router.replace(`/dashboard/player/${uId}`);
+      router.replace("/dashboard");
     }
   }, [router, step]);
 
@@ -158,11 +158,11 @@ function AuthFlow() {
               localStorage.setItem("showProfileBanner", "true");
               
               if (persistedTargetGame) {
-                router.replace(`/dashboard/player/${uid}?openGame=${persistedTargetGame}`);
+                router.replace(`/dashboard?openGame=${persistedTargetGame}`);
               } else if (redirectAfterLogin) {
                 router.replace(redirectAfterLogin);
               } else {
-                router.replace(`/dashboard/player/${uid}/profile`);
+                router.replace("/dashboard/profile");
               }
             } else {
               setStep("signup-success");
@@ -254,7 +254,7 @@ export default function LoginPage() {
   return (
     <>
       <Header />
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: "66px", background: "var(--black)", position: "relative", overflow: "hidden" }}>
+      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: "calc(var(--nav-h) + 14px)", background: "var(--black)", position: "relative", overflow: "hidden" }}>
         {/* Decorative background lines */}
         <span style={{ position: "absolute", top: "28%", left: 0, right: 0, height: "1px", background: "var(--border)", pointerEvents: "none" }} />
         <span style={{ position: "absolute", top: "62%", left: 0, right: 0, height: "1px", background: "var(--border)", pointerEvents: "none" }} />

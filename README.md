@@ -137,8 +137,11 @@ user-frontend/
 ## Directory Structure (key files)
 
 ```
-src/app/dashboard/player/[id]/
-├── page.tsx          # Main dashboard — all tabs, modals, opt-out/in, guest CRUD
+src/app/dashboard/
+├── layout.tsx        # Navbar + sidebar, section highlighting, auth gate
+├── page.tsx          # Browse games — the dashboard root
+├── my-games/ cancelled/ completed/   # The other three game lists
+├── wallet/ notifications/ profile/ ratings/ faq/
 └── player-dashboard.css
 
 src/components/dashboard/
@@ -217,11 +220,18 @@ npm run lint
 |---|---|
 | `/` | Landing page with hero, features, CTA |
 | `/login` | Player login / registration |
-| `/dashboard/player/[id]` | Main dashboard (All Games, My Games, Cancelled, Completed) |
-| `/dashboard/player/[id]/wallet` | Wallet balance, top-up, transaction history |
-| `/dashboard/player/[id]/notifications` | All notifications |
-| `/dashboard/player/[id]/profile` | Edit profile and preferences |
-| `/dashboard/player/[id]/ratings` | Ratings received from organisers |
+| `/dashboard` | Browse games — the dashboard root |
+| `/dashboard/my-games`, `/dashboard/cancelled`, `/dashboard/completed` | The player's own game lists |
+| `/dashboard/wallet` | Wallet balance, top-up, transaction history |
+| `/dashboard/notifications` | All notifications |
+| `/dashboard/profile` | Edit profile and preferences |
+| `/dashboard/ratings` | Ratings received from organisers |
+| `/dashboard/faq` | FAQ |
+
+The player id used to sit in every one of these paths (`/dashboard/player/[id]/…`).
+It was always the logged-in player's own id, which the session already holds, so
+the routes are flat and `/dashboard` is the dashboard — no hop through a redirect.
+Old links are 308-redirected by the `redirects()` rule in `next.config.ts`.
 | `/join/[gameId]` | Deep link from email — opens the game detail directly |
 | `/screening` | Browse streaming / cinema events |
 | `/screening/[id]` | Screening event detail + ticket booking |

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import "../../../player-dashboard.css";
+import { useRouter } from "next/navigation";
+import "../player-dashboard.css";
 import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, fetchWithRetry, resolveImageUrl } from "@/utils/api";
 import {
   PROFILE_IMAGE_ACCEPT_ATTR,
@@ -68,18 +68,13 @@ const PASS_LABELS: Record<string, string> = {
 
 export default function PlayerProfilePage() {
   const router = useRouter();
-  const routeParams = useParams<{ id?: string | string[] }>();
-  const routeUserId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
-    routeUserId,
     redirectTo: "/login?role=player",
   });
 
   const handleNav = () => {
-    if (routeUserId) {
-      router.push(`/dashboard/player/${routeUserId}`);
-    }
+    router.push("/dashboard");
   };
 
   const [loading, setLoading] = useState(true);
@@ -169,9 +164,20 @@ export default function PlayerProfilePage() {
     notificationSettings: { whatsapp: true, sms: true, push: true },
   });
 
+  // Two ways to end a session, two destinations. An expired/rejected token means
+  // the user still wants in, so it lands on the login form; choosing to log out
+  // (or deleting the account) makes them a visitor again, so that lands on the
+  // public home page. The kk-auth-changed dispatch tears down the socket and
+  // flips the landing header back to "Login".
   const clearSessionAndExit = () => {
     clearSession();
     router.replace("/login?role=player");
+  };
+
+  const exitToHome = () => {
+    clearSession();
+    window.dispatchEvent(new CustomEvent("kk-auth-changed"));
+    router.replace("/");
   };
 
   const parseApiResponse = async (res: Response) => {
@@ -403,7 +409,7 @@ export default function PlayerProfilePage() {
       if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) { alert(data.message || `Failed with HTTP ${res.status}`); setDeleting(false); return; }
-      clearSessionAndExit();
+      exitToHome();
     } catch {
       alert("Failed to delete profile");
       setDeleting(false);
@@ -451,7 +457,7 @@ export default function PlayerProfilePage() {
       <SuccessPopup
         show={showLogoutSuccess}
         message="Logged out. See you on the pitch! 👋"
-        onClose={clearSessionAndExit}
+        onClose={exitToHome}
       />
 
       <ConfirmationModal

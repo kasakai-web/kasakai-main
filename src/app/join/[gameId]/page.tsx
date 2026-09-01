@@ -47,7 +47,7 @@ export default function JoinGamePage() {
     if (isInviteToken) {
       if (loggedInPlayer) {
         // Show the invite confirm modal on the dashboard.
-        router.replace(`/dashboard/player/${userId}?invite=${rawParam}`);
+        router.replace(`/dashboard?invite=${rawParam}`);
       } else {
         router.replace(`/login?role=player&redirect=/join/${rawParam}`);
       }
@@ -58,7 +58,7 @@ export default function JoinGamePage() {
       // Already logged in — open their dashboard with this game's modal
       // The dashboard opens the game modal from ?openGame, fetching the game
       // directly if it is not in the browse list it just loaded.
-      router.replace(`/dashboard/player/${userId}?openGame=${gameId}`);
+      router.replace(`/dashboard?openGame=${gameId}`);
       return;
     }
 

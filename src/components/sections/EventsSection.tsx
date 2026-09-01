@@ -22,7 +22,7 @@ function goToAuth() {
   const token  = typeof window !== "undefined" ? localStorage.getItem("authToken")  : null;
   const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
   if (token && userId) {
-    window.location.href = `/dashboard/player/${userId}`;
+    window.location.href = "/dashboard";
   } else {
     window.location.href = "/login";
   }

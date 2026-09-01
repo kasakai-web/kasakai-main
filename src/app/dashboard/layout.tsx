@@ -19,6 +19,30 @@ import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import "./dashboard.css";
 import Image from "next/image";
 
+type PlayerSection =
+  | "browse"
+  | "mygames"
+  | "cancelled"
+  | "completed"
+  | "notifications"
+  | "faq"
+  | "profile"
+  | "wallet"
+  | "ratings";
+
+// The segment after /dashboard, mapped to the sidebar section it highlights.
+// The bare /dashboard — and anything unrecognised — is the browse list.
+const SECTION_BY_SEGMENT: Record<string, PlayerSection> = {
+  "my-games": "mygames",
+  cancelled: "cancelled",
+  completed: "completed",
+  notifications: "notifications",
+  faq: "faq",
+  profile: "profile",
+  wallet: "wallet",
+  ratings: "ratings",
+};
+
 export default function DashboardLayout({
   children,
 }: {
@@ -26,20 +50,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname() || "";
   const router = useRouter();
-  const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
-  const [activeSection, setActiveSection] = useState<
-    | "browse"
-    | "mygames"
-    | "cancelled"
-    | "completed"
-    | "notifications"
-    | "faq"
-    | "profile"
-    | "wallet"
-    | "ratings"
-  >("browse");
+  const [activeSection, setActiveSection] = useState<PlayerSection>("browse");
   const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(
     null,
   );
@@ -81,10 +94,6 @@ export default function DashboardLayout({
     if (storedUserName) {
       setUserName(storedUserName);
     }
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
-
     if (authToken && storedRole === "player" && storedUserId) {
       setAuthenticated(true);
       if (localStorage.getItem("requirePhotoUpload") === "true") {
@@ -235,61 +244,11 @@ export default function DashboardLayout({
     };
   }, [authenticated, refreshUnreadCount]);
 
+  // Every section is a route now and the path no longer carries a player id, so
+  // the segment after /dashboard IS the section. Browse is the bare /dashboard.
   useEffect(() => {
-    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/notifications")) {
-      setActiveSection("notifications");
-      return;
-    }
-
-    if (
-      pathname.includes("/dashboard/player/") &&
-      pathname.endsWith("/profile")
-    ) {
-      setActiveSection("profile");
-      return;
-    }
-
-    if (
-      pathname.includes("/dashboard/player/") &&
-      pathname.endsWith("/wallet")
-    ) {
-      setActiveSection("wallet");
-      return;
-    }
-
-    if (
-      pathname.includes("/dashboard/player/") &&
-      pathname.endsWith("/ratings")
-    ) {
-      setActiveSection("ratings");
-      return;
-    }
-
-    if (pathname.includes("/dashboard/player/") && pathname.endsWith("/faq")) {
-      setActiveSection("faq");
-      return;
-    }
-
-    // The four game lists are routes now, so the path alone says which one is
-    // open — no query string to consult.
-    if (pathname.includes("/dashboard/player/")) {
-      if (pathname.endsWith("/cancelled")) {
-        setActiveSection("cancelled");
-        return;
-      }
-      if (pathname.endsWith("/completed")) {
-        setActiveSection("completed");
-        return;
-      }
-      if (pathname.endsWith("/my-games")) {
-        setActiveSection("mygames");
-        return;
-      }
-      setActiveSection("browse");
-      return;
-    }
-
-    setActiveSection("browse");
+    const segment = pathname.replace(/^\/dashboard\/?/, "").split("/")[0];
+    setActiveSection(SECTION_BY_SEGMENT[segment] ?? "browse");
   }, [pathname]);
 
   useEffect(() => {
@@ -329,23 +288,19 @@ export default function DashboardLayout({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
+  // Logging out lands on the PUBLIC HOME page, not the login form — someone who
+  // just chose to leave is a visitor again, not a person trying to sign in. The
+  // 401/expiry paths still bounce to /login, because those users DO want back in.
+  // The kk-auth-changed dispatch is what tears down the socket (SocketClient)
+  // and flips the landing header back to "Login" on arrival.
   const doLogout = () => {
     clearSession();
     localStorage.removeItem("userProfileImage");
-    router.replace("/login?role=player");
+    window.dispatchEvent(new CustomEvent("kk-auth-changed"));
+    router.replace("/");
   };
 
   const handleLogout = () => setShowLogoutConfirm(true);
-
-  const resolvePlayerId = () => {
-    if (userId) return userId;
-
-    const pathMatch = pathname.match(/\/dashboard\/player\/([^/?#]+)/);
-    if (pathMatch?.[1]) return pathMatch[1];
-
-    const { userId: sessionUserId } = getSession();
-    return sessionUserId || "";
-  };
 
   const navigateToPlayer = (
     destination:
@@ -359,38 +314,7 @@ export default function DashboardLayout({
       | "wallet"
       | "ratings",
   ) => {
-    const resolvedUserId = resolvePlayerId();
-    if (!resolvedUserId) return;
-
-    if (destination === "browse") {
-      router.push(`/dashboard/player/${resolvedUserId}`);
-      return;
-    }
-
-    if (destination === "my-games" || destination === "cancelled" || destination === "completed") {
-      router.push(`/dashboard/player/${resolvedUserId}/${destination}`);
-      return;
-    }
-
-    if (destination === "notifications") {
-      router.push(`/dashboard/player/${resolvedUserId}/notifications`);
-      return;
-    }
-
-    if (destination === "wallet") {
-      router.push(`/dashboard/player/${resolvedUserId}/wallet`);
-      return;
-    }
-
-    if (destination === "ratings") {
-      router.push(`/dashboard/player/${resolvedUserId}/ratings`);
-      return;
-    }
-    if (destination === "faq") {
-      router.push(`/dashboard/player/${resolvedUserId}/faq`);
-      return;
-    }
-    router.push(`/dashboard/player/${resolvedUserId}/profile`);
+    router.push(destination === "browse" ? "/dashboard" : `/dashboard/${destination}`);
   };
 
   if (!authResolved || !authenticated) {
@@ -534,11 +458,7 @@ export default function DashboardLayout({
           {walletBalancePaise !== null && (
             <div
               className="mobile-wallet-pill"
-              onClick={() => {
-                const resolvedId = resolvePlayerId();
-                if (resolvedId)
-                  router.push(`/dashboard/player/${resolvedId}/wallet`);
-              }}
+              onClick={() => router.push("/dashboard/wallet")}
             >
               <span className="mobile-wallet-icon">💰</span>
               <span className="mobile-wallet-amount">
@@ -551,11 +471,7 @@ export default function DashboardLayout({
         <div className="nav-right" style={{ paddingRight: "8px" }}>
           <NotificationBell
             unreadCount={sidebarUnread}
-            onViewAll={() => {
-              const resolvedId = resolvePlayerId();
-              if (resolvedId)
-                router.push(`/dashboard/player/${resolvedId}/notifications`);
-            }}
+            onViewAll={() => router.push("/dashboard/notifications")}
           />
         </div>
 

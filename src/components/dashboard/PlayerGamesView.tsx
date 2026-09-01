@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import { TeamOutcomeBadge } from "@/components/PlayPreferences";
@@ -196,7 +196,6 @@ const RosterRow = React.memo(function RosterRow({
 export default function PlayerGamesView({ section }: { section: PlayerSection }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const routeParams = useParams<{ id?: string | string[] }>();
   // The section is the route now, not a tab. Every read below still asks the
   // same question it always did — there is simply nothing left to set.
   const activeTab = section;
@@ -285,15 +284,16 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // Which game the open modal is showing. A slow teams response for a game the
   // player has already navigated away from must not hijack the current one.
   const detailRequestRef = useRef<string | null>(null);
-  const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   // Where this section lives. Browse is the dashboard root; the other three are
   // their own routes under it.
-  const sectionPath = `/dashboard/player/${playerId}${isBrowse ? "" : `/${section}`}`;
-  const { isAuthorized } = useAuthGuard({
+  const sectionPath = `/dashboard${isBrowse ? "" : `/${section}`}`;
+  const { isAuthorized, session } = useAuthGuard({
     requiredRole: "player",
-    routeUserId: playerId,
     redirectTo: "/login?role=player",
   });
+  // The dashboard only ever shows you your own games, so the player is the one
+  // in the session — the id is no longer in the URL to be read (or forged).
+  const playerId = session.userId ?? undefined;
 
   // Filtering happens on the server (see backend gameFilters.js) — the query
   // string IS the filter. The filter-change effect passes its selection in
@@ -836,11 +836,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             // Clear the openGame param from URL, keeping any filters the link
             // carried — dropping them would leave the address bar describing a
             // different view from the one on screen.
-            if (playerId) {
-              const kept = filtersToSearchParams(filtersRef.current, new URLSearchParams());
-              const qs = kept.toString();
-              router.replace(`/dashboard/player/${playerId}${qs ? `?${qs}` : ""}`);
-            }
+            const kept = filtersToSearchParams(filtersRef.current, new URLSearchParams());
+            const qs = kept.toString();
+            router.replace(`/dashboard${qs ? `?${qs}` : ""}`);
           }
         } catch {
           // non-critical — if fetch fails, the game param stays in URL for retry
@@ -855,11 +853,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     // (annotated data, fresh server fetch, feedback for completed games).
     openGameDetail(target);
     // Clear the openGame param from URL only after popup is successfully opened
-    if (playerId) {
-      const kept = filtersToSearchParams(filtersRef.current, new URLSearchParams());
-      const qs = kept.toString();
-      router.replace(`${sectionPath}${qs ? `?${qs}` : ""}`, { scroll: false });
-    }
+    const kept = filtersToSearchParams(filtersRef.current, new URLSearchParams());
+    const qs = kept.toString();
+    router.replace(`${sectionPath}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [loading, openGameId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -1345,8 +1341,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           // My Games is its own page now, so confirming a booking navigates to
           // it rather than flipping a tab. It fetches its own list on arrival —
           // there is nothing to re-fetch from here.
-          if (playerId && section !== "my-games") {
-            router.push(`/dashboard/player/${playerId}/my-games`);
+          if (section !== "my-games") {
+            router.push("/dashboard/my-games");
           } else {
             refreshSection();
           }
@@ -1355,9 +1351,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         if (data.code === "INSUFFICIENT_BALANCE") {
           setSelectedGame(null);
           showToast("error", "Insufficient balance", "Please recharge your wallet to sign up.");
-          if (playerId) {
-            setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
-          }
+          setTimeout(() => router.push("/dashboard/wallet"), 1000);
         } else if (data.code === "RACE_REFUND_FAILED") {
           setSelectedGame(null);
           showToast("error", "Spot taken", "We couldn't auto-refund. Please contact support.");
@@ -1443,7 +1437,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       if (!res.ok || !data.success) {
         if (data.code === "INSUFFICIENT_BALANCE") {
           showToast("error", "Insufficient wallet balance");
-          if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+          setTimeout(() => router.push("/dashboard/wallet"), 1000);
         } else if (data.code === "RACE_REFUND_FAILED") {
           showToast("error", "Spot taken", "We couldn't auto-refund. Please contact support.");
         } else {
@@ -1483,7 +1477,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       if (!res.ok || !data.success) {
         if (data.code === "INSUFFICIENT_BALANCE") {
           showToast("error", "Insufficient wallet balance");
-          if (playerId) setTimeout(() => router.push(`/dashboard/player/${playerId}/wallet`), 1000);
+          setTimeout(() => router.push("/dashboard/wallet"), 1000);
         } else if (data.code === "RACE_REFUND_FAILED") {
           showToast("error", "Slot taken", "We couldn't auto-refund your payment. Please contact support.");
         } else {
@@ -1923,8 +1917,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           token={inviteToken}
           showToast={showToast}
           onConfirmed={() => { refreshSection(); }}
-          onRecharge={() => { if (playerId) router.push(`/dashboard/player/${playerId}/wallet`); }}
-          onClose={() => { if (playerId) router.replace(`/dashboard/player/${playerId}`); }}
+          onRecharge={() => router.push("/dashboard/wallet")}
+          onClose={() => router.replace("/dashboard")}
         />
       )}
 
@@ -2088,11 +2082,11 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             <div className="empty-state">
               <h3>{SECTION_META[section].emptyTitle}</h3>
               <p>{SECTION_META[section].emptyBody}</p>
-              {!isBrowse && playerId && (
+              {!isBrowse && (
                 <button
                   type="button"
                   className="kk-btn kk-btn-primary"
-                  onClick={() => router.push(`/dashboard/player/${playerId}`)}
+                  onClick={() => router.push("/dashboard")}
                 >
                   Browse games
                 </button>

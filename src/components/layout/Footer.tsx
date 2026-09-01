@@ -132,10 +132,10 @@ export function Footer() {
             © {year} Kasa Kai. All rights reserved.
           </p>
           <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
-            <a href="/#about" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+            <a href="/privacy" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
               Privacy Policy
             </a>
-            <a href="/#support" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
+            <a href="/terms" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
               Terms & Conditions
             </a>
           </div>

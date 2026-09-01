@@ -105,17 +105,17 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLog
         }
         // Clear the targetGameId so it doesn't carry over to other flows
         localStorage.removeItem("targetGameId");
-        router.replace(`/dashboard/player/${user.id}?openGame=${targetGame}`);
+        router.replace(`/dashboard?openGame=${targetGame}`);
       } else if (isNew) {
         localStorage.removeItem("newSignup");
         localStorage.setItem("showProfileBanner", "true");
-        router.replace(`/dashboard/player/${user.id}/profile`);
+        router.replace("/dashboard/profile");
       } else if (!hasImage) {
-        router.replace(`/dashboard/player/${user.id}/profile`);
+        router.replace("/dashboard/profile");
       } else if (redirectAfterLogin) {
         router.replace(redirectAfterLogin);
       } else {
-        router.replace(`/dashboard/player/${user.id}`);
+        router.replace("/dashboard");
       }
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");

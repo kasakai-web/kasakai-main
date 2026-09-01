@@ -28,6 +28,7 @@ html {
   --yellow: #d2a64a;
   --rose: #d96c99;
   --dark-navy: #111827;
+  --nav-h: 72px;
 }
 
 body {
@@ -216,24 +217,21 @@ body {
 }
 
 /* ═══════════════════════════ SITE NAV ═══════════════════════════ */
+.site-desktop-links {
+  display: flex;
+}
+
 .site-mobile-toggle {
   display: none;
 }
 
-@media (max-width: 767px) {
-  .site-desktop-links,
-  .site-desktop-login {
+@media (max-width: 1023px) {
+  .site-desktop-links {
     display: none !important;
   }
 
   .site-mobile-toggle {
     display: flex !important;
-    width: 50px !important;
-  }
-
-  .site-mobile-toggle svg {
-    width: 18px !important;
-    height: 18px !important;
   }
 }
 

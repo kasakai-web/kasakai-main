@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { buildApiUrl, getSession, clearSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
@@ -13,7 +13,7 @@ import {
   bonusForAmount,
   nextTierUpsell,
 } from "@/utils/rechargeOffer";
-import "../../../player-dashboard.css";
+import "../player-dashboard.css";
 
 // Razorpay checkout type (loaded via CDN script)
 declare global {
@@ -94,12 +94,8 @@ type ModalStep = "amount" | "terms" | "processing" | "success" | "cancelled";
 
 export default function WalletPage() {
   const router = useRouter();
-  const routeParams = useParams<{ id?: string | string[] }>();
-  const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
-
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
-    routeUserId: playerId,
     redirectTo: "/login?role=player",
   });
 

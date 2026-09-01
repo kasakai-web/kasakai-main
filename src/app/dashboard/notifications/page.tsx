@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import "../../../player-dashboard.css";
+import { useRouter } from "next/navigation";
+import "../player-dashboard.css";
 import "./notifications.css";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
@@ -105,22 +105,22 @@ function groupByDate(list: Notification[]): { label: string; items: Notification
   return result;
 }
 
+// Notifications written before the dashboard routes were flattened still carry
+// /dashboard/player/<id>/... in actionUrl. next.config redirects those, but a
+// stored row is cheap to fix here and saves the round trip.
+const normalizeActionUrl = (url: string) =>
+  url.replace(/^\/dashboard\/player\/[^/?#]+/, "/dashboard");
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function PlayerNotificationsPage() {
   const router = useRouter();
-  const routeParams = useParams<{ id?: string | string[] }>();
-  const routeUserId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
-
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
-    routeUserId,
     redirectTo: "/login?role=player",
   });
 
   const handleNav = () => {
-    if (routeUserId) {
-      router.push(`/dashboard/player/${routeUserId}`);
-    }
+    router.push("/dashboard");
   };
 
   // ── Tab state ──────────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ export default function PlayerNotificationsPage() {
         setNotifications((prev) => prev.map((x) => x._id === n._id ? { ...x, isRead: true } : x));
       } catch {}
     }
-    if (n.actionUrl) router.push(n.actionUrl);
+    if (n.actionUrl) router.push(normalizeActionUrl(n.actionUrl));
   };
 
   // ── Mark all as read ───────────────────────────────────────────────────────

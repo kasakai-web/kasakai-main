@@ -369,7 +369,7 @@ export function BookingModal({
                         </span>
                         <span className="bm-prefs-hint">
                           {playerId ? (
-                            <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "var(--lime,#c4d56c)" }}>
+                            <Link href="/dashboard/profile" style={{ color: "var(--lime,#c4d56c)" }}>
                               Edit in profile →
                             </Link>
                           ) : "Set in profile"}
@@ -605,7 +605,7 @@ export function BookingModal({
                 }}>
                   📸 Please{" "}
                   {playerId ? (
-                    <Link href={`/dashboard/player/${playerId}/profile`} style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}>
+                    <Link href="/dashboard/profile" style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}>
                       upload your profile photo
                     </Link>
                   ) : (
@@ -623,7 +623,7 @@ export function BookingModal({
                   Insufficient balance.{" "}
                   {playerId && (
                     <Link
-                      href={`/dashboard/player/${playerId}/wallet`}
+                      href="/dashboard/wallet"
                       style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}
                     >
                       Recharge your wallet

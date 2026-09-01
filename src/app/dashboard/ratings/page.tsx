@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
-import "../../../player-dashboard.css";
+import "../player-dashboard.css";
 import "./ratings.css";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -51,11 +51,8 @@ function Stars({ value, size = 16 }: { value: number; size?: number }) {
 
 export default function MyRatingsPage() {
   const router = useRouter();
-  const routeParams = useParams<{ id?: string | string[] }>();
-  const playerId = Array.isArray(routeParams?.id) ? routeParams.id[0] : routeParams?.id;
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
-    routeUserId: playerId,
     redirectTo: "/login?role=player",
   });
 

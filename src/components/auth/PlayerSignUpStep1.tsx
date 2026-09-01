@@ -184,21 +184,10 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
       </div>
     )}
     <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
-      <button
-        onClick={onBack}
-        style={{
-          background: "transparent",
-          color: "var(--yellow)",
-          border: "none",
-          fontSize: "14px",
-          cursor: "pointer",
-          marginBottom: "20px",
-          padding: 0,
-        }}
-      >
-        ← Back
-      </button>
-
+      {/* No "← Back" here on purpose. Step 1 is the START of sign-up, so the only
+          place back could go is the login form — and the "Sign In" button below
+          says that outright. Steps 2 and 3 keep theirs: those go to a real
+          previous step. `onBack` still drives that button. */}
       <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 3: Enter your details</p>
 
@@ -368,6 +357,42 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
           {(checking.phone || checking.email) ? "Checking…" : "Continue"}
         </button>
       </form>
+
+      {/* Switch to sign-in — the mirror of the login form's "Create an Account".
+          Landing-page CTAs open this step first, so people who already have an
+          account must be able to cross over without decoding "← Back". */}
+      <div style={{ display: "flex", alignItems: "center", gap: "14px", margin: "26px 0 16px" }}>
+        <div style={{ flex: 1, height: "1px", background: "#333" }} />
+        <span style={{ color: "#888", fontSize: "12px", whiteSpace: "nowrap" }}>Already have an account?</span>
+        <div style={{ flex: 1, height: "1px", background: "#333" }} />
+      </div>
+
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          width: "100%",
+          background: "transparent",
+          color: "var(--yellow)",
+          border: "1px solid var(--yellow)",
+          padding: "12px",
+          borderRadius: "6px",
+          fontSize: "15px",
+          fontWeight: "600",
+          cursor: "pointer",
+          transition: "background 0.2s ease, color 0.2s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--yellow)";
+          e.currentTarget.style.color = "black";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = "var(--yellow)";
+        }}
+      >
+        Sign In
+      </button>
     </div>
     </>
   );
