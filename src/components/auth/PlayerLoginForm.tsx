@@ -125,152 +125,65 @@ export function PlayerLoginForm({ onSignupClick, onForgotClick, redirectAfterLog
   };
 
   return (
-    <div style={{ background: "#0e0e0e", border: "1px solid var(--border)", padding: "clamp(24px, 6vw, 40px) clamp(20px, 6vw, 36px)" }}>
-      {/* Header */}
-      <div style={{ marginBottom: "32px" }}>
-        <div style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
-          Player Portal
-        </div>
-        <h1 style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "42px", letterSpacing: "-0.01em", lineHeight: 0.95, color: "var(--white)", margin: 0 }}>
-          WELCOME<br />
-          <span style={{ color: "var(--lime)" }}>BACK</span>
+    <div className="auth-card">
+      <div className="auth-head">
+        <div className="auth-eyebrow">Player Portal</div>
+        <h1 className="auth-title">
+          Welcome<br />
+          <span className="accent">Back</span>
         </h1>
-        <p style={{ fontFamily: "var(--body)", fontSize: "13px", color: "var(--muted)", marginTop: "12px", lineHeight: 1.6 }}>
-          Sign in to browse games and manage bookings.
-        </p>
+        <p className="auth-lead">Sign in to browse games and manage bookings.</p>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div style={{
-          background: "rgba(255,68,68,0.08)",
-          border: "1px solid rgba(255,68,68,0.3)",
-          color: "#ff8080",
-          padding: "12px 16px",
-          marginBottom: "24px",
-          fontFamily: "var(--body)",
-          fontSize: "13px",
-          lineHeight: 1.5,
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="auth-error">{error}</div>}
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <form onSubmit={handleSubmit} className="auth-form">
         {/* Phone */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <label style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
-            Phone Number
-          </label>
-          <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", transition: "border-color 0.18s" }}
-            onFocusCapture={(e) => (e.currentTarget.style.borderColor = "var(--lime)")}
-            onBlurCapture={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-          >
-            <span style={{ fontFamily: "var(--mono)", fontSize: "13px", color: "var(--muted)", padding: "0 14px", borderRight: "1px solid var(--border)", height: "48px", display: "flex", alignItems: "center", flexShrink: 0 }}>
-              +91
-            </span>
+        <div className="auth-field">
+          <label className="auth-label">Phone Number</label>
+          <div className="auth-input-shell">
+            <span className="auth-prefix">+91</span>
             <input
               type="tel"
+              className="auth-input"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               placeholder="9876543210"
               maxLength={10}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                padding: "0 14px",
-                height: "48px",
-                color: "var(--white)",
-                fontFamily: "var(--body)",
-                fontSize: "15px",
-                outline: "none",
-              }}
             />
           </div>
         </div>
 
         {/* Password */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <label style={{ fontFamily: "var(--mono)", fontSize: "10px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)" }}>
-            Password
-          </label>
-          <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", transition: "border-color 0.18s" }}
-            onFocusCapture={(e) => (e.currentTarget.style.borderColor = "var(--lime)")}
-            onBlurCapture={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-          >
+        <div className="auth-field">
+          <label className="auth-label">Password</label>
+          <div className="auth-input-shell">
             <input
               type={showPassword ? "text" : "password"}
+              className="auth-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min. 8 characters"
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                padding: "0 14px",
-                height: "48px",
-                color: "var(--white)",
-                fontFamily: "var(--body)",
-                fontSize: "15px",
-                outline: "none",
-              }}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{ background: "transparent", border: "none", padding: "0 14px", color: "var(--muted)", cursor: "pointer", fontSize: "12px", fontFamily: "var(--mono)", letterSpacing: "0.06em" }}
-            >
+            <button type="button" className="auth-reveal" onClick={() => setShowPassword(!showPassword)}>
               {showPassword ? "HIDE" : "SHOW"}
             </button>
           </div>
         </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary"
-          style={{ width: "100%", textAlign: "center", opacity: loading ? 0.6 : 1, cursor: loading ? "not-allowed" : "pointer", marginTop: "4px" }}
-        >
+        <button type="submit" disabled={loading} className="btn-primary btn-block" style={{ marginTop: "4px" }}>
           <span>{loading ? "Signing in..." : "Sign In"}</span>
         </button>
 
-        {/* Forgot password */}
-        <button
-          type="button"
-          onClick={onForgotClick}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "var(--muted)",
-            fontFamily: "var(--body)",
-            fontSize: "13px",
-            cursor: "pointer",
-            textAlign: "center",
-            padding: "0",
-            transition: "color 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--white)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
-        >
+        <button type="button" onClick={onForgotClick} className="auth-linkbtn">
           Forgot password?
         </button>
 
-        {/* Divider */}
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-          <span style={{ fontFamily: "var(--mono)", fontSize: "9px", letterSpacing: "0.18em", color: "var(--muted)", textTransform: "uppercase" }}>New here?</span>
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+        <div className="auth-divider">
+          <span>New here?</span>
         </div>
 
-        {/* Signup */}
-        <button
-          type="button"
-          onClick={onSignupClick}
-          className="btn-ghost"
-          style={{ width: "100%", textAlign: "center" }}
-        >
+        <button type="button" onClick={onSignupClick} className="btn-ghost btn-block">
           Create an Account
         </button>
       </form>

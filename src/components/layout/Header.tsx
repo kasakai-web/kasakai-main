@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { NAV_LINKS } from "@/config/navigation";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
@@ -70,6 +71,14 @@ export function Header() {
   const actionLabel = isLoggedIn ? "Dashboard" : "Login";
   const actionHref = isLoggedIn ? dashboardHref : authHref;
 
+  // A "Login" button pointing at the page you are already reading is noise —
+  // and on /login it competes with the actual sign-in form below it. Hide it
+  // there. A signed-in visitor keeps their "Dashboard" button, which still
+  // goes somewhere: /login redirects them out, but the button is correct for
+  // the moment before that happens.
+  const pathname = usePathname();
+  const showAction = isLoggedIn || pathname !== "/login";
+
   return (
     <>
       {/* ── NAVBAR ── */}
@@ -123,6 +132,7 @@ export function Header() {
 
         {/* Action button + hamburger */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+          {showAction && (
           <a
             href={actionHref}
             style={{
@@ -148,6 +158,7 @@ export function Header() {
           >
             {actionLabel}
           </a>
+          )}
 
           <button
             onClick={toggleMobile}
