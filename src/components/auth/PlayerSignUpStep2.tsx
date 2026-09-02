@@ -79,120 +79,171 @@ export function PlayerSignUpStep2({ userData, onBack, onSuccess }: PlayerSignUpS
     }
   };
 
+  const inputStyle = {
+    width: "100%",
+    background: "#1a1a2e",
+    border: "1px solid #444",
+    borderRadius: "6px",
+    padding: "12px",
+    color: "white",
+    fontSize: "16px",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  };
+
   const positionLabels: Record<string, string> = { GK: "Goalkeeper", DEF: "Defender", MID: "Midfielder", FWD: "Forward", ANY: "Any Position" };
 
   return (
-    <div className="auth-card">
-      <button onClick={onBack} className="auth-linkbtn" style={{ marginBottom: "20px", display: "block" }}>
+    <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "transparent",
+          color: "var(--yellow)",
+          border: "none",
+          fontSize: "14px",
+          cursor: "pointer",
+          marginBottom: "20px",
+          padding: 0,
+        }}
+      >
         ← Back
       </button>
 
-      <div className="auth-head">
-        <div className="auth-eyebrow">Step 3 of 3 · Set a password</div>
-        <h1 className="auth-title">
-          Confirm<br />
-          <span className="accent">Details</span>
-        </h1>
-        <p className="auth-lead">Check what we have, then pick a password.</p>
-      </div>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Confirm Details</h1>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 3 of 3: Set your password</p>
 
-      {errors.submit && <div className="auth-error">{errors.submit}</div>}
+      {errors.submit && (
+        <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
+          {errors.submit}
+        </div>
+      )}
 
-      <form onSubmit={handleCreateAccount} className="auth-form">
-        {/* Read-back of everything collected so far */}
-        <div className="auth-summary">
-          <dl>
-            <div>
-              <dt>Name</dt>
-              <dd>{userData.firstName}</dd>
-            </div>
-            <div>
-              <dt>Phone</dt>
-              <dd>+91 {userData.phone}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{userData.email}</dd>
-            </div>
-            {userData.city && (
-              <div>
-                <dt>City</dt>
-                <dd>{userData.city}</dd>
-              </div>
-            )}
-            {userData.preferences.positions.length > 0 && (
-              <div>
-                <dt>Position</dt>
-                <dd>{userData.preferences.positions.map((p) => positionLabels[p] || p).join(", ")}</dd>
-              </div>
-            )}
-            {userData.preferences.preferredLocations.length > 0 && (
-              <div>
-                <dt>Areas</dt>
-                <dd>{userData.preferences.preferredLocations.join(", ")}</dd>
-              </div>
-            )}
-          </dl>
+      <form onSubmit={handleCreateAccount}>
+        {/* Display user details */}
+        <div style={{ background: "#0f0f1e", padding: "16px", borderRadius: "6px", marginBottom: "24px", border: "1px solid #333" }}>
+          <p style={{ color: "#999", fontSize: "12px", marginBottom: "8px" }}>ACCOUNT DETAILS</p>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+            <strong>Name:</strong> {userData.firstName}
+          </p>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+            <strong>Phone:</strong> +91 {userData.phone}
+          </p>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+            <strong>Email:</strong> {userData.email}
+          </p>
+          {userData.city && (
+            <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+              <strong>City:</strong> {userData.city}
+            </p>
+          )}
+          {userData.preferences.positions.length > 0 && (
+            <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "6px" }}>
+              <strong>Positions:</strong>{" "}
+              {userData.preferences.positions.map((p) => positionLabels[p] || p).join(", ")}
+            </p>
+          )}
+          {userData.preferences.preferredLocations.length > 0 && (
+            <p style={{ color: "#ccc", fontSize: "14px" }}>
+              <strong>Play Areas:</strong> {userData.preferences.preferredLocations.join(", ")}
+            </p>
+          )}
         </div>
 
         {/* Password */}
-        <div className="auth-field">
-          <label className="auth-label">Create Password *</label>
-          <div className={`auth-input-shell${errors.password ? " invalid" : ""}`}>
-            <input
-              type="password"
-              className="auth-input"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrors({ ...errors, password: "" });
-              }}
-              placeholder="At least 8 characters"
-            />
-          </div>
-          {errors.password && <span className="auth-err">{errors.password}</span>}
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Create Password *</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrors({ ...errors, password: "" });
+            }}
+            placeholder="At least 8 characters"
+            style={{ ...inputStyle, borderColor: errors.password ? "#ff6b6b" : "#444" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = errors.password ? "#ff6b6b" : "#444")}
+          />
+          {errors.password && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.password}</small>}
         </div>
 
         {/* Confirm Password */}
-        <div className="auth-field">
-          <label className="auth-label">Confirm Password *</label>
-          <div className={`auth-input-shell${errors.confirmPassword ? " invalid" : ""}`}>
-            <input
-              type="password"
-              className="auth-input"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setErrors({ ...errors, confirmPassword: "" });
-              }}
-              placeholder="Re-enter password"
-            />
-          </div>
-          {errors.confirmPassword && <span className="auth-err">{errors.confirmPassword}</span>}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Confirm Password *</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setErrors({ ...errors, confirmPassword: "" });
+            }}
+            placeholder="Re-enter password"
+            style={{ ...inputStyle, borderColor: errors.confirmPassword ? "#ff6b6b" : "#444" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = errors.confirmPassword ? "#ff6b6b" : "#444")}
+          />
+          {errors.confirmPassword && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.confirmPassword}</small>}
         </div>
 
         {/* Terms & Conditions */}
-        <div className="auth-field">
-          <div className="auth-check">
-            <input
-              type="checkbox"
-              id="terms"
-              checked={agreeTerms}
-              onChange={(e) => {
-                setAgreeTerms(e.target.checked);
-                setErrors({ ...errors, terms: "" });
-              }}
-            />
-            <label htmlFor="terms">
-              I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a> and{" "}
-              <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-            </label>
-          </div>
-          {errors.terms && <span className="auth-err">{errors.terms}</span>}
+        <div style={{ marginBottom: "24px", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+          <input
+            type="checkbox"
+            id="terms"
+            checked={agreeTerms}
+            onChange={(e) => {
+              setAgreeTerms(e.target.checked);
+              setErrors({ ...errors, terms: "" });
+            }}
+            style={{ marginTop: "4px", cursor: "pointer", width: "18px", height: "18px" }}
+          />
+          <label htmlFor="terms" style={{ color: "#999", fontSize: "13px", cursor: "pointer", flex: 1 }}>
+            I agree to the{" "}
+            {/* Links live inside the label, so a click would also toggle the consent
+                box — stop it there and let the anchor just open the page. */}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ color: "var(--yellow)" }}
+            >
+              Terms &amp; Conditions
+            </a>{" "}
+            and{" "}
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ color: "var(--yellow)" }}
+            >
+              Privacy Policy
+            </a>
+          </label>
         </div>
+        {errors.terms && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "-16px", marginBottom: "12px" }}>{errors.terms}</small>}
 
-        <button type="submit" disabled={loading} className="btn-primary btn-block">
-          <span>{loading ? "Creating Account..." : "Create Account"}</span>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: "100%",
+            background: loading ? "#666" : "var(--yellow)",
+            color: loading ? "#999" : "black",
+            border: "none",
+            padding: "12px",
+            borderRadius: "6px",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: loading ? "not-allowed" : "pointer",
+            transition: "background 0.3s ease",
+          }}
+          onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#ffd700")}
+          onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "var(--yellow)")}
+        >
+          {loading ? "Creating Account..." : "Create Account"}
         </button>
       </form>
     </div>

@@ -109,63 +109,149 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
   const destinationText = phone ? `+91 ${maskPhone(phone)}` : "your WhatsApp";
 
   return (
-    <div className="auth-card auth-form-container">
-      <button onClick={onBack} className="auth-linkbtn" style={{ marginBottom: "20px", display: "block" }}>
+    <div className="auth-form-container" style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "transparent",
+          color: "var(--yellow)",
+          border: "none",
+          fontSize: "14px",
+          cursor: "pointer",
+          marginBottom: "20px",
+          padding: 0,
+        }}
+      >
         ← Back
       </button>
 
-      <div className="auth-head">
-        <div className="auth-eyebrow">Verification</div>
-        <h1 className="auth-title">
-          Enter your<br />
-          <span className="accent">OTP</span>
-        </h1>
-        <p className="auth-lead">Sent to {destinationText}</p>
-      </div>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>
+        Verify your OTP
+      </h1>
+      <p style={{ color: "#999", marginBottom: "16px", fontSize: "14px" }}>
+        OTP sent to {destinationText}
+      </p>
 
-      <div className="auth-note" style={{ marginBottom: "24px" }}>
-        <span>📲</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          background: "rgba(196,213,108,0.08)",
+          border: "1px solid rgba(196,213,108,0.3)",
+          borderRadius: "8px",
+          padding: "12px 14px",
+          marginBottom: "30px",
+          fontSize: "13px",
+          color: "#ccc",
+          lineHeight: 1.5,
+        }}
+      >
+        <span style={{ fontSize: "16px" }}>📲</span>
         <span>
-          Your OTP arrives on <strong>WhatsApp</strong>. Please check your WhatsApp messages.
+          Your OTP will arrive on <strong style={{ color: "#25D366" }}>WhatsApp</strong>. Please check
+          your WhatsApp messages.
         </span>
       </div>
 
-      {error && <div className="auth-error">{error}</div>}
+      {error && (
+        <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
+          {error}
+        </div>
+      )}
 
-      <form onSubmit={handleVerify} className="auth-form">
-        <div className="auth-field">
-          <label className="auth-label" style={{ textAlign: "center" }}>Enter 6-digit OTP</label>
-          <div className="otp-input-container">
+      <form onSubmit={handleVerify}>
+        <div style={{ marginBottom: "30px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "16px", textAlign: "center" }}>Enter 6-digit OTP</label>
+          <div className="otp-input-container" style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px" }}>
             {otp.map((digit, index) => (
               <input
                 key={index}
                 id={`otp-${index}`}
                 type="text"
-                inputMode="numeric"
                 maxLength={1}
                 value={digit}
                 onChange={(e) => handleOtpChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
-                className={`otp-input${digit ? " filled" : ""}`}
+                className="otp-input"
+                style={{
+                  width: "50px",
+                  height: "50px",
+                  background: "#1a1a2e",
+                  border: "2px solid #444",
+                  borderRadius: "8px",
+                  fontSize: "24px",
+                  fontWeight: "bold",
+                  color: "white",
+                  textAlign: "center",
+                  outline: "none",
+                  transition: "border-color 0.2s",
+                  cursor: "text",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+                onBlur={(e) => (e.target.style.borderColor = digit ? "var(--yellow)" : "#444")}
               />
             ))}
           </div>
-        </div>
 
-        {resendTimer > 0 ? (
-          <p className="auth-hint" style={{ textAlign: "center" }}>Resend OTP in {resendTimer}s</p>
-        ) : (
-          <button type="button" onClick={handleResend} className="btn-ghost btn-block">
-            Resend OTP
-          </button>
-        )}
+          {resendTimer > 0 ? (
+            <p style={{ color: "#999", fontSize: "14px", textAlign: "center" }}>Resend OTP in {resendTimer}s</p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResend}
+              style={{
+                width: "100%",
+                background: "transparent",
+                color: "var(--yellow)",
+                border: "1px solid var(--yellow)",
+                padding: "10px",
+                borderRadius: "6px",
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.3s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--yellow)";
+                e.currentTarget.style.color = "black";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--yellow)";
+              }}
+            >
+              Resend OTP
+            </button>
+          )}
+        </div>
 
         <button
           type="submit"
           disabled={loading || otp.some((d) => !d)}
-          className="btn-primary btn-block"
+          style={{
+            width: "100%",
+            background: loading || otp.some((d) => !d) ? "#666" : "var(--yellow)",
+            color: loading || otp.some((d) => !d) ? "#999" : "black",
+            border: "none",
+            padding: "12px",
+            borderRadius: "6px",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: loading || otp.some((d) => !d) ? "not-allowed" : "pointer",
+            transition: "background 0.3s ease",
+          }}
+          onMouseEnter={(e) => {
+            if (!loading && !otp.some((d) => !d)) {
+              e.currentTarget.style.background = "#ffd700";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!loading && !otp.some((d) => !d)) {
+              e.currentTarget.style.background = "var(--yellow)";
+            }
+          }}
         >
-          <span>{loading ? "Verifying..." : "Verify OTP"}</span>
+          {loading ? "Verifying..." : "Verify OTP"}
         </button>
       </form>
     </div>

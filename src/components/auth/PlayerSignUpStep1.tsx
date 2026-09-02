@@ -118,7 +118,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
-    if (!profileImageDataUrl) newErrors.image = "A clear photo of yourself is required";
+    if (!profileImageDataUrl) newErrors.image = "A profile photo is required";
     if (!firstName.trim()) newErrors.firstName = "Name is required";
     if (!validatePhone(phone)) newErrors.phone = "Enter valid 10-digit phone (starting 6-9)";
     if (!validateEmail(email)) newErrors.email = "Enter valid email";
@@ -158,6 +158,18 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     onContinue({ firstName, phone, email, profileImageDataUrl });
   };
 
+  const inputStyle = {
+    width: "100%",
+    background: "#1a1a2e",
+    border: "1px solid #444",
+    borderRadius: "6px",
+    padding: "12px",
+    color: "white",
+    fontSize: "16px",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  };
+
   return (
     <>
     {cameraOpen && (
@@ -165,97 +177,117 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
         <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", flex: 1, objectFit: "cover" }} />
         <canvas ref={canvasRef} style={{ display: "none" }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 32px 48px", background: "linear-gradient(transparent,rgba(0,0,0,0.85))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button type="button" onClick={closeCamera} style={{ color: "#fff", background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: "8px 12px", fontFamily: "var(--body)" }}>Cancel</button>
+          <button type="button" onClick={closeCamera} style={{ color: "#fff", background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: "8px 12px", fontFamily: "inherit" }}>Cancel</button>
           <button type="button" onClick={capturePhoto} style={{ width: 70, height: 70, borderRadius: "50%", background: "#fff", border: "5px solid rgba(255,255,255,0.4)", cursor: "pointer", boxShadow: "0 0 0 3px rgba(255,255,255,0.2)" }} aria-label="Capture" />
           <button type="button" onClick={flipCamera} style={{ color: "#fff", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Flip camera">🔄</button>
         </div>
       </div>
     )}
-    <div className="auth-card">
-      {/* No "← Back" here on purpose. Step 1 is the START of sign-up, so the only
-          place back could go is the login form — and the "Sign In" button below
-          says that outright. Steps 2 and 3 keep theirs: those go to a real
-          previous step. `onBack` still drives that button. */}
-      <div className="auth-head">
-        <div className="auth-eyebrow">Step 1 of 3 · Your details</div>
-        <h1 className="auth-title">
-          Create<br />
-          <span className="accent">Account</span>
-        </h1>
-        <p className="auth-lead">Tell us who you are. Takes under a minute.</p>
-      </div>
+    <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "transparent",
+          color: "var(--yellow)",
+          border: "none",
+          fontSize: "14px",
+          cursor: "pointer",
+          marginBottom: "20px",
+          padding: 0,
+        }}
+      >
+        ← Back
+      </button>
 
-      {/* Profile photo */}
-      <div className="auth-photo" style={{ marginBottom: "28px" }}>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 3: Enter your details</p>
+
+      {/* Profile Image Picker */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "28px" }}>
         <div
-          className={`auth-photo-well${profileImageDataUrl ? " filled" : ""}${errors.image ? " invalid" : ""}`}
           onClick={() => setShowPhotoPicker(true)}
+          style={{
+            width: "90px", height: "90px", borderRadius: "50%",
+            background: profileImageDataUrl ? "transparent" : "#1a1a2e",
+            border: `2px dashed ${errors.image ? "#ff6b6b" : profileImageDataUrl ? "var(--yellow)" : "#555"}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", overflow: "hidden", marginBottom: "10px", transition: "border-color 0.2s",
+          }}
         >
           {profileImageDataUrl ? (
-            <img src={profileImageDataUrl} alt="Profile preview" />
+            <img src={profileImageDataUrl} alt="Profile preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
-            <div className="auth-photo-placeholder">
-              📷
-              <br />
-              Add photo
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "24px" }}>📷</div>
+              <div style={{ color: "#666", fontSize: "10px", marginTop: "2px" }}>Add Photo</div>
             </div>
           )}
         </div>
 
+        {/* Photo button + inline dropdown */}
         <div ref={pickerWrapRef} style={{ position: "relative" }}>
-          <button type="button" className="auth-linkbtn" onClick={() => setShowPhotoPicker((v) => !v)}>
-            {profileImageDataUrl ? "Change photo" : "Upload a photo of yourself *"}
+          <button type="button"
+            onClick={() => setShowPhotoPicker((v) => !v)}
+            style={{ background: "transparent", border: "none", color: "var(--yellow)", fontSize: "13px", cursor: "pointer", padding: 0 }}
+          >
+            {profileImageDataUrl ? "Change photo" : "Upload profile photo *"}
           </button>
           {showPhotoPicker && (
-            <div className="auth-photo-menu">
-              <button type="button" onClick={handleTakePhoto}>
-                <span style={{ fontSize: 16 }}>📷</span> Take Photo
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+              background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10,
+              overflow: "hidden", zIndex: 200, minWidth: 190,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            }}>
+              <button type="button"
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "13px 16px", background: "none", border: "none", borderBottom: "1px solid #2a2a4a", color: "#fff", cursor: "pointer", fontSize: 14 }}
+                onClick={handleTakePhoto}
+              >
+                <span style={{ fontSize: 18 }}>📷</span> Take Photo
               </button>
-              <button type="button" onClick={handleChooseGallery}>
-                <span style={{ fontSize: 16 }}>🖼️</span> Choose from Gallery
+              <button type="button"
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "13px 16px", background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 14 }}
+                onClick={handleChooseGallery}
+              >
+                <span style={{ fontSize: 18 }}>🖼️</span> Choose from Gallery
               </button>
             </div>
           )}
         </div>
 
-        {errors.image && <span className="auth-err">{errors.image}</span>}
-        {/* States the PURPOSE, not a vague appeal to quality: people upload
-            stock images when they cannot see what the photo is for. Organisers
-            check faces against this picture at the venue, so say that. */}
-        <p className="auth-hint" style={{ textAlign: "center", maxWidth: "280px" }}>
-          Organisers use this photo to identify you at the venue, so please
-          upload a clear, recent photo of yourself.
+        {errors.image && <small style={{ color: "#ff6b6b", fontSize: "12px", marginTop: "4px" }}>{errors.image}</small>}
+        <p style={{ color: "#888", fontSize: "11px", marginTop: "8px", textAlign: "center", maxWidth: "260px", lineHeight: 1.5 }}>
+           Helps us verify players and makes it easy for your teammates to recognize you at the venue.
         </p>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handleImageChange} />
       </div>
 
-      <form onSubmit={handleContinue} className="auth-form">
+      <form onSubmit={handleContinue}>
         {/* Name */}
-        <div className="auth-field">
-          <label className="auth-label">Full Name *</label>
-          <div className={`auth-input-shell${errors.firstName ? " invalid" : ""}`}>
-            <input
-              type="text"
-              className="auth-input"
-              value={firstName}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                setErrors({ ...errors, firstName: "" });
-              }}
-              placeholder="Your full name"
-            />
-          </div>
-          {errors.firstName && <span className="auth-err">{errors.firstName}</span>}
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Full Name *</label>
+          <input
+            type="text"
+            value={firstName}
+            onChange={(e) => {
+              setFirstName(e.target.value);
+              setErrors({ ...errors, firstName: "" });
+            }}
+            placeholder="Your full name"
+            style={inputStyle}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = "#444")}
+          />
+          {errors.firstName && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.firstName}</small>}
         </div>
 
         {/* Phone */}
-        <div className="auth-field">
-          <label className="auth-label">Phone Number *</label>
-          <div className={`auth-input-shell${errors.phone ? " invalid" : ""}`}>
-            <span className="auth-prefix">+91</span>
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Phone Number *</label>
+          <div style={{ display: "flex", alignItems: "center", background: "#1a1a2e", border: errors.phone ? "1px solid #ff6b6b" : "1px solid #444", borderRadius: "6px", padding: "0 12px" }}>
+            <span style={{ color: "#999", fontSize: "14px", fontWeight: "600" }}>+91</span>
             <input
               type="tel"
-              className="auth-input"
               value={phone}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -264,56 +296,76 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
               }}
               placeholder="9876543210"
               maxLength={10}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                padding: "12px 12px",
+                color: "white",
+                fontSize: "16px",
+                outline: "none",
+              }}
+              onFocus={(e) => {
+                const container = e.currentTarget.parentElement;
+                if (container) container.style.borderColor = "var(--yellow)";
+              }}
               onBlur={(e) => {
+                const container = e.currentTarget.parentElement;
+                if (container) container.style.borderColor = errors.phone ? "#ff6b6b" : "#444";
                 const val = e.currentTarget.value.replace(/\D/g, "");
                 if (validatePhone(val)) checkField("phone", val);
               }}
             />
           </div>
-          {checking.phone && !errors.phone && <span className="auth-hint">Checking availability…</span>}
-          {errors.phone && <span className="auth-err">{errors.phone}</span>}
+          {checking.phone && !errors.phone && (
+            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "4px" }}>Checking availability…</small>
+          )}
+          {errors.phone && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.phone}</small>}
         </div>
 
         {/* Email */}
-        <div className="auth-field">
-          <label className="auth-label">Email Address *</label>
-          <div className={`auth-input-shell${errors.email ? " invalid" : ""}`}>
-            <input
-              type="email"
-              className="auth-input"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrors({ ...errors, email: "" });
-              }}
-              placeholder="your@email.com"
-              onBlur={(e) => {
-                if (validateEmail(e.target.value)) checkField("email", e.target.value);
-              }}
-            />
-          </div>
-          {checking.email && !errors.email && <span className="auth-hint">Checking availability…</span>}
-          {errors.email && <span className="auth-err">{errors.email}</span>}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Email Address *</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setErrors({ ...errors, email: "" });
+            }}
+            placeholder="your@email.com"
+            style={inputStyle}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => {
+              e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444";
+              if (validateEmail(e.target.value)) checkField("email", e.target.value);
+            }}
+          />
+          {checking.email && !errors.email && (
+            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "4px" }}>Checking availability…</small>
+          )}
+          {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
         </div>
 
         <button
           type="submit"
           disabled={checking.phone || checking.email}
-          className="btn-primary btn-block"
-          style={{ marginTop: "4px" }}
+          style={{
+            width: "100%",
+            background: (checking.phone || checking.email) ? "#666" : "var(--yellow)",
+            color: (checking.phone || checking.email) ? "#999" : "black",
+            border: "none",
+            padding: "12px",
+            borderRadius: "6px",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: (checking.phone || checking.email) ? "not-allowed" : "pointer",
+            transition: "background 0.3s ease",
+          }}
+          onMouseEnter={(e) => !(checking.phone || checking.email) && (e.currentTarget.style.background = "#ffd700")}
+          onMouseLeave={(e) => !(checking.phone || checking.email) && (e.currentTarget.style.background = "var(--yellow)")}
         >
-          <span>{(checking.phone || checking.email) ? "Checking…" : "Continue"}</span>
-        </button>
-
-        {/* Switch to sign-in — the mirror of the login form's "Create an Account".
-            Landing-page CTAs open this step first, so people who already have an
-            account must be able to cross over. */}
-        <div className="auth-divider">
-          <span>Already have an account?</span>
-        </div>
-
-        <button type="button" onClick={onBack} className="btn-ghost btn-block">
-          Sign In
+          {(checking.phone || checking.email) ? "Checking…" : "Continue"}
         </button>
       </form>
     </div>

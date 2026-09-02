@@ -60,93 +60,162 @@ export function PlayerSignUpPreferences({ onBack, onContinue }: PlayerSignUpPref
   };
 
   return (
-    <div className="auth-card">
-      <button onClick={onBack} className="auth-linkbtn" style={{ marginBottom: "20px", display: "block" }}>
+    <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "transparent",
+          color: "var(--yellow)",
+          border: "none",
+          fontSize: "14px",
+          cursor: "pointer",
+          marginBottom: "20px",
+          padding: 0,
+        }}
+      >
         ← Back
       </button>
 
-      <div className="auth-head">
-        <div className="auth-eyebrow">Step 2 of 3 · Your game</div>
-        <h1 className="auth-title">
-          Your<br />
-          <span className="accent">Preferences</span>
-        </h1>
-        <p className="auth-lead">Football — where do you like to play?</p>
-      </div>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Your Preferences</h1>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 2 of 3: Tell us about your game</p>
 
-      <form onSubmit={handleContinue} className="auth-form">
-        {/* Both Continue and Skip refuse to proceed without a city, so the
-            select has to survive the restyle — dropping it strands the form. */}
-        <div className="auth-field">
-          <label className="auth-label" htmlFor="signup-city">City *</label>
-          <div className={`auth-input-shell${errors.city ? " invalid" : ""}`}>
-            <select
-              id="signup-city"
-              className="auth-input"
-              value={city}
-              onChange={(e) => {
-                setCity(e.target.value);
-                setErrors({ ...errors, city: "" });
-              }}
-              required
-              style={{ cursor: "pointer", color: city ? "var(--white)" : "#555" }}
-            >
-              {/* Native option lists ignore the shell's styling, so each one
-                  carries its own dark background or it renders unreadable. */}
-              <option value="" disabled style={{ background: "#1a1a2e", color: "#666" }}>
-                Select your city
+      <form onSubmit={handleContinue}>
+        {/* City */}
+        <div style={{ marginBottom: "28px" }}>
+          <label htmlFor="signup-city" style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "6px" }}>
+            City *
+          </label>
+          <p style={{ color: "#666", fontSize: "12px", marginBottom: "12px" }}>Where do you usually play?</p>
+          <select
+            id="signup-city"
+            value={city}
+            onChange={(e) => {
+              setCity(e.target.value);
+              setErrors({ ...errors, city: "" });
+            }}
+            required
+            style={{
+              width: "100%",
+              background: "#1a1a2e",
+              border: `1px solid ${errors.city ? "#ff6b6b" : "#444"}`,
+              borderRadius: "6px",
+              padding: "12px",
+              color: city ? "white" : "#666",
+              fontSize: "16px",
+              outline: "none",
+              cursor: "pointer",
+              boxSizing: "border-box",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = errors.city ? "#ff6b6b" : "#444")}
+          >
+            <option value="" disabled>
+              Select your city
+            </option>
+            {CITIES.map((c) => (
+              <option key={c.slug} value={c.slug} style={{ color: "white" }}>
+                {c.label}
               </option>
-              {CITIES.map((c) => (
-                <option key={c.slug} value={c.slug} style={{ background: "#1a1a2e", color: "white" }}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {errors.city && <span className="auth-err">{errors.city}</span>}
+            ))}
+          </select>
+          {errors.city && (
+            <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "8px" }}>{errors.city}</small>
+          )}
         </div>
 
-        <div className="auth-field">
-          <label className="auth-label">Preferred Position * (pick one)</label>
-
-          <div className="auth-chip-grid">
-            {POSITIONS.slice(0, 4).map((pos) => (
-              <button
-                key={pos.id}
-                type="button"
-                onClick={() => selectPosition(pos.id)}
-                className={`auth-chip${selected === pos.id ? " selected" : ""}`}
-                aria-pressed={selected === pos.id}
-              >
-                <div className="auth-chip-short">{pos.short}</div>
-                <div className="auth-chip-label">{pos.label}</div>
-              </button>
-            ))}
+        <div style={{ marginBottom: "28px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "6px" }}>
+            Preferred Position * <span style={{ color: "#666", fontWeight: 400 }}>(pick one)</span>
+          </label>
+          <p style={{ color: "#666", fontSize: "12px", marginBottom: "12px" }}>
+            Football — where do you like to play?
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            {POSITIONS.slice(0, 4).map((pos) => {
+              const isSelected = selected === pos.id;
+              return (
+                <button
+                  key={pos.id}
+                  type="button"
+                  onClick={() => selectPosition(pos.id)}
+                  style={{
+                    background: isSelected ? "var(--yellow)" : "#1a1a2e",
+                    color: isSelected ? "black" : "#ccc",
+                    border: isSelected ? "1px solid var(--yellow)" : "1px solid #444",
+                    borderRadius: "8px",
+                    padding: "14px 10px",
+                    fontSize: "14px",
+                    fontWeight: isSelected ? "700" : "400",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: "18px", fontWeight: "700", marginBottom: "2px" }}>{pos.short}</div>
+                  <div style={{ fontSize: "11px", opacity: 0.8 }}>{pos.label}</div>
+                </button>
+              );
+            })}
           </div>
-
           {/* ANY option — full width */}
           <button
             type="button"
             onClick={() => selectPosition("ANY")}
-            className={`auth-chip${selected === "ANY" ? " selected" : ""}`}
-            aria-pressed={selected === "ANY"}
-            style={{ width: "100%" }}
+            style={{
+              width: "100%",
+              marginTop: "10px",
+              background: selected === "ANY" ? "var(--yellow)" : "#1a1a2e",
+              color: selected === "ANY" ? "black" : "#ccc",
+              border: selected === "ANY" ? "1px solid var(--yellow)" : "1px solid #444",
+              borderRadius: "8px",
+              padding: "14px 10px",
+              fontSize: "14px",
+              fontWeight: selected === "ANY" ? "700" : "400",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              textAlign: "center",
+            }}
           >
-            <div className="auth-chip-short">ANY</div>
-            <div className="auth-chip-label">Any Position</div>
+            <div style={{ fontSize: "18px", fontWeight: "700" }}>ANY</div>
           </button>
-
-          {errors.positions && <span className="auth-err">{errors.positions}</span>}
+          {errors.positions && (
+            <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "8px" }}>{errors.positions}</small>
+          )}
         </div>
 
-        <button type="submit" className="btn-primary btn-block">
-          <span>Continue</span>
+        <button
+          type="submit"
+          style={{
+            width: "100%",
+            background: "var(--yellow)",
+            color: "black",
+            border: "none",
+            padding: "12px",
+            borderRadius: "6px",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "background 0.3s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#ffd700")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--yellow)")}
+        >
+          Continue
         </button>
 
         <button
           type="button"
           onClick={handleSkip}
-          className="auth-linkbtn"
+          style={{
+            width: "100%",
+            background: "transparent",
+            color: "#666",
+            border: "none",
+            padding: "12px",
+            fontSize: "13px",
+            cursor: "pointer",
+            marginTop: "8px",
+          }}
         >
           Skip for now
         </button>

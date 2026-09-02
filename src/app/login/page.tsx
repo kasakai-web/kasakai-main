@@ -12,7 +12,6 @@ import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
 import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";
 import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
 import { buildApiUrl, resolveImageUrl } from "@/utils/api";
-import "../auth-styles.css";
 
 function AuthFlow() {
   const router = useRouter();
@@ -176,18 +175,16 @@ function AuthFlow() {
 
       {/* SIGNUP SUCCESS — fallback if auto-login data is missing */}
       {step === "signup-success" && (
-        <div className="auth-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "44px", marginBottom: "14px" }}>🎉</div>
-          <div className="auth-eyebrow">Welcome aboard</div>
-          <h1 className="auth-title">
-            Account<br />
-            <span className="accent">Verified</span>
-          </h1>
-          <p className="auth-lead" style={{ marginBottom: "28px" }}>
-            Welcome to Kasakai, {userData.firstName}. Your account is ready — log in to continue.
+        <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333", textAlign: "center" }}>
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
+          <h1 style={{ color: "var(--yellow)", fontSize: "26px", marginBottom: "12px" }}>Account Verified!</h1>
+          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px", lineHeight: 1.6 }}>
+            Welcome to Kasakai, <strong style={{ color: "white" }}>{userData.firstName}</strong>!
+          </p>
+          <p style={{ color: "#999", fontSize: "13px", marginBottom: "28px", lineHeight: 1.6 }}>
+            Your account is ready. Please log in to continue.
           </p>
           <button
-            className="btn-primary btn-block"
             onClick={() => {
               localStorage.setItem("newSignup", "true");
               if (userData.profileImageDataUrl) {
@@ -195,8 +192,19 @@ function AuthFlow() {
               }
               setStep("login");
             }}
+            style={{
+              width: "100%",
+              background: "var(--yellow)",
+              color: "black",
+              border: "none",
+              padding: "12px",
+              borderRadius: "6px",
+              fontSize: "16px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
           >
-            <span>Login Now</span>
+            Login Now
           </button>
         </div>
       )}

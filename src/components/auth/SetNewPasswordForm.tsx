@@ -62,64 +62,125 @@ export function SetNewPasswordForm({ email, phone, otp, onSuccess, onBack }: Set
     }
   };
 
+  const inputStyle = {
+    width: "100%",
+    background: "#1a1a2e",
+    border: "1px solid #444",
+    borderRadius: "6px",
+    padding: "12px",
+    color: "white",
+    fontSize: "16px",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  };
+
   return (
-    <div className="auth-card">
-      <button onClick={onBack} className="auth-linkbtn" style={{ marginBottom: "20px", display: "block" }}>
+    <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "transparent",
+          color: "var(--yellow)",
+          border: "none",
+          fontSize: "14px",
+          cursor: "pointer",
+          marginBottom: "20px",
+          padding: 0,
+        }}
+      >
         ← Back
       </button>
 
-      <div className="auth-head">
-        <div className="auth-eyebrow">Account recovery</div>
-        <h1 className="auth-title">
-          Set new<br />
-          <span className="accent">Password</span>
-        </h1>
-        <p className="auth-lead">Choose a new password for {email || phone}.</p>
-      </div>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Set New Password</h1>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Enter your new password for {email || phone}</p>
 
-      {errors.submit && <div className="auth-error">{errors.submit}</div>}
+      {errors.submit && (
+        <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "20px", fontSize: "14px" }}>
+          {errors.submit}
+        </div>
+      )}
 
-      <form onSubmit={handleResetPassword} className="auth-form">
-        <div className="auth-field">
-          <label className="auth-label">New Password *</label>
-          <div className={`auth-input-shell${errors.newPassword ? " invalid" : ""}`}>
-            <input
-              type="password"
-              className="auth-input"
-              value={newPassword}
-              onChange={(e) => {
-                setNewPassword(e.target.value);
-                setErrors({ ...errors, newPassword: "" });
-              }}
-              placeholder="At least 8 characters"
-            />
-          </div>
-          {errors.newPassword && <span className="auth-err">{errors.newPassword}</span>}
-          <span className="auth-hint">Use uppercase, lowercase, numbers, and symbols for strength</span>
+      <form onSubmit={handleResetPassword}>
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>New Password *</label>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => {
+              setNewPassword(e.target.value);
+              setErrors({ ...errors, newPassword: "" });
+            }}
+            placeholder="At least 8 characters"
+            style={{ ...inputStyle, borderColor: errors.newPassword ? "#ff6b6b" : "#444" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = errors.newPassword ? "#ff6b6b" : "#444")}
+          />
+          {errors.newPassword && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.newPassword}</small>}
+          <small style={{ color: "#666", fontSize: "12px", marginTop: "4px", display: "block" }}>Use uppercase, lowercase, numbers, and symbols for strength</small>
         </div>
 
-        <div className="auth-field">
-          <label className="auth-label">Confirm Password *</label>
-          <div className={`auth-input-shell${errors.confirmPassword ? " invalid" : ""}`}>
-            <input
-              type="password"
-              className="auth-input"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setErrors({ ...errors, confirmPassword: "" });
-              }}
-              placeholder="Re-enter password"
-            />
-          </div>
-          {errors.confirmPassword && <span className="auth-err">{errors.confirmPassword}</span>}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Confirm Password *</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setErrors({ ...errors, confirmPassword: "" });
+            }}
+            placeholder="Re-enter password"
+            style={{ ...inputStyle, borderColor: errors.confirmPassword ? "#ff6b6b" : "#444" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+            onBlur={(e) => (e.target.style.borderColor = errors.confirmPassword ? "#ff6b6b" : "#444")}
+          />
+          {errors.confirmPassword && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.confirmPassword}</small>}
         </div>
 
-        <button type="submit" disabled={loading} className="btn-primary btn-block">
-          <span>{loading ? "Resetting Password..." : "Reset Password"}</span>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: "100%",
+            background: loading ? "#666" : "var(--yellow)",
+            color: loading ? "#999" : "black",
+            border: "none",
+            padding: "12px",
+            borderRadius: "6px",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: loading ? "not-allowed" : "pointer",
+            marginBottom: "16px",
+            transition: "background 0.3s ease",
+          }}
+          onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#ffd700")}
+          onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "var(--yellow)")}
+        >
+          {loading ? "Resetting Password..." : "Reset Password"}
         </button>
 
-        <button type="button" onClick={onBack} className="btn-ghost btn-block">
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            width: "100%",
+            background: "transparent",
+            color: "var(--yellow)",
+            border: "1px solid var(--yellow)",
+            padding: "10px",
+            borderRadius: "6px",
+            fontSize: "14px",
+            cursor: "pointer",
+            transition: "all 0.3s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--yellow)";
+            e.currentTarget.style.color = "black";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--yellow)";
+          }}
+        >
           Back
         </button>
       </form>
