@@ -3,6 +3,7 @@
 import { avatarColorFor, avatarInitials } from "@/utils/avatar"; 
 import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
+import Image from "next/image";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -177,7 +178,9 @@ export function EventCard({
               return (
                 <div key={i} className="avatar-mini" style={imageUrl ? undefined : { background: avatarColorFor(p.name) }}>
                   {imageUrl && (
-                    <img  
+                    <Image  
+                    width={28} 
+                    height={28}
                       loading="lazy"
                       src={imageUrl}
                       alt={p.name}

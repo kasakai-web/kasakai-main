@@ -48,6 +48,7 @@ function AuthFlow() {
     phone: "",
     email: "",
     firstName: "",
+    city: "",
     preferences: { positions: [] as string[], preferredLocations: [] as string[] },
     otp: "",
     profileImageDataUrl: "",
@@ -94,8 +95,8 @@ function AuthFlow() {
       {step === "signup-preferences" && (
         <PlayerSignUpPreferences
           onBack={() => setStep("signup-form")}
-          onContinue={(prefs) => {
-            setUserData((prev) => ({ ...prev, preferences: prefs }));
+          onContinue={({ city, ...prefs }) => {
+            setUserData((prev) => ({ ...prev, city, preferences: prefs }));
             setStep("signup-confirm");
           }}
         />
