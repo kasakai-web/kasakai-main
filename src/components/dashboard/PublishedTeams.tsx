@@ -1,6 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import Image from "next/image";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
+import { resolveImageUrl } from "@/utils/api";
 
 /**
  * The teams, as announced.
@@ -42,9 +45,23 @@ const SIDE = {
 const initials = (name: string) =>
   name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
 
-export function PublishedTeamsView({ data }: { data: PublishedTeams }) {
-  const sides = (["A", "B"] as const).map((key) => ({ key, ...data.teams[key] }));
-
+export function PublishedTeamsView({
+  data,
+  profileImages = {},
+}: {
+  data: PublishedTeams;
+  profileImages?: Record<string, string>;
+}) {
+  const sides = (["A", "B"] as const).map((key) => ({
+    key,
+    ...data.teams[key],
+    players: data.teams[key].players.map((player) => ({
+      ...player,
+      profileImage: profileImages[player.name?.trim().toLowerCase() || "Player"]|| null,
+    })),
+  }));
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null); 
+    
   return (
     <div className="pd-teams">
       {data.yourColour && (
@@ -90,13 +107,32 @@ export function PublishedTeamsView({ data }: { data: PublishedTeams }) {
                 {side.players.length === 0 && (
                   <div className="pd-teams-empty">Nobody on this side</div>
                 )}
-                {side.players.map((p, i) => (
+                {side.players.map((p, i) => {
+                  const imageUrl = resolveImageUrl(p.profileImage);
+                  return (
                   <div key={i} className={`pd-teams-row${p.isYou ? " you" : ""}`}>
                     <span
                       className="pd-teams-avatar"
-                      style={{ background: p.isYou ? tone.accent : "rgba(255,255,255,0.07)", color: p.isYou ? "#0f1012" : "#9aa0a6" }}
+                      style={{
+                        background: p.isYou ? tone.accent : "rgba(255,255,255,0.07)",
+                        color: p.isYou ? "#0f1012" : "#9aa0a6",
+                        cursor: imageUrl ? "zoom-in" : "default",
+                        overflow: "hidden",
+                      }}
+                      onClick={() => { if (imageUrl) setLightboxImage(imageUrl); }}
+                      role={imageUrl ? "button" : undefined}
+                      tabIndex={imageUrl ? 0 : undefined}
+                      onKeyDown={(event) => {
+                        if (imageUrl && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault();
+                          setLightboxImage(imageUrl);
+                        }
+                      }}
+                      aria-label={imageUrl ? `View ${p.name}'s profile photo` : undefined}
                     >
-                      {initials(p.name)}
+                      {imageUrl ? (
+                        <Image src={imageUrl} alt={p.name} width={36} height={36} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : initials(p.name)}
                     </span>
                     <span className="pd-teams-name">
                       {p.name}
@@ -112,7 +148,8 @@ export function PublishedTeamsView({ data }: { data: PublishedTeams }) {
                       )}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -129,6 +166,13 @@ export function PublishedTeamsView({ data }: { data: PublishedTeams }) {
         {/* Revision 1 is the only announcement, so saying "updated" would be a lie. */}
         {(data.revision || 1) > 1 ? ` · updated ${data.revision! - 1}×` : ""}
       </div>
+      {lightboxImage && (
+        <ImageLightbox
+          lightboxImage={lightboxImage}
+          setLightboxImage={setLightboxImage}
+          alt="Player profile photo"
+        />
+      )}
     </div>
   );
 }

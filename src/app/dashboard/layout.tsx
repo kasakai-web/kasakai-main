@@ -16,6 +16,8 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
+import CityPicker from "@/components/dashboard/CityPicker";
+import { type BrowseContext, getStoredMetro, setStoredMetro } from "@/utils/browse";
 import "./dashboard.css";
 import Image from "next/image";
 
@@ -58,6 +60,9 @@ export default function DashboardLayout({
   );
   const [authResolved, setAuthResolved] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [headerBrowseContext, setHeaderBrowseContext] = useState<BrowseContext | null>(null);
+  const [headerMetro, setHeaderMetro] = useState<string | null>(() => getStoredMetro());
+  const [headerCityLoading, setHeaderCityLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
@@ -288,6 +293,69 @@ export default function DashboardLayout({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
+  useEffect(() => {
+    if (!authenticated || !pathname.startsWith("/dashboard")) {
+      setHeaderCityLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const loadContext = () => {
+      const { token } = getSession();
+      if (!token) {
+        setHeaderCityLoading(false);
+        return;
+      }
+
+      fetch(buildApiUrl("/games/browse-context"), {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (cancelled || !data?.success) return;
+          const context: BrowseContext = data.data;
+          setHeaderBrowseContext(context);
+          if (context.suggestedFrom === "profile") {
+            setHeaderMetro(context.suggestedMetro || null);
+            setStoredMetro(context.unservedCity ? null : context.suggestedMetro);
+          } else {
+            setHeaderMetro((current) => current || context.suggestedMetro || null);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setHeaderCityLoading(false);
+        });
+    };
+
+    const handleProfileCityChange = () => {
+      setHeaderMetro(null);
+      setHeaderBrowseContext(null);
+      setHeaderCityLoading(true);
+      loadContext();
+    };
+
+    loadContext();
+    window.addEventListener("kasakai:profile-city-change", handleProfileCityChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("kasakai:profile-city-change", handleProfileCityChange);
+    };
+  }, [authenticated, pathname]);
+
+  const handleHeaderMetroChange = (slug: string) => {
+    setHeaderMetro(slug);
+    setStoredMetro(slug);
+    window.dispatchEvent(new CustomEvent("kasakai:metro-change", { detail: { slug } }));
+
+    const { token } = getSession();
+    if (!token) return;
+    fetch(buildApiUrl("/players/me"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ location: { city: slug } }),
+    }).catch(() => {});
+  };
   // Logging out lands on the PUBLIC HOME page, not the login form — someone who
   // just chose to leave is a visitor again, not a person trying to sign in. The
   // 401/expiry paths still bounce to /login, because those users DO want back in.
@@ -301,6 +369,7 @@ export default function DashboardLayout({
   };
 
   const handleLogout = () => setShowLogoutConfirm(true);
+
 
   const navigateToPlayer = (
     destination:
@@ -414,7 +483,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          <div
+          {/* <div
             style={{
               display: "flex",
               flexDirection: "column",
@@ -448,8 +517,28 @@ export default function DashboardLayout({
             >
               KAI
             </p>
-          </div>
+          </div> */}
         </Link>
+
+        {pathname.startsWith("/dashboard") && (
+          <div className="nav-city-picker">
+            <CityPicker
+              metros={headerBrowseContext?.metros || []}
+              value={headerMetro}
+              onChange={handleHeaderMetroChange}
+              needsChoice={Boolean(
+                headerBrowseContext
+                && (!headerMetro || headerBrowseContext.suggestedFrom === "busiest")
+              )}
+              unservedCity={
+                headerBrowseContext?.unservedCity && !getStoredMetro()
+                  ? headerBrowseContext.unservedCity
+                  : null
+              }
+              loading={headerCityLoading}
+            />
+          </div>
+        )}
 
         <div className="nav-center"></div>
 
@@ -468,7 +557,7 @@ export default function DashboardLayout({
           )}
         </div>
 
-        <div className="nav-right" style={{ paddingRight: "8px" }}>
+        <div className="nav-right" >
           <NotificationBell
             unreadCount={sidebarUnread}
             onViewAll={() => router.push("/dashboard/notifications")}

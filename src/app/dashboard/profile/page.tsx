@@ -17,6 +17,7 @@ import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import Image from "next/image";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
+import { setStoredMetro } from "@/utils/browse";
 
 
 type PlayerProfile = {
@@ -163,6 +164,22 @@ export default function PlayerProfilePage() {
     preferences: { skillLevel: "beginner", preferredFormat: "5v5", positions: [], preferredLocations: [] },
     notificationSettings: { whatsapp: true, sms: true, push: true },
   });
+
+  useEffect(() => {
+    const handleMetroChange = (event: Event) => {
+      const slug = (event as CustomEvent<{ slug?: string }>).detail?.slug;
+      if (!slug) return;
+      setProfile((current) => ({
+        ...current,
+        location: { ...current.location, city: slug },
+      }));
+    };
+
+    window.addEventListener("kasakai:metro-change", handleMetroChange);
+    return () => window.removeEventListener("kasakai:metro-change", handleMetroChange);
+  }, []);
+
+
 
   // Two ways to end a session, two destinations. An expired/rejected token means
   // the user still wants in, so it lands on the login form; choosing to log out
@@ -388,6 +405,8 @@ export default function PlayerProfilePage() {
       const data = await parseApiResponse(res);
       if (!res.ok || !data.success) { setError(data.message || `HTTP ${res.status}`); return; }
       localStorage.setItem("userName", data.data?.name || profile.name);
+      setStoredMetro(null);
+      window.dispatchEvent(new CustomEvent("kasakai:profile-city-change"));
       setSaveSuccess(true);
       fetchProfile();
     } catch (e) {
