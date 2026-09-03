@@ -12,6 +12,8 @@
 // Defaults are omitted from both the URL and the API query, so an untouched
 // dashboard has a clean address bar and sends a bare request.
 
+import { buildApiUrl, getSession } from "@/utils/api";
+
 export type DatePreset = "all" | "today" | "tomorrow" | "weekend" | "week";
 export type Availability = "any" | "available" | "almost_full";
 export type SortKey = "soonest" | "cheapest" | "price_desc" | "spots";
@@ -216,6 +218,39 @@ export const setStoredMetro = (slug: string | null) => {
     // Private browsing / storage disabled — the profile still holds the choice,
     // so the only cost is one extra fetch on next boot.
   }
+};
+
+/**
+ * Write the city to the player's profile — the durable half of the pair above.
+ * That is what lets the backend answer 'profile' on their next device instead
+ * of guessing from their game history.
+ *
+ * Fire-and-forget, and a no-op for a signed-out visitor: the choice has already
+ * taken effect locally, so a failed write costs nothing more than one inference
+ * next time.
+ */
+export const persistMetro = async (slug: string) => {
+  try {
+    const { token } = getSession();
+    if (!token) return;
+    await fetch(buildApiUrl("/players/me"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ location: { city: slug } }),
+    });
+  } catch {
+    // non-critical
+  }
+};
+
+/**
+ * A city the player picked FOR THEMSELVES — the dashboard's picker, or the
+ * landing page's city tabs. Remembered in both places, so wherever they land
+ * next opens on it. Never called for a city we merely inferred for them.
+ */
+export const rememberMetro = (slug: string) => {
+  setStoredMetro(slug);
+  void persistMetro(slug);
 };
 
 export type MetroOption = {

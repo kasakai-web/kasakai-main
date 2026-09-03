@@ -30,6 +30,9 @@ import {
   filtersToSearchParams,
   getStoredMetro,
   setStoredMetro,
+  // Shared with the landing page's city tabs, so a city chosen there and one
+  // chosen here are remembered in exactly the same two places.
+  persistMetro,
 } from "@/utils/browse";
 import "@/app/dashboard/player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
@@ -393,24 +396,6 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       }
     } catch {
       // non-critical — games will stay as-is on network error
-    }
-  };
-
-  // Remember the city on the player's profile too, not just in localStorage —
-  // that is what lets the backend infer it on their next device without asking.
-  // Fire-and-forget: the choice already took effect locally, so a failed write
-  // costs nothing more than one inference next time.
-  const persistMetro = async (slug: string) => {
-    try {
-      const { token } = getSession();
-      if (!token) return;
-      await fetch(buildApiUrl("/players/me"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ location: { city: slug } }),
-      });
-    } catch {
-      // non-critical
     }
   };
 

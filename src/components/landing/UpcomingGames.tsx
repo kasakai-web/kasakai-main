@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import type { PublicGame } from "@/hooks/usePublicGames";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+import { rememberMetro } from "@/utils/browse";
 import { bookHref, detailsHref, enterHref } from "./authLinks";
 
 const HOW_MANY = 3;
@@ -38,6 +39,16 @@ const dateBadge = (d: string) => {
 /** The tab a game belongs to. Falls back to the raw city, then to a catch-all. */
 const cityOf = (g: PublicGame) => g.metroLabel || g.city || "Other cities";
 
+/**
+ * One city tab: what it reads, and the metro slug behind it.
+ *
+ * The label is what groups the games — it always exists. The slug is what the
+ * dashboard filters by, and it can be null: a venue outside the metro registry
+ * still gets a tab off its raw city name, and that tab simply carries no city
+ * through to the dashboard rather than carrying a made-up one.
+ */
+type CityTab = { label: string; metro: string | null };
+
 export function UpcomingGames({
   games,
   loading,
@@ -56,20 +67,42 @@ export function UpcomingGames({
   // Tabs are built from what the feed actually returned rather than hardcoded,
   // so a new Kasa Kai city appears here the day its first game is listed.
   const cities = useMemo(() => {
-    const seen: string[] = [];
+    const seen: CityTab[] = [];
     games.forEach((g) => {
       const label = cityOf(g);
-      if (!seen.includes(label)) seen.push(label);
+      const found = seen.find((c) => c.label === label);
+      // First game to name a metro settles the tab's slug. Later games under the
+      // same label can only agree with it — the label came from that same metro.
+      if (!found) seen.push({ label, metro: g.metro || null });
+      else if (!found.metro && g.metro) found.metro = g.metro;
     });
     return seen;
   }, [games]);
 
-  const activeCity = city && cities.includes(city) ? city : cities[0] ?? null;
+  const activeTab = cities.find((c) => c.label === city) ?? cities[0] ?? null;
+  const activeCity = activeTab?.label ?? null;
+  // Handed to every CTA below, so wherever the visitor is sent lands on the city
+  // they are actually reading. Null while the feed is empty or the tab is a
+  // fallback one, in which case the destination decides for itself as before.
+  const activeMetro = activeTab?.metro ?? null;
 
   const shown = useMemo(
     () => games.filter((g) => !activeCity || cityOf(g) === activeCity).slice(0, HOW_MANY),
     [games, activeCity],
   );
+
+  // Choosing a tab is choosing a city, not just filtering three cards: it is the
+  // same gesture as the dashboard's picker, so it is remembered the same way.
+  // That is what carries the choice through the sign-up flow for a visitor, who
+  // has no session to hang a ?metro= link on and arrives at the dashboard with
+  // only this browser's memory of what they were looking at.
+  //
+  // Only on a real tap. The tab that happens to be first in the feed was chosen
+  // by us, and writing that to their profile would be us answering for them.
+  const chooseCity = (tab: CityTab) => {
+    setCity(tab.label);
+    if (tab.metro) rememberMetro(tab.metro);
+  };
 
   return (
     <section id="events" className="lp-section">
@@ -84,16 +117,16 @@ export function UpcomingGames({
 
           {cities.length > 1 && (
             <div className="lp-city-tabs" role="tablist" aria-label="Choose a city">
-              {cities.map((label) => (
+              {cities.map((tab) => (
                 <button
-                  key={label}
+                  key={tab.label}
                   type="button"
                   role="tab"
-                  aria-selected={label === activeCity}
-                  className={`lp-city-tab${label === activeCity ? " active" : ""}`}
-                  onClick={() => setCity(label)}
+                  aria-selected={tab.label === activeCity}
+                  className={`lp-city-tab${tab.label === activeCity ? " active" : ""}`}
+                  onClick={() => chooseCity(tab)}
                 >
-                  {label}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -109,7 +142,7 @@ export function UpcomingGames({
         ) : error ? (
           <div className="lp-games-note">
             {error}. Please refresh, or{" "}
-            <a href={enterHref(isLoggedIn)} className="lp-link">
+            <a href={enterHref(isLoggedIn, activeMetro)} className="lp-link">
               {isLoggedIn ? "open your dashboard" : "sign up"}
             </a>{" "}
             to browse every game.
@@ -124,7 +157,7 @@ export function UpcomingGames({
               <>We&apos;ll tell you the moment the next one goes live.</>
             ) : (
               <>
-                <a href={enterHref(isLoggedIn)} className="lp-link">
+                <a href={enterHref(isLoggedIn, activeMetro)} className="lp-link">
                   Create an account
                 </a>{" "}
                 and we&apos;ll tell you the moment the next one goes live.
@@ -134,13 +167,18 @@ export function UpcomingGames({
         ) : (
           <div className="lp-game-grid">
             {shown.map((game) => (
-              <GameCard key={game._id} game={game} isLoggedIn={isLoggedIn} />
+              <GameCard
+                key={game._id}
+                game={game}
+                isLoggedIn={isLoggedIn}
+                metro={activeMetro}
+              />
             ))}
           </div>
         )}
 
         <div className="lp-games-more">
-          <a href={enterHref(isLoggedIn)} className="lp-btn lp-btn-outline">
+          <a href={enterHref(isLoggedIn, activeMetro)} className="lp-btn lp-btn-outline">
             View more games <ArrowRight size={18} />
           </a>
         </div>
@@ -149,7 +187,16 @@ export function UpcomingGames({
   );
 }
 
-function GameCard({ game, isLoggedIn }: { game: PublicGame; isLoggedIn: boolean }) {
+function GameCard({
+  game,
+  isLoggedIn,
+  metro,
+}: {
+  game: PublicGame;
+  isLoggedIn: boolean;
+  /** The city tab this card is sitting under — travels with "Book". */
+  metro: string | null;
+}) {
   const total = game.totalSlots || 0;
   const left = Math.max(0, game.spotsLeft ?? 0);
   const filled = Math.max(0, total - left);
@@ -226,7 +273,7 @@ function GameCard({ game, isLoggedIn }: { game: PublicGame; isLoggedIn: boolean 
 
       <div className="lp-game-actions">
         <a
-          href={isFull ? detailsHref(game._id) : bookHref(game._id, isLoggedIn)}
+          href={isFull ? detailsHref(game._id) : bookHref(game._id, isLoggedIn, metro)}
           className="lp-book-btn"
         >
           {isFull ? "⏳ Join waitlist" : "⚽ Book"}

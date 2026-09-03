@@ -79,6 +79,11 @@ export function Header() {
   const pathname = usePathname();
   const showAction = isLoggedIn || pathname !== "/login";
 
+  // "You are here". Only a link with a real path can be the current page — the
+  // hash links are shortcuts into the landing page, and marking one current
+  // while the visitor is halfway down some other section would be a lie.
+  const isCurrent = (href: string) => !href.includes("#") && href === pathname;
+
   return (
     <>
       {/* ── NAVBAR ── */}
@@ -110,24 +115,29 @@ export function Header() {
           className="site-desktop-links"
           style={{ alignItems: "center", gap: "32px" }}
         >
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              style={{
-                fontFamily: "var(--body)",
-                fontSize: "14px",
-                fontWeight: 600,
-                color: "#a3a3a3",
-                textDecoration: "none",
-                transition: "color 0.15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--white)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#a3a3a3")}
-            >
-              {link.label}
-            </a>
-          ))}
+          {NAV_LINKS.map((link) => {
+            const current = isCurrent(link.href);
+            const idle = current ? "var(--white)" : "#a3a3a3";
+            return (
+              <a
+                key={link.href}
+                href={link.href}
+                aria-current={current ? "page" : undefined}
+                style={{
+                  fontFamily: "var(--body)",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: idle,
+                  textDecoration: "none",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--white)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = idle)}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </div>
 
         {/* Action button + hamburger */}
@@ -216,35 +226,40 @@ export function Header() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {NAV_LINKS.map((link, i) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={closeMobile}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  fontFamily: "var(--body)",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  color: "#a3a3a3",
-                  textDecoration: "none",
-                  padding: "13px clamp(24px, 4vw, 48px)",
-                  borderBottom: i < NAV_LINKS.length - 1 ? "1px solid #171717" : "none",
-                  transition: "color 0.15s, background 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "var(--white)";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "#a3a3a3";
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                {link.label}
-              </a>
-            ))}
+            {NAV_LINKS.map((link, i) => {
+              const current = isCurrent(link.href);
+              const idle = current ? "var(--white)" : "#a3a3a3";
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={closeMobile}
+                  aria-current={current ? "page" : undefined}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    fontFamily: "var(--body)",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: idle,
+                    textDecoration: "none",
+                    padding: "13px clamp(24px, 4vw, 48px)",
+                    borderBottom: i < NAV_LINKS.length - 1 ? "1px solid #171717" : "none",
+                    transition: "color 0.15s, background 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--white)";
+                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = idle;
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {link.label}
+                </a>
+              );
+            })}
           </div>
         </div>
       )}

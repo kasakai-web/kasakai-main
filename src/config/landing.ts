@@ -7,13 +7,15 @@
 export type LandingStat = { value: string; label: string };
 
 export const HERO_STATS: LandingStat[] = [
-  { value: "5,000+",  label: "Events organised" },
-  { value: "7+ years", label: "Building community" },
+  { value: "10,000+",  label: "Events organised" },
+  { value: "9+ years", label: "Building community" },
   { value: "Come solo", label: "We handle the rest" },
 ];
 
 export const COMMUNITY_STATS: LandingStat[] = [
-  { value: "5,000+", label: "Experiences" },
+  // Same count as the hero's "Events organised", worded for this section — move
+  // the two together or the page contradicts itself on one scroll.
+  { value: "10,000+", label: "Experiences" },
   { value: "20–25",  label: "Games weekly" },
   { value: "2",      label: "Active cities" },
 ];
@@ -86,7 +88,7 @@ export const LANDING_FAQS: LandingFAQ[] = [
 
 export const LANDING_TESTIMONIAL = {
   quote:
-    "I came for one game because my friends cancelled. Three months later, Tuesday football is the fixed part of my week.",
+    "I came for one game because my friends cancelled. Three months later, I play thrice a week with Kasa Kai.",
   initials: "AK",
   name: "Aditya K.",
   role: "Kasa Kai player · Mumbai",

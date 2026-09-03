@@ -1,8 +1,14 @@
+"use client";
+
+// styled-jsx (the <style jsx> block below) only compiles inside a Client
+// Component. Both callers were already client pages, so this was true before
+// it was declared — /about is a Server Component, and needs it said out loud.
+
 import Link from "next/link";
 
 const quickLinks = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "/#about" },
+  { label: "About Us", href: "/about" },
   { label: "Football", href: "/login?role=player" },
   { label: "Screening Events", href: "/screening" },
   { label: "Turf Events", href: "/dashboard" },
