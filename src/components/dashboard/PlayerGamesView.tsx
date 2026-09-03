@@ -17,7 +17,6 @@ import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/a
 import { avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import CityPicker from "@/components/dashboard/CityPicker";
 import GameFilters from "@/components/dashboard/GameFilters";
 import {
   type BrowseContext,
@@ -235,6 +234,17 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     // the link asks for it, but a remembered city beats no list at all.
     return { ...fromUrl, metro: fromUrl.metro || getStoredMetro() };
   });
+
+  useEffect(() => {
+    const handleMetroChange = (event: Event) => {
+      const slug = (event as CustomEvent<{ slug?: string }>).detail?.slug;
+      if (!slug) return;
+      setFilters((current) => ({ ...current, metro: slug, city: null, area: null }));
+    };
+
+    window.addEventListener("kasakai:metro-change", handleMetroChange);
+    return () => window.removeEventListener("kasakai:metro-change", handleMetroChange);
+  }, []);
   // Whether the link the player arrived on named a city. It is the one thing
   // that outranks the city on their profile (see fetchBrowseContext): a shared
   // or bookmarked view has to open showing the city it promised, whoever opens
@@ -1969,36 +1979,6 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           </div>
           <div className="page-title">{SECTION_META[section].title}</div>
         </div>
-        {/* The city sits where the venue search used to. Searching by venue or
-            area was the old way to narrow the list; the city picker plus the
-            filter row below do that properly now, so a free-text box beside them
-            is a second, weaker answer to a question already answered. */}
-        {isBrowse && (
-        <div className="page-actions">
-          <CityPicker
-            metros={browseContext?.metros || []}
-            value={filters.metro}
-            onChange={(slug) => {
-              // Changing city clears the narrower place filters — a Gurugram
-              // area chip means nothing once you are browsing Bengaluru.
-              setFilters((f) => ({ ...f, metro: slug, city: null, area: null }));
-              persistMetro(slug);
-            }}
-            // Ask only when we genuinely could not work it out. A 'busiest'
-            // suggestion is a guess, so that is the one case worth confirming.
-            needsChoice={!!browseContext && (!filters.metro || browseContext.suggestedFrom === "busiest")}
-            // Only while they are still on the fallback city. Once they have
-            // chosen somewhere themselves, "you are not in your city" stops
-            // being news and becomes nagging.
-            unservedCity={
-              browseContext?.unservedCity && !getStoredMetro()
-                ? browseContext.unservedCity
-                : null
-            }
-            loading={loading}
-          />
-        </div>
-        )}
       </div>
 
       {/* Filters belong to browsing, not to the player's own fixtures — showing
@@ -2477,7 +2457,20 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             <div className="pd-event-modal-body">
 
             {detailTab === "teams" && detailTeams && (
-              <PublishedTeamsView data={detailTeams} />
+              <PublishedTeamsView
+                data={detailTeams}
+                profileImages={Object.fromEntries([
+                  ...(detailGame.organiserIsPlaying && detailGame.organiser?.profileImage
+                    ? [[String(detailGame.organiser.name || "Organiser").trim().toLowerCase(), detailGame.organiser.profileImage]]
+                    : []),
+                  ...(detailGame.registrations || [])
+                    .filter((registration: any) => !registration.plusOneName && registration.player?.profileImage)
+                    .map((registration: any) => [
+                      String(registration.player?.name || "Player").trim().toLowerCase(),
+                      registration.player.profileImage,
+                    ]),
+                ])}
+              />
             )}
 
             {/* Pass banner in detail view */}

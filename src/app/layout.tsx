@@ -49,7 +49,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body  cz-shortcut-listen="false">
         <SocketClient /> {/* 👈 this handles socket */}
         {GA_ID && (
           <>

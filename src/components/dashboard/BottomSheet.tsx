@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import "./browse.css";
 
 /**
@@ -69,7 +70,7 @@ export default function BottomSheet({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="kk-sheet-backdrop" onClick={onClose} role="presentation">
       <div
         ref={panelRef}
@@ -90,6 +91,7 @@ export default function BottomSheet({
         <div className="kk-sheet-body">{children}</div>
         {footer && <div className="kk-sheet-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

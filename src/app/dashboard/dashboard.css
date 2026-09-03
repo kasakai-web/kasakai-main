@@ -126,6 +126,11 @@ body::after {
   gap: 4px;
 }
 
+.nav-city-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .role-tab {
   font-family: var(--body);
   font-size: 12.5px;
@@ -168,11 +173,11 @@ body::after {
 .mobile-wallet-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 2px;
+  padding: 0 8px;
   height: 100%;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--white);
   cursor: pointer;
   transition: background 0.15s;
@@ -3092,15 +3097,41 @@ body::after {
 
   .nav-center { display: none; }
 
-  /* Mobile wallet display */
-  .mobile-wallet-display {
-    display: flex;
-    margin-left: auto;
+  .nav-city-picker {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 190px;
   }
 
-  /* Push bell + hamburger to far right */
+  .nav-city-picker .kk-city-bar {
+    width: max-content;
+    min-height: 0;
+  }
+
+  .nav-city-picker .kk-city-pill {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0px;
+    gap: 2px;
+  }
+
+  .nav-city-picker .kk-city-pin { font-size: 14px; }
+  .nav-city-picker .kk-city-eyebrow {
+    font-size: 7px;
+    letter-spacing: 0.13em;
+  }
+  .nav-city-picker .kk-city-name { font-size: 11px; }
+  .nav-city-picker .kk-city-away-tag { display: none; }
+
+  .mobile-wallet-display {
+    /* off the wallet for mobile for spacing */
+    display: flex;
+  }
+
   .nav-right {
-    margin-left: 0;
+    margin-left: auto;
+    flex-shrink: 0;
     border-left: none !important;
     padding-right: 0 !important;
   }
@@ -3116,7 +3147,7 @@ body::after {
     color: var(--white);
     cursor: pointer;
     flex-shrink: 0;
-    margin-left: auto;
+    margin-left: 0;
   }
 
   .sidebar {
