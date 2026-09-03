@@ -171,7 +171,6 @@ body::after {
   height: 100%;
 }
 .mobile-wallet-pill {
-  border:1px solid red;
   display: flex;
   align-items: center;
   gap: 2px;
