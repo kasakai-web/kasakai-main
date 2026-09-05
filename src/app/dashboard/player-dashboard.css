@@ -1770,6 +1770,85 @@
   .pd-rules-text { font-size: 12px; }
 }
 
+/* ── Rules tab: this game's cancellation policy ──
+   Sits above the house rules because it is the only game-specific part of the tab,
+   and the only part that costs money. */
+.pd-policy-card {
+  border: 1px solid rgba(200,255,62,0.18);
+  background: rgba(200,255,62,0.05);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+.pd-policy-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pd-policy-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c8ff3e;
+}
+.pd-policy-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+}
+.pd-policy-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pd-policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  background: #101010;
+}
+.pd-policy-when {
+  font-size: 12px;
+  font-weight: 600;
+  color: #bdbdbd;
+  line-height: 1.4;
+}
+.pd-policy-cost {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #f87171;
+  font-variant-numeric: tabular-nums;
+}
+.pd-policy-cost.free { color: #c8ff3e; }
+.pd-policy-notes {
+  margin: 11px 0 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pd-policy-notes li {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #9a9a9a;
+}
+
+@media (max-width: 640px) {
+  .pd-policy-card { padding: 12px; }
+  .pd-policy-when, .pd-policy-cost { font-size: 11.5px; }
+  .pd-policy-notes li { font-size: 11px; }
+}
+
 /* ── Players tab: roster ── */
 .pd-roster-section-head {
   display: flex;

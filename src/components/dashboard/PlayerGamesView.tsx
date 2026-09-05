@@ -1005,6 +1005,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       waitlist: isFull,
       passEligible: Boolean(game.passEligible),
       requiresApproval: Boolean(game.requiresApproval),
+      // Whether this game charges for a late departure at all. Only the fact, not the
+      // amount — the modal points at the rules, which carry the whole scale.
+      cancellationFeeApplies: Boolean(game.backoutInfo?.active),
       // Who is already in, so the player can ask to line up with or against them.
       // Guests are keyed by name because a +1 has no player account.
       roster: (game.registrations || [])
@@ -1125,7 +1128,31 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     const guestWarning = guestCount > 0
       ? ` Your ${guestCount} guest${guestCount > 1 ? "s" : ""} will also be removed.`
       : "";
-    setConfirmMessage(`Do you want to cancel your registration for this event?${guestWarning}`);
+    // What leaving actually costs. Every number here comes from the server's
+    // `backoutInfo` (utils/backoutPolicy.js), never from re-deriving the rule in
+    // the browser — the confirm dialog and the charge must quote the same price,
+    // and only the server knows the tier, the grace clock and the waivers.
+    const info = game.backoutInfo;
+    const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
+    let feeWarning = "";
+    if (info?.active && info.inFeeWindow && !info.waived && (info.feePaise ?? 0) > 0) {
+      feeWarning = ` You're inside the cancellation window, so this is NOT a full refund:`
+        + ` a ${rupees(info.feePaise)} fee will be deducted`
+        + `${info.seats > 1 ? ` (${rupees(info.feePerSeatPaise)} × ${info.seats} slots)` : ""}`
+        + `${info.netRefundPaise != null ? ` and ${rupees(info.netRefundPaise)} returned to your wallet` : ""}.`;
+    } else if (info?.active && info.waived && info.waivedText) {
+      feeWarning = ` No cancellation fee — ${info.waivedText}.`;
+    } else if (info?.active && !info.inFeeWindow && info.freeUntil) {
+      // Still free, but say until when, so leaving now is an informed choice
+      // rather than a lucky one.
+      const until = new Date(info.freeUntil).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short",
+        hour: "numeric", minute: "2-digit", hour12: true,
+      });
+      feeWarning = ` Free cancellation until ${until} — you'll get a full refund.`;
+    }
+
+    setConfirmMessage(`Do you want to cancel your registration for this event?${guestWarning}${feeWarning}`);
     confirmActionRef.current = doCancel;
     setConfirmVisible(true);
   };
@@ -1197,19 +1224,34 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       }
     } else {
       setConfirmTitle("Skip this game?");
-      const guestCount = (detailGame.registrations || []).filter((r: any) =>
-        r.plusOneName && (r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId)
-      ).length;
+      // Live guests only. A guest the host has already removed leaves a tombstoned
+      // row behind (it carries the cancellation fee), and counting it would promise
+      // to keep registered someone who is no longer in the game.
+      const guestCount = (detailGame.registrations || []).filter((r: any) => {
+        if (!r.plusOneName || r.backedOutAt || r.removedAt) return false;
+        if (["refunded", "forfeited"].includes(r.paymentStatus)) return false;
+        return r._isMyReg || r.player?._id?.toString() === playerId || r.player?.toString() === playerId;
+      }).length;
       const guestMsg = guestCount > 0
         ? ` Your ${guestCount} guest${guestCount > 1 ? "s" : ""} will remain registered.`
         : "";
-      // Refund reflects what was actually paid for the player's own slot, not the game fee.
-      // Pass-covered players paid ₹0 → no refund.
-      const feeMsg = ownPaidPaise > 0
-        ? ` ₹${ownPaidPaise / 100} will be refunded to your wallet.`
-        : passCovered
-          ? " Your slot was covered by your pass, so there's nothing to refund."
-          : "";
+      // Refund reflects what was actually paid for the player's own slot, not the game
+      // fee. Pass-covered players paid ₹0 → no refund.
+      //
+      // Skipping surrenders a seat just as cancelling does, so it carries the same
+      // cancellation fee. The amount comes from the server's quote on this player's OWN
+      // row (`_removal`, from utils/backoutPolicy.js) and is never re-derived here —
+      // only the server knows the tier, their grace clock and the waivers.
+      const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
+      const quote = ownReg?._removal;
+      const feeMsg = quote && quote.feePaise > 0
+        ? ` You're inside the cancellation window: a ${rupees(quote.feePaise)} fee will be deducted`
+          + ` and ${rupees(quote.netRefundPaise)} returned to your wallet.`
+        : ownPaidPaise > 0
+          ? ` ₹${ownPaidPaise / 100} will be refunded to your wallet.`
+          : passCovered
+            ? " Your slot was covered by your pass, so there's nothing to refund."
+            : "";
       setConfirmMessage(`You'll be marked as not attending.${guestMsg}${feeMsg}`);
     }
 
@@ -1612,8 +1654,20 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       setMyGames((prev) => prev.map((x) => x._id === rg._id ? rg : x));
       setGames((prev) => prev.map((x) => x._id === rg._id ? { ...x, spotsRemaining: rg.spotsRemaining, totalSlots: rg.totalSlots } : x));
       fetchWalletBalance();
-      const refundAmt = data.refundAmountPaise || 0;
-      showToast("success", "Guest Removed", refundAmt > 0 ? `₹${Math.round(refundAmt / 100)} will be refunded shortly.` : undefined);
+      // `backout` carries the net and the fee that made it net; `refundAmountPaise`
+      // is the gross, so quoting it alone would over-promise a charged removal.
+      const back = data.backout;
+      const netAmt = back ? back.netRefundPaise : (data.refundAmountPaise || 0);
+      const feeAmt = back ? back.feePaise : 0;
+      showToast(
+        "success",
+        "Guest Removed",
+        feeAmt > 0
+          ? `₹${Math.round(netAmt / 100)} refunded — ₹${Math.round(feeAmt / 100)} cancellation fee deducted.`
+          : netAmt > 0
+            ? `₹${Math.round(netAmt / 100)} will be refunded shortly.`
+            : undefined,
+      );
     } catch {
       setRemovedGuestIds((prev) => { const s = new Set(prev); s.delete(regId); return s; });
       showToast("error", "Failed to remove guest. Please try again.");
@@ -1624,8 +1678,25 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   };
 
   const promptRemoveGuest = (game: any, regId: string, guestName: string) => {
-    const fee = game?.feeInPaise || 0;
-    const refundMsg = fee > 0 ? ` ₹${Math.round(fee / 100)} will be refunded to your wallet.` : "";
+    // Priced by the server on this guest's OWN row (`_removal`, computed by
+    // utils/backoutPolicy.js) and never re-derived here: giving up a +1 costs the
+    // same cancellation fee as leaving yourself, and only the server knows the tier,
+    // that guest's grace clock and the waivers. Falls back to the game fee for a
+    // game object that came from a path without the annotation.
+    const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
+    const quote = (game?.registrations || []).find((r: any) => String(r._id) === String(regId))?._removal;
+    let refundMsg: string;
+    if (quote) {
+      refundMsg = quote.feePaise > 0
+        ? ` You're inside the cancellation window: a ${rupees(quote.feePaise)} fee will be deducted`
+          + ` and ${rupees(quote.netRefundPaise)} returned to your wallet.`
+        : quote.netRefundPaise > 0
+          ? ` ${rupees(quote.netRefundPaise)} will be refunded to your wallet.`
+          : "";
+    } else {
+      const fee = game?.feeInPaise || 0;
+      refundMsg = fee > 0 ? ` ${rupees(fee)} will be refunded to your wallet.` : "";
+    }
     setConfirmTitle("Remove Guest");
     setConfirmMessage(`Remove ${guestName} from this game?${refundMsg}`);
     confirmActionRef.current = async () => {
@@ -2031,6 +2102,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                     || myWaitlist.some(wg => wg._id === game._id && wg._myWaitlistStatus === 'approved')
                   }
                   requiresApproval={Boolean(game.requiresApproval)}
+                  registrationLocked={Boolean(game.registrationLocked)}
                   requestStatus={game._myRequestStatus || null}
                   onCancelRequest={() => handleCancelRequest(game)}
                   cancelReason={game.cancelReason}
@@ -2514,7 +2586,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               </div>
             )}
 
-            {detailTab === "rules" && <GameRules/>}
+            {detailTab === "rules" && <GameRules backoutInfo={detailGame.backoutInfo} />}
 
             {detailTab === "players" && detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft > 0 && !detailIsCancelled && (
               <div style={{

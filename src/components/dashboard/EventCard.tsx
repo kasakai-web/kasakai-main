@@ -42,6 +42,10 @@ export interface EventCardProps {
   isWaitlisted?: boolean;
   isWaitlistApproved?: boolean;
   requiresApproval?: boolean;
+  // The roster was full when the game's cutoff passed, so joining is shut —
+  // including the waitlist. Server-computed (`registrationLocked`); it lifts by
+  // itself as soon as anyone drops out, so the card must never cache it.
+  registrationLocked?: boolean;
   requestStatus?: "pending" | "approved_unpaid" | null;
   onCancelRequest?: () => void;
   cancelReason?: string;
@@ -72,6 +76,7 @@ export function EventCard({
   isWaitlisted = false,
   isWaitlistApproved = false,
   requiresApproval = false,
+  registrationLocked = false,
   requestStatus = null,
   onCancelRequest,
   cancelReason,
@@ -262,7 +267,13 @@ export function EventCard({
           </button>
         ) : (
           <>
-            {isFull ? (
+            {registrationLocked ? (
+              // Not "full": full is a state the waitlist answers. This is the
+              // roster being closed, which the waitlist cannot get you around.
+              <button className="card-btn waitlist-btn" disabled title="Registration closed at the cutoff. If someone drops out, the slot reopens.">
+                <span>🔒 Registration Closed</span>
+              </button>
+            ) : isFull ? (
               <button
                 className="card-btn waitlist-btn"
                 onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: true })}

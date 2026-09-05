@@ -23,6 +23,9 @@ interface InviteData {
   organiserName: string;
   requiresApproval?: boolean;               // shared link → "charged on approval"
   needsApproval?: boolean;                  // does THIS invite need the organiser's nod?
+  // Does this game charge for giving up a slot near kick-off? The fact only — the
+  // scale is a table and lives in the game's rules.
+  backoutInfo?: { active?: boolean } | null;
   linkType?: "personal" | "shared";
   invite: {
     token: string;
@@ -305,6 +308,21 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                 {needsApproval && (
                   <div style={{ fontSize: 11.5, color: "#888", marginBottom: 8, textAlign: "center" }}>
                     Your spot needs organiser approval. You&apos;ll be charged {feeLabel} only once approved.
+                  </div>
+                )}
+                {/* Same notice the booking modal carries, for the same reason: an
+                    invited player commits money here and nowhere else, so the terms
+                    have to be in front of them at this button, not only on the card
+                    they never went through. */}
+                {data.backoutInfo?.active && (
+                  <div style={{
+                    marginBottom: 10, padding: "9px 12px", borderRadius: 9,
+                    border: "1px solid rgba(255,255,255,0.09)", background: "rgba(255,255,255,0.035)",
+                    fontSize: 11.5, fontWeight: 600, lineHeight: 1.5, color: "#9a9a9a", textAlign: "center",
+                  }}>
+                    Cancellation charges apply to this game. See{" "}
+                    <strong style={{ color: "#c8ff3e", fontWeight: 700 }}>Game Rules</strong> in
+                    View More Details before you confirm.
                   </div>
                 )}
                 <button

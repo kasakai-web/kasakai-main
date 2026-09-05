@@ -23,6 +23,8 @@ type BookingGame = {
   waitlist?: boolean;
   passEligible?: boolean;
   requiresApproval?: boolean;
+  /** This game charges for giving up a slot near kick-off (server's `backoutInfo.active`). */
+  cancellationFeeApplies?: boolean;
 };
 
 type Guest = {
@@ -630,6 +632,16 @@ export function BookingModal({
                     </Link>
                   )}
                   {needsApproval && " before requesting to join."}
+                </div>
+              )}
+
+              {/* Said at the moment of commitment, not after. Deliberately a pointer
+                  rather than the scale itself: what a departure costs depends on when
+                  it happens, and the tiers are a table that belongs in the rules. */}
+              {game.cancellationFeeApplies && (
+                <div className="bm-cancel-note">
+                  Cancellation charges apply to this game. See <strong>Game Rules</strong> in
+                  View More Details before you book.
                 </div>
               )}
 

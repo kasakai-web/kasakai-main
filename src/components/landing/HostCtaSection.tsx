@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { CONTACT_EMAIL } from "@/config/landing";
+import { CONTACT_EMAIL, HOST_SIGNUP_FORM_URL } from "@/config/landing";
 
 export function HostCtaSection() {
   return (
@@ -16,7 +16,9 @@ export function HostCtaSection() {
           </div>
           <div className="lp-hostcta-actions">
             <a
-              href={`mailto:${CONTACT_EMAIL}?subject=I%20want%20to%20host%20with%20Kasa%20Kai`}
+              href={HOST_SIGNUP_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="lp-btn lp-btn-solid"
             >
               Become a host <ArrowRight size={18} />

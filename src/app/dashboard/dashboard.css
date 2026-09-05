@@ -965,6 +965,7 @@ body::after {
   margin-top: auto;
 }
 
+
 .card-btn {
   flex: 1;
   padding: 12px 14px;
@@ -1932,6 +1933,26 @@ body::after {
 .ws-right { text-align: right; }
 .ws-after { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
 .ws-after-val { font-family: var(--cond); font-size: 20px; font-weight: 700; color: var(--white); }
+
+/* "Cancellation charges apply" — shown directly above Confirm & Pay, because the
+   moment money is committed is the moment the terms have to be in front of the
+   player. A pointer to the rules, never the scale: the tiers are a table. */
+.bm-cancel-note {
+  margin: -2px 0 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.035);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #9a9a9a;
+  text-align: center;
+}
+.bm-cancel-note strong {
+  color: var(--lime);
+  font-weight: 700;
+}
 
 .bm-confirm-btn {
   width: 100%;

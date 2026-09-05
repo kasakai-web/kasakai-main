@@ -101,3 +101,10 @@ export const LANDING_VIDEOS = [
 ];
 
 export const CONTACT_EMAIL = "contact@kasakai.in";
+
+// Where "Become a host" sends someone. A form rather than a mailto: an enquiry
+// that arrives with the city, the sport and the times already filled in can be
+// answered in one reply, where an empty draft email usually cannot.
+// "Partner your venue" deliberately still opens a mail draft — venue owners are
+// a different, smaller conversation with no form behind it yet.
+export const HOST_SIGNUP_FORM_URL = "https://forms.gle/bViVqhJjUxKKkvND9";

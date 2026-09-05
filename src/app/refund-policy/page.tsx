@@ -145,7 +145,9 @@ export default function RefundPolicyPage() {
 
               <Section id="backout" num="03" title="Player Cancellation Refunds" accent="electric">
                 <P>If you cancel your registration before the game takes place, your registration fee is refunded to your wallet. The refund amount is subject to the organiser&apos;s cancellation policy for that specific game.</P>
-                <P>Cancellation fees (if any) will be clearly communicated before you confirm your withdrawal. The net amount is credited to your wallet immediately.</P>
+                <P>Organisers may set a cancellation fee that applies only close to kick-off. Cancelling before that window is always a full refund. Inside it, the fee applies <strong>per slot you give up</strong> — so cancelling with two guests means the fee is charged three times — and it can never exceed what you actually paid.</P>
+                <P>The exact amount is shown to you before you confirm, never after. The net amount is credited to your wallet immediately.</P>
+                <P>You are not charged a cancellation fee when: you cancel within the organiser&apos;s free-change window just after joining; the game is cancelled; or the organiser moves the kick-off time or switches the format after you joined. If a game is called off after you had already cancelled and paid the fee, that fee is returned to your wallet.</P>
               </Section>
 
               <Section id="no-cash" num="04" title="No Cash Withdrawals" accent="electric">
