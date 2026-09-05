@@ -1636,11 +1636,88 @@
    (pd-event-tabs / dt-* / pd-roster-* namespace)
 ───────────────────────────────────────────── */
 
-.pd-event-modal-meta {
+.map-link-card { 
+  width:100% !important;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.map-link-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.map-link-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-right: 14px;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+}
+
+.map-link-card:hover .map-link-icon {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.map-link-pin {
+  width: 20px;
+  height: 20px;
+  color: #c6f839;
+}
+
+.map-link-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-link-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.map-link-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.map-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c6f839;
+  background: rgba(198, 248, 57, 0.1);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.map-link-chevron {
+  width: 12px;
+  height: 12px;
+}
+
+.map-link-meta {
+  margin: 0;
   font-size: 13px;
-  color: #888;
-  margin-top: 6px;
-  line-height: 1.4;
+  color: #9ca3af;
 }
 
 .pd-event-tabs {

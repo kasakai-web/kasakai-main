@@ -38,6 +38,7 @@ import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
 import ProgressBar from "../ui/ProgressBar";
 import Image from "next/image";
+import { PlaySquare ,ChevronRight,MapPin} from "lucide-react";
 
 
 /**
@@ -1730,7 +1731,14 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     return () => observer.disconnect();
   }, [loadMoreSentinel, hasMoreGames, loadMore]);
 
-  const detailVenueName = detailGame ? (detailGame.turf?.name || "TBC") : "";
+  const detailVenueName = detailGame ? (detailGame.turf?.name || "TBC") : "";  
+  const rawGoogleMapsUrl = detailGame?.turf?.googleMapsUrl;
+  const googleMapsUrl = rawGoogleMapsUrl
+  ? rawGoogleMapsUrl.startsWith("http://") || rawGoogleMapsUrl.startsWith("https://")
+    ? rawGoogleMapsUrl
+    : `https://${rawGoogleMapsUrl}`
+  : undefined;
+
   const detailCityName = detailGame ? (detailGame.turf?.address?.city || "TBC") : "";
   const detailDateLabel = detailGame
     ? new Date(detailGame.scheduledAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" })
@@ -2330,9 +2338,6 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   <h2 className="pd-event-modal-title">
                     {detailGame.title || detailGame.turf?.name || "Game"}
                   </h2>
-                  <div className="pd-event-modal-meta">
-                    <span>{detailVenueName}</span> · {detailCityName} · {detailDateLabel}
-                  </div>
                 </div>
                 <span style={{
                   flexShrink: 0, marginTop: 2,
@@ -2345,7 +2350,30 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   {detailGame.status || "open"}
                 </span>
               </div>
+               <a
+                    href={googleMapsUrl|| undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="map-link-card" 
+                    style={{cursor:`${googleMapsUrl?"pointer":"default"}`,width:"100% !important"}}
+                  >
+                  <div className="map-link-icon">
+                    <MapPin className="map-link-pin" />
+                  </div>
 
+                    <div className="map-link-content">
+                      <div className="map-link-header">
+                        <h3 className="map-link-title">{detailVenueName}</h3>
+
+                        <div className="map-link-badge">
+                          <span>View on map</span>
+                          <ChevronRight className="map-link-chevron" />
+                        </div>
+                      </div>
+
+                      <p className="map-link-meta">{detailCityName} · {detailDateLabel}</p>
+                     </div>
+                    </a>
               {/* Copy Link button */}
               <button
                 type="button"
@@ -2383,7 +2411,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                     Copy Link
                   </>
                 )}
-              </button>
+              </button> 
+            
+           
 
               {/* Invite friends — the server decides whether this game offers it.
                   A spent cap still shows the button: the modal is where the
@@ -2407,6 +2437,32 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   </svg>
                   Invite friends
                 </button>
+              )}
+
+               {/* Youtube  Video link for Past game completed and   */}
+              {section === "completed" && detailGame?.matchRecording && (
+              <button
+                type="button"
+                style={{
+                  marginTop: 12,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "7px 14px",
+                  borderRadius: 99,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "#aaa",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  marginLeft:8
+                }}
+                onClick={() =>window.open(detailGame.matchRecording,"_blank","noopener noreferrer")}
+              >
+                <PlaySquare size={15} />
+                <span>Match Recording</span>
+              </button>
               )}
             </div>
 
