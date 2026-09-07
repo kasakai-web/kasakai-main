@@ -16,7 +16,7 @@ import { buildApiUrl, getSession } from "@/utils/api";
 
 export type DatePreset = "all" | "today" | "tomorrow" | "weekend" | "week";
 export type Availability = "any" | "available" | "almost_full";
-export type SortKey = "soonest" | "cheapest" | "price_desc" | "spots";
+export type SortKey = "soonest" | "cheapest" | "price_desc" | "spots" | "spots_asc";
 
 export type BrowseFilters = {
   /** Travel region — the primary scope. Set from the city picker, never blank in practice. */
@@ -67,6 +67,7 @@ export const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "cheapest",   label: "Price: low to high" },
   { key: "price_desc", label: "Price: high to low" },
   { key: "spots",      label: "Most spots left" },
+  { key: "spots_asc",  label: "Least spots left" },
 ];
 
 // Mirrors the backend format enum. 'Screening' is deliberately absent — it is not
@@ -112,7 +113,7 @@ export function filtersFromParams(sp: URLSearchParams): BrowseFilters {
     minFee: asNumber(sp.get("minFee")),
     maxFee: asNumber(sp.get("maxFee")),
     availability: oneOf(sp.get("availability"), ["any", "available", "almost_full"] as const, "any"),
-    sort: oneOf(sp.get("sort"), ["soonest", "cheapest", "price_desc", "spots"] as const, "soonest"),
+    sort: oneOf(sp.get("sort"), ["soonest", "cheapest", "price_desc", "spots", "spots_asc"] as const, "soonest"),
   };
 }
 
