@@ -1,0 +1,96 @@
+/* ══════════════════════════════════════════════
+   ORGANISER PROFILE  —  roster affordance + dialog
+   (opl-* namespace)
+
+   Plain global CSS like every other stylesheet here. Nothing is scoped for us
+   any more, so every class carries the prefix and the keyframes are namespaced
+   too — `spin` alone is defined in four other global sheets, one of which
+   (player-dashboard.css) loads alongside this one.
+══════════════════════════════════════════════ */
+
+/* The roster row owns the affordance that opens this dialog — see
+   .pd-roster-open in player-dashboard.css. */
+
+/* ── Dialog shell ── */
+.opl-close:focus-visible, .opl-retry:focus-visible, .opl-load-more:focus-visible { outline: 2px solid #b5f542; outline-offset: 3px; }
+.opl-dialog { margin: auto; padding: 0; width: min(512px, calc(100% - 48px)); max-height: 90dvh; color: #fafafa; background: #18181b; border: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 60%); }
+.opl-dialog, .opl-dialog * { box-sizing: border-box; }
+.opl-dialog[open] { animation: opl-profile-in 200ms ease-out; }
+.opl-dialog::backdrop { background: rgb(0 0 0 / 60%); backdrop-filter: blur(4px); }
+.opl-panel { display: flex; flex-direction: column; max-height: 90dvh; }
+.opl-header { position: relative; flex-shrink: 0; padding: 24px 60px 16px 24px; border-bottom: 1px solid #27272a; }
+.opl-header h2 { margin: 0; font-size: 20px; line-height: 1.4; font-weight: 700; color: #fff; overflow-wrap: anywhere; }
+.opl-close { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #27272a; color: #a1a1aa; cursor: pointer; transition: background 150ms, color 150ms; }
+.opl-close:hover { background: #3f3f46; color: #fff; }
+.opl-identity { display: flex; align-items: center; gap: 16px; }
+.opl-identity-details { min-width: 0; }
+.opl-avatar { width: 64px; height: 64px; flex-shrink: 0; border-radius: 50%; overflow: hidden; background: #27272a; color: #d4d4d8; display: grid; place-items: center; font-size: 20px; font-weight: 500; }
+.opl-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.opl-identity-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.opl-organiser-badge { padding: 2px 8px; border-radius: 4px; border: 1px solid #2b421a; background: #1c2c16; color: #b5f542; font-size: 12px; font-weight: 500; line-height: 1.4; }
+.opl-rating { display: inline-flex; align-items: center; gap: 4px; color: #a1a1aa; font-size: 14px; line-height: 1.4; }
+.opl-rating strong { color: #e4e4e7; font-weight: 500; }
+.opl-star { color: #eab308; fill: #eab308; flex-shrink: 0; }
+.opl-body { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px; scrollbar-color: #52525b transparent; scrollbar-width: thin; }
+
+/* ── Event accordions ── */
+.opl-section { flex-shrink: 0; border: 1px solid rgb(39 39 42 / 80%); border-radius: 12px; overflow: hidden; background: rgb(39 39 42 / 30%); }
+.opl-section-heading { margin: 0; }
+.opl-section-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 16px; border: 0; background: rgb(39 39 42 / 50%); color: #fff; font: inherit; text-align: left; cursor: pointer; transition: background 150ms; }
+.opl-section-toggle:hover { background: rgb(39 39 42 / 70%); }
+.opl-section-toggle:focus-visible { outline: 2px solid #b5f542; outline-offset: -3px; }
+.opl-section-label { display: flex; align-items: center; gap: 12px; min-width: 0; font-size: 14px; line-height: 1.5; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.opl-count { flex-shrink: 0; border-radius: 999px; padding: 2px 8px; background: #3f3f46; color: #d4d4d8; font-size: 12px; font-weight: 400; letter-spacing: normal; }
+.opl-chevron { flex-shrink: 0; color: #a1a1aa; transition: transform 200ms; }
+.opl-chevron-open { transform: rotate(180deg); }
+.opl-accordion-content { overflow: hidden; }
+.opl-event-viewport { max-height: min(340px, 45dvh); overflow-y: auto; border-top: 1px solid rgb(39 39 42 / 80%); scrollbar-width: thin; scrollbar-color: #52525b transparent; }
+.opl-event-viewport:focus-visible { outline: 2px solid #b5f542; outline-offset: -3px; }
+.opl-events { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 16px; list-style: none; }
+.opl-events li { padding: 16px; border-radius: 12px; overflow-wrap: anywhere; }
+.opl-upcoming-card { background: rgb(39 39 42 / 40%); border: 1px solid rgb(63 63 70 / 50%); transition: background 150ms; }
+.opl-upcoming-card:hover { background: rgb(63 63 70 / 50%); }
+.opl-upcoming-card:hover h4 { color: #b5f542; }
+.opl-history-card { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; background: rgb(39 39 42 / 20%); border: 1px solid rgb(39 39 42 / 50%); }
+.opl-event-details { min-width: 0; flex: 1; }
+.opl-event-details h4 { margin: 0; font-size: 16px; line-height: 1.5; font-weight: 500; color: #fff; transition: color 150ms; }
+.opl-event-meta { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 16px; margin-top: 8px; font-size: 14px; line-height: 1.5; color: #a1a1aa; }
+.opl-event-meta time, .opl-event-meta > span { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.opl-event-meta svg { flex-shrink: 0; margin-top: 3px; }
+.opl-history-card h4 { color: #d4d4d8; }
+.opl-history-card .opl-event-meta { margin-top: 6px; font-size: 12px; }
+.opl-history-card .opl-event-meta svg { width: 12px; height: 12px; }
+.opl-event-status { align-self: flex-start; flex-shrink: 0; border-radius: 4px; padding: 4px 8px; background: rgb(39 39 42 / 50%); color: #a1a1aa; font-size: 12px; font-weight: 500; }
+
+/* ── Paging, empty and error states ── */
+.opl-list-footer { display: flex; justify-content: center; padding: 0 16px 16px; }
+.opl-load-more { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 20px; border: 1px solid #2b421a; border-radius: 8px; background: #1c2c16; color: #b5f542; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.opl-load-more:hover:not(:disabled) { background: #263b1e; }
+.opl-load-more:disabled { cursor: wait; opacity: .7; }
+.opl-list-progress { margin: 0; padding: 8px 16px; border-top: 1px solid rgb(39 39 42 / 80%); color: #a1a1aa; font-size: 11px; text-align: right; }
+.opl-end-of-list { margin: 0; padding: 0 16px 16px; color: #a1a1aa; font-size: 12px; text-align: center; }
+.opl-empty { margin: 0; padding: 8px 0; color: #a1a1aa; font-size: 14px; line-height: 1.6; }
+.opl-event-viewport .opl-empty { padding: 24px 16px; }
+.opl-list-error { margin: 0; padding: 0 16px 12px; color: #ffb3ad; font-size: 13px; line-height: 1.5; }
+.opl-retry { margin-top: 12px; border: 0; border-radius: 8px; padding: 12px 18px; background: #b5f542; color: #18181b; font-weight: 600; cursor: pointer; }
+.opl-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.opl-spinner { animation: opl-spin 1s linear infinite; }
+
+@keyframes opl-spin { to { transform: rotate(360deg); } }
+@keyframes opl-profile-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes opl-sheet-in { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+
+@media (min-width: 640px) {
+  .opl-history-card { flex-direction: row; align-items: center; }
+  .opl-event-status { align-self: center; }
+}
+@media (max-width: 767px) {
+  .opl-dialog { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 16px 16px 0 0; }
+  .opl-dialog[open] { animation: opl-sheet-in 240ms ease-out; }
+  .opl-body { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .opl-event-viewport { max-height: min(300px, 40dvh); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opl-dialog[open], .opl-spinner { animation: none; }
+  .opl-chevron, .opl-close, .opl-section-toggle, .opl-upcoming-card, .opl-event-details h4 { transition: none; }
+}
