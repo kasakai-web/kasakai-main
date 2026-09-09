@@ -39,6 +39,26 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // public/sw.js exists only to make the site installable (see the file). Next
+  // serves everything under public/ with a long-lived cache header, which for a
+  // service worker means a change to it can sit unseen behind the HTTP cache
+  // for a day. A worker is the one asset that must always be revalidated.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          // The worker is served from the root, so it may already claim the
+          // whole origin — stated explicitly so a future move to a subpath
+          // doesn't silently narrow its scope.
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
+
   // The player dashboard used to live under /dashboard/player/<id>. The id was
   // always the logged-in player's own — the session already knows it — so the
   // routes are now plain /dashboard/*. Notifications already stored in the DB,

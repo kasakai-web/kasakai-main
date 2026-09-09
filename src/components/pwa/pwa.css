@@ -1,0 +1,331 @@
+/* ═══════════════════ INSTALL BANNER ═══════════════════ */
+
+/*
+ * Bottom of the viewport on a phone, bottom-right card on a desktop. Both are
+ * where an install offer is expected and neither sits over the thing the
+ * visitor came for — the dashboard's own controls live at the top of the page.
+ */
+.kk-install-bar {
+  position: fixed;
+  z-index: 1150; /* under the filter sheet (1200) — a banner never covers a dialog */
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  /* Keeps the card clear of the iOS home indicator / Android gesture bar. */
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px 14px 16px;
+  background: #101010;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .7);
+  animation: kk-install-in .28s cubic-bezier(.2, .8, .3, 1);
+}
+
+.kk-install-bar.kk-install-out {
+  animation: kk-install-out .2s ease-in forwards;
+}
+
+@keyframes kk-install-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes kk-install-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(18px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-install-bar,
+  .kk-install-bar.kk-install-out { animation: none; }
+}
+
+.kk-install-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2a2a2a;
+}
+
+.kk-install-icon img { display: block; width: 100%; height: 100%; }
+
+.kk-install-copy { flex: 1; min-width: 0; }
+
+.kk-install-title {
+  font-family: var(--cond);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--white);
+  line-height: 1.1;
+  margin: 0 0 3px;
+}
+
+.kk-install-title em {
+  font-style: normal;
+  color: var(--lime);
+}
+
+.kk-install-sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #8d8d8d;
+  margin: 0;
+}
+
+.kk-install-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Both a <button> (one-tap install) and a <a href="/install"> (everywhere the
+   browser won't install for us) wear this, so it has to lay out as neither. */
+.kk-install-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  text-decoration: none;
+  background: var(--lime);
+  color: #0a0a0a;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter .18s ease;
+}
+
+.kk-install-cta:hover { filter: brightness(1.08); }
+.kk-install-cta:disabled { opacity: .6; cursor: default; }
+
+.kk-install-skip {
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  background: none;
+  border: none;
+  color: #7a7a7a;
+  padding: 11px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .18s ease;
+}
+
+.kk-install-skip:hover { color: var(--white); }
+
+/*
+ * Narrow phones: the copy and the buttons cannot share a row without the CTA
+ * wrapping to two lines, so the icon+copy sit above a full-width action row.
+ */
+@media (max-width: 560px) {
+  .kk-install-bar {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .kk-install-actions {
+    width: 100%;
+    gap: 10px;
+  }
+  .kk-install-cta { flex: 1; padding: 12px 16px; }
+  .kk-install-skip { padding: 12px 10px; }
+}
+
+@media (min-width: 768px) {
+  .kk-install-bar {
+    left: auto;
+    right: 24px;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    max-width: 430px;
+  }
+}
+
+/* ═══════════════════ /install PAGE ═══════════════════ */
+
+.kk-guide {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 56px 20px 90px;
+}
+
+.kk-guide-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--lime);
+  margin: 0 0 14px;
+}
+
+.kk-guide h1 {
+  font-family: var(--cond);
+  font-size: clamp(38px, 8vw, 62px);
+  font-weight: 900;
+  letter-spacing: .02em;
+  line-height: .98;
+  text-transform: uppercase;
+  color: var(--white);
+  margin: 0 0 18px;
+}
+
+.kk-guide h1 em { font-style: normal; color: var(--lime); }
+
+.kk-guide-lede {
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: #9a9a9a;
+  max-width: 60ch;
+  margin: 0 0 34px;
+}
+
+/* The one-tap install card — only rendered where a real prompt exists. */
+.kk-guide-cta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 22px;
+  margin-bottom: 40px;
+  background: linear-gradient(140deg, rgba(196, 213, 108, .12), rgba(196, 213, 108, .02));
+  border: 1px solid rgba(196, 213, 108, .28);
+  border-radius: 16px;
+}
+
+.kk-guide-cta .kk-install-icon { width: 56px; height: 56px; }
+
+.kk-guide-cta-copy { flex: 1; min-width: 190px; }
+
+.kk-guide-cta-copy strong {
+  display: block;
+  font-family: var(--cond);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--white);
+  margin-bottom: 4px;
+}
+
+.kk-guide-cta-copy span { font-size: 13px; color: #9a9a9a; line-height: 1.5; }
+
+.kk-guide-note {
+  padding: 16px 18px;
+  margin-bottom: 36px;
+  background: #0f0f0f;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: 0 10px 10px 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #b0b0b0;
+}
+
+.kk-guide-note strong { color: var(--white); font-weight: 700; }
+
+.kk-guide-note.kk-guide-note-done { border-left-color: var(--lime); }
+
+/* Platform blocks. The visitor's own platform is opened and highlighted; the
+   others stay available because people install on a second device. */
+.kk-guide-block {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #0d0d0d;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.kk-guide-block.kk-guide-mine { border-color: rgba(196, 213, 108, .38); }
+
+.kk-guide-block > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--cond);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.kk-guide-block > summary::-webkit-details-marker { display: none; }
+
+.kk-guide-block > summary::after {
+  content: "+";
+  margin-left: auto;
+  font-family: var(--body);
+  font-size: 20px;
+  font-weight: 400;
+  color: #666;
+}
+
+.kk-guide-block[open] > summary::after { content: "–"; }
+
+.kk-guide-tag {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #0a0a0a;
+  background: var(--lime);
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+
+.kk-guide-block ol {
+  margin: 0;
+  padding: 0 22px 22px 44px;
+  color: #b4b4b4;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.kk-guide-block ol li { margin-bottom: 8px; }
+.kk-guide-block ol li:last-child { margin-bottom: 0; }
+.kk-guide-block ol strong { color: var(--white); font-weight: 700; }
+
+.kk-guide-faq {
+  margin-top: 46px;
+  border-top: 1px solid var(--border);
+  padding-top: 30px;
+}
+
+.kk-guide-faq h2 {
+  font-family: var(--cond);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--white);
+  margin: 0 0 20px;
+}
+
+.kk-guide-faq dt {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+
+.kk-guide-faq dd {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: #929292;
+}

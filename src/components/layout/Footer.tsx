@@ -12,6 +12,10 @@ const quickLinks = [
   { label: "Football", href: "/login?role=player" },
   { label: "Screening Events", href: "/screening" },
   { label: "Turf Events", href: "/dashboard" },
+  // The permanent home for the install offer. The banner is a one-off that
+  // someone can dismiss for weeks; this is how they find it again afterwards,
+  // and the only route to it on iOS, where no banner can install anything.
+  { label: "Install the App", href: "/install" },
 ];
 
 export function Footer() {
