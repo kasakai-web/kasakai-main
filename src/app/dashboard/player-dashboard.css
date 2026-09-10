@@ -1960,6 +1960,33 @@
 /* Registered but not attending — greyed, still holding its place in the list. */
 .pd-roster-item-out { opacity: 0.55; }
 
+
+.pd-roster-empty { padding: 14px; color: #888; font-size: 13px; }
+.pd-roster-item + .pd-roster-empty { border-top: 1px solid #1e2023; }
+
+
+.pd-roster-item-link { position: relative; cursor: pointer; }
+.pd-roster-item-link:hover { background: #1e2023; }
+
+.pd-roster-open { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.pd-roster-open::after { content: ""; position: absolute; inset: 0; z-index: 0; }
+.pd-roster-open:focus-visible { outline: 2px solid #c8ff3e; outline-offset: 2px; border-radius: 4px; }
+
+@supports selector(:has(*)) {
+  .pd-roster-open:focus-visible { outline: none; }
+  .pd-roster-item-link:has(.pd-roster-open:focus-visible) { outline: 2px solid #c8ff3e; outline-offset: -2px; }
+}
+
+/* Sits above the overlay so it gets its own hover — that is how the native title
+   tooltip shows. Its click opens the profile too, same as the rest of the card. */
+.pd-roster-infotip { position: relative; z-index: 1; display: inline-flex; align-items: center; cursor: pointer; }
+.pd-roster-avatar-img { z-index: 1; }
+
+.pd-roster-chevron { display: none; flex-shrink: 0; color: #4b5563; }
+@media (max-width: 640px) {
+  .pd-roster-chevron { display: block; }
+}
+
 .pd-roster-avatar {
   position: relative;
   background: #374151;

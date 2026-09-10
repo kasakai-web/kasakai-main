@@ -8,6 +8,7 @@ import { TeamOutcomeBadge } from "@/components/PlayPreferences";
 import { PublishedTeamsView, type PublishedTeams } from "@/components/dashboard/PublishedTeams";
 import type { BookingGuest } from "@/components/dashboard/BookingModal";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
+import { OrganiserProfileDialog } from "@/components/dashboard/OrganiserProfile";
 import { InviteConfirmModal } from "@/components/InviteConfirmModal";
 import { InviteFriendsModal } from "@/components/InviteFriendsModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -156,12 +157,14 @@ type RosterRowProps = {
   guestRow?: boolean;
   imageUrl?: string;
   onAvatarClick: (url: string) => void;
+  organiserProfile?: { organiserId: string; currentGameId: string };
 };
 
 const RosterRow = React.memo(function RosterRow({
-  name, subLabel, badge, optedOut = false, guestRow = false, imageUrl, onAvatarClick,
+  name, subLabel, badge, optedOut = false, guestRow = false, imageUrl, onAvatarClick, organiserProfile,
 }: RosterRowProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const showImage = !!imageUrl && failedUrl !== imageUrl;
 
   const openLightbox = useCallback(
@@ -170,11 +173,12 @@ const RosterRow = React.memo(function RosterRow({
   );
   const onImageError = useCallback(() => setFailedUrl(imageUrl ?? null), [imageUrl]);
 
+
   return (
-    <div className={`pd-roster-item${guestRow ? " pd-roster-guest-row" : ""}${optedOut ? " pd-roster-item-out" : ""}`}>
+    <div className={`pd-roster-item${guestRow ? " pd-roster-guest-row" : ""}${optedOut ? " pd-roster-item-out" : ""}${organiserProfile ? " pd-roster-item-link" : ""}`}>
       <div className={`pd-roster-avatar${guestRow ? " pd-roster-avatar-sm" : ""}`}>
         {showImage ? (
-          <Image 
+          <Image
           width={guestRow?30:36}
            height={guestRow?30:36}
             loading="lazy"
@@ -189,11 +193,32 @@ const RosterRow = React.memo(function RosterRow({
         )}
       </div>
       <div className="pd-roster-info">
-        <div className="pd-roster-name">{name}</div>
+        <div className="pd-roster-name">
+          {organiserProfile ? (
+            <button type="button" className="pd-roster-open" aria-haspopup="dialog"
+              onClick={() => setProfileOpen(true)}>{name}</button>
+          ) : name}
+          {organiserProfile && (
+            // A hover hint, not a second control: InfoTipButton already renders the
+            // text as a native title, and clicking it does what clicking anywhere
+            // else on the card does. No InfoTipPanel, so its own toggle is inert —
+            // InfoTip is here purely to supply that text. Hidden from assistive
+            // tech because the name button is the real, labelled control.
+            <InfoTip text={`Click to view ${name}'s profile`}>
+              <span className="pd-roster-infotip" aria-hidden="true" onClick={() => setProfileOpen(true)}>
+                <InfoTipButton label={`View ${name}'s profile`} size={15} />
+              </span>
+            </InfoTip>
+          )}
+        </div>
         <div className="pd-roster-sub">{optedOut ? "Not attending" : subLabel}</div>
       </div>
       {badge === "organiser" && <span className="pd-roster-badge pd-roster-badge-org">Organiser</span>}
       {badge === "guest" && <span className="pd-roster-badge pd-roster-badge-guest">Guest</span>}
+      {organiserProfile && <ChevronRight size={16} className="pd-roster-chevron" aria-hidden="true" />}
+      {profileOpen && organiserProfile && (
+        <OrganiserProfileDialog {...organiserProfile} onClose={() => setProfileOpen(false)} />
+      )}
     </div>
   );
 });
@@ -2734,10 +2759,24 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 </div>
                 <ProgressBar spotsTotal={detailGame.totalSlots } spotsLeft={detailGame.spotsRemaining} />
 
-                {detailPlayers.length === 0 ? (
-                  <div style={{ color: "#888", fontSize: 13, marginBottom: 16,marginTop:"4px" }}>No players registered yet.</div>
-                ) : (
-                  <div className="pd-roster-list  ">
+                <div className="pd-roster-list  ">
+                  {/* The organiser heads the roster rather than sitting in a
+                      block of their own above it: they are one of the people at
+                      this game, and the separate block read as a second list. */}
+                  {detailGame.organiser && (
+                    <RosterRow
+                      name={detailGame.organiser.name || "Organiser"}
+                      subLabel={detailGame.organiserIsPlaying ? "Conducting and playing" : "Conducting only"}
+                      badge="organiser"
+                      imageUrl={resolveImageUrl(detailGame.organiser.profileImage)}
+                      onAvatarClick={setLightboxImage}
+                      organiserProfile={detailGame.organiser._id ? { organiserId: detailGame.organiser._id, currentGameId: detailGame._id } : undefined}
+                    />
+                  )}
+                  {detailPlayers.length === 0 ? (
+                    <div className="pd-roster-empty">No players registered yet.</div>
+                  ) : (
+                    <>
                     {(() => {
                       const regs = liveRegistrations;
                       const mainRegs = regs.filter((r: any) => !r.plusOneName);
@@ -2766,15 +2805,6 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                       });
                       return (
                         <>
-                          {detailGame.organiserIsPlaying && (
-                            <RosterRow
-                              name={detailGame.organiser?.name || "Organiser"}
-                              subLabel="Organiser"
-                              badge="organiser"
-                              imageUrl={resolveImageUrl(detailGame.organiser?.profileImage)}
-                              onAvatarClick={setLightboxImage}
-                            />
-                          )}
                           {orgGuests.map((r: any, i: number) => (
                             <RosterRow
                               key={`og-${r._id || i}`}
@@ -2819,8 +2849,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                       </span>
                       <span className="pd-roster-slots-count">{detailGame.totalSlots || 0} total slots</span>
                     </div>
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </>
             )}
 
