@@ -30,6 +30,10 @@ const SUPPRESSED_PREFIXES = ["/install", "/login", "/join"];
 /**
  * Long enough that the page the visitor actually came for has painted and been
  * looked at first. An install offer in the first second reads as an ad.
+ *
+ * It applies only where the banner appears on our own initiative — iOS, Android,
+ * Mac Safari — where nothing has told us the visitor is ready. See the gate
+ * below for the case that skips it.
  */
 const APPEAR_AFTER_MS = 5000;
 
@@ -67,7 +71,13 @@ export default function InstallAppPrompt() {
     close(outcome !== "accepted");
   }, [close, promptInstall]);
 
-  if (!ready || installed || dismissed || snoozed || !elapsed) return null;
+  // A Chromium prompt in hand is itself the signal the delay was waiting for:
+  // `beforeinstallprompt` only fires once Chrome's own engagement gate has
+  // passed — a click, and around thirty seconds on the page. Sitting out a
+  // second wait after that just buries a one-tap install the visitor has
+  // already earned. Everywhere else the banner is our idea, and still waits.
+  const due = elapsed || canPrompt;
+  if (!ready || installed || dismissed || snoozed || !due) return null;
   if (SUPPRESSED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
 
   // Offer only where there is somewhere to send them. Phones always qualify:
