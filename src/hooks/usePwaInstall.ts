@@ -5,6 +5,7 @@ import {
   INSTALLED_EVENT,
   INSTALL_AVAILABLE_EVENT,
   type InstallPlatform,
+  canAddToDock,
   detectPlatform,
   isInAppBrowser,
   isStandalone,
@@ -26,6 +27,12 @@ export interface PwaInstall {
   installed: boolean;
   /** The browser has handed us a real install prompt to fire. */
   canPrompt: boolean;
+  /**
+   * Safari on a Mac (Sonoma+), which installs from its File menu and never
+   * fires a prompt. Deliberately separate from `canPrompt`: there is something
+   * to offer, but the offer is a link to the steps, not a button.
+   */
+  canAddToDock: boolean;
   platform: InstallPlatform;
   /** A WhatsApp/Instagram webview, where no install of any kind is possible. */
   inAppBrowser: boolean;
@@ -43,6 +50,7 @@ export function usePwaInstall(): PwaInstall {
   const [canPrompt, setCanPrompt] = useState(false);
   const [platform, setPlatform] = useState<InstallPlatform>("unknown");
   const [inAppBrowser, setInAppBrowser] = useState(false);
+  const [dockable, setDockable] = useState(false);
 
   useEffect(() => {
     const sync = () => {
@@ -52,6 +60,7 @@ export function usePwaInstall(): PwaInstall {
 
     setPlatform(detectPlatform());
     setInAppBrowser(isInAppBrowser());
+    setDockable(canAddToDock());
     sync();
     setReady(true);
 
@@ -99,5 +108,13 @@ export function usePwaInstall(): PwaInstall {
     }
   }, []);
 
-  return { ready, installed, canPrompt, platform, inAppBrowser, promptInstall };
+  return {
+    ready,
+    installed,
+    canPrompt,
+    canAddToDock: dockable,
+    platform,
+    inAppBrowser,
+    promptInstall,
+  };
 }

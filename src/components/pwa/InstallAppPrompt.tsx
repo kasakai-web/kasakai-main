@@ -35,7 +35,8 @@ const APPEAR_AFTER_MS = 5000;
 
 export default function InstallAppPrompt() {
   const pathname = usePathname() || "";
-  const { ready, installed, canPrompt, platform, inAppBrowser, promptInstall } = usePwaInstall();
+  const { ready, installed, canPrompt, canAddToDock, platform, inAppBrowser, promptInstall } =
+    usePwaInstall();
   const [elapsed, setElapsed] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -69,12 +70,21 @@ export default function InstallAppPrompt() {
   if (!ready || installed || dismissed || snoozed || !elapsed) return null;
   if (SUPPRESSED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
 
-  // A desktop browser with no prompt on offer is Firefox or Safari, neither of
-  // which installs anything — there is no instruction to give, so say nothing.
-  // Phones always get the banner: iOS never fires a prompt but the share sheet
-  // works, and /install is where that is explained.
-  const usable = canPrompt || platform === "ios" || platform === "android";
+  // Offer only where there is somewhere to send them. Phones always qualify:
+  // iOS never fires a prompt but the share sheet works. Mac Safari qualifies
+  // for the same reason — File → Add to Dock is a real install with no prompt
+  // behind it. What is left out is desktop Firefox, which cannot install a web
+  // app at all and would get a banner leading to a page that tells it so.
+  const usable = canPrompt || canAddToDock || platform === "ios" || platform === "android";
   if (!usable) return null;
+
+  // A Mac has no home screen, and being told to add something to one is how a
+  // visitor decides the offer was not written for them.
+  const sub = inAppBrowser
+    ? "Open KasaKai in Chrome to add it to your home screen."
+    : canAddToDock
+      ? "Keep it in your Dock — your games in their own window. No download, no store."
+      : "Add it to your home screen — one tap to your games. No download, no store.";
 
   return (
     <div
@@ -90,11 +100,7 @@ export default function InstallAppPrompt() {
         <p className="kk-install-title">
           Install <em>KasaKai</em>
         </p>
-        <p className="kk-install-sub">
-          {inAppBrowser
-            ? "Open KasaKai in Chrome to add it to your home screen."
-            : "Add it to your home screen — one tap to your games. No download, no store."}
-        </p>
+        <p className="kk-install-sub">{sub}</p>
       </div>
 
       <div className="kk-install-actions">

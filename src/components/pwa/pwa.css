@@ -298,6 +298,19 @@
 
 .kk-guide-block ol li { margin-bottom: 8px; }
 .kk-guide-block ol li:last-child { margin-bottom: 0; }
+
+/* An aside below the numbered steps: the route that isn't a step in the same
+   list (Safari's File menu) and the browser that has no route at all. Quieter
+   than the steps on purpose — most visitors are on neither. */
+.kk-guide-block-note {
+  margin: 0;
+  padding: 14px 22px 20px 44px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #8f8f8f;
+}
+
+.kk-guide-block-note strong { color: #cfcfcf; font-weight: 700; }
 .kk-guide-block ol strong { color: var(--white); font-weight: 700; }
 
 .kk-guide-faq {

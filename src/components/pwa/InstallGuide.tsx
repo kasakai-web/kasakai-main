@@ -17,7 +17,8 @@ import "./pwa.css";
  * people read this on a laptop and install on a phone.
  */
 export default function InstallGuide() {
-  const { ready, installed, canPrompt, platform, inAppBrowser, promptInstall } = usePwaInstall();
+  const { ready, installed, canPrompt, canAddToDock, platform, inAppBrowser, promptInstall } =
+    usePwaInstall();
 
   // `ready` gates only the parts that depend on the device. The prose renders
   // server-side either way so the page is never a blank frame, and is indexable.
@@ -53,6 +54,15 @@ export default function InstallGuide() {
         </div>
       )}
 
+      {ready && !installed && !inAppBrowser && canAddToDock && (
+        <div className="kk-guide-note">
+          <strong>You’re on Safari for Mac.</strong> There’s no install button in the
+          address bar here — open the <strong>File</strong> menu and choose{" "}
+          <strong>Add to Dock</strong>. KasaKai lands in your Dock and opens in its own
+          window, exactly as it does on a phone.
+        </div>
+      )}
+
       {ready && !installed && !inAppBrowser && canPrompt && (
         <div className="kk-guide-cta">
           <div className="kk-install-icon">
@@ -73,14 +83,15 @@ export default function InstallGuide() {
         mine={ready && platform === "android"}
         steps={[
           <>
-            Open <strong>kasakai.in</strong> in <strong>Chrome</strong>.
+            Open <strong>kasakai.in</strong> in <strong>Chrome</strong> — or{" "}
+            <strong>Firefox</strong>, which has the same option in its own menu.
           </>,
           <>
             Tap the <strong>⋮</strong> menu at the top right.
           </>,
           <>
             Choose <strong>Add to Home screen</strong> — or <strong>Install app</strong>,
-            depending on your Chrome version.
+            depending on your browser and its version.
           </>,
           <>
             Confirm the name (<strong>KasaKai</strong>) and tap <strong>Install</strong>.
@@ -132,6 +143,14 @@ export default function InstallGuide() {
             KasaKai opens in its own window and lands in your dock, taskbar or Start menu.
           </>,
         ]}
+        note={
+          <>
+            <strong>Safari on a Mac</strong> has no address-bar icon — open the{" "}
+            <strong>File</strong> menu and choose <strong>Add to Dock</strong> (macOS
+            Sonoma or later). <strong>Firefox</strong> on a laptop can’t install web
+            apps at all; use Chrome, Edge or Safari for this one.
+          </>
+        }
       />
 
       <div className="kk-guide-faq">
@@ -177,10 +196,14 @@ function PlatformBlock({
   title,
   mine,
   steps,
+  note,
 }: {
   title: string;
   mine: boolean;
   steps: React.ReactNode[];
+  /** An alternative route that is not a step in the same list — another
+   *  browser's menu, or a browser that cannot install at all. */
+  note?: React.ReactNode;
 }) {
   return (
     // `open` on the visitor's own platform so the steps that apply to them are
@@ -195,6 +218,7 @@ function PlatformBlock({
           <li key={i}>{step}</li>
         ))}
       </ol>
+      {note && <p className="kk-guide-block-note">{note}</p>}
     </details>
   );
 }

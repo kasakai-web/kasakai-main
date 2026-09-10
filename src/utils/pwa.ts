@@ -127,6 +127,28 @@ export function iosBrowserName(): "safari" | "chrome" | "edge" | "firefox" | "ot
   return "other";
 }
 
+/**
+ * Safari on a Mac, from Sonoma on: **File → Add to Dock**, which produces the
+ * same chrome-less window every other platform's install does.
+ *
+ * It is worth its own test because Safari fires no `beforeinstallprompt`, so
+ * `canPrompt` is false for a visitor who can, in fact, install — the one case
+ * where "no prompt" and "no install" come apart on the desktop. The version
+ * gate matters: Safari 16 has no Add to Dock, and sending someone to a File
+ * menu that lacks the item is worse than staying quiet.
+ *
+ * Chrome and Edge on macOS both carry `Safari/537.36` in their UA and are
+ * excluded by name; an iPad reports `Macintosh` too and is already `ios`.
+ */
+export function canAddToDock(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (!/Macintosh/.test(ua) || navigator.maxTouchPoints > 1) return false;
+  if (!/Safari/.test(ua) || /Chrome|Chromium|Edg|OPR|Firefox/.test(ua)) return false;
+  const version = Number(/Version\/(\d+)/.exec(ua)?.[1]);
+  return version >= 17;
+}
+
 /* ─────────────────────────── dismissal memory ─────────────────────────── */
 
 const SNOOZE_KEY = "kk-install-snoozed-at";
