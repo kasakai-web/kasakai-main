@@ -133,7 +133,6 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 24px;
-  padding-right: 40px; /* clears the close button */
 }
 
 .vm-head-main { min-width: 0; }
