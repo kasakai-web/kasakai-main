@@ -2210,3 +2210,24 @@
   .pd-roster-list { margin-bottom: 12px; }
 }
 
+
+/* A detail cell whose value opens something — currently the venue, which opens
+   the venue sheet. Underlined rather than coloured, so it reads as a link
+   without competing with the lime accent the stat cells already use. */
+.dt-val-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+  text-underline-offset: 4px;
+  transition: color 0.18s, text-decoration-color 0.18s;
+}
+.dt-val-link:hover {
+  color: #c8ff3e;
+  text-decoration-color: #c8ff3e;
+}

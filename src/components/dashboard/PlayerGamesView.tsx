@@ -37,6 +37,7 @@ import {
 import "@/app/dashboard/player-dashboard.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
+import { VenueModal } from "@/components/dashboard/VenueModal";
 import ProgressBar from "../ui/ProgressBar";
 import Image from "next/image";
 import { PlaySquare ,ChevronRight,MapPin} from "lucide-react";
@@ -334,6 +335,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
   const [guestPrefName, setGuestPrefName] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  // The venue sheet opens over the event modal, so it holds only the turf id —
+  // the game underneath stays exactly as it was for when the player closes it.
+  const [venueTurfId, setVenueTurfId] = useState<string | null>(null);
 
    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"teams" | "players" | "details" | "rules">("players");
@@ -1827,7 +1831,12 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     return () => observer.disconnect();
   }, [loadMoreSentinel, hasMoreGames, loadMore]);
 
-  const detailVenueName = detailGame ? (detailGame.turf?.name || "TBC") : "";  
+  const detailVenueName = detailGame ? (detailGame.turf?.name || "TBC") : "";
+  // `turf` arrives populated on most payloads and as a bare ObjectId on a few,
+  // so both shapes have to yield an id for the venue sheet to open.
+  const detailTurfId = detailGame
+    ? (typeof detailGame.turf === "string" ? detailGame.turf : detailGame.turf?._id) || null
+    : null;
   const rawGoogleMapsUrl = detailGame?.turf?.googleMapsUrl;
   const googleMapsUrl = rawGoogleMapsUrl
   ? rawGoogleMapsUrl.startsWith("http://") || rawGoogleMapsUrl.startsWith("https://")
@@ -1981,7 +1990,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     : 0;
   const detailFilledSlots = detailGame ? detailGame.totalSlots - detailSpotsLeft : 0;
   // Cells for the redesigned "Details" tab grid.
-  const pdDetailCells: Array<{ label: string; value: string; sub?: string; accent?: boolean; full?: boolean; info?: string }> = detailGame ? [
+  const pdDetailCells: Array<{ label: string; value: string; sub?: string; accent?: boolean; full?: boolean; info?: string; onClick?: () => void }> = detailGame ? [
     { label: "Format", value: detailGame.format || "TBC", info: "Turf and team size may change based on player turnout" },
     { label: "Duration", value: detailGame.durationMins ? `${detailGame.durationMins} mins` : "60 mins" },
     {
@@ -1998,7 +2007,13 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     { label: "Report by", value: detailReportByLabel },
     { label: "Kick-off", value: detailKickoffLabel },
     { label: "Ends", value: detailEndsLabel },
-    { label: "Venue", value: `${detailVenueName}, ${detailCityName}`, full: true },
+    {
+      label: "Venue",
+      value: `${detailVenueName}, ${detailCityName}`,
+      full: true,
+      info: "Tap the venue to see photos, amenities and other games played here",
+      onClick: detailTurfId ? () => setVenueTurfId(detailTurfId) : undefined,
+    },
   ] : [];
   const organiserEntry = detailGame?.organiserIsPlaying
     ? [{ key: "organiser", regId: null, name: detailGame.organiser?.name || "Organiser", position: "any", team: "none", isGuest: false, isOrganiser: true, canRemove: false }]
@@ -2657,7 +2672,13 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                         {cell.info && <InfoTipButton label={`About ${cell.label}`} />}
                       </div>
                       <div className={`dt-val${cell.accent ? " accent" : ""}`}>
-                        {cell.value}
+                        {cell.onClick ? (
+                          <button type="button" className="dt-val-link" onClick={cell.onClick}>
+                            {cell.value}
+                          </button>
+                        ) : (
+                          cell.value
+                        )}
                       </div>
                       {cell.sub && <div className="dt-sub">{cell.sub}</div>}
                       {cell.info && <InfoTipPanel />}
@@ -3584,8 +3605,26 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             </div>
           </div>
          
-        </div> 
-    
+        </div>
+
+      )}
+
+      {venueTurfId && (
+        <VenueModal
+          key={venueTurfId}
+          turfId={venueTurfId}
+          fallbackName={detailVenueName}
+          onClose={() => setVenueTurfId(null)}
+          onOpenGame={(gameId) => {
+            setVenueTurfId(null);
+            const known =
+              games.find((g: any) => g._id === gameId) ||
+              myGames.find((g: any) => g._id === gameId) ||
+              myWaitlist.find((g: any) => g._id === gameId);
+            if (known) openGameDetail(known);
+            else router.push(`/join/${gameId}`);
+          }}
+        />
       )}
     </div>
     </>
