@@ -56,7 +56,7 @@ export function PreferenceDisclaimer({ compact = false }: { compact?: boolean })
     <Image src="/info.png" alt="Info Button"
               width={15}
               height={15}
-              style={{ lineHeight: 1.4, objectFit: "contain", display: "block",marginBottom:"3px", transition: "opacity 0.15s ease", cursor: "pointer"}}
+              style={{ lineHeight: 1.4, objectFit: "contain", display: "block", flexShrink: 0, marginBottom:"3px", transition: "opacity 0.15s ease", cursor: "pointer"}}
             />
       <div style={{ fontSize: 11.5, color: "#d6b26a", lineHeight: 1.55 }}>
         These are preferences, not guarantees. Teams are balanced on skill, position
