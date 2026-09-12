@@ -530,7 +530,7 @@ export function BookingModal({
               )}
 
               {isWaitlist ? (
-                <InfoTip text="You will get a notification once a spot opens up. Register to confirm your spot">
+                <InfoTip defaultOpen text="You will get a notification once a spot opens up. Register to confirm your spot">
                   <div className="wallet-summary" style={{ background: "rgba(200,255,62,0.06)", border: "1px solid rgba(200,255,62,0.2)" }}>
                     <div className="ws-left">
                       <div className="ws-label">Waitlist</div>

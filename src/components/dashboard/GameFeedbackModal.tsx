@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import  { useState } from "react";
 import { buildApiUrl, getSession } from "@/utils/api";
 import "./GameFeedbackModal.css";
 
@@ -41,20 +41,23 @@ function StarPicker({
   value,
   onChange,
   label,
+  size = "sm",
 }: {
   value: number;
   onChange: (v: number) => void;
   label: string;
+  size?: "sm" | "lg";
 }) {
   const [hovered, setHovered] = useState(0);
   return (
     <div className="gfm-star-row">
       <span className="gfm-star-label">{label}</span>
-      <div className="gfm-stars">
+      <div className={`gfm-stars gfm-stars--${size}`}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
+            aria-label={`${n} star${n > 1 ? "s" : ""}`}
             className={`gfm-star ${n <= (hovered || value) ? "filled" : ""}`}
             onMouseEnter={() => setHovered(n)}
             onMouseLeave={() => setHovered(0)}
@@ -68,6 +71,25 @@ function StarPicker({
   );
 }
 
+function Chevron() {
+  return (
+    <svg
+      className="gfm-chevron"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
 export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: Props) {
   const [gameRating, setGameRating]         = useState(0);
   const [organiserRating, setOrganiserRating] = useState(0);
@@ -76,11 +98,25 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
   const [comment, setComment]               = useState("");
   const [submitting, setSubmitting]         = useState(false);
   const [error, setError]                   = useState("");
+  const [detailsOpen, setDetailsOpen]       = useState(false);
 
   const toggleTag = (tag: string) =>
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
+
+  const handleGameRating = (v: number) => {
+    const wasLow = gameRating >= 1 && gameRating <= 3;
+    const isLow  = v <= 3;
+    setGameRating(v);
+    setDetailsOpen(isLow);
+    if (wasLow && !isLow) {
+      setOrganiserRating(0);
+      setVenueRating(0);
+      setSelectedTags([]);
+      setComment("");
+    }
+  };
 
   const handleSubmit = async () => {
     if (gameRating === 0) {
@@ -127,7 +163,7 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
       <div className="gfm-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="gfm-header">
-          <div className="gfm-header-icon">⭐</div>
+          <div className="gfm-header-icon" aria-hidden="true">★</div>
           <div>
             {/* The game being rated, named. A regular's games all carry the same
                 recurring title ("Tuesday Morning Game | Lakeside Turf"), so the
@@ -140,64 +176,80 @@ export function GameFeedbackModal({ game, onSubmit, onSkip, isPopup = false }: P
               {turfName}{city} · {dateStr} · {game.format}
             </div>
           </div>
-          <button className="gfm-skip-btn" onClick={onSkip} title="Skip for now">
+          <button className="gfm-skip-btn" onClick={onSkip} title="Skip for now" aria-label="Close">
             ✕
           </button>
         </div>
 
         {/* Ratings */}
         <div className="gfm-body">
-          <div className="gfm-section">
+          <div className="gfm-section gfm-overall">
             <div className="gfm-section-label">Overall Game *</div>
-            <StarPicker label="" value={gameRating} onChange={setGameRating} />
+            <StarPicker label="" value={gameRating} onChange={handleGameRating} size="lg" />
           </div>
 
-          <div className="gfm-section gfm-optional-ratings">
-            <div className="gfm-section-label">Optional Ratings</div>
-            <StarPicker label="Organiser" value={organiserRating} onChange={setOrganiserRating} />
-            <StarPicker label="Venue"     value={venueRating}     onChange={setVenueRating}     />
-          </div>
+          <div className={`gfm-details ${detailsOpen ? "open" : ""}`}>
+            <button
+              type="button"
+              className="gfm-details-toggle"
+              onClick={() => setDetailsOpen((o) => !o)}
+              aria-expanded={detailsOpen}
+              aria-controls="gfm-details-panel"
+            >
+              <span className="gfm-section-label">Optional Ratings</span>
+              <Chevron />
+            </button>
 
-          {/* Tags — positive (green) and negative (red) on separate rows */}
-          <div className="gfm-section">
-            <div className="gfm-section-label">Tags</div>
-            <div className="gfm-tags gfm-tags--positive">
-              {POSITIVE_TAGS.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className={`gfm-tag gfm-tag--positive ${selectedTags.includes(tag) ? "selected" : ""}`}
-                  onClick={() => toggleTag(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
+            <div className="gfm-details-panel" id="gfm-details-panel">
+              <div className="gfm-details-inner">
+                <div className="gfm-section">
+                  <StarPicker label="Organiser" value={organiserRating} onChange={setOrganiserRating} />
+                  <StarPicker label="Venue"     value={venueRating}     onChange={setVenueRating}     />
+                </div>
+
+                {/* Tags — positive (green) and negative (red) on separate rows */}
+                <div className="gfm-section">
+                  <div className="gfm-section-label">Tags</div>
+                  <div className="gfm-tags gfm-tags--positive">
+                    {POSITIVE_TAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`gfm-tag gfm-tag--positive ${selectedTags.includes(tag) ? "selected" : ""}`}
+                        onClick={() => toggleTag(tag)}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="gfm-tags gfm-tags--negative">
+                    {NEGATIVE_TAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`gfm-tag gfm-tag--negative ${selectedTags.includes(tag) ? "selected" : ""}`}
+                        onClick={() => toggleTag(tag)}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div className="gfm-section">
+                  <div className="gfm-section-label">Comment (private)</div>
+                  <textarea
+                    className="gfm-textarea"
+                    rows={3}
+                    placeholder="Tell us what you thought — visible only to you and the admin…"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    maxLength={1000}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="gfm-tags gfm-tags--negative">
-              {NEGATIVE_TAGS.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className={`gfm-tag gfm-tag--negative ${selectedTags.includes(tag) ? "selected" : ""}`}
-                  onClick={() => toggleTag(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Comment */}
-          <div className="gfm-section">
-            <div className="gfm-section-label">Comment (private)</div>
-            <textarea
-              className="gfm-textarea"
-              rows={3}
-              placeholder="Tell us what you thought — visible only to you and the admin…"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              maxLength={1000}
-            />
           </div>
 
           {error && <div className="gfm-error">{error}</div>}
