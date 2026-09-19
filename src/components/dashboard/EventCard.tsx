@@ -48,6 +48,12 @@ export interface EventCardProps {
   registrationLocked?: boolean;
   requestStatus?: "pending" | "approved_unpaid" | null;
   onCancelRequest?: () => void;
+  /**
+   * The organiser approved this request while the player's wallet was short.
+   * Settling it is its own endpoint (/confirm-approved) — NOT a fresh booking,
+   * which the server refuses outright while a live request exists.
+   */
+  onPayApproved?: () => void;
   cancelReason?: string;
   players: { name: string; initials: string; pos: string; profileImage?: string }[];
   onBook: (game: any) => void;
@@ -79,6 +85,7 @@ export function EventCard({
   registrationLocked = false,
   requestStatus = null,
   onCancelRequest,
+  onPayApproved,
   cancelReason,
   players,
   onBook,
@@ -259,10 +266,7 @@ export function EventCard({
             <span>⏳ Requested · Cancel</span>
           </button>
         ) : requestStatus === "approved_unpaid" ? (
-          <button
-            className="card-btn signup-btn"
-            onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
-          >
+          <button className="card-btn signup-btn" onClick={() => onPayApproved?.()}>
             <span>✅ Pay to lock your spot</span>
           </button>
         ) : (

@@ -9,6 +9,12 @@ import {
   type TeamRequest,
 } from "@/components/PlayPreferences";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
+import {
+  describeSplit,
+  formatRupees,
+  SPOT_NOT_HELD_NOTE,
+  KEEP_WALLET_FUNDED_NOTE,
+} from "@/utils/paymentSplit";
 
 type BookingGame = {
   id?: string;
@@ -46,11 +52,18 @@ interface BookingModalProps {
     waitlistGuests?: Guest[],
     teamRequests?: TeamRequest[],
   ) => Promise<void> | void;
+  /** Spendable wallet balance in RUPEES. Applied first, always. */
   walletBalance: number;
   playerPositions?: string[];
   playerId?: string;
   /** Who is already in this game, so the player can ask to play with or against them. */
   roster?: RosterEntry[];
+  /**
+   * How far through a gateway payment this booking is, when one is happening.
+   * 'confirming' means money has moved and the booking is being completed —
+   * the sheet must not offer a way out of that.
+   */
+  paymentPhase?: "idle" | "opening" | "paying" | "confirming";
 }
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"] as const;
@@ -218,6 +231,7 @@ export function BookingModal({
   playerPositions = [],
   playerId,
   roster = [],
+  paymentPhase = "idle",
 }: BookingModalProps) {
   const [teamPreference, setTeamPreference] = useState<string>("No Preference");
   const [teamRequests, setTeamRequests] = useState<TeamRequest[]>([]);
@@ -242,7 +256,19 @@ export function BookingModal({
   // Player fee is 0 when pass eligible; guests always pay full fee
   const playerFee = passEligible ? 0 : game.fee;
   const totalFee  = playerFee + (game.fee * confirmedGuestCount);
-  const canAfford = isWaitlist || walletBalance >= totalFee;
+
+  // How this booking gets paid for. The wallet is applied first and whatever it
+  // cannot cover is collected at the gateway — there is no toggle, because the
+  // server has no toggle either. Recomputed on every render, so adding a guest
+  // moves the numbers immediately. Rupees in, rupees out; the engine works in
+  // paise, which is also what the server charges in.
+  const split = describeSplit(totalFee * 100, walletBalance * 100);
+  const walletUsed  = split.walletPaise / 100;
+  const payDirectly = split.directPaise / 100;
+  const walletLeft  = walletBalance - walletUsed;
+  // A booking is never blocked on balance any more. The only thing that stops
+  // the button now is a payment already in flight.
+  const busy = isLoading || paymentPhase !== "idle";
   const canAddGuest = guests.length < MAX_GUESTS_HARD_CAP;
   // Button switches label once confirmed slots are full
   const nextGuestIsWaitlist = !isWaitlist && guests.length >= spotsForGuests;
@@ -296,6 +322,9 @@ export function BookingModal({
   };
 
   const closeAll = () => {
+    // Once the gateway has taken the money, the booking is being completed one
+    // way or the other — closing the sheet would only hide it happening.
+    if (paymentPhase === "confirming") return;
     setGuests([]);
     setWillingIfFormatChange(true);
     setIsLoading(false);
@@ -476,8 +505,9 @@ export function BookingModal({
                   background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)",
                   borderRadius: 10, padding: "11px 14px", marginBottom: 14, fontSize: 12.5, color: "#f59e0b", lineHeight: 1.6,
                 }}>
-                  ⏳ This game needs the organiser&apos;s approval to join. You&apos;ll be charged{" "}
-                  <b>₹{playerFee}</b> only once your request is approved. You can add guests after you&apos;re in.
+                  ⏳ This game needs the organiser&apos;s approval to join. You&apos;ll pay{" "}
+                  <b>₹{playerFee}</b> only once your request is approved — from your wallet, or by card if it
+                  doesn&apos;t cover it. You can add guests after you&apos;re in.
                 </div>
               )}
 
@@ -548,13 +578,19 @@ export function BookingModal({
                   <div className="ws-left">
                     <div className="ws-label">On approval</div>
                     <div className="ws-fee" style={{ color: "#f59e0b" }}>{playerFee > 0 ? `₹${playerFee}` : "Free"}</div>
-                    <div className="ws-balance" style={{ color: "#888" }}>Charged only when the organiser approves · Wallet: ₹{walletBalance}</div>
+                    <div className="ws-balance" style={{ color: "#888" }}>
+                      Charged only when the organiser approves — from your wallet, or by card if it doesn&apos;t cover it · Wallet: ₹{walletBalance}
+                    </div>
                   </div>
                 </div>
               ) : (
                 <>
-                  <div className="wallet-summary">
-                    <div className="ws-left">
+                  {/* The payment breakdown. Replaces the old "after payment
+                      ₹-172" and its blocking "Insufficient balance": a wallet
+                      that does not cover the total is no longer a dead end, it
+                      is just a smaller amount to pay. */}
+                  <div className="wallet-summary bm-pay">
+                    <div className="ws-left" style={{ width: "100%" }}>
                       <div className="ws-label">
                         Total fee
                         {guests.length > 0 && (
@@ -563,39 +599,54 @@ export function BookingModal({
                           </span>
                         )}
                       </div>
-                      {passEligible && guests.length === 0 ? (
+
+                      {passEligible && totalFee === 0 ? (
                         <>
                           <div className="ws-fee" style={{ color: "#c8ff3e" }}>Free</div>
                           <div className="ws-balance" style={{ color: "#888" }}>
                             <s style={{ color: "#555" }}>₹{game.fee}</s> · Covered by Pass
                           </div>
                         </>
-                      ) : passEligible && guests.length > 0 ? (
-                        <>
-                          <div className="ws-fee">₹{totalFee}</div>
-                          <div className="ws-balance" style={{ fontSize: 11, color: "#888" }}>
-                            You: <span style={{ color: "#c8ff3e" }}>Free (Pass)</span>
-                            {" · "}Guest{guests.length > 1 ? "s" : ""}: ₹{game.fee * confirmedGuestCount}
-                            {" · "}Wallet: ₹{walletBalance}
-                          </div>
-                        </>
                       ) : (
                         <>
-                          <div className="ws-fee">₹{totalFee}</div>
-                          <div className="ws-balance">Wallet: ₹{walletBalance}</div>
+                          <div className="ws-fee">{formatRupees(totalFee * 100)}</div>
+
+                          <div className="bm-pay-rows">
+                            {passEligible && (
+                              <div className="bm-pay-row">
+                                <span>Your slot</span>
+                                <span className="bm-pay-free">Free (Pass)</span>
+                              </div>
+                            )}
+                            {walletUsed > 0 && (
+                              <div className="bm-pay-row">
+                                <span>Wallet applied</span>
+                                <span className="bm-pay-wallet">−{formatRupees(walletUsed * 100)}</span>
+                              </div>
+                            )}
+                            <div className="bm-pay-row bm-pay-row--total">
+                              <span>{payDirectly > 0 ? "Pay now" : "Paid from wallet"}</span>
+                              <span>{formatRupees((payDirectly > 0 ? payDirectly : totalFee) * 100)}</span>
+                            </div>
+                          </div>
+
+                          <div className="ws-balance" style={{ marginTop: 6 }}>
+                            Wallet: {formatRupees(walletBalance * 100)}
+                            {walletUsed > 0 && <> · Left after booking: {formatRupees(walletLeft * 100)}</>}
+                          </div>
                         </>
                       )}
                     </div>
-                    {totalFee > 0 && (
-                      <div className="ws-right">
-                        <div className="ws-after">After payment</div>
-                        <div className="ws-after-val" style={{ color: walletBalance - totalFee < 0 ? "#ff6b6b" : undefined }}>
-                          ₹{walletBalance - totalFee}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
+                  {/* Secondary, never a prerequisite. A funded wallet is a
+                      convenience now, not a gate. */}
+                  {payDirectly > 0 && playerId && (
+                    <div className="bm-recharge-note">
+                      <Link href="/dashboard/wallet" className="bm-recharge-link">Recharge wallet</Link>
+                      <span>{KEEP_WALLET_FUNDED_NOTE}</span>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -617,22 +668,11 @@ export function BookingModal({
                 </div>
               )}
 
-              {/* A join REQUEST is charged only on approval, but the player must already
-                  hold the fee — otherwise an approved request could never be seated. So
-                  we block the request (not just direct bookings) when balance is short. */}
-              {!isWaitlist && !canAfford && (
-                <div style={{ color: "#ff6b6b", fontSize: "12px", margin: "-4px 0 8px", textAlign: "center" }}>
-                  Insufficient balance.{" "}
-                  {playerId && (
-                    <Link
-                      href="/dashboard/wallet"
-                      style={{ color: "#c8ff3e", textDecoration: "underline", fontWeight: 600 }}
-                    >
-                      Recharge your wallet
-                    </Link>
-                  )}
-                  {needsApproval && " before requesting to join."}
-                </div>
+              {/* Said before payment starts, never after. Opening the gateway
+                  buys time, not a seat — somebody else can take the last spot
+                  while the sheet is open. */}
+              {!isWaitlist && !needsApproval && split.needsPayment && (
+                <div className="bm-spot-note">{SPOT_NOT_HELD_NOTE}</div>
               )}
 
               {/* Said at the moment of commitment, not after. Deliberately a pointer
@@ -645,9 +685,20 @@ export function BookingModal({
                 </div>
               )}
 
-              <button className="bm-confirm-btn" disabled={!canAfford || isLoading} onClick={handleConfirm} type="button">
+              {/* One button, and it always names the amount it will actually
+                  charge: the shortfall when the wallet covers the rest, the
+                  total when it does not, and neither when there is nothing to
+                  pay. `split.actionLabel` comes from the same engine the server
+                  prices with, so the two cannot disagree. */}
+              <button className="bm-confirm-btn" disabled={busy} onClick={handleConfirm} type="button">
                 <span>
-                  {isLoading
+                  {paymentPhase === "confirming"
+                    ? "Confirming your spot..."
+                    : paymentPhase === "paying"
+                    ? "Waiting for payment..."
+                    : paymentPhase === "opening"
+                    ? "Opening payment..."
+                    : isLoading
                     ? "Processing..."
                     : isWaitlist
                     ? "Join Waitlist — No Charge Yet"
@@ -655,9 +706,17 @@ export function BookingModal({
                     ? (playerFee > 0 ? `Request to Join — ₹${playerFee} on Approval` : "Request to Join")
                     : passEligible && totalFee === 0
                     ? "Confirm — Free (Pass Covered)"
-                    : `Confirm & Pay ₹${totalFee}`}
+                    : split.actionLabel}
                 </span>
               </button>
+
+              {/* Money has moved and the booking is being completed. Closing the
+                  sheet now would not stop anything, so it stops offering. */}
+              {paymentPhase === "confirming" && (
+                <div className="bm-spot-note" style={{ marginTop: 10 }}>
+                  Payment received — confirming your spot. Please don&apos;t close this.
+                </div>
+              )}
             </div>
         </div>
       </div>

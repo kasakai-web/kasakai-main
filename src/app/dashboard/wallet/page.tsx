@@ -15,24 +15,11 @@ import {
 } from "@/utils/rechargeOffer";
 import "../player-dashboard.css";
 
-// Razorpay checkout type (loaded via CDN script)
-declare global {
-  interface Window {
-    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
-  }
-}
-interface RazorpayOptions {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id: string;
-  prefill?: { name?: string; contact?: string; email?: string };
-  theme: { color: string };
-  modal: { ondismiss: () => void };
-  handler: (response: RazorpayResponse) => void;
-}
+// Razorpay checkout types. `window.Razorpay` itself is declared once, in
+// utils/directCheckout.ts — booking checkouts and wallet top-ups load the same
+// script, and two `declare global` blocks for one property do not agree. The
+// options shape comes from that declaration too; only the two types this page
+// names in its own signatures are spelled out here.
 interface RazorpayResponse {
   razorpay_order_id: string;
   razorpay_payment_id: string;
@@ -56,7 +43,7 @@ interface WalletData {
 
 interface Transaction {
   _id: string;
-  type: "topup" | "debit" | "refund" | "lock" | "unlock" | "backout_fee" | "bonus" | "withdrawal" | "pass_cover";
+  type: "topup" | "debit" | "refund" | "lock" | "unlock" | "backout_fee" | "bonus" | "withdrawal" | "pass_cover" | "direct_credit" | "direct_refund";
   amountPaise: number;
   balanceAfterPaise: number;
   description?: string;
@@ -75,6 +62,13 @@ const TX_CONFIG: Record<string, { label: string; sign: string; color: string; ic
   lock:        { label: "Locked",           sign: "−", color: "#a78bfa", icon: "🔒" },
   unlock:      { label: "Unlocked",         sign: "+", color: "#a78bfa", icon: "🔓" },
   pass_cover:  { label: "Pass covered",     sign: "",  color: "#c8ff3e", icon: "🎟" },
+  // A booking paid for partly or wholly at the gateway. The credit is money
+  // arriving to be spent by the 'debit' beside it — it is why the balance does
+  // not drop by the full amount of that debit. The refund does NOT move the
+  // balance: that money goes back to the card, and this row is here so the
+  // statement explains where the credit above it went.
+  direct_credit: { label: "Paid online",          sign: "+", color: "#60a5fa", icon: "💳" },
+  direct_refund: { label: "Refunded to your card", sign: "",  color: "#60a5fa", icon: "↩" },
 };
 
 function fmtRupees(paise: number) {
@@ -462,9 +456,21 @@ export default function WalletPage() {
               <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "#888", marginBottom: 8 }}>
                 Available Balance
               </div>
-              <div style={{ fontSize: 42, fontWeight: 800, color: "#c8ff3e", letterSpacing: "-0.02em", marginBottom: 20 }}>
+              <div style={{ fontSize: 42, fontWeight: 800, color: "#c8ff3e", letterSpacing: "-0.02em", marginBottom: wallet && wallet.lockedPaise > 0 ? 8 : 20 }}>
                 {wallet ? fmtRupees(wallet.availablePaise ?? wallet.balancePaise) : "₹0"}
               </div>
+
+              {/* Money set aside for a booking payment that is still in flight.
+                  Without this line the balance simply appears to have shrunk
+                  while the player was in their UPI app, which is the single most
+                  alarming thing a wallet can do. It releases by itself when the
+                  checkout finishes, is cancelled, or times out. */}
+              {wallet && wallet.lockedPaise > 0 && (
+                <div style={{ fontSize: 12, color: "#f59e0b", marginBottom: 20, lineHeight: 1.6 }}>
+                  {fmtRupees(wallet.lockedPaise)} is held for a booking you&apos;re paying for.
+                  It comes back if you don&apos;t complete it.
+                </div>
+              )}
 
               <button
                 onClick={openModal}

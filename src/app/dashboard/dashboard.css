@@ -1934,6 +1934,78 @@ body::after {
 .ws-after { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
 .ws-after-val { font-family: var(--cond); font-size: 20px; font-weight: 700; color: var(--white); }
 
+/* ── Payment breakdown ───────────────────────────────────────────────────────
+   Replaces the old "after payment ₹-172" line and the blocking "Insufficient
+   balance" beneath it. A wallet that does not cover the total is not a dead
+   end — it is simply a smaller number to pay — so the sheet states the total,
+   what the wallet takes off it, and what is left to pay right now. */
+.wallet-summary.bm-pay { align-items: flex-start; }
+
+.bm-pay-rows {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.bm-pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: #9a9a9a;
+}
+.bm-pay-row span:last-child { font-weight: 700; color: #cfcfcf; }
+.bm-pay-wallet { color: var(--lime) !important; }
+.bm-pay-free   { color: var(--lime) !important; }
+.bm-pay-row--total {
+  margin-top: 3px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(200, 255, 62, .14);
+  font-size: 12.5px;
+  color: #e6e6e6;
+}
+.bm-pay-row--total span:last-child {
+  font-family: var(--cond);
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--lime);
+}
+
+/* "Spots are not held during payment" — said before the gateway opens, never
+   after. Opening a checkout buys time, not a seat. */
+.bm-spot-note {
+  margin: 10px 0 12px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(245, 158, 11, .22);
+  background: rgba(245, 158, 11, .06);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #d0a55a;
+  text-align: center;
+}
+
+/* Recharging is a convenience now, not a prerequisite — so it sits below the
+   breakdown as a quiet secondary action, not as a blocker above the button. */
+.bm-recharge-note {
+  margin: 10px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #7d7d7d;
+}
+.bm-recharge-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lime);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* "Cancellation charges apply" — shown directly above Confirm & Pay, because the
    moment money is committed is the moment the terms have to be in front of the
    player. A pointer to the rules, never the scale: the tiers are a table. */
