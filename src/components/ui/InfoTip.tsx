@@ -63,7 +63,10 @@ export function InfoTipButton({
         alt=""
         width={size}
         height={size}
-        style={{ objectFit: "contain", display: "block",marginBottom:"3px", transition: "opacity 0.15s ease", cursor: "pointer",  ...style,}}
+        // flexShrink: 0 — the icon is almost always a flex item next to text that
+        // cannot shrink, so without this the row squeezes its width while the
+        // height attribute holds, distorting it (and tripping Next's aspect-ratio warning).
+        style={{ objectFit: "contain", display: "block", flexShrink: 0, marginBottom:"3px", transition: "opacity 0.15s ease", cursor: "pointer",  ...style,}}
           title={typeof text === "string" ? text : undefined}
       />
   );
