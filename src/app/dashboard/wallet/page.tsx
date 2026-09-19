@@ -103,7 +103,7 @@ export default function WalletPage() {
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState<ModalStep>("amount");
   const [amountStr, setAmountStr] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(true);
   const [modalError, setModalError] = useState<string | null>(null);
   const [razorpayReady, setRazorpayReady] = useState(false);
 
@@ -237,7 +237,7 @@ export default function WalletPage() {
   const openModal = () => {
     setModalStep("amount");
     setAmountStr("");
-    setTermsAccepted(false);
+    setTermsAccepted(true);
     setModalError(null);
     setProcessingPhase("checkout");
     setShowStuckEscape(false);
