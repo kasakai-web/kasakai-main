@@ -43,7 +43,7 @@ interface WalletData {
 
 interface Transaction {
   _id: string;
-  type: "topup" | "debit" | "refund" | "lock" | "unlock" | "backout_fee" | "bonus" | "withdrawal" | "pass_cover" | "direct_credit" | "direct_refund";
+  type: "topup" | "debit" | "refund" | "lock" | "unlock" | "backout_fee" | "bonus" | "withdrawal" | "pass_cover" | "direct_credit";
   amountPaise: number;
   balanceAfterPaise: number;
   description?: string;

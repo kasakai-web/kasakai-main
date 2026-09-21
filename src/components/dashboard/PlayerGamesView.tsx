@@ -15,11 +15,23 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Toast, useToast } from "@/components/ui/Toast";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import { buildApiUrl, clearSession, getSession,resolveImageUrl } from "@/utils/api";
-// Wallet first, gateway for the shortfall. Every booking action in this view
-// posts through `postWithCheckout`, so adding a guest, claiming a waitlist spot
-// and rejoining all take a card without any of them knowing how.
+// A seat is paid for from the wallet. Every booking action in this view posts
+// through `postWithTopUp`, so adding a guest, claiming a waitlist spot and
+// rejoining all offer a recharge when the wallet is short, without any of them
+// knowing how. The money lands in the WALLET, so losing the race that follows
+// costs nothing but the spot — which is why `useWaitlistOffer` can simply ask.
 import {
-  postWithCheckout,
+  postWithTopUp,
+  bookingErrorMessage,
+  isCapacityRefusal,
+} from "@/utils/walletTopup";
+import { useWalletTopUp } from "@/hooks/useWalletTopUp";
+import { useWaitlistOffer } from "@/hooks/useWaitlistOffer";
+import { formatRupees } from "@/utils/walletFunding";
+// Checkouts opened by the previous release, where the shortfall was collected at
+// the gateway. Nothing starts one any more; this finishes the ones still out
+// there. See utils/directCheckout.ts.
+import {
   resumeCheckout,
   fetchResumableCheckout,
   checkoutErrorMessage,
@@ -27,8 +39,8 @@ import {
 } from "@/utils/directCheckout";
 
 // The helper's terminal "done" is not a state this view sits in — it goes
-// straight back to idle — so the sheet only ever sees the three live phases.
-type BookingPaymentPhase = "idle" | "opening" | "paying" | "confirming";
+// straight back to idle — so the sheet only ever sees the two live phases.
+type BookingPaymentPhase = "idle" | "topping-up" | "booking";
 import { avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -324,6 +336,10 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const [confirmTitle, setConfirmTitle] = useState<string>("Are you sure?");
   const confirmActionRef = useRef<null | (() => Promise<void>)>(null);
   const { toast, showToast } = useToast();
+  // A short wallet is a recharge to do first, and a lost race is a question to
+  // ask — both rendered once for the whole view, at the bottom of the tree.
+  const { requestTopUp, topUpSheet } = useWalletTopUp();
+  const { offerWaitlist, waitlistPrompt } = useWaitlistOffer();
   const [optingOut, setOptingOut] = useState(false);
   const removingGuestIds = useRef<Set<string>>(new Set());
   const detailGameIdRef = useRef<string | null>(null);
@@ -702,11 +718,12 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     fetchDashboardData();
   }, [isAuthorized]);
 
-  // ── Picking up a payment the page lost ──────────────────────────────────
+  // ── Picking up a direct payment the page lost (draining) ────────────────
   //
-  // A customer taps "Pay ₹172", switches to their UPI app, and comes back to a
-  // browser that has reloaded and forgotten the modal they were in. Their money
-  // has gone through; from here it looks like nothing happened.
+  // Only reachable for a checkout opened by the previous release, where the
+  // shortfall was paid at the gateway: the customer switched to their UPI app
+  // and came back to a browser that had reloaded and forgotten the modal. Their
+  // money went through; from here it looks like nothing happened.
   //
   // So on arrival we ask the server whether anything of theirs is paid for but
   // unseated, and if so finish it. The endpoint re-runs its own checks, seats
@@ -714,7 +731,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // the closed tab would have.
   //
   // Runs once per visit. If they never come back at all, the server's sweep
-  // refunds the attempt when its 15-minute window closes.
+  // refunds the attempt when its 15-minute window closes. Goes when the last
+  // attempt does; a top-up needs none of this, because the money is in the
+  // wallet whether the page survives or not.
   const resumeChecked = useRef(false);
   useEffect(() => {
     if (!isAuthorized || resumeChecked.current) return;
@@ -722,7 +741,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     (async () => {
       const pending = await fetchResumableCheckout();
       if (!pending) return;
-      setPaymentPhase("confirming");
+      setPaymentPhase("booking");
       try {
         const { data } = await resumeCheckout(pending);
         if (data?.success) {
@@ -1136,29 +1155,30 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // while a live request exists, which is why the old "Pay to lock your spot"
   // button — which opened the booking sheet — could never actually pay for
   // anything. /confirm-approved is the one route that finishes an approved
-  // request, whatever filed it, and it takes a card like every other seat.
+  // request, whatever filed it, and it is funded like every other seat.
   const handleConfirmApproved = async (game: any) => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
     try {
-      const { res, data, cancelled } = await postWithCheckout<any>(
+      const { res, data, cancelled, toppedUpPaise } = await postWithTopUp<any>(
         `/api/v1/games/${game._id}/confirm-approved`,
         {},
-        { prefill: { name: localStorage.getItem("userName") || undefined } },
+        { requestTopUp },
       );
       if (cancelled) {
-        showToast("error", "Payment cancelled", "Your spot isn't locked and nothing was charged.");
+        showToast("error", "Recharge cancelled", "Your spot isn't locked and nothing was charged.");
         return;
       }
       if (!res || !res.ok || !data.success) {
         showToast(
           "error",
-          isPaidButUnseated(data.code) ? "Spot no longer available" : "Couldn't confirm your spot",
-          checkoutErrorMessage(data),
+          isCapacityRefusal(data) ? "Spot no longer available" : "Couldn't confirm your spot",
+          bookingErrorMessage(data, { toppedUpPaise }),
         );
-        if (isPaidButUnseated(data.code)) fetchWalletBalance();
+        if (toppedUpPaise) fetchWalletBalance();
         return;
       }
+      if (toppedUpPaise) fetchWalletBalance();
       showToast("success", "Spot confirmed!", "You're in the game.");
       setGames((prev) => prev.map((x) => x._id === game._id ? { ...x, _myRequestStatus: null } : x));
       setDetailGame(null);
@@ -1288,14 +1308,14 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const handleRejoinFormatChange = (game: any) => {
     const fee = game.feeInPaise || 0;
     const passCovered = Boolean(game.passEligible);
-    // "debited from your wallet" only when it will be. A wallet that does not
-    // cover the fee now pays what it can and the rest goes to the gateway.
+    // "debited from your wallet" only when it will be. A wallet that cannot
+    // cover the fee is topped up first, in the same action.
     const feeMsg = passCovered
       ? " Your pass covers this game, so you won't be charged."
       : fee > 0
         ? walletBalance * 100 >= fee
           ? ` ₹${fee / 100} will be debited from your wallet.`
-          : ` ₹${fee / 100} is due — your wallet will cover what it can and you'll pay the rest.`
+          : ` ₹${fee / 100} is due — you'll be asked to add the difference to your wallet first.`
         : "";
     setConfirmTitle("Rejoin the new format?");
     setConfirmMessage(`The format is now ${game.format}. You'll be added back to the game.${feeMsg}`);
@@ -1303,15 +1323,15 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       const { token } = getSession();
       if (!token) { clearSession(); router.replace("/login?role=player"); return; }
       try {
-        const { res, data, cancelled } = await postWithCheckout<any>(
+        const { res, data, cancelled, toppedUpPaise } = await postWithTopUp<any>(
           `/api/v1/games/${game._id}/opt-back-in`,
           {},
-          { prefill: { name: localStorage.getItem("userName") || undefined } },
+          { requestTopUp },
         );
-        if (cancelled) { showToast("error", "Payment cancelled", "You haven't rejoined and nothing was charged."); return; }
+        if (cancelled) { showToast("error", "Recharge cancelled", "You haven't rejoined and nothing was charged."); return; }
         if (!res || !res.ok || !data.success) {
-          showToast("error", isPaidButUnseated(data.code) ? "Couldn't rejoin" : "Unable to rejoin", checkoutErrorMessage(data));
-          if (isPaidButUnseated(data.code)) fetchWalletBalance();
+          showToast("error", isCapacityRefusal(data) ? "Couldn't rejoin" : "Unable to rejoin", bookingErrorMessage(data, { toppedUpPaise }));
+          if (toppedUpPaise) fetchWalletBalance();
           return;
         }
         showToast("success", "You're back in!", `Rejoined "${game.title}" (${game.format}).`);
@@ -1399,27 +1419,27 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         const { token } = getSession();
         if (!token) { clearSession(); router.replace("/login?role=player"); return; }
         // Opting back in takes a seat and so costs money; opting out gives one
-        // up and only ever refunds. Only the first can need a gateway step.
-        const { res, data, cancelled } = wantToPlay
-          ? await postWithCheckout<any>(`/api/v1/games/${detailGame._id}/${endpoint}`, {}, {
-              prefill: { name: localStorage.getItem("userName") || undefined },
-            })
+        // up and only ever refunds. Only the first can need a recharge.
+        const { res, data, cancelled, toppedUpPaise } = wantToPlay
+          ? await postWithTopUp<any>(`/api/v1/games/${detailGame._id}/${endpoint}`, {}, { requestTopUp })
           : await (async () => {
               const r = await fetch(buildApiUrl(`/api/v1/games/${detailGame._id}/${endpoint}`), {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
               });
-              return { res: r, data: await r.json(), cancelled: false };
+              // No money is taken on the way out, so no recharge can have happened.
+              return { res: r, data: await r.json(), cancelled: false, toppedUpPaise: undefined };
             })();
         if (cancelled) {
-          showToast("error", "Payment cancelled", "You're still marked as not attending and nothing was charged.");
+          showToast("error", "Recharge cancelled", "You're still marked as not attending and nothing was charged.");
           return;
         }
         if (!res || !res.ok || !data.success) {
-          showToast("error", isPaidButUnseated(data.code) ? "Couldn't rejoin" : "Unable to update attendance", checkoutErrorMessage(data));
-          if (isPaidButUnseated(data.code)) fetchWalletBalance();
+          showToast("error", isCapacityRefusal(data) ? "Couldn't rejoin" : "Unable to update attendance", bookingErrorMessage(data, { toppedUpPaise }));
+          if (toppedUpPaise) fetchWalletBalance();
           return;
         }
+        if (toppedUpPaise) fetchWalletBalance();
         if (data.data) {
           // Merge fresh data onto existing detailGame so populated fields (organiser, player names)
           // are never replaced by raw IDs from the response. Only spots/registration flags change.
@@ -1506,32 +1526,30 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       }
 
       // A waitlist join never costs anything, so it stays a plain POST. A
-      // booking goes through the checkout helper: if the wallet covers it this
-      // is exactly the same single request it always was, and if it does not,
-      // the helper opens the gateway for the shortfall and replays this same
-      // request with the payment attached.
-      const { res, data, cancelled } = isWaitlist
+      // booking goes through the top-up helper: if the wallet covers it this is
+      // exactly the same single request it always was, and if it does not, the
+      // helper puts the recharge sheet up and re-sends this same request once
+      // the money is in — capacity and all, re-checked from scratch.
+      const { res, data, cancelled, toppedUpPaise } = isWaitlist
         ? await (async () => {
             const r = await fetch(buildApiUrl(endpoint), {
               method: 'POST',
               headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
               body: JSON.stringify(body),
             });
-            return { res: r, data: await r.json(), cancelled: false };
+            // A waitlist join is free, so no recharge can have happened.
+            return { res: r, data: await r.json(), cancelled: false, toppedUpPaise: undefined };
           })()
-        : await postWithCheckout<any>(endpoint, body, {
+        : await postWithTopUp<any>(endpoint, body, {
+            requestTopUp,
             onPhase: (phase) => setPaymentPhase(phase === "done" ? "idle" : phase),
-            prefill: {
-              name:    localStorage.getItem("userName") || undefined,
-              contact: localStorage.getItem("userPhone") || undefined,
-            },
           });
       setPaymentPhase("idle");
+      if (toppedUpPaise) fetchWalletBalance();
 
       if (cancelled) {
-        // Closed the payment sheet. Nothing was charged and nothing was booked;
-        // their wallet funds have already been released.
-        showToast("error", "Payment cancelled", "Nothing was charged. Your spot wasn't booked.");
+        // Closed the recharge sheet. Nothing was charged and nothing was booked.
+        showToast("error", "Recharge cancelled", "Nothing was charged. Your spot wasn't booked.");
         return;
       }
 
@@ -1601,20 +1619,51 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         }
       } else {
         setSelectedGame(null);
+        const moneyNote = toppedUpPaise ? `${formatRupees(toppedUpPaise)} is in your wallet.` : undefined;
+
+        // The race this feature exists to survive: they recharged, came back,
+        // and the spots had gone. Nothing was spent on a seat that does not
+        // exist, so this is an offer rather than an apology — asked, never
+        // assumed, because a waitlist place is a commitment to turn up.
+        if (!isWaitlist && isCapacityRefusal(data)) {
+          refreshSection();
+          const outcome = await offerWaitlist({
+            gameId: game._id,
+            reason: "Those spots have just gone.",
+            moneyNote,
+            body: {
+              positions: playerPositions,
+              teamPreference,
+              willingIfFormatChange,
+              guests: (guests || []).map((g, index) => ({
+                name: (g.name || `Guest ${index + 1}`).trim(),
+                position: g.position || "Any",
+                teamPreference: g.teamPreference || "No Preference",
+              })),
+            },
+          });
+          if (outcome.joined) {
+            showToast("success", "You're on the waitlist", `We'll tell you the moment a spot frees up.${moneyNote ? ` ${moneyNote}` : ""}`);
+            refreshSection();
+          } else if (outcome.error) {
+            showToast("error", "Couldn't join the waitlist", outcome.error);
+          }
+          return;
+        }
+
         if (isPaidButUnseated(data.code)) {
-          // Their money moved and the seat did not. Say where the refund is,
-          // never invite them to pay again.
+          // A draining direct payment: their money moved and the seat did not.
+          // Say where the refund is, never invite them to pay again.
           showToast("error", "Spot no longer available", checkoutErrorMessage(data));
           fetchWalletBalance();
           refreshSection();
-        } else if (data.code === "INSUFFICIENT_BALANCE") {
-          // Only reachable when a checkout could not be opened at all.
-          showToast("error", "Payment unavailable", "We couldn't start the payment. Please try again or recharge your wallet.");
-        } else if (data.code === "PAYMENT_CANCELLED") {
-          showToast("error", "Payment cancelled", "Nothing was charged.");
+        } else if (data.code === "TOPUP_FAILED") {
+          showToast("error", "Recharge didn't go through", bookingErrorMessage(data));
+        } else if (data.code === "WALLET_TOPUP_REQUIRED" || data.code === "INSUFFICIENT_BALANCE") {
+          // Only reachable when the recharge sheet could not be shown at all.
+          showToast("error", "Wallet is short", bookingErrorMessage(data));
         } else {
-          showToast("error", checkoutErrorMessage(data) || (isWaitlist ? "Waitlist failed." : "Registration failed."));
-          // Backend charged then refunded on a race loss — re-sync the balance
+          showToast("error", bookingErrorMessage(data, { toppedUpPaise }) || (isWaitlist ? "Waitlist failed." : "Registration failed."));
           if (res && res.status === 409) fetchWalletBalance();
         }
       }
@@ -1685,23 +1734,27 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     try {
       const body: Record<string, string> = { position, teamPreference };
       if (guestName.trim()) body.guestName = guestName.trim();
-      const { res, data, cancelled } = await postWithCheckout<any>(
+      const { res, data, cancelled, toppedUpPaise } = await postWithTopUp<any>(
         `/api/v1/games/${game._id}/add-guest`,
         body,
-        { prefill: { name: localStorage.getItem("userName") || undefined } },
+        { requestTopUp },
       );
+      if (toppedUpPaise) fetchWalletBalance();
       if (cancelled) {
-        showToast("error", "Payment cancelled", "Your guest wasn't added and nothing was charged.");
+        showToast("error", "Recharge cancelled", "Your guest wasn't added and nothing was charged.");
         return;
       }
       if (!res || !res.ok || !data.success) {
         if (isPaidButUnseated(data.code)) {
           showToast("error", "Spot no longer available", checkoutErrorMessage(data));
           fetchWalletBalance();
-        } else if (data.code === "INSUFFICIENT_BALANCE") {
-          showToast("error", "Payment unavailable", "We couldn't start the payment. Please try again.");
+        } else if (data.code === "WALLET_TOPUP_REQUIRED" || data.code === "INSUFFICIENT_BALANCE") {
+          showToast("error", "Wallet is short", bookingErrorMessage(data));
         } else {
-          showToast("error", checkoutErrorMessage(data) || "Failed to add guest.");
+          // A guest who cannot be seated goes on the guest waitlist through the
+          // same button, so there is no waitlist to offer here — only the news,
+          // and where the money is.
+          showToast("error", bookingErrorMessage(data, { toppedUpPaise }) || "Failed to add guest.");
         }
         return;
       }
@@ -1729,23 +1782,24 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
     setConfirmingGwId(gwId);
     try {
-      const { res, data, cancelled } = await postWithCheckout<any>(
+      const { res, data, cancelled, toppedUpPaise } = await postWithTopUp<any>(
         `/api/v1/games/${game._id}/confirm-guest-waitlist/${gwId}`,
         {},
-        { prefill: { name: localStorage.getItem("userName") || undefined } },
+        { requestTopUp },
       );
+      if (toppedUpPaise) fetchWalletBalance();
       if (cancelled) {
-        showToast("error", "Payment cancelled", "Your guest is still on the waitlist and nothing was charged.");
+        showToast("error", "Recharge cancelled", "Your guest is still on the waitlist and nothing was charged.");
         return;
       }
       if (!res || !res.ok || !data.success) {
         if (isPaidButUnseated(data.code)) {
           showToast("error", "Slot no longer available", checkoutErrorMessage(data));
           fetchWalletBalance();
-        } else if (data.code === "INSUFFICIENT_BALANCE") {
-          showToast("error", "Payment unavailable", "We couldn't start the payment. Please try again.");
+        } else if (data.code === "WALLET_TOPUP_REQUIRED" || data.code === "INSUFFICIENT_BALANCE") {
+          showToast("error", "Wallet is short", bookingErrorMessage(data));
         } else {
-          showToast("error", checkoutErrorMessage(data) || "Could not confirm guest.");
+          showToast("error", bookingErrorMessage(data, { toppedUpPaise }) || "Could not confirm guest.");
           if (res && res.status === 409) {
             // Slot was taken — backend reset status to 'waiting' and refunded; re-sync both
             fetchWalletBalance();
@@ -2220,6 +2274,11 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
 
   return (
   <>
+    {/* Above everything, and rendered once for the whole view: the recharge a
+        short wallet needs, and the question asked when the spots go while it is
+        happening. Every booking action on this page shares them. */}
+    {topUpSheet}
+    {waitlistPrompt}
     <div className="player-dashboard-container">
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 

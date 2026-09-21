@@ -8,6 +8,7 @@ export const metadata = {
 const sections = [
   { id: "key-point",    title: "Key Point" },
   { id: "topup",        title: "Wallet Top-Up Refunds" },
+  { id: "booking-pay",  title: "Paying for a Game" },
   { id: "cancellation", title: "Game Cancellation" },
   { id: "backout",      title: "Player Cancellation" },
   { id: "no-cash",      title: "No Cash Withdrawals" },
@@ -118,7 +119,7 @@ export default function RefundPolicyPage() {
                 <div style={{ border: "1px solid rgba(111,200,218,0.3)", background: "rgba(111,200,218,0.05)", padding: "24px 28px" }}>
                   <p style={{ fontFamily: "var(--cond)", fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--electric)", marginBottom: 10 }}>Most Important</p>
                   <p style={{ fontSize: 16, color: "var(--white)", lineHeight: 1.65, fontWeight: 500 }}>
-                    All refunds on Kasa Kai — whether from game cancellations, player withdrawals, or failed payments — are credited to your{" "}
+                    All refunds on Kasa Kai — whether from game cancellations, player withdrawals, or a payment that went through without securing a spot — are credited to your{" "}
                     <strong style={{ color: "var(--electric)" }}>in-app wallet</strong>, not to your original payment method or bank account.
                   </p>
                 </div>
@@ -129,7 +130,14 @@ export default function RefundPolicyPage() {
                 <Callout color="electric">If a wallet top-up payment fails and money is deducted from your account, Razorpay will automatically reverse the charge within 5–7 business days to your original payment method.</Callout>
               </Section>
 
-              <Section id="cancellation" num="02" title="Game Cancellation Refunds" accent="electric">
+              <Section id="booking-pay" num="02" title="Paying for a Game" accent="electric">
+                <P>Game fees are paid from your Kasa Kai wallet. If your balance does not cover the booking, you are asked to add the difference to your wallet first — so a ₹995 game against an ₹823 balance asks you to add ₹172 — and the booking is then paid for from the wallet in the same step. You may add more than the booking needs; the extra stays in your wallet.</P>
+                <P>Money you add goes into your wallet, not to a specific game. Your spot is confirmed only once the money is in your wallet <strong>and</strong> a place is still available. Spots are not held while you add money, so another player can take the last one while your payment is in progress.</P>
+                <Callout color="electric">If the spots are gone by the time your payment completes, nothing is deducted for the booking — the amount you added simply stays in your wallet, ready for that game&apos;s waitlist or any other game. Because you are topping up a wallet rather than paying for a specific spot, there is nothing to refund.</Callout>
+                <P>A recharge made this way is an ordinary wallet top-up: any recharge offer running at the time applies to it, and Section 01 governs it thereafter.</P>
+              </Section>
+
+              <Section id="cancellation" num="03" title="Game Cancellation Refunds" accent="electric">
                 <P>If an organiser cancels a game, all registered players receive a full refund credited to their Kasa Kai wallet within minutes of the cancellation.</P>
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0, margin: "20px 0" }}>
                   {["Organiser cancels", "Fees calculated", "Wallet credited", "You're notified"].map((step, i, arr) => (
@@ -143,19 +151,19 @@ export default function RefundPolicyPage() {
                 </div>
               </Section>
 
-              <Section id="backout" num="03" title="Player Cancellation Refunds" accent="electric">
+              <Section id="backout" num="04" title="Player Cancellation Refunds" accent="electric">
                 <P>If you cancel your registration before the game takes place, your registration fee is refunded to your wallet. The refund amount is subject to the organiser&apos;s cancellation policy for that specific game.</P>
                 <P>Organisers may set a cancellation fee that applies only close to kick-off. Cancelling before that window is always a full refund. Inside it, the fee applies <strong>per slot you give up</strong> — so cancelling with two guests means the fee is charged three times — and it can never exceed what you actually paid.</P>
                 <P>The exact amount is shown to you before you confirm, never after. The net amount is credited to your wallet immediately.</P>
                 <P>You are not charged a cancellation fee when: you cancel within the organiser&apos;s free-change window just after joining; the game is cancelled; or the organiser moves the kick-off time or switches the format after you joined. If a game is called off after you had already cancelled and paid the fee, that fee is returned to your wallet.</P>
               </Section>
 
-              <Section id="no-cash" num="04" title="No Cash Withdrawals" accent="electric">
+              <Section id="no-cash" num="05" title="No Cash Withdrawals" accent="electric">
                 <P>Kasa Kai wallet balances cannot be withdrawn as cash or transferred to a bank account under normal circumstances. All refunds are credited to your in-app wallet only.</P>
                 <P>In exceptional circumstances (e.g., account closure), contact us at <a href="mailto:contact@kasakai.in" style={{ color: "var(--electric)", textDecoration: "none" }}>contact@kasakai.in</a> and we will review your case individually.</P>
               </Section>
 
-              <Section id="disputes" num="05" title="Dispute Resolution" accent="electric">
+              <Section id="disputes" num="06" title="Dispute Resolution" accent="electric">
                 <P>If you believe a refund has not been credited correctly, contact us within 7 days at <a href="mailto:contact@kasakai.in" style={{ color: "var(--electric)", textDecoration: "none" }}>contact@kasakai.in</a> with your registered phone number and transaction details. We will respond within 3 business days.</P>
               </Section>
 

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { buildApiUrl, getSession } from "@/utils/api";
-import { postWithCheckout, checkoutErrorMessage, isPaidButUnseated } from "@/utils/directCheckout";
-import { describeSplit, SPOT_NOT_HELD_NOTE } from "@/utils/paymentSplit";
+import { postWithTopUp, bookingErrorMessage, isCapacityRefusal } from "@/utils/walletTopup";
+import { describeFunding, formatRupees, SPOT_NOT_HELD_NOTE } from "@/utils/walletFunding";
+import { useWalletTopUp } from "@/hooks/useWalletTopUp";
+import { useWaitlistOffer } from "@/hooks/useWaitlistOffer";
 import { PreferenceDisclaimer, QuickPositionTeam } from "@/components/PlayPreferences";
 
 type ShowToast = (type: "success" | "error", title: string, message?: string) => void;
@@ -66,6 +68,10 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
   // True while the gateway sheet is open or the payment is being settled, so the
   // button says what is happening instead of just spinning.
   const [paying, setPaying] = useState(false);
+  // A seat costs what a seat costs, so this screen can need a recharge too —
+  // and can lose the race that follows one.
+  const { requestTopUp, topUpSheet } = useWalletTopUp();
+  const { offerWaitlist, waitlistPrompt } = useWaitlistOffer();
   // Local status so the UI updates immediately after an action, without a re-fetch.
   const [status, setStatus] = useState<string | null>(null);
 
@@ -115,22 +121,26 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         ? `/api/v1/games/invite-link/${token}/join`
         : `/api/v1/games/invite/${token}/confirm`;
       // Accepting an invite takes a seat, so it costs what any other seat costs
-      // and is paid for the same way: wallet first, gateway for the shortfall.
-      const { res, data: d, cancelled } = await postWithCheckout<any>(
+      // and is paid for the same way: from the wallet, topped up first if short.
+      const { res, data: d, cancelled, toppedUpPaise } = await postWithTopUp<any>(
         endpoint,
         { position, teamPreference },
         {
+          requestTopUp,
           onPhase: (phase) => setPaying(phase !== "done"),
-          prefill: { name: localStorage.getItem("userName") || undefined },
         },
       );
       if (cancelled) {
-        showToast("error", "Payment cancelled", "Your spot isn't confirmed and nothing was charged.");
+        showToast("error", "Recharge cancelled", "Your spot isn't confirmed and nothing was charged.");
         return;
       }
-      if (res?.status === 402 && d.code === "INSUFFICIENT_BALANCE") {
-        // Only reachable when no checkout could be opened at all.
-        showToast("error", "Payment unavailable", "We couldn't start the payment. Try again, or recharge your wallet.");
+      if (d.code === "TOPUP_FAILED") {
+        showToast("error", "Recharge didn't go through", bookingErrorMessage(d));
+        return;
+      }
+      if (res?.status === 402 && (d.code === "INSUFFICIENT_BALANCE" || d.code === "WALLET_TOPUP_REQUIRED")) {
+        // No sheet could be shown — fall back to the wallet page.
+        showToast("error", "Wallet is short", bookingErrorMessage(d));
         onRecharge();
         return;
       }
@@ -142,12 +152,28 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         showToast("error", "Link full", "This invite link has reached its join limit.");
         return;
       }
-      if (isPaidButUnseated(d.code)) {
-        // Their money moved and the seat did not. Say where the refund is.
-        showToast("error", "Spot no longer available", checkoutErrorMessage(d));
+      if (!res || !res.ok || !d.success) {
+        // The commonest failure after a recharge is the spots going while it was
+        // in flight. Their money is in their wallet, so the waitlist is an offer
+        // rather than an apology.
+        const moneyNote = toppedUpPaise ? `${formatRupees(toppedUpPaise)} is in your wallet.` : undefined;
+        if (isCapacityRefusal(d) && data?.gameId) {
+          const outcome = await offerWaitlist({
+            gameId: data.gameId,
+            reason: "Those spots have just gone.",
+            moneyNote,
+            body: { positions: position ? [position] : [], teamPreference },
+          });
+          if (outcome.joined) {
+            showToast("success", "You're on the waitlist", `We'll tell you the moment a spot frees up.${moneyNote ? ` ${moneyNote}` : ""}`);
+          } else if (outcome.error) {
+            showToast("error", "Couldn't join the waitlist", outcome.error);
+          }
+          return;
+        }
+        showToast("error", "Couldn't join", bookingErrorMessage(d, { toppedUpPaise }));
         return;
       }
-      if (!res || !res.ok || !d.success) { showToast("error", "Couldn't join", checkoutErrorMessage(d)); return; }
       const newStatus = d.data?.status || "accepted";
       setStatus(newStatus);
       if (newStatus === "accepted") {
@@ -218,11 +244,11 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
 
   // How this seat gets paid for. A short wallet used to be a dead end here — the
   // whole panel became a "Recharge wallet" button and the invite could not be
-  // accepted at all. It now applies whatever the wallet holds and collects the
-  // rest at the gateway, the same as any other booking.
+  // accepted at all. The recharge now happens inside this action, the same as
+  // any other booking.
   const walletRupees = typeof data?.walletAvailable === "number" ? data.walletAvailable : 0;
-  const split = describeSplit(payable * 100, walletRupees * 100);
-  const payNow = split.directPaise / 100;
+  const funding = describeFunding(payable * 100, walletRupees * 100);
+  const topUpNow = funding.topUpPaise / 100;
 
   const ctaLabel = !data
     ? "Confirm"
@@ -230,9 +256,9 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       ? "Request to join"
       : payable <= 0
         ? (isShared ? "Join game" : "Confirm spot")
-        : split.mode === "wallet"
+        : funding.mode === "wallet"
           ? (isShared ? `Join using wallet • ${feeLabel}` : `Confirm using wallet • ${feeLabel}`)
-          : `Pay ₹${payNow} and ${isShared ? "join" : "confirm"}`;
+          : `Add ₹${topUpNow} & ${isShared ? "join" : "confirm"}`;
 
   const dateText = data
     ? new Date(data.scheduledAt).toLocaleString("en-IN", {
@@ -242,6 +268,11 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
     : "";
 
   return (
+    <>
+    {/* Both sit above this modal: a recharge to do first, and the question that
+        follows one that lost the race. */}
+    {topUpSheet}
+    {waitlistPrompt}
     <div
       onClick={onClose}
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}
@@ -328,7 +359,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                   </div>
                 )}
 
-                {/* The payment split, for the same reason the booking sheet
+                {/* The funding breakdown, for the same reason the booking sheet
                     carries one: this is the other place a player commits money,
                     and the amount beside the button has to be the amount on it. */}
                 {!needsApproval && payable > 0 && (
@@ -340,24 +371,22 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Total</span><span style={{ color: "#cfcfcf", fontWeight: 700 }}>{feeLabel}</span>
                     </div>
-                    {split.walletPaise > 0 && (
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>Wallet applied</span>
-                        <span style={{ color: "#c8ff3e", fontWeight: 700 }}>−₹{split.walletPaise / 100}</span>
-                      </div>
-                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Wallet balance</span>
+                      <span style={{ color: "#c8ff3e", fontWeight: 700 }}>₹{walletRupees}</span>
+                    </div>
                     <div style={{
                       display: "flex", justifyContent: "space-between", marginTop: 4, paddingTop: 6,
                       borderTop: "1px solid rgba(200,255,62,0.14)", color: "#e6e6e6", fontWeight: 700,
                     }}>
-                      <span>{payNow > 0 ? "Pay now" : "Paid from wallet"}</span>
-                      <span style={{ color: "#c8ff3e" }}>₹{payNow > 0 ? payNow : payable}</span>
+                      <span>{topUpNow > 0 ? "Add to wallet" : "Paid from wallet"}</span>
+                      <span style={{ color: "#c8ff3e" }}>₹{topUpNow > 0 ? topUpNow : payable}</span>
                     </div>
                   </div>
                 )}
 
-                {/* Said before the gateway opens, never after. */}
-                {!needsApproval && split.needsPayment && (
+                {/* Said before the recharge starts, never after. */}
+                {!needsApproval && funding.needsTopUp && (
                   <div style={{
                     marginBottom: 10, padding: "9px 12px", borderRadius: 9,
                     border: "1px solid rgba(245,158,11,0.22)", background: "rgba(245,158,11,0.06)",
@@ -391,19 +420,19 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                     : submitting
                       ? "Please wait…"
                       : status === "approved_unpaid"
-                        ? (payNow > 0 ? `Pay ₹${payNow} & lock spot` : `Confirm using wallet • ${feeLabel}`)
+                        ? (topUpNow > 0 ? `Add ₹${topUpNow} & lock spot` : `Confirm using wallet • ${feeLabel}`)
                         : ctaLabel}
                 </button>
                 <div style={{ fontSize: 11, color: "#666", textAlign: "center" }}>Slots are allotted in booking order.</div>
-                {/* Secondary, never a prerequisite — a funded wallet is a
-                    convenience now, not a gate. */}
-                {payNow > 0 && (
+                {/* Secondary. The recharge happens inside the button above; this
+                    is for topping up more than this seat needs. */}
+                {topUpNow > 0 && (
                   <button
                     type="button"
                     onClick={onRecharge}
                     style={{ width: "100%", marginTop: 8, padding: 0, background: "none", border: "none", color: "#c8ff3e", fontSize: 11.5, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}
                   >
-                    Recharge wallet instead
+                    Add more to my wallet
                   </button>
                 )}
               </>
@@ -463,5 +492,6 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         ) : null}
       </div>
     </div>
+    </>
   );
 }
