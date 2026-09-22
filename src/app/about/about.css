@@ -168,38 +168,6 @@
 
 .ab-duo-panel .lp-h3 { margin-bottom: clamp(24px, 3vw, 40px); }
 
-.ab-marklist {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  margin: 0;
-  padding: 0;
-}
-
-.ab-marklist li {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  font-family: var(--body);
-  font-size: clamp(15px, 1.15vw, 17px);
-  color: #cfcfcf;
-  transition: color 0.3s;
-}
-.ab-marklist li:hover { color: var(--lp-text); }
-
-/* The little rule that stands in for a bullet. */
-.ab-mark {
-  width: 3px;
-  height: 22px;
-  flex-shrink: 0;
-  margin-top: 2px;
-  background: var(--lp-line-soft);
-  border-radius: 2px;
-  transition: background 0.3s;
-}
-.ab-marklist li:hover .ab-mark { background: var(--lp-accent); }
-
 /* ═══════════════════════════ TRACK RECORD BAND ═══════════════════════════ */
 /* The one section that inverts — lime ground, black type. */
 .ab-band {

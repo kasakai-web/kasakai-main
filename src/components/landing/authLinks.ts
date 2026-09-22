@@ -83,12 +83,16 @@ export const findGameHref = (isLoggedIn: boolean) =>
   isLoggedIn ? "/dashboard" : "/login?role=player";
 
 /**
- * "Explore monthly pass". A signed-in player's pass is the "My Pass" card on
- * their profile — the only page that can tell them which one they hold and when
- * it runs out. There is no standalone pass page to send them to.
+ * "Explore monthly pass" — /passes, whoever is reading.
+ *
+ * The only link on the landing page that takes no session argument, because the
+ * question it answers is not about the reader: /passes is what a pass IS and
+ * what it costs, and that is the same page for a visitor and for a player. A
+ * player's own pass — which one they hold, when it runs out — is the "My Pass"
+ * card on their profile, which is a different question and reachable from the
+ * dashboard where they would look for it.
  */
-export const passHref = (isLoggedIn: boolean) =>
-  isLoggedIn ? "/dashboard/profile" : SIGNUP_HREF;
+export const PASSES_HREF = "/passes";
 
 /** "View details" — the existing signed-out game landing page. */
 export const detailsHref = (gameId: string) => `/join/${gameId}`;

@@ -1,16 +1,9 @@
-"use client";
-
 import { ArrowRight, Check } from "lucide-react";
 import { PASS_BENEFITS } from "@/config/landing";
-import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
-import { passHref } from "./authLinks";
+import { PASSES_HREF } from "./authLinks";
 
 export function MonthlyPassSection() {
-  const isLoggedIn = useIsLoggedIn();
-
   return (
-    // The dedicated passes page is still to be built — until it exists the CTA
-    // goes through the normal sign-up flow, where passes are bought today.
     <section id="passes" className="lp-pass">
       <div className="lp-wrap lp-pass-inner">
         <div className="lp-pass-copy">
@@ -36,9 +29,15 @@ export function MonthlyPassSection() {
             ))}
           </ul>
 
-          <a href={passHref(isLoggedIn)} className="lp-btn lp-btn-solid">
+          <a href={PASSES_HREF} className="lp-btn lp-btn-solid">
             Explore monthly pass <ArrowRight size={18} />
           </a>
+
+          {/* The one thing /passes cannot say for a reader who never gets
+              there: the passes it prices are Gurugram-only for now. */}
+          <p className="lp-pass-scope">
+            Currently, passes are only available for Gurugram
+          </p>
         </div>
 
         <div className="lp-pass-art">
