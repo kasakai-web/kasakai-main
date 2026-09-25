@@ -19,10 +19,14 @@ export function PassValue() {
             <br />
             <span className="lp-accent">A stronger community.</span>
           </h2>
+          {/* Deliberately names no price and no plan. This paragraph used to
+              quote ₹3,000 and "the Monthly Pass", which is one specific product
+              that may not be on sale — and the section sits above the pricing
+              cards, so it was stating a figure before the page had shown one. */}
           <p className="lp-lead">
-            A single night out can easily cost more than ₹3,000. The Kasa Kai
-            Monthly Pass gives you 30 days of football, fitness, competition and
-            community for the same—or often a lower—amount.
+            A single night out can easily cost more than a month of football. A
+            Kasa Kai pass covers your entry to the games it applies to, for
+            fitness, competition and community, on one payment.
           </p>
           <p className="lp-lead">
             Instead of searching for players, calling turfs and collecting

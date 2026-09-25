@@ -5,14 +5,20 @@ import { findGameHref } from "@/components/landing/authLinks";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 /**
- * The closing line, and the only action this page offers.
+ * The closing line, and the last action this page offers.
  *
- * It goes to the games, not to a pass checkout, because there is no pass
- * checkout — the pricing section says to contact the organisers, and a button
- * that quietly meant something else would be the page contradicting itself.
+ * It used to go to the games rather than to a checkout, because there was no
+ * checkout: a pass was assigned by an admin and the pricing section said to
+ * contact the organisers. There is one now, so when passes are actually on sale
+ * (`canBuy`) this points at it. With nothing on sale it still points at the
+ * games, because a buy button for a thing that cannot be bought is the page
+ * contradicting itself — the failure this comment was originally written about.
  */
-export function PassCta() {
+export function PassCta({ canBuy = false }: { canBuy?: boolean }) {
   const isLoggedIn = useIsLoggedIn();
+  const href = canBuy
+    ? (isLoggedIn ? "/dashboard/passes" : "/login?role=player")
+    : findGameHref(isLoggedIn);
 
   return (
     <section className="lp-section pa-cta" style={{ borderBottom: "none" }}>
@@ -31,8 +37,8 @@ export function PassCta() {
         {/* Plain <a>, not <Link>: this CTA crosses into a document that changes
             the session, and useIsLoggedIn is written around that being a real
             navigation. */}
-        <a href={findGameHref(isLoggedIn)} className="lp-btn lp-btn-solid">
-          Find a game <ArrowRight size={18} />
+        <a href={href} className="lp-btn lp-btn-solid">
+          {canBuy ? "Get your pass" : "Find a game"} <ArrowRight size={18} />
         </a>
       </div>
     </section>

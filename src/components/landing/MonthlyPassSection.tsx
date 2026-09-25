@@ -13,9 +13,12 @@ export function MonthlyPassSection() {
             <br />
             <span className="lp-accent">Plan less.</span>
           </h2>
+          {/* Names no specific plan: what is on sale is decided in the admin
+              catalogue and varies by what each pass covers, so "the Monthly
+              Pass" was advertising one product that may not exist. */}
           <p className="lp-lead">
-            The Kasa Kai Monthly Pass turns your weekly football habit into one
-            simple plan.
+            A Kasa Kai pass turns your weekly football habit into one simple
+            plan.
           </p>
 
           <ul className="lp-checklist">
@@ -30,7 +33,7 @@ export function MonthlyPassSection() {
           </ul>
 
           <a href={PASSES_HREF} className="lp-btn lp-btn-solid">
-            Explore monthly pass <ArrowRight size={18} />
+            Explore passes <ArrowRight size={18} />
           </a>
 
           {/* The one thing /passes cannot say for a reader who never gets
@@ -45,7 +48,7 @@ export function MonthlyPassSection() {
           <div className="lp-pass-card">
             <div className="lp-pass-card-top">
               <span className="lp-pass-brand">KASA KAI</span>
-              <span className="lp-pass-kind">Monthly Pass</span>
+              <span className="lp-pass-kind">Football Pass</span>
             </div>
 
             {/* Same stacked KASA/KAI mark the navbar and footer use. */}
@@ -56,12 +59,11 @@ export function MonthlyPassSection() {
 
             <div className="lp-pass-card-bottom">
               <span className="lp-pass-member">Member 0001</span>
+              {/* The art carried "from ₹2,000 / mo", which matched neither the
+                  prices on /passes nor the products actually on sale — a third
+                  number for the same thing. The card says what a pass IS; the
+                  page it links to is where prices come from. */}
               <div>
-                <div className="lp-pass-price">
-                  <span className="from">from</span>
-                  <span className="amount">₹2,000</span>
-                  <span className="per">/ mo</span>
-                </div>
                 <div className="lp-pass-city">Gurugram · 2026</div>
               </div>
             </div>

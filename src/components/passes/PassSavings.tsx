@@ -15,7 +15,8 @@ export function PassSavings() {
           Play more and bring down your cost per game
         </h2>
         <p className="lp-lead pa-savings-lead">
-          The pass becomes more valuable every time you play.{" "}
+          An illustration with example plans — the passes on sale are priced by
+          what they cover, so your own saving depends on which one you hold.{" "}
           <span className="pa-savings-basis">
             (Illustration using a regular game price of {PASS_SAVINGS_BASIS})
           </span>

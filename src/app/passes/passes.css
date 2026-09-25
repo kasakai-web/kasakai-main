@@ -556,3 +556,28 @@ thead .pa-col-b { color: var(--lp-accent); }
   .pa-tick,
   .pa-step-num { transition: none; }
 }
+
+/* The buy button on a pricing card. Sits below the closer, so the card reads
+   price → what you get → what to do, in that order. */
+.pa-plan-buy {
+  margin-top: 18px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Marks a fallback pricing card as an illustration. Deliberately on the card —
+   a reader scanning prices never reaches the small print, and an unlabelled
+   number on a pricing card reads as a price whatever the footnote says. */
+.pa-plan-example {
+  display: inline-block;
+  align-self: flex-start;
+  margin-bottom: 10px;
+  padding: 3px 9px;
+  border: 1px solid var(--lp-border, #2a2a31);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-muted, #8a8a93);
+}

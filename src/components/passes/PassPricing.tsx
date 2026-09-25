@@ -1,36 +1,46 @@
 import { Check } from "lucide-react";
-import { PASS_PLANS, PASS_PRICING_NOTES } from "@/config/passes";
+import { PASS_PRICING_NOTES, PASS_PRICING_NOTES_LIVE, type PassPlan } from "@/config/passes";
+import { PassBuyLink } from "./PassBuyLink";
 
 /**
- * The two plans.
+ * The plans.
  *
- * Neither card carries a buy button on purpose: a pass is assigned by an admin
- * (the "My Pass" card on /dashboard/profile is where a player sees theirs), so
- * the notes below end at "contact the organisers". A button promising instant
- * checkout would be the one thing on this page that is not true yet.
+ * `plans` comes from the live catalogue (`utils/passCatalogue.ts`) and falls
+ * back to the config when the API cannot be reached — this page must render
+ * whatever happens to the backend.
+ *
+ * `live` is what decides the notes and the button: with real products on sale
+ * each card gets a Buy link, and the closing note stops saying "contact the
+ * organisers", which was true for as long as there was no checkout and is a
+ * dead end now that there is one.
  *
  * `id="pricing"` is what the comparison table below scrolls back up to.
  */
-export function PassPricing() {
+export function PassPricing({ plans, live }: { plans: PassPlan[]; live: boolean }) {
   return (
     <section id="pricing" className="lp-section pa-pricing">
       <div className="lp-wrap">
         <div className="pa-pricing-head">
           <h2 className="lp-h2">Choose how long you want to play</h2>
           <p className="lp-lead">
-            Both passes give you access to pass-eligible Kasa Kai football games
-            during the selected validity period. Reserve every game through the
-            website; admission is subject to available spots.
+            {live
+              ? "Every pass covers the games described on it. Reserve each game through the website; admission is subject to available spots."
+              : "These are example plans, shown to compare how passes work. A real pass is priced by what it covers, so the ones on sale can differ. Reserve every game through the website; admission is subject to available spots."}
           </p>
         </div>
 
         <div className="pa-plans">
-          {PASS_PLANS.map((plan) => (
+          {plans.map((plan) => (
             <div
               key={plan.id}
               className={plan.featured ? "pa-plan pa-plan-featured" : "pa-plan"}
             >
               {plan.badge && <div className="pa-plan-badge">{plan.badge}</div>}
+
+              {/* Marked on the card itself, not only in the small print below
+                  it. Somebody scanning the prices never reaches a footnote, and
+                  an unlabelled figure on a pricing card IS a price. */}
+              {!live && <div className="pa-plan-example">Example</div>}
 
               <div className="pa-plan-kind">{plan.kind}</div>
               <h3 className="pa-plan-name">{plan.name}</h3>
@@ -49,12 +59,16 @@ export function PassPricing() {
               </ul>
 
               <div className="pa-plan-closer">{plan.closer}</div>
+
+              {/* Only when there is something to buy. The link decides for
+                  itself whether that means the store or the login first. */}
+              {live && <PassBuyLink planName={plan.name} />}
             </div>
           ))}
         </div>
 
         <div className="pa-pricing-notes">
-          {PASS_PRICING_NOTES.map((note) => (
+          {(live ? PASS_PRICING_NOTES_LIVE : PASS_PRICING_NOTES).map((note) => (
             <p key={note}>{note}</p>
           ))}
         </div>

@@ -4,10 +4,17 @@
 // edited far more often than the layout is, and a copy change should never mean
 // touching JSX.
 //
-// Prices here are the ONLY place the pass is priced in the player app. A pass
-// is still assigned by an admin (see the "My Pass" card on /dashboard/profile)
-// — nothing on this page sells one, which is why every CTA points at the games
-// rather than at a checkout.
+// Prices here are a FALLBACK, and an ILLUSTRATION. The page renders the live
+// catalogue (`utils/passCatalogue.ts` → GET /passes/catalogue) and drops back to
+// this copy only when the API cannot be reached — a marketing page must render
+// whatever has happened to the backend.
+//
+// These two plans are a comparison, not the shelf. A real pass is priced by what
+// it COVERS — weekends only, nights only, one city, one venue, a capped number of
+// games — so the actual passes on sale can carry different prices, windows and
+// limits from anything written here. Every surface rendering this copy has to say
+// so (see PASS_PRICING_NOTES and the `pa-plan-example` marker), or the page reads
+// as a live price list the moment somebody is looking at it during an outage.
 
 export type PassPlan = {
   id: string;
@@ -62,9 +69,21 @@ export const PASS_PLANS: PassPlan[] = [
 
 /** The two lines under the plans. Both are the small print that keeps the
  *  promise above honest — a pass is access, not a reserved seat. */
+// Shown when the catalogue could not be reached, so there is nothing to buy on
+// the page and the old answer — ask a human — is still the only one.
 export const PASS_PRICING_NOTES: string[] = [
+  "The plans above are examples shown for comparison. The passes actually on sale depend on what each one covers — the days, times, city or venues it applies to — so their price, validity and game limits can differ from these.",
   "A pass does not automatically reserve a place in every game. Each game must be booked separately and remains subject to capacity, eligibility and fair-use rules.",
-  "Contact the organisers to buy or to know more about the pass.",
+  "Contact the organisers for the passes available to you right now.",
+];
+
+// Shown when there are real passes on sale. "Contact the organisers to buy" is
+// a dead end once a checkout exists, and the wallet line is the one thing a
+// first-time buyer is surprised by.
+export const PASS_PRICING_NOTES_LIVE: string[] = [
+  "Each pass covers the games described on it — the days, times, city or venues it applies to. Check what a pass covers before buying; the games it does not cover are charged at the usual price.",
+  "A pass does not automatically reserve a place in every game. Each game must be booked separately and remains subject to capacity, eligibility and fair-use rules.",
+  "Passes are paid for from your Kasa Kai wallet. If it is short, you will be asked to top it up first — the balance stays yours either way.",
 ];
 
 /** Why a pass beats paying per game, one card each. */
@@ -89,6 +108,15 @@ export const PASS_COMPARISON: PassComparisonRow[] = [
   { feature: "Skill level",                       fifteen: "All levels welcome",            monthly: "All levels welcome" },
   { feature: "Selected-city access",              fifteen: "Yes",                           monthly: "Yes" },
   { feature: "Best for",                          fifteen: "Trying the pass or a short stay", monthly: "Regular players and maximum value" },
+];
+
+// The rows that are true of EVERY pass, whatever is in the catalogue. The live
+// comparison table builds its per-plan rows (price, validity, caps) from real
+// products and then appends these, which is why they carry no plan names.
+export const PASS_COMPARISON_COMMON: { feature: string; value: string }[] = [
+  { feature: "Separate fee for eligible games", value: "No" },
+  { feature: "Solo players welcome",            value: "Yes" },
+  { feature: "Skill level",                     value: "All levels welcome" },
 ];
 
 export type PassSavingRow = {

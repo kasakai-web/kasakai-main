@@ -88,9 +88,10 @@ export const findGameHref = (isLoggedIn: boolean) =>
  * The only link on the landing page that takes no session argument, because the
  * question it answers is not about the reader: /passes is what a pass IS and
  * what it costs, and that is the same page for a visitor and for a player. A
- * player's own pass — which one they hold, when it runs out — is the "My Pass"
- * card on their profile, which is a different question and reachable from the
- * dashboard where they would look for it.
+ * player's own passes — which they hold, what is left on them, when they run
+ * out — are on /dashboard/passes, which is a different question and reachable
+ * from the dashboard where they would look for it. That page is also where the
+ * buy buttons on /passes send them.
  */
 export const PASSES_HREF = "/passes";
 

@@ -37,7 +37,12 @@ export type Funding = {
 
 export function fundingFor(totalPaise: number, availablePaise: number): Funding {
   const total = Math.max(0, Math.round(Number(totalPaise) || 0));
-  const available = Math.max(0, Math.round(Number(availablePaise) || 0));
+  // NOT floored at zero. A wallet can be in debt — a cancellation fee on a
+  // pass-covered seat is debited against a refund that does not exist — and the
+  // top-up has to clear that before it can pay for a seat, or the player adds
+  // the fee, is refused for the same reason, and is asked for the same amount
+  // again. Mirrors the server (utils/walletFunding.js) exactly.
+  const available = Math.round(Number(availablePaise) || 0);
 
   if (total === 0) {
     return { totalPaise: 0, walletPaise: 0, shortfallPaise: 0, topUpPaise: 0, mode: "free" };
@@ -124,7 +129,7 @@ export function describeFunding(totalPaise: number, availablePaise: number): Fun
 
   return {
     ...funding,
-    availablePaise: Math.max(0, Math.round(Number(availablePaise) || 0)),
+    availablePaise: Math.round(Number(availablePaise) || 0),
     minTopUpPaise: MIN_TOPUP_PAISE,
     maxTopUpPaise: MAX_TOPUP_PAISE,
     suggestions: funding.mode === "topup" ? topUpSuggestions(funding.topUpPaise) : [],

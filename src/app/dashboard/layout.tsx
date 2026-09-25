@@ -30,6 +30,7 @@ type PlayerSection =
   | "faq"
   | "profile"
   | "wallet"
+  | "passes"
   | "ratings";
 
 // The segment after /dashboard, mapped to the sidebar section it highlights.
@@ -42,6 +43,7 @@ const SECTION_BY_SEGMENT: Record<string, PlayerSection> = {
   faq: "faq",
   profile: "profile",
   wallet: "wallet",
+  passes: "passes",
   ratings: "ratings",
 };
 
@@ -381,6 +383,7 @@ export default function DashboardLayout({
       | "profile"
       | "notifications"
       | "wallet"
+      | "passes"
       | "ratings",
   ) => {
     router.push(destination === "browse" ? "/dashboard" : `/dashboard/${destination}`);
@@ -654,6 +657,16 @@ export default function DashboardLayout({
               }}
             >
               <span className="sidebar-icon">⭐</span>My Feedback
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "passes" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("passes");
+                setSidebarOpen(false);
+                navigateToPlayer("passes");
+              }}
+            >
+              <span className="sidebar-icon">🎟️</span>My Passes
             </button>
             <button
               className={`sidebar-link ${activeSection === "wallet" ? "active" : ""}`}
