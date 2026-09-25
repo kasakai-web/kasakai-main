@@ -28,6 +28,16 @@ type BookingGame = {
   spots: number;
   waitlist?: boolean;
   passEligible?: boolean;
+  /** The server's computed view of what a pass does to this game for this
+   *  viewer. Only this can express a PARTIAL cover; `passEligible` is the old
+   *  binary answer and is kept as the fallback. */
+  passInfo?: {
+    covered: boolean;
+    passName: string | null;
+    benefitPaise: number;
+    payablePaise: number;
+    partial?: boolean;
+  } | null;
   requiresApproval?: boolean;
   /** This game charges for giving up a slot near kick-off (server's `backoutInfo.active`). */
   cancellationFeeApplies?: boolean;
@@ -247,14 +257,23 @@ export function BookingModal({
   // Approval-gated join: the player files a request the organiser must approve.
   // No charge now (charged on approval), and guests are added after approval.
   const needsApproval = !isWaitlist && Boolean(game.requiresApproval);
-  const passEligible  = Boolean(game.passEligible);
+  const passInfo      = game.passInfo || null;
+  const passEligible  = passInfo ? passInfo.covered : Boolean(game.passEligible);
+  // What the pass takes off the player's OWN seat. Guests are covered only when
+  // the pass says so, and the server has already decided that — this is simply
+  // the difference it quoted.
+  const passBenefit   = passInfo ? Math.round(passInfo.benefitPaise / 100) : (passEligible ? game.fee : 0);
   // How many guests can be confirmed (fit in available spots after player takes 1)
   const spotsForGuests = isWaitlist ? 0 : Math.max(0, (game.spots ?? 0) - 1);
   // Guests beyond spotsForGuests go to waitlist
   const confirmedGuestCount = Math.min(guests.length, spotsForGuests);
   const waitlistGuestCount  = Math.max(0, guests.length - spotsForGuests);
-  // Player fee is 0 when pass eligible; guests always pay full fee
-  const playerFee = passEligible ? 0 : game.fee;
+  // What the player's own seat costs after the pass. Taken from the server's
+  // quote rather than re-derived, so the number beside the button is the number
+  // the debit will take.
+  const playerFee = passInfo
+    ? Math.round(passInfo.payablePaise / 100)
+    : (passEligible ? 0 : game.fee);
   const totalFee  = playerFee + (game.fee * confirmedGuestCount);
 
   // How this booking gets paid for: from the wallet, topped up first if it is
@@ -604,7 +623,7 @@ export function BookingModal({
                         <>
                           <div className="ws-fee" style={{ color: "#c8ff3e" }}>Free</div>
                           <div className="ws-balance" style={{ color: "#888" }}>
-                            <s style={{ color: "#555" }}>₹{game.fee}</s> · Covered by Pass
+                            <s style={{ color: "#555" }}>₹{game.fee}</s> · Covered by {passInfo?.passName || "Pass"}
                           </div>
                         </>
                       ) : (
@@ -612,11 +631,20 @@ export function BookingModal({
                           <div className="ws-fee">{formatRupees(totalFee * 100)}</div>
 
                           <div className="bm-pay-rows">
-                            {passEligible && (
-                              <div className="bm-pay-row">
-                                <span>Your slot</span>
-                                <span className="bm-pay-free">Free (Pass)</span>
-                              </div>
+                            {/* An explicit line, never a silently lower total:
+                                the fee, what the pass took off it, and what is
+                                left to pay. */}
+                            {passEligible && passBenefit > 0 && (
+                              <>
+                                <div className="bm-pay-row">
+                                  <span>Game fee</span>
+                                  <span>{formatRupees(game.fee * 100)}</span>
+                                </div>
+                                <div className="bm-pay-row">
+                                  <span>{passInfo?.passName || "Pass"}</span>
+                                  <span className="bm-pay-free">−{formatRupees(passBenefit * 100)}</span>
+                                </div>
+                              </>
                             )}
                             <div className="bm-pay-row">
                               <span>Wallet balance</span>

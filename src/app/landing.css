@@ -159,6 +159,42 @@
 }
 .lp-link-muted:hover { color: var(--lp-text); opacity: 1; }
 
+/* ── Mark list ───────────────────────────────────────────────────────────── */
+/* A list whose bullet is a short rule that lights up on hover. Lives here
+   rather than on one page because /about and /passes both build lists out of
+   it; a page that wants the rule lit from the start overrides .lp-mark's
+   background in its own stylesheet. */
+.lp-marklist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+}
+
+.lp-marklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  font-family: var(--body);
+  font-size: clamp(15px, 1.15vw, 17px);
+  color: #cfcfcf;
+  transition: color 0.3s;
+}
+.lp-marklist li:hover { color: var(--lp-text); }
+
+.lp-mark {
+  width: 3px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  background: var(--lp-line-soft);
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+.lp-marklist li:hover .lp-mark { background: var(--lp-accent); }
+
 /* ═══════════════════════════ HERO ═══════════════════════════ */
 .lp-hero {
   display: grid;
@@ -758,6 +794,16 @@
   margin-bottom: 26px;
 }
 .lp-pass-copy .lp-lead { max-width: 420px; margin-bottom: 36px; }
+
+/* The scope note under the CTA — indented to the button's text, not its edge,
+   so it reads as a footnote to the button rather than a second line of copy. */
+.lp-pass-scope {
+  margin: 14px 0 0 28px;
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--lp-dimmer);
+}
 
 .lp-checklist {
   list-style: none;

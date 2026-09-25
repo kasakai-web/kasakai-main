@@ -1049,6 +1049,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             ...fresh,
             // fresh.passEligible comes from backend if present; fall back to prev to avoid losing it
             passEligible: fresh.passEligible ?? prev.passEligible ?? false,
+            passInfo:     fresh.passInfo ?? prev.passInfo ?? null,
             _isWaitlisted: prev._isWaitlisted,
             _waitlistStatus: prev._waitlistStatus,
             _myWaitlistStatus: prev._myWaitlistStatus,
@@ -1110,6 +1111,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       spots: Math.max(0, spotsLeft),
       waitlist: isFull,
       passEligible: Boolean(game.passEligible),
+      passInfo: game.passInfo ?? null,
       requiresApproval: Boolean(game.requiresApproval),
       // Whether this game charges for a late departure at all. Only the fact, not the
       // amount — the modal points at the rules, which carry the whole scale.
@@ -2353,6 +2355,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   format={game.format}
                   fee={game.feeInPaise / 100}
                   passEligible={Boolean(game.passEligible)}
+                  passInfo={game.passInfo ?? null}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={amRegisteredIn(game) && !isMyFormatChangeOptOut(game)}

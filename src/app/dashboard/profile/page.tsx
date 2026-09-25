@@ -933,6 +933,15 @@ export default function PlayerProfilePage() {
                     ⚠ Your pass has expired. Contact admin to get a new one.
                   </div>
                 )}
+                {/* The full list — every pass held or held before, what each one
+                    covers and what it has been worth. This card shows only the
+                    single legacy pass and goes when that field does. */}
+                <a
+                  href="/dashboard/passes"
+                  style={{ fontSize: "12px", color: "#c8ff3e", textDecoration: "underline", alignSelf: "flex-start" }}
+                >
+                  See all my passes
+                </a>
               </div>
             );
           })()}

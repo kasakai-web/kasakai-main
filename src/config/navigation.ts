@@ -4,12 +4,13 @@ import type { NavLink, LoginOption } from "@/types";
 // these point at the landing-page sections that answer the same question, and
 // are absolute so the links also work from /about, /login and the policy pages.
 //
-// "About us" sits second because it is the only one of the four that is a page
-// of its own — Home is where you are, and the two hash links are shortcuts into
-// it. A link with a real path is what Header highlights as the current page.
+// "About us" and "Passes" sit before the hash links because they are pages of
+// their own — Home is where you are, and the last two are shortcuts into it. A
+// link with a real path is what Header highlights as the current page.
 export const NAV_LINKS: NavLink[] = [
   { label: "Home", href: "/" },
   { label: "About us", href: "/about" },
+  { label: "Passes", href: "/passes" },
   { label: "Events", href: "/#events" },
   { label: "Support", href: "/#support" },
 ];

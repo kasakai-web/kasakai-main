@@ -3,10 +3,10 @@ import { ABOUT_ORGANISERS, ABOUT_TECHNOLOGY } from "@/config/about";
 /** One list, rendered twice — the two halves are deliberately symmetrical. */
 function MarkList({ items }: { items: string[] }) {
   return (
-    <ul className="ab-marklist">
+    <ul className="lp-marklist">
       {items.map((item) => (
         <li key={item}>
-          <span className="ab-mark" aria-hidden="true" />
+          <span className="lp-mark" aria-hidden="true" />
           {item}
         </li>
       ))}

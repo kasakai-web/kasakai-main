@@ -32,6 +32,16 @@ export interface EventCardProps {
   format: string;
   fee: number;
   passEligible?: boolean;
+  /** What a pass does to THIS game for this viewer, computed server-side
+   *  (`passService.passInfoFrom`). The boolean above is the old binary answer
+   *  and stays for callers that have not been given this yet; only this one can
+   *  say "₹150 off" or name the pass doing it. */
+  passInfo?: {
+    covered: boolean;
+    passName: string | null;
+    benefitPaise: number;
+    payablePaise: number;
+  } | null;
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
@@ -75,6 +85,7 @@ export function EventCard({
   format,
   fee,
   passEligible = false,
+  passInfo = null,
   spotsTotal,
   spotsLeft,
   isRegistered,
@@ -141,10 +152,20 @@ export function EventCard({
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
         </div>
         <div className="card-price">
-          {passEligible && fee > 0 ? (
+          {/* A covered seat shows the old price struck through and what they
+              actually pay — which is ₹0 for a full cover and a real number for a
+              discount pass. The pass's NAME goes beside it: "Free" on its own
+              invites "free why?", and the answer is the thing we want them to
+              remember they are holding. */}
+          {(passInfo?.covered || (passEligible && fee > 0)) && fee > 0 ? (
             <>
               <div className="price-original">₹{fee}</div>
-              <div className="price-free">₹0</div>
+              <div className="price-free">
+                {passInfo && passInfo.payablePaise > 0
+                  ? `₹${Math.round(passInfo.payablePaise / 100)}`
+                  : "₹0"}
+              </div>
+              {passInfo?.passName && <div className="price-pass-name">{passInfo.passName}</div>}
             </>
           ) : (
             <>
