@@ -74,6 +74,15 @@ export default function DashboardLayout({
     expiryDate: string | null;
     passMonthYear: string | null;
   } | null>(null);
+  // v2 passes (bought, granted or migrated) live in their own collection, not on
+  // the Player document — so `/players/me` never mentions them. The card shows
+  // the best live one and falls back to the v1 field only when there is none.
+  const [livePasses, setLivePasses] = useState<{
+    name: string;
+    status: "active" | "pending" | "exhausted";
+    activatesAt: string | null;
+    expiresAt: string | null;
+  }[]>([]);
 
   const PASS_LABELS: Record<string, string> = {
     weekday: "Weekday",
@@ -148,14 +157,47 @@ export default function DashboardLayout({
     } catch {}
   }, [authenticated]);
 
+  const refreshLivePasses = useCallback(async () => {
+    if (!authenticated) return;
+    const { token } = getSession();
+    if (!token) return;
+    try {
+      const res = await fetch(buildApiUrl("/passes/mine"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data?.success) setLivePasses(data.data?.live ?? []);
+    } catch {}
+  }, [authenticated]);
+
   // Re-fetch on auth resolve + on every navigation so the My Pass card stays current
   useEffect(() => {
     refreshProfileMeta();
-  }, [refreshProfileMeta, pathname]);
+    refreshLivePasses();
+  }, [refreshProfileMeta, refreshLivePasses, pathname]);
+
+  // A purchase happens on /dashboard/passes without a navigation, so it announces
+  // itself; a wallet movement (the purchase debit, a grant's notification) is a
+  // cheap second trigger.
+  useEffect(() => {
+    const onChange = () => refreshLivePasses();
+    window.addEventListener("kk-passes-changed", onChange);
+    window.addEventListener("kk-wallet-update", onChange);
+    return () => {
+      window.removeEventListener("kk-passes-changed", onChange);
+      window.removeEventListener("kk-wallet-update", onChange);
+    };
+  }, [refreshLivePasses]);
 
   // Refresh on window focus / tab visible (e.g. an admin changed the pass in
   // another tab). No timer: this already re-runs on every navigation above, and
   // a pass does not change while someone sits on a page.
+  useAutoRefresh(authenticated ? refreshLivePasses : null, {
+    interval:  0,
+    onFocus:   true,
+    onVisible: true,
+    enabled: authenticated,
+  });
   useAutoRefresh(authenticated ? refreshProfileMeta : null, {
     interval:  0,
     onFocus:   true,
@@ -860,19 +902,34 @@ export default function DashboardLayout({
 
             {/* Pass card */}
             {(() => {
-              const hasPass = playerPass?.type && playerPass.type !== "none";
-              const isExpired =
-                hasPass &&
-                !!playerPass?.expiryDate &&
-                isPassExpired(playerPass.expiryDate);
-              const isUpcoming =
-                hasPass &&
-                !isExpired &&
-                isPassNotYetActive(playerPass?.startDate);
+              // Prefer a v2 pass: active first, then upcoming, then used up.
+              const rank = { active: 0, pending: 1, exhausted: 2 } as const;
+              const v2 = [...livePasses].sort(
+                (a, b) => rank[a.status] - rank[b.status],
+              )[0];
+              const v1Has = !!playerPass?.type && playerPass.type !== "none";
+              const hasPass = !!v2 || v1Has;
+              const isExhausted = v2?.status === "exhausted";
+              const isExpired = v2
+                ? isExhausted
+                : v1Has &&
+                  !!playerPass?.expiryDate &&
+                  isPassExpired(playerPass.expiryDate);
+              const isUpcoming = v2
+                ? v2.status === "pending"
+                : v1Has &&
+                  !isExpired &&
+                  isPassNotYetActive(playerPass?.startDate);
               const isActive = hasPass && !isExpired && !isUpcoming;
-              const passLabel = hasPass
-                ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type)
-                : "No Pass";
+              const startDate = v2 ? v2.activatesAt : playerPass?.startDate;
+              const expiryDate = v2 ? v2.expiresAt : playerPass?.expiryDate;
+              const monthYear = v2 ? null : playerPass?.passMonthYear;
+              const others = v2 ? livePasses.length - 1 : 0;
+              const passLabel = v2
+                ? v2.name
+                : v1Has
+                  ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type)
+                  : "No Pass";
               const accentColor = isExpired
                 ? "#fb923c"
                 : isUpcoming
@@ -881,7 +938,9 @@ export default function DashboardLayout({
                     ? "#4ade80"
                     : "#444";
               const badgeLabel = isExpired
-                ? "Expired"
+                ? isExhausted
+                  ? "Used up"
+                  : "Expired"
                 : isUpcoming
                   ? "Upcoming"
                   : isActive
@@ -974,23 +1033,25 @@ export default function DashboardLayout({
                         lineHeight: 1.5,
                       }}
                     >
-                      {playerPass?.passMonthYear && (
-                        <div>Month: {playerPass.passMonthYear}</div>
-                      )}
-                      {playerPass?.startDate && (
+                      {monthYear && <div>Month: {monthYear}</div>}
+                      {startDate && (
                         <span>
-                          {isUpcoming ? "Starts" : "From"}{" "}
-                          {fmt(playerPass.startDate)}
-                          {playerPass?.expiryDate ? " · " : ""}
+                          {isUpcoming ? "Starts" : "From"} {fmt(startDate)}
+                          {expiryDate ? " · " : ""}
                         </span>
                       )}
-                      {playerPass?.expiryDate ? (
-                        <span>Expires {fmt(playerPass.expiryDate)}</span>
+                      {expiryDate ? (
+                        <span>Expires {fmt(expiryDate)}</span>
                       ) : (
-                        !playerPass?.passMonthYear &&
-                        !playerPass?.startDate && (
+                        !monthYear &&
+                        !startDate && (
                           <span style={{ color: "#555" }}>No expiry set</span>
                         )
+                      )}
+                      {others > 0 && (
+                        <div>
+                          +{others} more pass{others > 1 ? "es" : ""}
+                        </div>
                       )}
                     </div>
                   )}
