@@ -154,9 +154,8 @@ export function EventCard({
         <div className="card-price">
           {/* A covered seat shows the old price struck through and what they
               actually pay — which is ₹0 for a full cover and a real number for a
-              discount pass. The pass's NAME goes beside it: "Free" on its own
-              invites "free why?", and the answer is the thing we want them to
-              remember they are holding. */}
+              discount pass. The pass's name is left off: it crowded the price
+              block, and the booking sheet names it on its own line. */}
           {(passInfo?.covered || (passEligible && fee > 0)) && fee > 0 ? (
             <>
               <div className="price-original">₹{fee}</div>
@@ -165,7 +164,6 @@ export function EventCard({
                   ? `₹${Math.round(passInfo.payablePaise / 100)}`
                   : "₹0"}
               </div>
-              {passInfo?.passName && <div className="price-pass-name">{passInfo.passName}</div>}
             </>
           ) : (
             <>
