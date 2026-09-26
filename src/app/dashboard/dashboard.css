@@ -683,22 +683,6 @@ body::after {
   letter-spacing: -0.02em;
 }
 
-/* Which pass is doing it. "Free" on its own invites "free why?", and the answer
-   is the thing we want the player to remember they are holding. */
-.price-pass-name {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #7f9c2a;
-  line-height: 1.2;
-  margin-top: 2px;
-  max-width: 92px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .price-original {
   font-size: 11px;
   font-weight: 600;
