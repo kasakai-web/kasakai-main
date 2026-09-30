@@ -41,6 +41,17 @@ type BookingGame = {
   requiresApproval?: boolean;
   /** This game charges for giving up a slot near kick-off (server's `backoutInfo.active`). */
   cancellationFeeApplies?: boolean;
+  /** Booking one of the game's HOST spots rather than an ordinary one. Solo, no
+   *  waitlist and no approval gate — the organiser already approved their hosts.
+   *  `spots` is then the host spots left. */
+  asHost?: boolean;
+  /** Rupees, all from the server's `?asHost=1` quote: the host price before any
+   *  pass, what the organiser took off the fee for hosts, and what the host will
+   *  actually pay once a pass has been applied to the host price. */
+  hostPrice?: number;
+  hostDiscount?: number;
+  hostPayable?: number;
+  hostPassName?: string | null;
 };
 
 type Guest = {
@@ -253,25 +264,40 @@ export function BookingModal({
 
   if (!game || !game.venue) return null;
 
-  const isWaitlist    = game.waitlist;
+  // A host spot is the host's own seat: never a waitlist, never a request, and
+  // never with guests (they are added afterwards, into ordinary spots).
+  const isHostSeat    = Boolean(game.asHost);
+  const isWaitlist    = !isHostSeat && game.waitlist;
   // Approval-gated join: the player files a request the organiser must approve.
   // No charge now (charged on approval), and guests are added after approval.
-  const needsApproval = !isWaitlist && Boolean(game.requiresApproval);
-  const passInfo      = game.passInfo || null;
-  const passEligible  = passInfo ? passInfo.covered : Boolean(game.passEligible);
+  const needsApproval = !isHostSeat && !isWaitlist && Boolean(game.requiresApproval);
+  const passInfo      = isHostSeat ? null : game.passInfo || null;
+  // What a host pays is the server's quote — the organiser's discount, then any
+  // pass applied to the host price — never re-derived here.
+  const hostPrice     = isHostSeat ? (game.hostPrice ?? game.fee) : game.fee;
+  const hostDiscount  = isHostSeat ? (game.hostDiscount ?? Math.max(0, game.fee - hostPrice)) : 0;
+  const hostPayable   = isHostSeat ? (game.hostPayable ?? hostPrice) : game.fee;
+  const passEligible  = isHostSeat
+    ? hostPayable < hostPrice
+    : passInfo ? passInfo.covered : Boolean(game.passEligible);
   // What the pass takes off the player's OWN seat. Guests are covered only when
   // the pass says so, and the server has already decided that — this is simply
   // the difference it quoted.
-  const passBenefit   = passInfo ? Math.round(passInfo.benefitPaise / 100) : (passEligible ? game.fee : 0);
+  const passBenefit   = isHostSeat
+    ? Math.max(0, hostPrice - hostPayable)
+    : passInfo ? Math.round(passInfo.benefitPaise / 100) : (passEligible ? game.fee : 0);
+  const passName      = isHostSeat ? game.hostPassName : passInfo?.passName;
   // How many guests can be confirmed (fit in available spots after player takes 1)
-  const spotsForGuests = isWaitlist ? 0 : Math.max(0, (game.spots ?? 0) - 1);
+  const spotsForGuests = isWaitlist || isHostSeat ? 0 : Math.max(0, (game.spots ?? 0) - 1);
   // Guests beyond spotsForGuests go to waitlist
   const confirmedGuestCount = Math.min(guests.length, spotsForGuests);
   const waitlistGuestCount  = Math.max(0, guests.length - spotsForGuests);
   // What the player's own seat costs after the pass. Taken from the server's
   // quote rather than re-derived, so the number beside the button is the number
   // the debit will take.
-  const playerFee = passInfo
+  const playerFee = isHostSeat
+    ? hostPayable
+    : passInfo
     ? Math.round(passInfo.payablePaise / 100)
     : (passEligible ? 0 : game.fee);
   const totalFee  = playerFee + (game.fee * confirmedGuestCount);
@@ -332,8 +358,8 @@ export function BookingModal({
     setPhotoError(false);
     setIsLoading(true);
     try {
-      const confirmedGuests = isWaitlist ? guests : guests.slice(0, spotsForGuests);
-      const overflowGuests  = isWaitlist ? []     : guests.slice(spotsForGuests);
+      const confirmedGuests = isHostSeat ? [] : isWaitlist ? guests : guests.slice(0, spotsForGuests);
+      const overflowGuests  = isHostSeat || isWaitlist ? [] : guests.slice(spotsForGuests);
       await onConfirm(game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests, teamRequests);
     } finally {
       setIsLoading(false);
@@ -358,7 +384,7 @@ export function BookingModal({
         <div id="bookingForm">
             <div className="bm-header">
               <div className="bm-title-group">
-                <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : "Book"}</div>
+                <div className="bm-eyebrow">{isWaitlist ? "Join Waitlist" : isHostSeat ? "Book as Host" : "Book"}</div>
                 <div className="bm-title">
                   {venueName}
                   {venueCity ? (
@@ -388,7 +414,7 @@ export function BookingModal({
                 <div className="bm-info-value">{game.format}</div>
               </div>
               <div className="bm-info-item">
-                <div className="bm-info-label">Spots Left</div>
+                <div className="bm-info-label">{isHostSeat ? "Host Spots" : "Spots Left"}</div>
                 <div className="bm-info-value">{isWaitlist ? "Waitlist" : game.spots}</div>
               </div>
             </div>
@@ -489,8 +515,37 @@ export function BookingModal({
                 )}
               </div>
 
+              {/* What a host spot is, said before any money moves: the seat is
+                  theirs at the organiser's price, and the game is theirs to run. */}
+              {isHostSeat && (
+                <div style={{
+                  background: "rgba(200,255,62,0.07)",
+                  border: "1px solid rgba(200,255,62,0.3)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  marginBottom: 14,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 16 }}>🎖</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: "#c8ff3e" }}>Host spot</span>
+                    {hostDiscount > 0 && (
+                      <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#4ade80", background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 20, padding: "2px 8px" }}>
+                        {formatRupees(hostDiscount * 100)} OFF
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#aaa", lineHeight: 1.6 }}>
+                    You&apos;re running this game on the day: check players in, split the teams and close the
+                    game, all from <strong style={{ color: "#ddd" }}>Hosting</strong>.
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#666", lineHeight: 1.5, borderTop: "1px solid rgba(200,255,62,0.1)", paddingTop: 6 }}>
+                    This spot is for you only. Friends can be added after booking, into ordinary spots at the full {formatRupees(game.fee * 100)}.
+                  </div>
+                </div>
+              )}
+
               {/* Pass banner */}
-              {passEligible && !isWaitlist && (
+              {passEligible && !isWaitlist && !isHostSeat && (
                 <div style={{
                   background: "rgba(200,255,62,0.07)",
                   border: "1px solid rgba(200,255,62,0.3)",
@@ -530,7 +585,7 @@ export function BookingModal({
                 </div>
               )}
 
-              {!needsApproval && (
+              {!needsApproval && !isHostSeat && (
               <div className="bm-guests-section">
                 <div className="bm-guests-header">
                   <div>
@@ -619,11 +674,16 @@ export function BookingModal({
                         )}
                       </div>
 
-                      {passEligible && totalFee === 0 ? (
+                      {totalFee === 0 && (passEligible || hostDiscount > 0) ? (
                         <>
                           <div className="ws-fee" style={{ color: "#c8ff3e" }}>Free</div>
                           <div className="ws-balance" style={{ color: "#888" }}>
-                            <s style={{ color: "#555" }}>₹{game.fee}</s> · Covered by {passInfo?.passName || "Pass"}
+                            <s style={{ color: "#555" }}>{formatRupees(game.fee * 100)}</s> ·{" "}
+                            {hostDiscount > 0 && passBenefit > 0
+                              ? `Host discount + ${passName || "Pass"}`
+                              : hostDiscount > 0
+                              ? "Host discount"
+                              : `Covered by ${passName || "Pass"}`}
                           </div>
                         </>
                       ) : (
@@ -632,19 +692,25 @@ export function BookingModal({
 
                           <div className="bm-pay-rows">
                             {/* An explicit line, never a silently lower total:
-                                the fee, what the pass took off it, and what is
-                                left to pay. */}
+                                the fee, what the host discount and the pass
+                                took off it, and what is left to pay. */}
+                            {(hostDiscount > 0 || (passEligible && passBenefit > 0)) && (
+                              <div className="bm-pay-row">
+                                <span>Game fee</span>
+                                <span>{formatRupees(game.fee * 100)}</span>
+                              </div>
+                            )}
+                            {hostDiscount > 0 && (
+                              <div className="bm-pay-row">
+                                <span>Host discount</span>
+                                <span className="bm-pay-free">−{formatRupees(hostDiscount * 100)}</span>
+                              </div>
+                            )}
                             {passEligible && passBenefit > 0 && (
-                              <>
-                                <div className="bm-pay-row">
-                                  <span>Game fee</span>
-                                  <span>{formatRupees(game.fee * 100)}</span>
-                                </div>
-                                <div className="bm-pay-row">
-                                  <span>{passInfo?.passName || "Pass"}</span>
-                                  <span className="bm-pay-free">−{formatRupees(passBenefit * 100)}</span>
-                                </div>
-                              </>
+                              <div className="bm-pay-row">
+                                <span>{passName || "Pass"}</span>
+                                <span className="bm-pay-free">−{formatRupees(passBenefit * 100)}</span>
+                              </div>
                             )}
                             <div className="bm-pay-row">
                               <span>Wallet balance</span>
@@ -699,7 +765,11 @@ export function BookingModal({
                   wallet credit, not a seat — somebody else can take the last spot
                   while the payment window is open, and the money stays theirs. */}
               {!isWaitlist && !needsApproval && funding.needsTopUp && (
-                <div className="bm-spot-note">{SPOT_NOT_HELD_NOTE}</div>
+                <div className="bm-spot-note">
+                  {isHostSeat
+                    ? "Host spots aren't held while you add money. If another host takes the last one first, the amount stays in your wallet."
+                    : SPOT_NOT_HELD_NOTE}
+                </div>
               )}
 
               {/* Said at the moment of commitment, not after. Deliberately a pointer

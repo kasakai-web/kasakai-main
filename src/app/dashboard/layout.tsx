@@ -18,6 +18,7 @@ import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import CityPicker from "@/components/dashboard/CityPicker";
 import { type BrowseContext, getStoredMetro, setStoredMetro } from "@/utils/browse";
+import { fetchHosting } from "@/utils/hosting";
 import "./dashboard.css";
 import Image from "next/image";
 
@@ -31,7 +32,8 @@ type PlayerSection =
   | "profile"
   | "wallet"
   | "passes"
-  | "ratings";
+  | "ratings"
+  | "hosting";
 
 // The segment after /dashboard, mapped to the sidebar section it highlights.
 // The bare /dashboard — and anything unrecognised — is the browse list.
@@ -45,6 +47,7 @@ const SECTION_BY_SEGMENT: Record<string, PlayerSection> = {
   wallet: "wallet",
   passes: "passes",
   ratings: "ratings",
+  hosting: "hosting",
 };
 
 export default function DashboardLayout({
@@ -67,6 +70,10 @@ export default function DashboardLayout({
   const [headerCityLoading, setHeaderCityLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUnread, setSidebarUnread] = useState(0);
+  // Hosting only earns a sidebar item once it applies: an approved host, a
+  // facilitation request waiting, or a game being run. The badge counts the
+  // requests, which are the only thing on that page that waits for an answer.
+  const [hostingNav, setHostingNav] = useState<{ show: boolean; invites: number }>({ show: false, invites: 0 });
   const [showPhotoReminder, setShowPhotoReminder] = useState(false);
   const [playerPass, setPlayerPass] = useState<{
     type: string;
@@ -199,6 +206,37 @@ export default function DashboardLayout({
   }, [authenticated]);
 
   useEffect(() => { refreshUnreadCount(); }, [refreshUnreadCount, pathname]);
+
+  const refreshHostingNav = useCallback(async () => {
+    if (!authenticated) return;
+    try {
+      const h = await fetchHosting();
+      setHostingNav({
+        show: h.isHost || h.counts.invites > 0 || h.counts.running > 0,
+        invites: h.counts.invites,
+      });
+    } catch {}
+  }, [authenticated]);
+
+  // Not on every navigation — it is a heavier read than a badge count. On sign-in,
+  // on focus, and whenever a notification lands (an approval or a facilitation
+  // request always arrives as one).
+  useEffect(() => { refreshHostingNav(); }, [refreshHostingNav]);
+  useAutoRefresh(authenticated ? refreshHostingNav : null, {
+    interval:  0,
+    onFocus:   true,
+    onVisible: true,
+    enabled: authenticated,
+  });
+  useEffect(() => {
+    const onNew = () => refreshHostingNav();
+    window.addEventListener("kk-new-notification", onNew);
+    window.addEventListener("kk-hosting-changed", onNew);
+    return () => {
+      window.removeEventListener("kk-new-notification", onNew);
+      window.removeEventListener("kk-hosting-changed", onNew);
+    };
+  }, [refreshHostingNav]);
   // The socket pushes `new-notification`, which bumps this count immediately
   // (see the listener below) — so a 15-second timer was asking every open tab to
   // re-ask the server for something it was already being told.
@@ -384,7 +422,8 @@ export default function DashboardLayout({
       | "notifications"
       | "wallet"
       | "passes"
-      | "ratings",
+      | "ratings"
+      | "hosting",
   ) => {
     router.push(destination === "browse" ? "/dashboard" : `/dashboard/${destination}`);
   };
@@ -658,6 +697,34 @@ export default function DashboardLayout({
             >
               <span className="sidebar-icon">⭐</span>My Feedback
             </button>
+            {hostingNav.show && (
+              <button
+                className={`sidebar-link ${activeSection === "hosting" ? "active" : ""}`}
+                onClick={() => {
+                  setActiveSection("hosting");
+                  setSidebarOpen(false);
+                  navigateToPlayer("hosting");
+                }}
+              >
+                <span className="sidebar-icon">🎖</span>Hosting
+                {hostingNav.invites > 0 && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      background: "#c8ff3e",
+                      color: "#0f0f0f",
+                      fontFamily: "var(--mono)",
+                      fontSize: "9px",
+                      padding: "2px 6px",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {hostingNav.invites}
+                  </span>
+                )}
+              </button>
+            )}
             <button
               className={`sidebar-link ${activeSection === "passes" ? "active" : ""}`}
               onClick={() => {

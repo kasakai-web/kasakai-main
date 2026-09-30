@@ -56,6 +56,10 @@ export interface EventCardProps {
   // including the waitlist. Server-computed (`registrationLocked`); it lifts by
   // itself as soon as anyone drops out, so the card must never cache it.
   registrationLocked?: boolean;
+  /** This viewer is one of the organiser's approved hosts and may book a host
+   *  spot here right now — the server's `hostInfo.viewerCanBook`, the same gate
+   *  the booking runs. Booked from the game's Players tab. */
+  hostSpotOpen?: boolean;
   requestStatus?: "pending" | "approved_unpaid" | null;
   onCancelRequest?: () => void;
   /**
@@ -94,6 +98,7 @@ export function EventCard({
   isWaitlistApproved = false,
   requiresApproval = false,
   registrationLocked = false,
+  hostSpotOpen = false,
   requestStatus = null,
   onCancelRequest,
   onPayApproved,
@@ -150,6 +155,7 @@ export function EventCard({
           {isRegistered && !isCancelled && optedOut && <span className="registered-badge waitlisted-badge">↩ Not attending</span>}
           {isRegistered && !isCancelled && !optedOut && <span className="registered-badge">✓ Registered</span>}
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
+          {hostSpotOpen && !isRegistered && !isCancelled && <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span>}
         </div>
         <div className="card-price">
           {/* A covered seat shows the old price struck through and what they

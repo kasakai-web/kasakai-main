@@ -28,6 +28,8 @@ import {
 import { useWalletTopUp } from "@/hooks/useWalletTopUp";
 import { useWaitlistOffer } from "@/hooks/useWaitlistOffer";
 import { formatRupees } from "@/utils/walletFunding";
+// Hosts: the server's hostInfo on each game, and the lines drawn from it.
+import { fetchHostQuote, runByText, whenText, type HostInfo } from "@/utils/hosting";
 // Checkouts opened by the previous release, where the shortfall was collected at
 // the gateway. Nothing starts one any more; this finishes the ones still out
 // there. See utils/directCheckout.ts.
@@ -179,7 +181,7 @@ const POS_FULL_LABEL: Record<string, string> = {
 type RosterRowProps = {
   name: string;
   subLabel: string;
-  badge?: "organiser" | "guest";
+  badge?: "organiser" | "guest" | "host";
   optedOut?: boolean;
   guestRow?: boolean;
   imageUrl?: string;
@@ -242,6 +244,7 @@ const RosterRow = React.memo(function RosterRow({
       </div>
       {badge === "organiser" && <span className="pd-roster-badge pd-roster-badge-org">Organiser</span>}
       {badge === "guest" && <span className="pd-roster-badge pd-roster-badge-guest">Guest</span>}
+      {badge === "host" && <span className="pd-roster-badge pd-roster-badge-host" title="Running this game for the organiser">Host</span>}
       {organiserProfile && <ChevronRight size={16} className="pd-roster-chevron" aria-hidden="true" />}
       {profileOpen && organiserProfile && (
         <OrganiserProfileDialog {...organiserProfile} onClose={() => setProfileOpen(false)} />
@@ -1094,13 +1097,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     window.dispatchEvent(new CustomEvent("player-tab-change", { detail: sidebarSection }));
   }, [section]);
 
-  const handleBook = (game: any) => {
-    const organiserCount = getOrganiserCount(game);
-    const spotsLeft = typeof game.spotsRemaining === 'number'
-      ? game.spotsRemaining
-      : game.totalSlots - getActiveRegs(game) - organiserCount;
-    const isFull = spotsLeft <= 0;
-    const formattedGame = {
+  const handleBook = async (game: any, opts: { asHost?: boolean } = {}) => {
+    const shared = {
       id: game._id,
       _id: game._id,
       venue: `${game.turf?.name || 'TBC'},${game.turf?.address?.city || 'TBC'}`,
@@ -1108,11 +1106,6 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       time: new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
       format: game.format,
       fee: game.feeInPaise / 100,
-      spots: Math.max(0, spotsLeft),
-      waitlist: isFull,
-      passEligible: Boolean(game.passEligible),
-      passInfo: game.passInfo ?? null,
-      requiresApproval: Boolean(game.requiresApproval),
       // Whether this game charges for a late departure at all. Only the fact, not the
       // amount — the modal points at the rules, which carry the whole scale.
       cancellationFeeApplies: Boolean(game.backoutInfo?.active),
@@ -1129,7 +1122,46 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         .filter((r: any, i: number, all: any[]) =>
           r.id && r.id !== `guest:` && all.findIndex((x) => x.id === r.id) === i),
     };
-    setSelectedGame(formattedGame);
+
+    // A host spot is priced by the server — the organiser's discount, then any
+    // pass on what is left, the arithmetic the booking itself charges — so the
+    // sheet opens on that quote or not at all. There is no client copy of either
+    // rule to fall back on, and a guessed price is one the debit may not match.
+    if (opts.asHost) {
+      try {
+        const quote = await fetchHostQuote(game._id);
+        setSelectedGame({
+          ...shared,
+          fee: quote.feePerSlotPaise / 100,
+          spots: Math.max(0, (game.hostInfo as HostInfo | undefined)?.open ?? 0),
+          waitlist: false,
+          requiresApproval: false,
+          asHost: true,
+          hostPrice: quote.hostPricePaise / 100,
+          hostDiscount: quote.hostDiscountPaise / 100,
+          hostPayable: quote.playerFeePaise / 100,
+          hostPassName: quote.passEligible ? quote.passLabel : null,
+        });
+      } catch (err) {
+        showToast("error", "Can't book a host spot", err instanceof Error ? err.message : undefined);
+        refreshSection();
+      }
+      return;
+    }
+
+    const organiserCount = getOrganiserCount(game);
+    const spotsLeft = typeof game.spotsRemaining === 'number'
+      ? game.spotsRemaining
+      : game.totalSlots - getActiveRegs(game) - organiserCount;
+    const isFull = spotsLeft <= 0;
+    setSelectedGame({
+      ...shared,
+      spots: Math.max(0, spotsLeft),
+      waitlist: isFull,
+      passEligible: Boolean(game.passEligible),
+      passInfo: game.passInfo ?? null,
+      requiresApproval: Boolean(game.requiresApproval),
+    });
   };
 
   // Withdraw a pending join request (approval-gated games).
@@ -1516,6 +1548,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         }),
       };
       if (!isWaitlist) body.willingIfFormatChange = willingIfFormatChange;
+      // The same booking endpoint, asked for a host spot. The server runs the
+      // same gate the "Book as host" button was drawn from, and prices the seat.
+      if (game.asHost) body.asHost = true;
       if (!isWaitlist && waitlistGuests && waitlistGuests.length > 0) {
         body.waitlistGuests = waitlistGuests.map((g, index) => {
           const fallbackName = `Guest ${index + 1}`;
@@ -1594,8 +1629,10 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         } else {
           const autoGuests: string[] = data.autoConfirmedGuests || [];
           const waitlistAdded: number = data.waitlistGuestsAdded || 0;
-          let msg = "✓ Event booking confirmed!";
-          let subtitle: string | undefined;
+          const msg = data.asHost ? "✓ Host spot booked!" : "✓ Event booking confirmed!";
+          let subtitle: string | undefined = data.asHost ? "Your host tools for this game are under Hosting." : undefined;
+          // The sidebar's Hosting entry lists the games this player runs.
+          if (data.asHost) window.dispatchEvent(new CustomEvent("kk-hosting-changed"));
           if (autoGuests.length === 1) {
             subtitle = `${autoGuests[0]} also confirmed from waitlist`;
           } else if (autoGuests.length > 1) {
@@ -1627,7 +1664,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         // and the spots had gone. Nothing was spent on a seat that does not
         // exist, so this is an offer rather than an apology — asked, never
         // assumed, because a waitlist place is a commitment to turn up.
-        if (!isWaitlist && isCapacityRefusal(data)) {
+        // Not for a host spot: the waitlist queues for an ordinary spot at the
+        // full fee, which is not what a host who lost the race was booking.
+        if (!isWaitlist && !game.asHost && isCapacityRefusal(data)) {
           refreshSection();
           const outcome = await offerWaitlist({
             gameId: game._id,
@@ -1667,6 +1706,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         } else {
           showToast("error", bookingErrorMessage(data, { toppedUpPaise }) || (isWaitlist ? "Waitlist failed." : "Registration failed."));
           if (res && res.status === 409) fetchWalletBalance();
+          // A host spot that went, or a host approval that ended, since the page
+          // loaded: redraw, so the "Book as host" button says what is true now.
+          if (game.asHost) refreshSection();
         }
       }
     } catch {
@@ -2368,6 +2410,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   }
                   requiresApproval={Boolean(game.requiresApproval)}
                   registrationLocked={Boolean(game.registrationLocked)}
+                  hostSpotOpen={Boolean((game.hostInfo as HostInfo | undefined)?.viewerCanBook)}
                   requestStatus={game._myRequestStatus || null}
                   onPayApproved={() => handleConfirmApproved(game)}
                   onCancelRequest={() => handleCancelRequest(game)}
@@ -2992,12 +3035,64 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               </div>
             )}
 
+            {/* Hosts: the way into the host tools for whoever is running this game,
+                the host-spot offer for this organiser's approved hosts, and — for
+                everyone — who is running it. All from the server's hostInfo. */}
+            {detailTab === "players" && detailGame.hostInfo && !detailIsCancelled && (() => {
+              const hi = detailGame.hostInfo as HostInfo;
+              const runBy = runByText(hi.runBy);
+              return (
+                <>
+                  {hi.viewerStaffRole && (
+                    <div className="pd-host-strip">
+                      <div className="pd-host-strip-text">
+                        You&apos;re running this game as its <b>{hi.viewerStaffRole}</b> — roster, attendance,
+                        teams and wrap-up are in your host tools.
+                      </div>
+                      <button
+                        type="button"
+                        className="pd-host-strip-btn"
+                        onClick={() => { const id = detailGame._id; setDetailGame(null); router.push(`/dashboard/hosting/${id}`); }}
+                      >
+                        Open host tools
+                      </button>
+                    </div>
+                  )}
+                  {!hi.viewerStaffRole && hi.viewerIsApprovedHost && hi.viewerCanBook && (
+                    <div className="pd-host-strip">
+                      <div className="pd-host-strip-text">
+                        <b>{hi.open} host spot{hi.open === 1 ? "" : "s"} open for you</b> —{" "}
+                        {formatRupees(hi.pricePaise ?? 0)}
+                        {(hi.discountPaise || 0) > 0 && <> instead of {formatRupees(detailGame.feeInPaise || 0)}</>}.
+                        You&apos;ll run check-in and teams on the day.
+                      </div>
+                      <button
+                        type="button"
+                        className="pd-host-strip-btn"
+                        onClick={() => { const g = detailGame; setDetailGame(null); handleBook(g, { asHost: true }); }}
+                      >
+                        Book as host
+                      </button>
+                    </div>
+                  )}
+                  {runBy && <div className="pd-host-runby">🎖 {runBy}</div>}
+                </>
+              );
+            })()}
+
             {detailTab === "players" && (
               <>
                 <div className="pd-roster-section-head">
                   <span className="pd-roster-section-title">Players</span>
                 </div>
                 <ProgressBar spotsTotal={detailGame.totalSlots } spotsLeft={detailGame.spotsRemaining} />
+                {(detailGame.hostInfo?.held ?? 0) > 0 && !detailIsCancelled && (
+                  <div className="pd-host-runby" style={{ marginTop: 6 }}>
+                    {detailGame.hostInfo.held} spot{detailGame.hostInfo.held === 1 ? " is" : "s are"} held for the
+                    organiser&apos;s hosts
+                    {detailGame.hostInfo.releaseAt ? ` until ${whenText(detailGame.hostInfo.releaseAt)}, then open to everyone` : ""}.
+                  </div>
+                )}
 
                 <div className="pd-roster-list  ">
                   {/* The organiser heads the roster rather than sitting in a
@@ -3064,6 +3159,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                                   name={reg.player?.name || "Player"}
                                   subLabel={POS_FULL_LABEL[reg.preferredPosition] || "Any"}
                                   optedOut={!!reg.optedOut}
+                                  badge={reg.seatType === "host" ? "host" : undefined}
                                   imageUrl={resolveImageUrl(reg.player?.profileImage)}
                                   onAvatarClick={setLightboxImage}
                                 />
