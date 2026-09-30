@@ -46,7 +46,7 @@ export function TopUpSheet({ need, onDone }: Props) {
   const [amountPaise, setAmountPaise] = useState(minPaise);
   const [customStr, setCustomStr] = useState("");
   const [step, setStep] = useState<Step>("amount");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offer, setOffer] = useState<RechargeOffer>(INACTIVE_OFFER);
 
