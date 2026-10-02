@@ -7,6 +7,7 @@ import { describeFunding, formatRupees, SPOT_NOT_HELD_NOTE } from "@/utils/walle
 import { useWalletTopUp } from "@/hooks/useWalletTopUp";
 import { useWaitlistOffer } from "@/hooks/useWaitlistOffer";
 import { PreferenceDisclaimer, QuickPositionTeam } from "@/components/PlayPreferences";
+import { fetchOfferQuote, isOfferRefusal, type OfferInfo, type OfferQuote } from "@/utils/offers";
 
 type ShowToast = (type: "success" | "error", title: string, message?: string) => void;
 
@@ -17,9 +18,12 @@ interface InviteData {
   format: string;
   venue: string;
   fee: number;
-  payableFee?: number;      // what this player actually pays (pass-adjusted)
+  payableFee?: number;      // what this player actually pays (pass- and offer-adjusted)
   passCovered?: boolean;
   passLabel?: string | null;
+  /** The auto offer confirming this invite applies to the player's own seat —
+   *  already in `payableFee`. The server's answer; never re-derived here. */
+  offerInfo?: OfferInfo | null;
   walletAvailable?: number | null; // spendable wallet balance (₹); null = not logged in
   canAfford?: boolean | null;      // can this player cover payableFee now? null = unknown
   status: string;
@@ -87,6 +91,16 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
   const [position, setPosition] = useState("Any");
   const [teamPreference, setTeamPreference] = useState("No Preference");
 
+  // A coupon code, the same as the booking sheet takes. The server answers
+  // whether it applies (the checkout quote) and re-decides it on confirm;
+  // `baseline` is the invite read's own price, restored when a code is removed.
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeMsg, setCodeMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [baseline, setBaseline] = useState<{ offerInfo: OfferInfo | null; payableFee?: number } | null>(null);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -99,6 +113,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         if (!active) return;
         if (!d.success) { setError(d.message || "Invitation not found or expired."); return; }
         setData(d.data);
+        setBaseline({ offerInfo: d.data?.offerInfo ?? null, payableFee: d.data?.payableFee });
         // For a shared link the player's standing comes from link.myStatus; for a
         // personal invite it's the invitation's own status.
         const initialStatus = d.data?.linkType === "shared"
@@ -122,9 +137,19 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
         : `/api/v1/games/invite/${token}/confirm`;
       // Accepting an invite takes a seat, so it costs what any other seat costs
       // and is paid for the same way: from the wallet, topped up first if short.
+      // The saving this screen showed goes with it, so the server refuses rather
+      // than charge more if the offer has since run out.
+      // A code the player applied goes too — on a request it is checked now and
+      // taken off when the organiser approves.
+      const shownOffer = !data?.passCovered ? data?.offerInfo : null;
       const { res, data: d, cancelled, toppedUpPaise } = await postWithTopUp<any>(
         endpoint,
-        { position, teamPreference },
+        {
+          position,
+          teamPreference,
+          ...(appliedCode && shownOffer?.source === "code" ? { couponCode: appliedCode } : {}),
+          ...(shownOffer && !needsApproval ? { expectedDiscountPaise: shownOffer.savingPaise } : {}),
+        },
         {
           requestTopUp,
           onPhase: (phase) => setPaying(phase !== "done"),
@@ -150,6 +175,28 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       }
       if (res?.status === 409 && d.code === "LINK_FULL") {
         showToast("error", "Link full", "This invite link has reached its join limit.");
+        return;
+      }
+      // The offer changed while they were deciding. Nothing was charged: show the
+      // fresh price and let them confirm it themselves.
+      if (isOfferRefusal(d)) {
+        const fresh = (d.offer as OfferQuote | undefined)?.applied ?? null;
+        setData((prev) => (prev ? {
+          ...prev,
+          offerInfo: fresh,
+          payableFee: (fresh ? fresh.payablePaise : Math.round(prev.fee * 100)) / 100,
+        } : prev));
+        const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
+        if (d.code === "COUPON_REJECTED") {
+          setAppliedCode(null);
+          setCodeOpen(true);
+          setCodeMsg({ text: d.message || "That code can't be used on this game.", ok: false });
+        }
+        showToast(
+          "error",
+          d.code === "COUPON_REJECTED" ? "Code not applied" : "The offer changed",
+          `${d.message || "Check the new total and confirm again."}${moneyNote}`,
+        );
         return;
       }
       if (!res || !res.ok || !d.success) {
@@ -188,6 +235,41 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       setSubmitting(false);
       setPaying(false);
     }
+  };
+
+  // The server answers; this only asks. A code that saves at least as much as
+  // the offer already shown replaces it; one that saves less is said so, and the
+  // better one stays.
+  const applyCode = async () => {
+    // Letters and digits only, as the server compares them: "ujjwal-3r4ew" is UJJWAL3R4EW.
+    const code = codeInput.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!code || !data?.gameId || codeBusy) return;
+    setCodeBusy(true);
+    setCodeMsg(null);
+    const r = await fetchOfferQuote(data.gameId, { code });
+    setCodeBusy(false);
+    if (!r.ok) { setCodeMsg({ text: r.message, ok: false }); return; }
+    const q = r.offer;
+    const applied = q.applied;
+    if (q.code?.ok && applied?.source === "code") {
+      setAppliedCode(code);
+      setData((prev) => (prev ? { ...prev, offerInfo: applied, payableFee: applied.payablePaise / 100 } : prev));
+      setCodeMsg({ text: `${code} applied.`, ok: true });
+    } else if (q.code?.ok) {
+      setCodeMsg({
+        text: `${code} saves ${formatRupees(q.code.savingPaise)} — less than the offer already applied, so that one stays.`,
+        ok: false,
+      });
+    } else {
+      setCodeMsg({ text: q.code?.message || "That code can't be used on this game.", ok: false });
+    }
+  };
+
+  const removeCode = () => {
+    setAppliedCode(null);
+    setCodeInput("");
+    setCodeMsg(null);
+    if (baseline) setData((prev) => (prev ? { ...prev, ...baseline } : prev));
   };
 
   const addFriend = () => {
@@ -240,6 +322,9 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       : `${data?.organiserName || "The organiser"} invited you`;
 
   const payable = data ? (typeof data.payableFee === "number" ? data.payableFee : data.fee) : 0;
+  // Not on a seat a pass covers or a free game, and not when settling an
+  // approval already given — that request's own code was saved when they asked.
+  const codeAllowed = !!data && !data.passCovered && data.fee > 0 && status !== "approved_unpaid";
   const feeLabel = `₹${payable}`;
 
   // How this seat gets paid for. A short wallet used to be a dead end here — the
@@ -316,7 +401,17 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
               <div style={{ fontSize: 13, color: "#bbb", lineHeight: 1.7 }}>
                 <div>📍 {data.venue}</div>
                 <div>📅 {dateText}</div>
-                <div>🏟️ {data.format} · 💰 {data.passCovered ? `Free — covered by ${data.passLabel || "your"} pass` : `${feeLabel} per player`}</div>
+                <div>🏟️ {data.format} · 💰 {data.passCovered
+                  ? `Free — covered by ${data.passLabel || "your"} pass`
+                  : data.offerInfo
+                    ? <><s style={{ color: "#666" }}>₹{data.fee}</s> {feeLabel} for you</>
+                    : `${feeLabel} per player`}</div>
+                {!data.passCovered && data.offerInfo && (
+                  <div style={{ marginTop: 4, color: "#c8ff3e", fontWeight: 700 }}>
+                    🏷️ {data.offerInfo.title}
+                    {data.offerInfo.endsLabel ? <span style={{ color: "#f0b45a", fontWeight: 600 }}> · {data.offerInfo.endsLabel}</span> : null}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -352,6 +447,66 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                   <PreferenceDisclaimer compact />
                 </div>
 
+                {codeAllowed && (
+                  <div style={{ marginBottom: 12 }}>
+                    {!codeOpen && !appliedCode ? (
+                      <button
+                        type="button"
+                        onClick={() => setCodeOpen(true)}
+                        style={{ background: "none", border: "none", padding: 0, color: "#c8ff3e", fontSize: 12, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}
+                      >
+                        Have a code?
+                      </button>
+                    ) : (
+                      <>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input
+                            value={codeInput}
+                            placeholder="Enter code"
+                            maxLength={40}
+                            autoCapitalize="characters"
+                            autoComplete="off"
+                            spellCheck={false}
+                            disabled={Boolean(appliedCode) || codeBusy}
+                            onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setCodeMsg(null); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCode(); } }}
+                            style={{ flex: 1, minWidth: 0, padding: "10px 12px", borderRadius: 9, border: "1px solid #2a2a2a", background: "#141414", color: "#fff", fontSize: 13, letterSpacing: 0.5 }}
+                          />
+                          {appliedCode ? (
+                            <button
+                              type="button"
+                              onClick={removeCode}
+                              style={{ flexShrink: 0, padding: "0 14px", borderRadius: 9, border: "1px solid #333", background: "#1a1a1a", color: "#ccc", fontWeight: 700, cursor: "pointer" }}
+                            >
+                              Remove
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={applyCode}
+                              disabled={!codeInput.trim() || codeBusy}
+                              style={{ flexShrink: 0, padding: "0 14px", borderRadius: 9, border: "1px solid rgba(200,255,62,0.3)", background: "rgba(200,255,62,0.08)", color: "#c8ff3e", fontWeight: 700, cursor: !codeInput.trim() || codeBusy ? "not-allowed" : "pointer", opacity: !codeInput.trim() || codeBusy ? 0.6 : 1 }}
+                            >
+                              {codeBusy ? "Checking…" : "Apply"}
+                            </button>
+                          )}
+                        </div>
+                        {codeMsg && (
+                          <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.5, color: codeMsg.ok ? "#c8ff3e" : "#f87171" }}>
+                            {codeMsg.text}
+                          </div>
+                        )}
+                        {needsApproval && appliedCode && (
+                          <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.5, color: "#888" }}>
+                            Saved with your request and taken off when the organiser approves. If it has lapsed by then,
+                            you&apos;ll be asked to confirm the new price — never charged it.
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {needsApproval && (
                   <div style={{ fontSize: 11.5, color: "#888", marginBottom: 8, textAlign: "center" }}>
                     Your spot needs organiser approval. You&apos;ll pay {feeLabel} only once approved — from your
@@ -368,6 +523,18 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                     border: "1px solid rgba(200,255,62,0.15)", background: "rgba(200,255,62,0.05)",
                     fontSize: 12, lineHeight: 1.8, color: "#9a9a9a",
                   }}>
+                    {/* An explicit line, never a silently lower total. */}
+                    {!data.passCovered && data.offerInfo && (
+                      <>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Game entry</span><span>₹{data.fee}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>{data.offerInfo.title}</span>
+                          <span style={{ color: "#c8ff3e", fontWeight: 700 }}>−{formatRupees(data.offerInfo.savingPaise)}</span>
+                        </div>
+                      </>
+                    )}
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span>Total</span><span style={{ color: "#cfcfcf", fontWeight: 700 }}>{feeLabel}</span>
                     </div>

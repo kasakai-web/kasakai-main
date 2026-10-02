@@ -14,6 +14,7 @@
 // console's `capabilities`. The screens only draw those answers.
 
 import { buildApiUrl, getSession } from "@/utils/api";
+import type { OfferQuote } from "@/utils/offers";
 
 /** The block every game read carries. Price and the gate only for approved hosts. */
 export interface HostInfo {
@@ -153,6 +154,10 @@ export interface HostQuote {
   playerFeePaise: number;
   passEligible: boolean;
   passLabel: string | null;
+  /** The offer on the host's own spot. `applied` is set only when it saves more
+   *  than the host discount — it then REPLACES it, and `playerFeePaise` already
+   *  includes it. */
+  offer?: OfferQuote;
 }
 
 export const fetchHosting = async (): Promise<HostingSummary> =>

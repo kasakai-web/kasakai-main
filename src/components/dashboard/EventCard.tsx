@@ -1,9 +1,10 @@
 "use client";
 
-import { avatarColorFor, avatarInitials } from "@/utils/avatar"; 
+import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
+import type { OfferInfo } from "@/utils/offers";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -42,6 +43,10 @@ export interface EventCardProps {
     benefitPaise: number;
     payablePaise: number;
   } | null;
+  /** The offer this viewer's own seat would get right now — the server's
+   *  `offerInfo`, never re-derived here. Absent for a signed-out viewer, on a
+   *  game they are already in, and wherever a pass covers the seat. */
+  offerInfo?: OfferInfo | null;
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
@@ -90,6 +95,7 @@ export function EventCard({
   fee,
   passEligible = false,
   passInfo = null,
+  offerInfo = null,
   spotsTotal,
   spotsLeft,
   isRegistered,
@@ -115,6 +121,12 @@ export function EventCard({
   const isAwaiting = awaitingResult && !isCancelled && status !== "completed";
   const isFull = !isCancelled && !isAwaiting && spotsLeft <= 0;
   const effectiveStatus = isCancelled ? "cancelled" : isFull ? "full" : status;
+  // "Included with your pass" wins over any entry-price offer (PRD §3A), and a
+  // game the player can no longer book shows no price promise at all.
+  const passCovers = Boolean((passInfo?.covered || passEligible) && fee > 0);
+  const offer = !passCovers && !isRegistered && !isCancelled && !isAwaiting && fee > 0 && offerInfo && offerInfo.savingPaise > 0
+    ? offerInfo
+    : null;
 
   const getDateLabel = () => {
     // Compare calendar days in IST (en-CA → "YYYY-MM-DD"), independent of the viewer's timezone.
@@ -162,7 +174,7 @@ export function EventCard({
               actually pay — which is ₹0 for a full cover and a real number for a
               discount pass. The pass's name is left off: it crowded the price
               block, and the booking sheet names it on its own line. */}
-          {(passInfo?.covered || (passEligible && fee > 0)) && fee > 0 ? (
+          {passCovers ? (
             <>
               <div className="price-original">₹{fee}</div>
               <div className="price-free">
@@ -170,6 +182,13 @@ export function EventCard({
                   ? `₹${Math.round(passInfo.payablePaise / 100)}`
                   : "₹0"}
               </div>
+            </>
+          ) : offer ? (
+            // The old price struck through beside what this player would pay —
+            // only ever the server's number for THIS viewer, never a guess.
+            <>
+              <div className="price-original">₹{fee}</div>
+              <div className="price-free">₹{Math.round(offer.payablePaise / 100)}</div>
             </>
           ) : (
             <>
@@ -179,6 +198,14 @@ export function EventCard({
           )}
         </div>
       </div>
+
+      {offer && (
+        <div className="card-offer" title={[offer.savingText, offer.terms].filter(Boolean).join(" · ")}>
+          <span className="card-offer-tag">OFFER</span>
+          <span className="card-offer-text">{offer.title}</span>
+          {offer.endsLabel && <span className="card-offer-ends">{offer.endsLabel}</span>}
+        </div>
+      )}
 
       {/* Venue Information */}
       <div className="card-venue-section">

@@ -6,7 +6,10 @@ import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import { TeamOutcomeBadge } from "@/components/PlayPreferences";
 import { PublishedTeamsView, type PublishedTeams } from "@/components/dashboard/PublishedTeams";
-import type { BookingGuest } from "@/components/dashboard/BookingModal";
+import type { BookingGuest, BookingOutcome } from "@/components/dashboard/BookingModal";
+// Offers and coupon codes: the server decides; the sheet sends back the player's
+// choice and the saving it showed, and a refusal keeps the sheet open.
+import { isOfferRefusal, type OfferChoice } from "@/utils/offers";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
 import { OrganiserProfileDialog } from "@/components/dashboard/OrganiserProfile";
 import { InviteConfirmModal } from "@/components/InviteConfirmModal";
@@ -377,6 +380,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
 
    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"teams" | "players" | "details" | "rules">("players");
+  // "Offer details" on the game detail view — the conditions of the offer the
+  // server says this player's own seat would get.
+  const [detailOfferOpen, setDetailOfferOpen] = useState(false);
   // The published team sheet for the open game — null until it loads, and stays
   // null for a game whose organiser has not published teams.
   const [detailTeams, setDetailTeams] = useState<PublishedTeams | null>(null);
@@ -1141,6 +1147,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           hostDiscount: quote.hostDiscountPaise / 100,
           hostPayable: quote.playerFeePaise / 100,
           hostPassName: quote.passEligible ? quote.passLabel : null,
+          // Set only when an offer saves more than the host discount — it then
+          // replaces it, and hostPayable already includes it.
+          hostOffer: quote.offer?.applied ?? null,
         });
       } catch (err) {
         showToast("error", "Can't book a host spot", err instanceof Error ? err.message : undefined);
@@ -1160,6 +1169,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       waitlist: isFull,
       passEligible: Boolean(game.passEligible),
       passInfo: game.passInfo ?? null,
+      // The server's offer on this player's own seat; the sheet refreshes it
+      // from the checkout quote as it opens.
+      offerInfo: game.offerInfo ?? null,
       requiresApproval: Boolean(game.requiresApproval),
     });
   };
@@ -1520,7 +1532,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     willingIfFormatChange: boolean,
     waitlistGuests?: BookingGuest[],
     teamRequests?: { playerId?: string; guestName?: string; relation: "with" | "against" }[],
-  ) => {
+    offer?: OfferChoice,
+  ): Promise<BookingOutcome | void> => {
     try {
       const { token } = getSession();
       if (!token) {
@@ -1551,6 +1564,14 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       // The same booking endpoint, asked for a host spot. The server runs the
       // same gate the "Book as host" button was drawn from, and prices the seat.
       if (game.asHost) body.asHost = true;
+      // The code the player chose and the saving the sheet showed. The server
+      // re-decides the offer itself and never charges more than this promised —
+      // it refuses instead, with the fresh price. Re-sent unchanged by the
+      // top-up retry, so the offer is re-checked once the money has landed.
+      if (!isWaitlist && offer) {
+        if (offer.couponCode) body.couponCode = offer.couponCode;
+        if (offer.expectedDiscountPaise) body.expectedDiscountPaise = offer.expectedDiscountPaise;
+      }
       if (!isWaitlist && waitlistGuests && waitlistGuests.length > 0) {
         body.waitlistGuests = waitlistGuests.map((g, index) => {
           const fallbackName = `Guest ${index + 1}`;
@@ -1631,6 +1652,13 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           const waitlistAdded: number = data.waitlistGuestsAdded || 0;
           const msg = data.asHost ? "✓ Host spot booked!" : "✓ Event booking confirmed!";
           let subtitle: string | undefined = data.asHost ? "Your host tools for this game are under Hosting." : undefined;
+          // Say what the offer took off beside what was paid (PRD §3C) — the
+          // number the player saw on the sheet, now confirmed by the server.
+          const paidDiscount = Number(data.payment?.discountPaise) || 0;
+          if (paidDiscount > 0) {
+            const paidLine = `${formatRupees(Number(data.payment?.totalPaise) || 0)} paid · ${formatRupees(paidDiscount)} off${data.payment?.discountTitle ? ` (${data.payment.discountTitle})` : ""}`;
+            subtitle = subtitle ? `${paidLine}. ${subtitle}` : paidLine;
+          }
           // The sidebar's Hosting entry lists the games this player runs.
           if (data.asHost) window.dispatchEvent(new CustomEvent("kk-hosting-changed"));
           if (autoGuests.length === 1) {
@@ -1657,6 +1685,20 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           }
         }
       } else {
+        // Refused over the OFFER — a code that does not apply here, or an offer
+        // that changed since the sheet was drawn. Nothing was charged; the sheet
+        // stays open on the fresh price so the player confirms the new total
+        // themselves rather than being charged it.
+        if (isOfferRefusal(data)) {
+          const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
+          showToast(
+            "error",
+            data.code === "COUPON_REJECTED" ? "Code not applied" : "The offer changed",
+            `${data.message || "Check the new total and confirm again."}${moneyNote}`,
+          );
+          return { offerRefused: { code: data.code, message: data.message, offer: data.offer ?? null } };
+        }
+
         setSelectedGame(null);
         const moneyNote = toppedUpPaise ? `${formatRupees(toppedUpPaise)} is in your wallet.` : undefined;
 
@@ -2398,6 +2440,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   fee={game.feeInPaise / 100}
                   passEligible={Boolean(game.passEligible)}
                   passInfo={game.passInfo ?? null}
+                  offerInfo={game.offerInfo ?? null}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={amRegisteredIn(game) && !isMyFormatChangeOptOut(game)}
@@ -2537,6 +2580,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
 
       {selectedGame && (
         <BookingModal
+          // One sheet per game (and per host/standard choice), so an offer or a
+          // typed code from one booking can never carry over into the next.
+          key={`${selectedGame._id || selectedGame.id}:${selectedGame.asHost ? "host" : "std"}`}
           game={selectedGame}
           walletBalance={walletBalance}
           onClose={() => setSelectedGame(null)}
@@ -2921,6 +2967,46 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>
                   Pass applies to <strong style={{ color: "#ccc" }}>your slot only</strong>. Any guests you bring pay the full ₹{(detailGame.feeInPaise || 0) / 100} entry fee each.
                 </div>
+              </div>
+            )}
+
+            {/* Offer banner in detail view — the server's offer on this player's
+                own seat (PRD §3B): the base price, the offer and what they would
+                pay, and its real conditions one tap away. Never beside a pass. */}
+            {detailTab === "details" && !detailGame.passEligible && detailGame.offerInfo && (detailGame.feeInPaise || 0) > 0 && (
+              <div style={{
+                background: "rgba(200,255,62,0.05)",
+                border: "1px dashed rgba(200,255,62,0.35)",
+                borderRadius: 10,
+                padding: "10px 14px",
+                marginBottom: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#c8ff3e" }}>
+                  🏷️ {detailGame.offerInfo.title} — entry is{" "}
+                  <span style={{ textDecoration: "line-through", opacity: 0.6 }}>{formatRupees(detailGame.offerInfo.feePaise)}</span>{" "}
+                  <strong>{formatRupees(detailGame.offerInfo.payablePaise)}</strong> for you
+                  {detailGame.offerInfo.endsLabel ? <span style={{ color: "#f0b45a", fontWeight: 600 }}> · {detailGame.offerInfo.endsLabel}</span> : null}
+                </div>
+                <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>
+                  Applied at booking to <strong style={{ color: "#ccc" }}>your spot only</strong> — guests pay the full fee.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setDetailOfferOpen((v) => !v)}
+                    aria-expanded={detailOfferOpen}
+                    style={{ background: "none", border: "none", padding: 0, color: "#c8ff3e", fontWeight: 700, fontSize: 11, textDecoration: "underline", cursor: "pointer" }}
+                  >
+                    {detailOfferOpen ? "Hide offer details" : "Offer details"}
+                  </button>
+                </div>
+                {detailOfferOpen && (
+                  <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 11, lineHeight: 1.6, color: "#999" }}>
+                    {detailGame.offerInfo.terms && <li>{detailGame.offerInfo.terms}</li>}
+                    {(detailGame.offerInfo.conditions || []).map((c: string) => <li key={c}>{c}</li>)}
+                  </ul>
+                )}
               </div>
             )}
 
