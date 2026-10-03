@@ -2229,6 +2229,120 @@ body::after {
   color: #f0b45a;
 }
 
+/* The strip is a toggle: it opens the dropdown of everything this player could
+   use here — the automatic offer and the shared codes they could type. */
+.card-offer-wrap {
+  margin-top: -2px;
+  min-width: 0;
+}
+button.card-offer {
+  width: 100%;
+  margin-top: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.card-offer:hover { background: rgba(200, 255, 62, 0.09); }
+.card-offer-wrap.open button.card-offer {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.card-offer-more {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #c8ff3e;
+}
+.card-offer-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #c8ff3e;
+  transition: transform 0.15s ease;
+}
+.card-offer-ends + .card-offer-chevron { margin-left: 0; }
+.card-offer-text + .card-offer-chevron { margin-left: auto; }
+.card-offer-wrap.open .card-offer-chevron { transform: rotate(180deg); }
+.card-offer-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 10px 8px;
+  border: 1px dashed rgba(200, 255, 62, 0.35);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: rgba(200, 255, 62, 0.03);
+}
+.card-offer-item {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.card-offer-item:last-of-type { border-bottom: none; }
+.card-offer-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-offer-auto {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c8ff3e;
+}
+.card-offer-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px dashed #c8ff3e;
+  border-radius: 4px;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #c8ff3e;
+  cursor: pointer;
+}
+.card-offer-copy {
+  font-family: var(--body, inherit);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #888;
+}
+.card-offer-pay {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #d9f99d;
+}
+.card-offer-item-title {
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #d9f99d;
+}
+.card-offer-item-terms {
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #999;
+}
+.card-offer-item-ends {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: #f0b45a;
+}
+.card-offer-note {
+  padding-top: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #777;
+}
+
 .bm-confirm-btn {
   width: 100%;
   padding: 16px;

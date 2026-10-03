@@ -2441,6 +2441,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   passEligible={Boolean(game.passEligible)}
                   passInfo={game.passInfo ?? null}
                   offerInfo={game.offerInfo ?? null}
+                  codeOffers={game.codeOffers ?? []}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={amRegisteredIn(game) && !isMyFormatChangeOptOut(game)}
