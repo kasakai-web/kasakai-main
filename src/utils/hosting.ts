@@ -60,7 +60,15 @@ export interface HostingGameCard {
 
 export interface HostingSummary {
   isHost: boolean;
-  hostFor: { _id: string; organiser: { _id: string; name: string; profileImage?: string | null } | null; since?: string | null }[];
+  /** One entry per approval. `organiser` recommended you; `covers` is who you host for — null means every organiser. */
+  hostFor: {
+    _id: string;
+    organiser: { _id: string; name: string; profileImage?: string | null } | null;
+    scope?: "organiser" | "organisers" | "all";
+    scopeLabel?: string;
+    covers?: { _id: string; name: string }[] | null;
+    since?: string | null;
+  }[];
   invites: HostingGameCard[];
   running: HostingGameCard[];
   openSpots: HostingGameCard[];

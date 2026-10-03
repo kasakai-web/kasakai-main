@@ -232,7 +232,13 @@ export default function HostingPage() {
                 {data.hostFor.map((h) => (
                   <div key={h._id} className="hs-card">
                     <div className="hs-card-main">
-                      <div className="hs-card-title">{h.organiser?.name || "Organiser"}</div>
+                      <div className="hs-card-title">{hostForTitle(h)}</div>
+                      {(h.scope ?? "organiser") !== "organiser" && (
+                        <div className="hs-card-meta">
+                          {h.covers ? h.covers.map((o) => o.name).join(", ") : "Host spots in any organiser's games"}
+                          {h.organiser?.name ? ` · recommended by ${h.organiser.name}` : ""}
+                        </div>
+                      )}
                       {h.since && (
                         <div className="hs-card-meta">
                           Host since {new Date(h.since).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })}
@@ -262,7 +268,7 @@ export default function HostingPage() {
       <ConfirmationModal
         open={!!stepDown}
         title="Step down as host?"
-        message={`You'll stop hosting for ${stepDown?.organiser?.name || "this organiser"}: no more host spots, and any games you were asked to facilitate are handed back. Host spots you've already booked stay yours.`}
+        message={`You'll stop hosting for ${stepDown ? hostForTitle(stepDown).replace(/^All organisers$/, "every organiser") : "this organiser"}: no more host spots, and any games you were asked to facilitate are handed back. Host spots you've already booked stay yours.`}
         confirmLabel="Step down"
         loading={busy !== null}
         onConfirm={confirmStepDown}
@@ -272,4 +278,12 @@ export default function HostingPage() {
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={hideToast} />}
     </div>
   );
+}
+
+/** "Bilal" / "All organisers" / "3 organisers" — who one approval lets you host for. */
+function hostForTitle(h: HostingSummary["hostFor"][number]) {
+  const scope = h.scope ?? "organiser";
+  if (scope === "all") return "All organisers";
+  if (scope === "organisers") return h.scopeLabel || `${h.covers?.length ?? 0} organisers`;
+  return h.organiser?.name || "Organiser";
 }
