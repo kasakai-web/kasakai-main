@@ -137,6 +137,9 @@ export function EventCard({
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
   const [offersOpen, setOffersOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  // Read the clock once per mount: render must stay pure, and a card's "Today" has
+  // never refreshed on its own anyway — only on a re-render or reload.
+  const [now] = useState(() => Date.now());
 
   const copyCode = async (code: string) => {
     try {
@@ -152,8 +155,8 @@ export function EventCard({
     // Compare calendar days in IST (en-CA → "YYYY-MM-DD"), independent of the viewer's timezone.
     const istYMD = (d: number | string | Date) =>
       new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-    const todayIST    = istYMD(Date.now());
-    const tomorrowIST = istYMD(Date.now() + 86_400_000);
+    const todayIST    = istYMD(now);
+    const tomorrowIST = istYMD(now + 86_400_000);
     const gameIST     = istYMD(date);
     if (gameIST === todayIST)    return "Today";
     if (gameIST === tomorrowIST) return "Tomorrow";
