@@ -49,8 +49,8 @@ export interface EventCardProps {
    *  game they are already in, and wherever a pass covers the seat. */
   offerInfo?: OfferInfo | null;
   /** The SHARED codes this viewer could type on this game, best first — the
-   *  server's `codeOffers`. Listed in the offer dropdown, never applied to the
-   *  card's price: a code only counts once it is entered at booking. */
+   *  server's `codeOffers`. Counted on the card's coupon pill, never applied to
+   *  the card's price: a code only counts once it is entered at booking. */
   codeOffers?: OfferInfo[];
   spotsTotal: number;
   spotsLeft: number;
@@ -135,21 +135,9 @@ export function EventCard({
     : null;
   const offerable = !passCovers && !isRegistered && !isCancelled && !isAwaiting && fee > 0;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
-  const [offersOpen, setOffersOpen] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
   // Read the clock once per mount: render must stay pure, and a card's "Today" has
   // never refreshed on its own anyway — only on a re-render or reload.
   const [now] = useState(() => Date.now());
-
-  const copyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(code);
-      setTimeout(() => setCopied((c) => (c === code ? null : c)), 1500);
-    } catch {
-      // Clipboard refused (insecure context, permissions) — the code is on screen anyway.
-    }
-  };
 
   const getDateLabel = () => {
     // Compare calendar days in IST (en-CA → "YYYY-MM-DD"), independent of the viewer's timezone.
@@ -183,6 +171,17 @@ export function EventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
+          {/* An automatic offer is already in the price beside it; a code is not
+              until it is entered — the booking sheet lists them to tap. */}
+          {offer ? (
+            <span className="registered-badge coupon-badge" title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}>
+              🏷<span className="coupon-label"> Offer applied</span>
+            </span>
+          ) : codes.length > 0 && (
+            <span className="registered-badge coupon-badge" title="Pick a code when you book">
+              🎟 {codes.length}<span className="coupon-label"> coupon{codes.length === 1 ? "" : "s"}</span>
+            </span>
+          )}
           {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
           {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
           {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending" && <span className="registered-badge waitlisted-badge">⏳ Requested</span>}
@@ -221,63 +220,6 @@ export function EventCard({
           )}
         </div>
       </div>
-
-      {(offer || codes.length > 0) && (
-        <div className={`card-offer-wrap ${offersOpen ? "open" : ""}`}>
-          <button
-            type="button"
-            className="card-offer"
-            onClick={() => setOffersOpen((v) => !v)}
-            aria-expanded={offersOpen}
-            title={offer ? [offer.savingText, offer.terms].filter(Boolean).join(" · ") : undefined}
-          >
-            <span className="card-offer-tag">{offer ? "OFFER" : "CODES"}</span>
-            <span className="card-offer-text">
-              {offer ? offer.title : `${codes.length} coupon code${codes.length === 1 ? "" : "s"} for you`}
-            </span>
-            {offer && codes.length > 0 && <span className="card-offer-more">+{codes.length} code{codes.length === 1 ? "" : "s"}</span>}
-            {offer?.endsLabel && codes.length === 0 && <span className="card-offer-ends">{offer.endsLabel}</span>}
-            <span className="card-offer-chevron" aria-hidden>▾</span>
-          </button>
-
-          {offersOpen && (
-            <ul className="card-offer-list">
-              {offer && (
-                <li className="card-offer-item">
-                  <div className="card-offer-item-head">
-                    <span className="card-offer-auto">Applied automatically</span>
-                    <span className="card-offer-pay">Pay ₹{Math.round(offer.payablePaise / 100)}</span>
-                  </div>
-                  <div className="card-offer-item-title">{offer.title}</div>
-                  {offer.terms && <div className="card-offer-item-terms">{offer.terms}</div>}
-                  {offer.endsLabel && <div className="card-offer-item-ends">{offer.endsLabel}</div>}
-                </li>
-              )}
-              {codes.map((c) => (
-                <li key={c.campaignId || c.code} className="card-offer-item">
-                  <div className="card-offer-item-head">
-                    <button
-                      type="button"
-                      className="card-offer-code"
-                      onClick={() => copyCode(c.code as string)}
-                      title="Copy code"
-                    >
-                      {c.code} <span className="card-offer-copy">{copied === c.code ? "Copied" : "Copy"}</span>
-                    </button>
-                    <span className="card-offer-pay">Pay ₹{Math.round(c.payablePaise / 100)}</span>
-                  </div>
-                  <div className="card-offer-item-title">{c.title}</div>
-                  {c.terms && <div className="card-offer-item-terms">{c.terms}</div>}
-                  {c.endsLabel && <div className="card-offer-item-ends">{c.endsLabel}</div>}
-                </li>
-              ))}
-              {codes.length > 0 && (
-                <li className="card-offer-note">Enter a code when you book. One offer per spot — your own spot only.</li>
-              )}
-            </ul>
-          )}
-        </div>
-      )}
 
       {/* Venue Information */}
       <div className="card-venue-section">

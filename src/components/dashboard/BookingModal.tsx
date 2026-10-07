@@ -65,6 +65,9 @@ type BookingGame = {
    *  read's `offerInfo`). Never re-derived here — the sheet, the card and the
    *  debit are the same answer. */
   offerInfo?: OfferInfo | null;
+  /** The shared codes this player could use here (the game read's
+   *  `codeOffers`), shown as chips that apply on tap. */
+  codeOffers?: OfferInfo[];
   /** On a host spot: the offer from the `?asHost=1` quote, applied only when it
    *  saves more than the host discount, which it then replaces. */
   hostOffer?: OfferInfo | null;
@@ -373,6 +376,10 @@ export function BookingModal({
   // applies it when the organiser approves (an auto offer is applied then too).
   const codeAllowed   = !isWaitlist && !passEligible && game.fee > 0;
   const offersVisible = !isWaitlist && !passEligible && (offerList.length > 0 || codeAllowed);
+  // Host spots are quoted differently, so their codes are typed, not picked.
+  const codeChips = codeAllowed && !isHostSeat && !appliedCode
+    ? (game.codeOffers || []).filter((c) => c.code && c.savingPaise > 0)
+    : [];
 
   // What the player's own seat costs after the pass and the offer. Taken from
   // the server's quote rather than re-derived, so the number beside the button
@@ -479,9 +486,9 @@ export function BookingModal({
   // The server answers; this only asks. A code that saves more than the auto
   // offer replaces it; one that saves less is offered beside it with the better
   // one still selected (PRD §3C).
-  const applyCode = async () => {
+  const applyCode = async (typed?: string) => {
     // Letters and digits only, as the server compares them: "ujjwal-3r4ew" is UJJWAL3R4EW.
-    const code = codeInput.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const code = (typed ?? codeInput).toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (!code || !offerGameId || codeBusy) return;
     codeTouched.current = true;
     setCodeBusy(true);
@@ -1019,6 +1026,22 @@ export function BookingModal({
                     </div>
                   )}
 
+                  {codeChips.length > 0 && (
+                    <div className="bm-code-chips">
+                      {codeChips.map((c) => (
+                        <button
+                          key={c.campaignId || c.code}
+                          type="button"
+                          className="bm-offer-code"
+                          disabled={codeBusy}
+                          onClick={() => { setCodeOpen(true); setCodeInput(c.code as string); applyCode(c.code as string); }}
+                        >
+                          {c.code} · {formatRupees(c.savingPaise)} off
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {codeAllowed && codeOpen && (
                     <div className="bm-code-row">
                       <input
@@ -1037,7 +1060,7 @@ export function BookingModal({
                       {appliedCode ? (
                         <button type="button" className="bm-code-btn" onClick={removeCode}>Remove</button>
                       ) : (
-                        <button type="button" className="bm-code-btn" disabled={!codeInput.trim() || codeBusy} onClick={applyCode}>
+                        <button type="button" className="bm-code-btn" disabled={!codeInput.trim() || codeBusy} onClick={() => applyCode()}>
                           {codeBusy ? "Checking…" : "Apply"}
                         </button>
                       )}

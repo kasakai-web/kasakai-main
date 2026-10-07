@@ -1172,6 +1172,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       // The server's offer on this player's own seat; the sheet refreshes it
       // from the checkout quote as it opens.
       offerInfo: game.offerInfo ?? null,
+      codeOffers: game.codeOffers ?? [],
       requiresApproval: Boolean(game.requiresApproval),
     });
   };
