@@ -171,8 +171,8 @@ export function EventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
-          {/* An automatic offer is already in the price beside it; a code is not
-              until it is entered — the booking sheet lists them to tap. */}
+          {/* The card shows the full price either way; the booking sheet applies
+              an automatic offer and lists codes to tap. */}
           {offer ? (
             <span className="registered-badge coupon-badge" title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}>
               🏷<span className="coupon-label"> Offer applied</span>
@@ -205,14 +205,9 @@ export function EventCard({
                   : "₹0"}
               </div>
             </>
-          ) : offer ? (
-            // The old price struck through beside what this player would pay —
-            // only ever the server's number for THIS viewer, never a guess.
-            <>
-              <div className="price-original">₹{fee}</div>
-              <div className="price-free">₹{Math.round(offer.payablePaise / 100)}</div>
-            </>
           ) : (
+            // An automatic offer does not change the card's price — the pill
+            // flags it, and the booking sheet shows what it takes off.
             <>
               <div className="price-rupee">₹</div>
               <div className="price-amount">{fee}</div>
