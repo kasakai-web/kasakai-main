@@ -258,121 +258,6 @@ body::after {
 /* Hide hamburger on desktop/tablet — only shown via mobile media query */
 .mobile-sidebar-toggle { display: none; }
 
-/* sidebar */
-.sidebar {
-  width: 220px;
-  flex-shrink: 0;
-  background: var(--grey);
-  position: sticky;
-  top: 62px;
-  height: calc(100vh - 62px);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.sidebar-section {
-  padding: 20px 0 8px;
-}
-.sidebar-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: .22em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 0 20px;
-  margin-bottom: 6px;
-}
-.sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 20px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--muted);
-  text-decoration: none;
-  cursor: pointer;
-  transition: all .15s;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  position: relative;
-}
-.sidebar-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--lime);
-  transform: scaleY(0);
-  transition: transform .2s;
-}
-.sidebar-link:hover {
-  color: var(--white);
-  background: rgba(255, 255, 255, .04);
-}
-.sidebar-link.active {
-  color: var(--white);
-  background: rgba(255, 255, 255, .06);
-}
-.sidebar-link.active::before {
-  transform: scaleY(1);
-}
-.sidebar-icon {
-  font-size: 15px;
-  flex-shrink: 0;
-}
-.sidebar-bottom {
-  margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid var(--border);
-}
-.sidebar-wallet-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.swc-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.swc-amount {
-  font-family: var(--cond);
-  font-size: 28px;
-  font-weight: 900;
-  color: var(--white);
-  line-height: 1;
-}
-.swc-topup {
-  display: block;
-  text-align: center;
-  padding: 8px;
-  background: var(--lime);
-  color: #000;
-  font-family: var(--body);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  margin-top: 4px;
-  cursor: pointer;
-  transition: background .15s;
-  border: none;
-  width: 100%;
-}
-.swc-topup:hover {
-  background: #b0e632;
-}
-
 /* main */
 .dashboard-main {
   flex: 1;
@@ -3438,29 +3323,8 @@ button.card-offer:hover { background: rgba(200, 255, 62, 0.09); }
 
 /* ══════════════════ DASHBOARD RESPONSIVE ══════════════════ */
 
-/* Tablet: 768px – 1023px — icon-only sidebar */
+/* Tablet: 768px – 1023px */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .sidebar {
-    display: flex;
-    width: 62px;
-    overflow: hidden;
-  }
-  .sidebar-label,
-  .sidebar-bottom > *:not(.sidebar-link) {
-    display: none;
-  }
-  .sidebar-link {
-    justify-content: center;
-    padding: 12px 0;
-    gap: 0;
-  }
-  .sidebar-link > span:not(.sidebar-icon) {
-    display: none;
-  }
-  .sidebar-icon { font-size: 18px; }
-  .sidebar-bottom {
-    padding: 12px 8px;
-  }
   .dashboard-main {
     padding: 24px 16px;
   }
@@ -3558,35 +3422,6 @@ button.card-offer:hover { background: rgba(200, 255, 62, 0.09); }
     cursor: pointer;
     flex-shrink: 0;
     margin-left: 0;
-  }
-
-  .sidebar {
-    position: fixed;
-    left: -240px;
-    top: 58px;
-    width: 240px;
-    height: calc(100vh - 58px);
-    z-index: 400;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
-  }
-
-  .sidebar.sidebar-open {
-    left: 0;
-  }
-
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    top: 58px;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(2px);
-    z-index: 399;
-  }
-
-  .sidebar-overlay.sidebar-open {
-    display: block;
   }
 
   .dashboard-app {
@@ -3725,10 +3560,6 @@ button.card-offer:hover { background: rgba(200, 255, 62, 0.09); }
   .empty-state { padding: 48px 24px; }
   .empty-title { font-size: 20px; }
 
-  /* Sidebar bottom section — compact on mobile */
-  .sidebar-bottom { padding: 12px; }
-  .swc-amount { font-size: 22px; }
-  .swc-topup { padding: 10px; font-size: 12px; }
 
   /* Space between tabs and cards */
   .events-grid {

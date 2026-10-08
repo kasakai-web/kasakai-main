@@ -4,27 +4,19 @@ import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
-import { useState } from "react";
+import { ChevronRight, Info, MapPin } from "lucide-react";
 import type { OfferInfo } from "@/utils/offers";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
 
 
-function buildAvatarStackLabel(players: { name: string }[]): string|null {
-  const total = players.length;
-  if (total === 0) return null;
-  if (total === 1) return players[0].name;
-  if (total === 2) return `${players[0].name} and ${players[1].name}`;
-  const othersCount = total - 2;
-  return `${players[0].name}, ${players[1].name} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
-}
-
 export interface EventCardProps {
   id: string;
   title?: string;
   venue: string;
   city: string;
+  area?: string;
   status: EventStatus;
   awaitingResult?: boolean;
   formatChangedOptOut?: boolean;
@@ -49,8 +41,8 @@ export interface EventCardProps {
    *  game they are already in, and wherever a pass covers the seat. */
   offerInfo?: OfferInfo | null;
   /** The SHARED codes this viewer could type on this game, best first — the
-   *  server's `codeOffers`. Listed in the offer dropdown, never applied to the
-   *  card's price: a code only counts once it is entered at booking. */
+   *  server's `codeOffers`. Counted on the card's coupon tag, never applied to
+   *  the card's price: a code only counts once it is entered at booking. */
   codeOffers?: OfferInfo[];
   spotsTotal: number;
   spotsLeft: number;
@@ -80,6 +72,7 @@ export interface EventCardProps {
   onPayApproved?: () => void;
   cancelReason?: string;
   players: { name: string; initials: string; pos: string; profileImage?: string }[];
+  organiserName?: string;
   onBook: (game: any) => void;
   onViewDetails: () => void;
   onRateGame?: () => void;
@@ -87,9 +80,9 @@ export interface EventCardProps {
 
 export function EventCard({
   id,
-  title,
   venue,
   city,
+  area,
   status,
   awaitingResult = false,
   formatChangedOptOut = false,
@@ -107,7 +100,6 @@ export function EventCard({
   isRegistered,
   optedOut = false,
   isWaitlisted = false,
-  isWaitlistApproved = false,
   requiresApproval = false,
   registrationLocked = false,
   hostSpotOpen = false,
@@ -116,6 +108,7 @@ export function EventCard({
   onPayApproved,
   cancelReason,
   players,
+  organiserName,
   onBook,
   onViewDetails,
   onRateGame,
@@ -135,294 +128,214 @@ export function EventCard({
     : null;
   const offerable = !passCovers && !isRegistered && !isCancelled && !isAwaiting && fee > 0;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
-  const [offersOpen, setOffersOpen] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-  // Read the clock once per mount: render must stay pure, and a card's "Today" has
-  // never refreshed on its own anyway — only on a re-render or reload.
-  const [now] = useState(() => Date.now());
 
-  const copyCode = async (code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(code);
-      setTimeout(() => setCopied((c) => (c === code ? null : c)), 1500);
-    } catch {
-      // Clipboard refused (insecure context, permissions) — the code is on screen anyway.
-    }
+  const formatFeedTime = () => {
+    // Accepts "21:00" as well as the en-IN locale's "09:00 pm".
+    const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?$/i);
+    if (!match) return time;
+    const hour = Number(match[1]);
+    const meridiem = match[3]?.replace(/\./g, "").toUpperCase();
+    const suffix = meridiem ?? (hour >= 12 ? "PM" : "AM");
+    return `${hour % 12 || 12}:${match[2]} ${suffix}`;
   };
 
-  const getDateLabel = () => {
-    // Compare calendar days in IST (en-CA → "YYYY-MM-DD"), independent of the viewer's timezone.
-    const istYMD = (d: number | string | Date) =>
-      new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-    const todayIST    = istYMD(now);
-    const tomorrowIST = istYMD(now + 86_400_000);
-    const gameIST     = istYMD(date);
-    if (gameIST === todayIST)    return "Today";
-    if (gameIST === tomorrowIST) return "Tomorrow";
-    return new Date(date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
-  };
+  const feedDateLabel = new Date(date).toLocaleDateString("en-GB", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const feedStatusTag = formatChangedOptOut
+    ? { label: "Format changed", kind: "changed" }
+    : isAwaiting
+      ? { label: "Awaiting result", kind: "tentative" }
+      : isCancelled
+        ? { label: "Cancelled", kind: "cancelled" }
+        : effectiveStatus === "full"
+          ? { label: "Full", kind: "full" }
+          : effectiveStatus === "confirmed"
+            ? { label: "Confirmed", kind: "confirmed" }
+            : effectiveStatus === "completed"
+              ? { label: "Completed", kind: "completed" }
+              : null;
+  const feedRegistrationTag = isRegistered && isCancelled
+    ? { label: "Was registered", kind: "muted" }
+    : isRegistered && optedOut
+      ? { label: "Not attending", kind: "warn" }
+      : isRegistered
+        ? { label: "Registered", kind: "registered" }
+        : isWaitlisted && spotsLeft > 0 && !isCancelled
+          ? { label: "Spot available", kind: "registered" }
+          : isWaitlisted && !isCancelled
+            ? { label: "Waitlisted", kind: "warn" }
+            : requestStatus === "pending" && !isCancelled
+              ? { label: "Requested", kind: "warn" }
+              : requestStatus === "approved_unpaid" && !isCancelled
+                ? { label: "Approved · pay to lock", kind: "registered" }
+                : null;
+  const showHostTag = hostSpotOpen && !isRegistered && !isCancelled;
+
+  // The left stripe carries the card's most important state at a glance.
+  const accent = isCancelled
+    ? "cancelled"
+    : status === "completed"
+      ? "completed"
+      : formatChangedOptOut || isAwaiting || (isRegistered && optedOut)
+        ? "warn"
+        : status === "confirmed"
+          ? "confirmed"
+          : isRegistered
+            ? "registered"
+            : isFull
+              ? "full"
+              : "open";
+
+  const feedBookingAction = formatChangedOptOut ? (
+    <button type="button" className="kk-game-book" onClick={() => onRejoin?.()}>Rejoin</button>
+  ) : isCancelled ? (
+    <button type="button" className="kk-game-book is-muted" disabled>Cancelled</button>
+  ) : isRegistered && onRateGame ? (
+    // Completed games awaiting this player's feedback.
+    <button type="button" className="kk-game-book" onClick={onRateGame}>Rate game</button>
+  ) : isRegistered && optedOut ? (
+    <button type="button" className="kk-game-book is-secondary" onClick={onViewDetails}>Manage</button>
+  ) : isRegistered ? (
+    <button type="button" className="kk-game-book is-registered" disabled>Registered</button>
+  ) : isWaitlisted && spotsLeft > 0 ? (
+    <button type="button" className="kk-game-book" onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}>⚽Book</button>
+  ) : isWaitlisted ? (
+    <button type="button" className="kk-game-book is-muted" disabled>On Waitlist</button>
+  ) : requestStatus === "pending" ? (
+    <button type="button" className="kk-game-book is-secondary" onClick={() => onCancelRequest?.()} title="Cancel your join request">Requested · Cancel</button>
+  ) : requestStatus === "approved_unpaid" ? (
+    <button type="button" className="kk-game-book" onClick={() => onPayApproved?.()}>Pay to book</button>
+  ) : registrationLocked ? (
+    <button type="button" className="kk-game-book is-muted" disabled title="Registration closed at the cutoff. If someone drops out, the slot reopens.">Registration closed</button>
+  ) : isFull ? (
+    <button type="button" className="kk-game-book is-waitlist" onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: true })}>Join waitlist</button>
+  ) : (
+    <button type="button" className="kk-game-book" onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}>
+      {requiresApproval ? "Request to join" : "⚽Book"}
+    </button>
+  );
+
+  // A pass shows the full fee struck through beside what the seat costs. An
+  // automatic offer does not change the card's price — the tag flags it, and
+  // the booking sheet shows what it takes off.
+  const discountedPrice = passCovers
+    ? passInfo && passInfo.payablePaise > 0 ? Math.round(passInfo.payablePaise / 100) : 0
+    : null;
+  const displayPrice = discountedPrice ?? fee;
+  const showSpots = !isCancelled && !isAwaiting && status !== "completed";
+  // A game that is over or called off has no fill level worth reading.
+  const showCapacity = !isCancelled && status !== "completed";
 
   return (
-    <div className={`event-card ${effectiveStatus} ${isRegistered ? 'registered' : ''}`}>
-      {/* Header with badge and price */}
-      <div className="card-header">
-        <div className="header-top">
-          <span className={`status-badge ${formatChangedOptOut ? 'cancelled' : isAwaiting ? 'tentative' : effectiveStatus}`}>
-            {formatChangedOptOut
-              ? '🔄 Format changed'
-              : isAwaiting
-              ? '⏳ Awaiting result'
-              : effectiveStatus === 'cancelled'
-              ? '✕ Cancelled'
-              : effectiveStatus === 'full'
-              ? '🔴 Full'
-              : effectiveStatus === 'confirmed'
-              ? '✓ Confirmed'
-              : effectiveStatus === 'completed'
-              ? '✅ Completed'
-              : `📅 ${getDateLabel()}`}
-          </span>
-          {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
-          {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
-          {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending" && <span className="registered-badge waitlisted-badge">⏳ Requested</span>}
-          {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "approved_unpaid" && <span className="registered-badge waitlist-approved-badge">✅ Approved — pay to lock</span>}
-          {isRegistered && !isCancelled && optedOut && <span className="registered-badge waitlisted-badge">↩ Not attending</span>}
-          {isRegistered && !isCancelled && !optedOut && <span className="registered-badge">✓ Registered</span>}
-          {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
-          {hostSpotOpen && !isRegistered && !isCancelled && <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span>}
+    <article
+      className={`kk-game-card is-${accent}${isRegistered && !isCancelled ? " is-mine" : ""}`}
+      aria-label={`${venue}, ${feedDateLabel} at ${formatFeedTime()}`}
+    >
+      <div className="kk-game-main">
+        <div className="kk-game-time">
+          <strong>{formatFeedTime()}</strong>
+          <small>{feedDateLabel}</small>
         </div>
-        <div className="card-price">
-          {/* A covered seat shows the old price struck through and what they
-              actually pay — which is ₹0 for a full cover and a real number for a
-              discount pass. The pass's name is left off: it crowded the price
-              block, and the booking sheet names it on its own line. */}
-          {passCovers ? (
-            <>
-              <div className="price-original">₹{fee}</div>
-              <div className="price-free">
-                {passInfo && passInfo.payablePaise > 0
-                  ? `₹${Math.round(passInfo.payablePaise / 100)}`
-                  : "₹0"}
-              </div>
-            </>
-          ) : offer ? (
-            // The old price struck through beside what this player would pay —
-            // only ever the server's number for THIS viewer, never a guess.
-            <>
-              <div className="price-original">₹{fee}</div>
-              <div className="price-free">₹{Math.round(offer.payablePaise / 100)}</div>
-            </>
-          ) : (
-            <>
-              <div className="price-rupee">₹</div>
-              <div className="price-amount">{fee}</div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {(offer || codes.length > 0) && (
-        <div className={`card-offer-wrap ${offersOpen ? "open" : ""}`}>
-          <button
-            type="button"
-            className="card-offer"
-            onClick={() => setOffersOpen((v) => !v)}
-            aria-expanded={offersOpen}
-            title={offer ? [offer.savingText, offer.terms].filter(Boolean).join(" · ") : undefined}
-          >
-            <span className="card-offer-tag">{offer ? "OFFER" : "CODES"}</span>
-            <span className="card-offer-text">
-              {offer ? offer.title : `${codes.length} coupon code${codes.length === 1 ? "" : "s"} for you`}
+        <div className="kk-game-venue">
+          <h2 title={venue}>{venue}</h2>
+          <div className="kk-game-meta">
+            <span className="kk-game-area">
+              <MapPin size={12} aria-hidden="true" />
+              {area || city}
             </span>
-            {offer && codes.length > 0 && <span className="card-offer-more">+{codes.length} code{codes.length === 1 ? "" : "s"}</span>}
-            {offer?.endsLabel && codes.length === 0 && <span className="card-offer-ends">{offer.endsLabel}</span>}
-            <span className="card-offer-chevron" aria-hidden>▾</span>
-          </button>
+            <span className="kk-game-tag kk-game-format">{format}</span>
+            {feedStatusTag && (
+              <span className={`kk-game-tag kk-game-status-${feedStatusTag.kind}`}>
+                {feedStatusTag.label}
+              </span>
+            )}
+            {feedRegistrationTag && (
+              <span className={`kk-game-tag kk-game-reg-${feedRegistrationTag.kind}`}>
+                {feedRegistrationTag.label}
+              </span>
+            )}
+            {showHostTag && <span className="kk-game-tag kk-game-reg-registered">Host spot open</span>}
+            {passCovers && <span className="kk-game-tag kk-game-pass">Pass</span>}
+            {offer ? (
+              <span
+                className="kk-game-tag kk-game-pass"
+                title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}
+              >
+                Offer applied
+              </span>
+            ) : codes.length > 0 && (
+              <span className="kk-game-tag kk-game-pass" title="Pick a code when you book">
+                {codes.length} coupon{codes.length === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="kk-game-rate">
+          <span className="kk-game-price" aria-label={`${displayPrice} rupees per player`}>
+            {discountedPrice !== null && <small className="kk-game-old-price">₹{fee}</small>}
+            ₹{displayPrice}
+          </span>
+          {feedBookingAction}
+        </div>
+      </div>
 
-          {offersOpen && (
-            <ul className="card-offer-list">
-              {offer && (
-                <li className="card-offer-item">
-                  <div className="card-offer-item-head">
-                    <span className="card-offer-auto">Applied automatically</span>
-                    <span className="card-offer-pay">Pay ₹{Math.round(offer.payablePaise / 100)}</span>
-                  </div>
-                  <div className="card-offer-item-title">{offer.title}</div>
-                  {offer.terms && <div className="card-offer-item-terms">{offer.terms}</div>}
-                  {offer.endsLabel && <div className="card-offer-item-ends">{offer.endsLabel}</div>}
-                </li>
-              )}
-              {codes.map((c) => (
-                <li key={c.campaignId || c.code} className="card-offer-item">
-                  <div className="card-offer-item-head">
-                    <button
-                      type="button"
-                      className="card-offer-code"
-                      onClick={() => copyCode(c.code as string)}
-                      title="Copy code"
+      {showCapacity && (
+        <div className="kk-game-capacity">
+          <ProgressBar spotsTotal={spotsTotal} spotsLeft={spotsLeft} />
+        </div>
+      )}
+      {isCancelled && cancelReason && (
+        <div className="kk-game-reason">
+          <Info size={13} aria-hidden="true" />
+          <span><strong>Reason:</strong> {cancelReason}</span>
+        </div>
+      )}
+      <div className="kk-game-footer">
+        <div className="kk-game-people" title={organiserName ? `Organised by ${organiserName}` : undefined}>
+          {players.length > 0 && (
+            <div className="kk-game-players" aria-label={`${players.length} players joined`}>
+              {players.slice(0, 3).map((player, index) => {
+                const imageUrl = resolveImageUrl(player.profileImage);
+                return (
+                  <span key={`${player.name}-${index}`} className="kk-game-player-avatar" title={player.name}>
+                    {imageUrl ? (
+                      <Image
+                        src={imageUrl}
+                        width={26}
+                        height={26}
+                        alt={player.name}
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.style.display = "grid";
+                        }}
+                      />
+                    ) : null}
+                    <span
+                      className="kk-game-player-fallback"
+                      style={{ display: imageUrl ? "none" : "grid", backgroundColor: avatarColorFor(player.name) }}
                     >
-                      {c.code} <span className="card-offer-copy">{copied === c.code ? "Copied" : "Copy"}</span>
-                    </button>
-                    <span className="card-offer-pay">Pay ₹{Math.round(c.payablePaise / 100)}</span>
-                  </div>
-                  <div className="card-offer-item-title">{c.title}</div>
-                  {c.terms && <div className="card-offer-item-terms">{c.terms}</div>}
-                  {c.endsLabel && <div className="card-offer-item-ends">{c.endsLabel}</div>}
-                </li>
-              ))}
-              {codes.length > 0 && (
-                <li className="card-offer-note">Enter a code when you book. One offer per spot — your own spot only.</li>
-              )}
-            </ul>
+                      {avatarInitials(player.name)}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {showSpots && (
+            <span className={`kk-game-spots${spotsLeft <= 0 ? " is-full" : ""}`}>
+              {spotsLeft <= 0 ? "No spots left" : `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`}
+            </span>
           )}
         </div>
-      )}
-
-      {/* Venue Information */}
-      <div className="card-venue-section">
-        {title && <h3 className="card-title">{title}</h3>}
-        <p className="card-location">
-          <span className="card-venue">🏟️ {venue}</span>
-          <span className="card-loc-sep">·</span>
-          <span className="card-city">📍 {city}</span>
-        </p>
-      </div>
-
-      {/* Key Details Grid */}
-      <div className="card-details-grid">
-        <div className="detail-item">
-          <span className="detail-label">Date</span>
-          <span className="detail-value">{new Date(date).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })}</span>
-        </div>
-        <div className="detail-item">
-          <span className="detail-label">Time</span>
-          <span className="detail-value">{time}</span>
-        </div>
-        <div className="detail-item">
-          <span className="detail-label">Format</span>
-          <span className="detail-value">{format}</span>
-        </div>
-      </div>
-
-      {/* Signed-up players — stacked photos (signup order, capped at 3) + names */}
-      {players.length > 0 && (
-        <div className="card-avatars-row">
-          <div className="avatar-stack">
-            {players.slice(0, 3).map((p, i) => {
-              const imageUrl = resolveImageUrl(p.profileImage);
-              return (
-                <div key={i} className="avatar-mini" style={imageUrl ? undefined : { background: avatarColorFor(p.name) }}>
-                  {imageUrl && (
-                    <Image  
-                    width={28} 
-                    height={28}
-                      loading="lazy"
-                      src={imageUrl}
-                      alt={p.name}
-                      className="avatar-mini-img"
-                      onError={(e) => {
-                        const img = e.currentTarget;
-                        img.style.display = "none";
-                        const fallback = img.nextElementSibling as HTMLElement | null;
-                        if (fallback) fallback.style.display = "flex";
-                      }}
-                    />
-                  )}
-                  <span className="avatar-mini-fallback" style={imageUrl ? { display: "none" } : undefined}>
-                    {avatarInitials(p.name)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <span className="players-names-label">{buildAvatarStackLabel(players)}</span>
-        </div>
-      )}
-
-      {/* Players Capacity Bar */}
-      <ProgressBar   spotsTotal={spotsTotal} spotsLeft={spotsLeft} />
-      {/* Cancel Reason */}
-      {isCancelled && cancelReason && (
-        <div className="cancel-reason-section">
-          <div className="cancel-reason-label">Reason</div>
-          <div className="cancel-reason-text">{cancelReason}</div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      <div className="card-actions">
-        {formatChangedOptOut ? (
-          <button className="card-btn signup-btn" onClick={() => onRejoin?.()}>
-            <span>🔄 Rejoin the new format</span>
-          </button>
-        ) : isCancelled ? (
-          <button className="card-btn cancelled-btn" disabled>
-            <span>✕ Event Cancelled</span>
-          </button>
-        ) : isRegistered && onRateGame ? (
-          <button className="card-btn signup-btn" onClick={onRateGame}>
-            <span>⭐ Rate this game</span>
-          </button>
-        ) : isRegistered && optedOut ? (
-          // Not a dead end: the detail modal is where they rejoin or leave for good.
-          <button className="card-btn waitlist-btn" onClick={onViewDetails}>
-            <span>↩ Not attending · Manage</span>
-          </button>
-        ) : isRegistered ? (
-          <button className="card-btn registered-btn" disabled>
-            <span>✓ Registered</span>
-          </button>
-        ) : isWaitlisted && spotsLeft > 0 ? (
-          // Waitlisted player + spot just opened → active "Sign Up Now!" button
-          <button
-            className="card-btn signup-btn"
-            onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
-          >
-            <span>⚽ Book Your Slot — Hurry!</span>
-          </button>
-        ) : isWaitlisted ? (
-          <button className="card-btn waitlist-btn" disabled>
-            <span>📋 On Waitlist</span>
-          </button>
-        ) : requestStatus === "pending" ? (
-          <button className="card-btn waitlist-btn" onClick={() => onCancelRequest?.()} title="Cancel your join request">
-            <span>⏳ Requested · Cancel</span>
-          </button>
-        ) : requestStatus === "approved_unpaid" ? (
-          <button className="card-btn signup-btn" onClick={() => onPayApproved?.()}>
-            <span>✅ Pay to lock your spot</span>
-          </button>
-        ) : (
-          <>
-            {registrationLocked ? (
-              // Not "full": full is a state the waitlist answers. This is the
-              // roster being closed, which the waitlist cannot get you around.
-              <button className="card-btn waitlist-btn" disabled title="Registration closed at the cutoff. If someone drops out, the slot reopens.">
-                <span>🔒 Registration Closed</span>
-              </button>
-            ) : isFull ? (
-              <button
-                className="card-btn waitlist-btn"
-                onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: true })}
-              >
-                <span>📋 Join Waitlist</span>
-              </button>
-            ) : (
-                <button
-                className="card-btn signup-btn"
-                onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
-              >
-                <span>{requiresApproval ? "🙋 Request to Join" : "⚽ Book"}</span>
-              </button>
-            )}
-          </>
-        )}
-        <button className="card-btn details-btn" onClick={onViewDetails}>
-          <span>View More Details</span>
-          <span className="details-btn-arrow">→</span>
+        <button type="button" className="kk-game-details" onClick={onViewDetails} aria-haspopup="dialog">
+          Details <ChevronRight size={14} aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </article>
   );
 }

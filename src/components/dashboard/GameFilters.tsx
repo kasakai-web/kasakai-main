@@ -1,12 +1,14 @@
 "use client";
 
-import  { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import {
   AVAILABILITY_OPTIONS,
   BrowseFacets,
   BrowseFilters,
   DATE_OPTIONS,
   DAYPART_FALLBACK,
+  DatePreset,
   FORMAT_OPTIONS,
   SORT_OPTIONS,
   activeFilterCount,
@@ -14,26 +16,56 @@ import {
   toggleInList,
 } from "@/utils/browse";
 import BottomSheet from "./BottomSheet";
+import FilterDropdown from "./FilterDropdown";
 import "./browse.css";
 
-type SheetKey = "date" | "time" | "format" | "price" | "availability" | "sort" | "all" | null;
+const IST = "Asia/Kolkata";
+const DAY_MS = 86_400_000;
+
+const DATE_TITLES: Record<DatePreset, string> = {
+  all: "All dates",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  weekend: "Weekend",
+  week: "Next 7 days",
+};
+
+// The calendar days each preset covers, so the strip reads like real dates even
+// though the filter itself is a server-side preset.
+function dateSubLabels(now: number): Record<DatePreset, string> {
+  const part = (t: number, o: Intl.DateTimeFormatOptions) =>
+    new Date(t).toLocaleDateString("en-GB", { timeZone: IST, ...o });
+  const day = (t: number) => `${part(t, { weekday: "short" })} ${part(t, { day: "numeric" })} ${part(t, { month: "short" })}`;
+  const range = (a: number, b: number) => {
+    const [da, ma] = [part(a, { day: "numeric" }), part(a, { month: "short" })];
+    const [db, mb] = [part(b, { day: "numeric" }), part(b, { month: "short" })];
+    if (da === db && ma === mb) return `${da} ${ma}`;
+    return ma === mb ? `${da}–${db} ${mb}` : `${da} ${ma} – ${db} ${mb}`;
+  };
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(part(now, { weekday: "short" }));
+  // On a Sunday the weekend is today alone; otherwise the coming Sat–Sun.
+  const weekendStart = weekday === 0 ? now : now + (6 - weekday) * DAY_MS;
+  const weekendEnd = weekday === 0 ? now : weekendStart + DAY_MS;
+  return {
+    all: "Upcoming",
+    today: day(now),
+    tomorrow: day(now + DAY_MS),
+    weekend: range(weekendStart, weekendEnd),
+    week: range(now, now + 6 * DAY_MS),
+  };
+}
 
 /**
- * The P0 filter row: date, time of day, format, price, availability, sort — plus
- * an "All filters" sheet holding the same controls in one scroll.
+ * The browse filter controls: a date strip, a row of dropdowns for the common
+ * filters (time, format, price, sort), and a "More filters" sheet holding every
+ * control — including area and availability, which have no dropdown.
  *
- * Two rules shape it:
+ * Counts come from the server's facets and are scoped to the city and date
+ * only — never to your other selections. A count that collapses to zero as you
+ * pick things is how faceted filters turn into dead ends.
  *
- *   1. A chip shows its VALUE when set, not its name. "This weekend" tells you
- *      what is applied; "Date ▾" makes you open the sheet to find out.
- *   2. Counts come from the server's facets and are scoped to the city and date
- *      only — never to your other selections. A count that collapses to zero as
- *      you pick things is how faceted filters turn into dead ends.
- *
- * Selections apply immediately on tap. There is no Apply button on the single
- * sheets, because on a list this size the result is the feedback — the combined
- * sheet does get one, since changing six things and watching the list flicker six
- * times is worse.
+ * Dropdowns apply immediately; the sheet edits a draft and commits on Apply,
+ * since changing six things and watching the list flicker six times is worse.
  */
 export default function GameFilters({
   filters,
@@ -48,19 +80,24 @@ export default function GameFilters({
   resultCount: number;
   loading?: boolean;
 }) {
-  const [sheet, setSheet] = useState<SheetKey>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   // The combined sheet edits a draft so the list does not thrash under the
   // player while they work through six groups.
   const [draft, setDraft] = useState<BrowseFilters>(filters);
+  // Read the clock once per mount so render stays pure.
+  const [now] = useState(() => Date.now());
 
-  const close = () => setSheet(null);
+  const close = () => setSheetOpen(false);
   const set = (patch: Partial<BrowseFilters>) => onChange({ ...filters, ...patch });
-
-  const openAll = () => { setDraft(filters); setSheet("all"); };
+  const openAll = () => { setDraft(filters); setSheetOpen(true); };
 
   const activeCount = activeFilterCount(filters);
+  // Filters only reachable from the sheet, so its button can say they are set.
+  const sheetOnlyCount =
+    (filters.city ? 1 : 0) + (filters.area ? 1 : 0) + (filters.availability !== "any" ? 1 : 0);
 
-  const dayparts = useMemo(() => DAYPART_FALLBACK, []);
+  const dayparts = DAYPART_FALLBACK;
+  const subLabels = useMemo(() => dateSubLabels(now), [now]);
 
   const priceCeiling = useMemo(() => {
     const max = facets?.feeRange?.max;
@@ -69,52 +106,26 @@ export default function GameFilters({
     return Math.max(100, Math.ceil(max / 50) * 50);
   }, [facets]);
 
-  // ── Chip labels: the applied value, or the group name when nothing is set ──
+  // ── Dropdown values and options ────────────────────────────────────────────
 
-  const dateLabel = DATE_OPTIONS.find((d) => d.key === filters.date)?.label;
-  const timeLabel =
-    filters.dayparts.length === 1
-      ? dayparts.find((d) => d.key === filters.dayparts[0])?.label
-      : filters.dayparts.length > 1
-        ? `${filters.dayparts.length} times`
-        : null;
-  const formatLabel =
-    filters.formats.length === 1
-      ? filters.formats[0]
-      : filters.formats.length > 1
-        ? `${filters.formats.length} formats`
-        : null;
-  const priceLabel =
-    filters.maxFee !== null
-      ? `Under ₹${filters.maxFee}`
-      : filters.minFee !== null
-        ? `₹${filters.minFee}+`
-        : null;
-  const availabilityLabel =
-    filters.availability !== "any"
-      ? AVAILABILITY_OPTIONS.find((a) => a.key === filters.availability)?.label
-      : null;
-  const sortLabel = SORT_OPTIONS.find((s) => s.key === filters.sort)?.label;
+  // Formats with games in them, plus any already selected so a selection never
+  // vanishes from its own control. Before facets load, offer all of them.
+  const formatChoices = facets
+    ? FORMAT_OPTIONS.filter((f) => (facets.format?.[f] ?? 0) > 0 || filters.formats.includes(f))
+    : FORMAT_OPTIONS;
 
-  const chip = (
-    key: Exclude<SheetKey, null>,
-    label: string,
-    isActive: boolean,
-    onOpen: () => void
-  ) => (
-    <button
-      key={key}
-      type="button"
-      className={`kk-chip ${isActive ? "is-active" : ""}`}
-      onClick={onOpen}
-      aria-haspopup="dialog"
-    >
-      {label}
-      <span className="kk-chip-caret" aria-hidden="true">▾</span>
-    </button>
-  );
+  const priceSteps = useMemo(() => {
+    const steps = [100, 150, 200, 250, 300, 400, 500, 750].filter((v) => v < priceCeiling);
+    if (filters.maxFee !== null && filters.maxFee > 0 && !steps.includes(filters.maxFee)) {
+      steps.push(filters.maxFee);
+      steps.sort((a, b) => a - b);
+    }
+    return steps;
+  }, [priceCeiling, filters.maxFee]);
+  const priceValue =
+    filters.maxFee !== null ? String(filters.maxFee) : filters.minFee !== null ? "min" : "all";
 
-  // ── Reusable groups, shared by the single sheets and the combined one ──────
+  // ── Sheet groups ───────────────────────────────────────────────────────────
 
   const dateGroup = (f: BrowseFilters, apply: (p: Partial<BrowseFilters>) => void) => (
     <div className="kk-group">
@@ -293,88 +304,112 @@ export default function GameFilters({
     );
   };
 
-  const applyToLive = (p: Partial<BrowseFilters>) => set(p);
   const applyToDraft = (p: Partial<BrowseFilters>) => setDraft((d) => ({ ...d, ...p }));
 
   return (
     <>
-      <div className="kk-filter-bar" role="group" aria-label="Filter games">
+      <div className="kk-feed-dates" role="group" aria-label="Filter by date">
+        {DATE_OPTIONS.map((d) => {
+          const on = filters.date === d.key;
+          return (
+            <button
+              key={d.key}
+              type="button"
+              className={`kk-feed-date${on ? " is-active" : ""}`}
+              aria-pressed={on}
+              onClick={() => set({ date: d.key })}
+            >
+              <strong>{DATE_TITLES[d.key]}</strong>
+              <small>{subLabels[d.key]}</small>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="kk-feed-filters" role="group" aria-label="Filter games">
+        <span className="kk-feed-filters-label">Filter games</span>
+
+        {/* Time and format hold several values at once, like the sheet;
+            price and sort are a single choice by nature. */}
+        <FilterDropdown
+          label="Time of day"
+          placeholder="Any time"
+          multiple
+          options={dayparts.map((d) => ({ value: d.key, label: d.label, count: facets?.daypart?.[d.key] ?? (facets ? 0 : undefined) }))}
+          selected={filters.dayparts}
+          onChange={(values) => set({ dayparts: values })}
+        />
+
+        <FilterDropdown
+          label="Game format"
+          placeholder="Any format"
+          multiple
+          options={formatChoices.map((fmt) => ({ value: fmt, label: fmt, count: facets?.format?.[fmt] ?? (facets ? 0 : undefined) }))}
+          selected={filters.formats}
+          onChange={(values) => set({ formats: values })}
+        />
+
+        <FilterDropdown
+          label="Maximum price"
+          placeholder="Any price"
+          clearable
+          options={[
+            // A minimum set from elsewhere (e.g. a shared link) is shown, not offered.
+            ...(priceValue === "min" ? [{ value: "min", label: `₹${filters.minFee}+`, disabled: true }] : []),
+            { value: "0", label: "Free only" },
+            ...priceSteps.map((v) => ({ value: String(v), label: `Up to ₹${v}` })),
+          ]}
+          selected={priceValue === "all" ? [] : [priceValue]}
+          onChange={([v]) => set({ minFee: null, maxFee: v === undefined ? null : Number(v) })}
+        />
+
+        <FilterDropdown
+          label="Sort games"
+          placeholder="Starting soonest"
+          options={SORT_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
+          selected={[filters.sort]}
+          onChange={([v]) => set({ sort: (v ?? "soonest") as BrowseFilters["sort"] })}
+        />
+
         <button
           type="button"
-          className="kk-chip kk-chip-filters"
+          className={`kk-feed-more${sheetOnlyCount > 0 ? " is-active" : ""}`}
           onClick={openAll}
           aria-haspopup="dialog"
         >
-          <span aria-hidden="true">⚙</span>
-          Filters
-          {activeCount > 0 && <span className="kk-chip-count">{activeCount}</span>}
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          More filters
+          {sheetOnlyCount > 0 && <span className="kk-chip-count">{sheetOnlyCount}</span>}
         </button>
 
-        {chip("date",   dateLabel && filters.date !== "all" ? dateLabel : "Date", filters.date !== "all", () => setSheet("date"))}
-        {chip("time",   timeLabel || "Time", filters.dayparts.length > 0, () => setSheet("time"))}
-        {chip("format", formatLabel || "Format", filters.formats.length > 0, () => setSheet("format"))}
-        {chip("price",  priceLabel || "Price", filters.minFee !== null || filters.maxFee !== null, () => setSheet("price"))}
-        {chip("availability", availabilityLabel || "Spots", filters.availability !== "any", () => setSheet("availability"))}
-        {chip("sort",   sortLabel || "Sort", filters.sort !== "soonest", () => setSheet("sort"))}
-
         {activeCount > 0 && (
-          <button
-            type="button"
-            className="kk-chip kk-chip-clear"
-            onClick={() => onChange(clearFilters(filters))}
-          >
-            Clear all
+          <button type="button" className="kk-feed-reset kk-feed-reset-row" onClick={() => onChange(clearFilters(filters))}>
+            Clear filters
           </button>
         )}
       </div>
 
-      {/* Result summary — tells the player their filters did something, and gives
-          them the exit when the answer is "nothing". */}
-      {activeCount > 0 && (
-        <div className="kk-result-line">
-          <span>
-            {loading ? "Finding games…" : (
-              <>
-                <strong>{resultCount}</strong> {resultCount === 1 ? "game" : "games"} match
-              </>
-            )}
-          </span>
-          <button type="button" className="kk-link-btn" onClick={() => onChange(clearFilters(filters))}>
+      <div className={`kk-feed-results${activeCount > 0 ? " has-filters" : ""}`}>
+        <strong role="status">
+          {loading
+            ? "Finding games…"
+            : `${resultCount} ${resultCount === 1 ? "game" : "games"} available`}
+        </strong>
+        <small className="kk-feed-price-note">Prices shown per player</small>
+        {activeCount > 0 && (
+          <button
+            type="button"
+            className="kk-feed-reset kk-feed-reset-inline"
+            onClick={() => onChange(clearFilters(filters))}
+          >
             Clear filters
           </button>
-        </div>
-      )}
-
-      {/* ── Single-purpose sheets: tap applies straight away ── */}
-
-      <BottomSheet open={sheet === "date"} title="When do you want to play?" onClose={close}>
-        {dateGroup(filters, applyToLive)}
-      </BottomSheet>
-
-      <BottomSheet open={sheet === "time"} title="Time of day" onClose={close}>
-        {timeGroup(filters, applyToLive)}
-      </BottomSheet>
-
-      <BottomSheet open={sheet === "format"} title="Format" onClose={close}>
-        {formatGroup(filters, applyToLive)}
-      </BottomSheet>
-
-      <BottomSheet open={sheet === "price"} title="Price" onClose={close}>
-        {priceGroup(filters, applyToLive)}
-      </BottomSheet>
-
-      <BottomSheet open={sheet === "availability"} title="Availability" onClose={close}>
-        {availabilityGroup(filters, applyToLive)}
-      </BottomSheet>
-
-      <BottomSheet open={sheet === "sort"} title="Sort games by" onClose={close}>
-        {sortGroup(filters, applyToLive)}
-      </BottomSheet>
+        )}
+      </div>
 
       {/* ── Everything at once: edits a draft, commits on Apply ── */}
-
       <BottomSheet
-        open={sheet === "all"}
+        open={sheetOpen}
         title="Filters"
         onClose={close}
         footer={

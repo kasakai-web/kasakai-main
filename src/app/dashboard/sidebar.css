@@ -1,0 +1,307 @@
+/* Player dashboard sidebar — "night match" panels for the game-feed .
+   Desktop: sticky column of panels. Tablet: narrower column.
+   Mobile (≤767px): the same panels in a left drawer opened from the navbar. */
+
+.kk-side {
+  --side-panel: linear-gradient(140deg, #18231b, #121b15);
+  --side-line: #314333;
+  --side-text: #eaf7df;
+  --side-muted: #a4b7a5;
+  --side-caption: #91a991;
+  --side-lime: #c8fb42;
+
+  width: 236px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 62px;
+  height: calc(100vh - 62px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 10px 24px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #314333 transparent;
+}
+
+.kk-side-panel {
+  background: var(--side-panel);
+  border: 1px solid var(--side-line);
+  border-radius: 13px;
+  box-shadow: 0 10px 28px #0003;
+}
+
+/* ── Profile + wallet ── */
+.kk-side-profile { padding: 16px; }
+.kk-side-profile-top { display: flex; align-items: center; gap: 8px; }
+
+.kk-side-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kk-side-avatar {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #dfff9a, #9bc76e);
+  color: #213718;
+  box-shadow: 0 0 0 2px #496044;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.kk-side-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.kk-side-profile-text { display: flex; flex-direction: column; min-width: 0; }
+.kk-side-profile-text strong {
+  overflow: hidden;
+  color: var(--side-text);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kk-side-profile-text small {
+  overflow: hidden;
+  color: var(--side-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* "Playing in" and the city are separate pieces: when both don't fit on one
+   line the city moves to the next line whole, rather than being cut off. */
+.kk-side-profile-text small.kk-side-location {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  overflow: visible;
+  line-height: 1.35;
+  white-space: normal;
+}
+/* No shrinking, so a piece that doesn't fit wraps as a whole; max-width only
+   lets an unusually long city name wrap inside its own line. */
+.kk-side-location span { flex: 0 0 auto; max-width: 100%; overflow-wrap: anywhere; }
+.kk-side-profile-link:hover strong { color: #fff; }
+
+
+.kk-side-balance {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid #354737;
+  color: var(--side-muted);
+  font-size: 13px;
+}
+.kk-side-balance b { color: var(--side-text); font-size: 16px; }
+
+.kk-side-topup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin-top: 11px;
+  padding: 8px;
+  color: #17240b;
+  background: linear-gradient(145deg, #dfff76, #b7ec3c);
+  border: 1px solid #e5ff9e;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.kk-side-topup:hover { background: linear-gradient(145deg, #e8ff9b, #c7f958); }
+
+/* ── Navigation ── */
+.kk-side-nav { padding: 6px; }
+.kk-side-group + .kk-side-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid #263628; }
+
+.kk-side-caption {
+  padding: 11px 11px 6px;
+  color: var(--side-caption);
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.kk-side-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  color: var(--side-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.kk-side-icon { flex: none; color: #b7e579; }
+.kk-side-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kk-side-item:not(.is-on):hover { background: #223126; color: #e7f5dd; }
+.kk-side-item.is-on {
+  background: linear-gradient(90deg, #344c2b, #263a25);
+  color: #dcffa4;
+  font-weight: 750;
+}
+.kk-side-item.is-on .kk-side-icon { color: var(--side-lime); }
+
+.kk-side-badge {
+  min-width: 18px;
+  padding: 2px 6px;
+  color: #17240b;
+  background: var(--side-lime);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+.kk-side-badge.is-alert { color: #fff; background: #ef4444; }
+.kk-side-amount { color: #ccfa60; font-size: 11.5px; font-weight: 750; }
+
+/* ── Pass ── */
+.kk-side-pass { padding: 14px 16px; }
+.kk-side-pass-head { display: flex; align-items: center; gap: 6px; }
+.kk-side-pass-head .kk-side-caption { padding: 0; }
+.kk-side-pass-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+.kk-side-pass-row strong { color: var(--side-text); font-size: 14px; }
+.kk-side-pass.is-none .kk-side-pass-row strong { color: var(--side-muted); font-weight: 600; font-size: 13px; }
+.kk-side-pass.is-expired .kk-side-pass-row strong { color: var(--side-muted); }
+
+.kk-side-pass-badge {
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 20px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.kk-side-pass.is-active   { border-left: 3px solid var(--side-lime); }
+.kk-side-pass.is-active   .kk-side-pass-badge { color: #c8fb42; background: #c8fb421a; border-color: #c8fb4244; }
+.kk-side-pass.is-upcoming { border-left: 3px solid #60a5fa; }
+.kk-side-pass.is-upcoming .kk-side-pass-badge { color: #60a5fa; background: #60a5fa1a; border-color: #60a5fa44; }
+.kk-side-pass.is-expired  { border-left: 3px solid #fb923c; }
+.kk-side-pass.is-expired  .kk-side-pass-badge { color: #fb923c; background: #fb923c1a; border-color: #fb923c44; }
+
+.kk-side-pass-meta { margin-top: 6px; color: var(--side-muted); font-size: 11.5px; line-height: 1.5; }
+.kk-side-pass-link {
+  margin-top: 6px;
+  padding: 0;
+  color: #b9ec83;
+  background: none;
+  border: 0;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.kk-side-pass-link:hover { color: #e0ffad; text-decoration: underline; }
+
+/* ── Log out ── */
+.kk-side-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 10px 12px;
+  color: #f87171;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.kk-side-logout:hover { background: #ef444414; border-color: #ef444433; }
+
+.kk-side-overlay { display: none; }
+
+.kk-side button:focus-visible {
+  outline: 2px solid #a2d952;
+  outline-offset: 2px;
+}
+
+/* ── Tablet ── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .kk-side { width: 204px; padding: 20px 0 20px 14px; gap: 10px; }
+  .kk-side-profile { padding: 13px; }
+  .kk-side-avatar { width: 36px; height: 36px; font-size: 12px; }
+  .kk-side-item { gap: 9px; padding: 8px 9px; font-size: 13px; }
+}
+
+/* ── Mobile drawer ── */
+@media (max-width: 767px) {
+  .kk-side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 610;
+    width: 240px;
+    height: 100dvh;
+    padding: max(14px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom));
+    gap: 10px;
+    background:
+      radial-gradient(ellipse 340px 260px at 0% 0%, #34562b40, transparent 70%),
+      #0b110d;
+    border-right: 1px solid #304032;
+    box-shadow: 12px 0 40px #000a;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1), visibility 0s linear .28s;
+    overscroll-behavior: contain;
+  }
+
+  .kk-side.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1), visibility 0s;
+  }
+
+  .kk-side-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: #050a06c4;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s;
+  }
+  .kk-side-overlay.is-open { opacity: 1; pointer-events: auto; }
+
+  .kk-side-profile { padding: 14px; }
+  .kk-side-item { padding: 11px; font-size: 14px; }
+  .kk-side-logout { margin-top: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-side, .kk-side.is-open, .kk-side-overlay { transition: none; }
+}

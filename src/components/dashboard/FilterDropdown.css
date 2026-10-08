@@ -1,0 +1,124 @@
+/* Filter dropdown used on the browse feed's filter row. The popover is
+   portalled to <body>, so its colours are spelled out rather than inherited
+   from .kk-feed-mode. */
+
+.kk-dd-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 190px;
+  padding: 8px 10px;
+  color: #e3f0e0;
+  background: #1c2a20;
+  border: 1px solid #3d5341;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.kk-dd-trigger:hover { border-color: #789879; }
+.kk-dd-trigger[aria-expanded="true"] { border-color: #a2d952; box-shadow: 0 0 0 3px #b7e95924; }
+.kk-dd-trigger.is-active { color: #e4ffbd; background: #24361f; border-color: #66844a; }
+.kk-dd-trigger:focus-visible { outline: 2px solid #a2d952; outline-offset: 2px; }
+.kk-dd-trigger-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.kk-dd-caret { flex: none; color: #9eb2a0; transition: transform .15s; }
+.kk-dd-trigger[aria-expanded="true"] .kk-dd-caret { transform: rotate(180deg); }
+
+.kk-dd-popover {
+  position: fixed;
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  max-height: min(360px, 60vh);
+  overflow: hidden;
+  color: #e3f0e0;
+  background: linear-gradient(145deg, #1d2b20, #131d16);
+  border: 1px solid #4a6449;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px #000a;
+  animation: kk-dd-in .12s ease-out;
+}
+
+@keyframes kk-dd-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.kk-dd-list { flex: 1; overflow-y: auto; padding: 5px; overscroll-behavior: contain; }
+
+.kk-dd-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 9px;
+  color: #dce9d8;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.kk-dd-option:hover:not(:disabled),
+.kk-dd-option:focus-visible { background: #263a28; outline: none; }
+.kk-dd-option.is-on { color: #e4ffbd; }
+.kk-dd-option:disabled { opacity: .45; cursor: not-allowed; }
+
+.kk-dd-box,
+.kk-dd-tick {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: #17240b;
+}
+.kk-dd-box { border: 1.5px solid #5d7a5c; border-radius: 4px; }
+.kk-dd-option.is-on .kk-dd-box { background: #c8fb42; border-color: #c8fb42; }
+.kk-dd-tick { color: #c8fb42; }
+
+.kk-dd-label { flex: 1; min-width: 0; }
+.kk-dd-count {
+  min-width: 22px;
+  padding: 1px 6px;
+  color: #a5b9a8;
+  background: #233227;
+  border-radius: 10px;
+  font-size: 11px;
+  text-align: center;
+}
+
+.kk-dd-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  background: #111a13;
+  border-top: 1px solid #314333;
+}
+.kk-dd-clear,
+.kk-dd-done {
+  padding: 7px 12px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.kk-dd-clear { color: #b8e47f; background: none; border: 0; }
+.kk-dd-clear:disabled { color: #627562; cursor: default; }
+.kk-dd-done { color: #17240b; background: #c8fb42; border: 1px solid #e5ff9e; }
+.kk-dd-done:hover { background: #d9ff70; }
+
+@media (max-width: 767px) {
+  .kk-dd-trigger { flex: 0 0 auto; max-width: 150px; padding: 6px 8px; font-size: 12.5px; }
+  .kk-dd-option { padding: 11px 9px; font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-dd-popover { animation: none; }
+  .kk-dd-caret { transition: none; }
+}

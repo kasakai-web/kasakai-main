@@ -66,12 +66,13 @@ import {
   persistMetro,
 } from "@/utils/browse";
 import "@/app/dashboard/player-dashboard.css";
+import "@/app/dashboard/player-feed.css";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
 import { VenueModal } from "@/components/dashboard/VenueModal";
 import ProgressBar from "../ui/ProgressBar";
 import Image from "next/image";
-import { PlaySquare ,ChevronRight,MapPin} from "lucide-react";
+import { PlaySquare ,ChevronRight,MapPin,Search} from "lucide-react";
 
 
 /**
@@ -312,6 +313,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const urlMetro = useRef<string | null>(searchParams.get("metro"));
   const [browseContext, setBrowseContext] = useState<BrowseContext | null>(null);
   const [facets, setFacets] = useState<BrowseFacets | null>(null);
+  // Venue/area search box on the browse feed.
+  const [searchQuery, setSearchQuery] = useState("");
+  const feedCityLabel = browseContext?.metros.find((m) => m.slug === filters.metro)?.label || null;
   const [totalGames, setTotalGames] = useState(0);
   const [gamesLoading, setGamesLoading] = useState(false);
   // Paging is the server's job on every section now. `listPage` is the last page
@@ -2365,7 +2369,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         happening. Every booking action on this page shares them. */}
     {topUpSheet}
     {waitlistPrompt}
-    <div className="player-dashboard-container">
+    <div className={`player-dashboard-container kk-card-list${section === "all" ? " kk-feed-mode" : ""}`}>
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 
       {inviteToken && (
@@ -2388,17 +2392,41 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       )}
 
 
-      <div className="page-header">
-        <div className="page-title-group">
-          <div className="page-eyebrow">
-            <span className="live-badge">
-              <span className="live-dot" />
-              {SECTION_META[section].eyebrow}
-            </span>
+      {section === "all" ? (
+        <section className="kk-feed-head">
+          <span className="kk-feed-eyebrow">
+            {feedCityLabel ? `Football in ${feedCityLabel}` : "Football near you"}
+          </span>
+          <div className="kk-feed-title-line">
+            <div>
+              <h1>Find your next <em>game</em></h1>
+              <p>Pick a time, see who&apos;s playing, and claim your spot.</p>
+            </div>
+            <label className="kk-feed-search">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search venue or area"
+                aria-label="Search venue or area"
+              />
+            </label>
           </div>
-          <div className="page-title">{SECTION_META[section].title}</div>
+        </section>
+      ) : (
+        <div className="page-header">
+          <div className="page-title-group">
+            <div className="page-eyebrow">
+              <span className="live-badge">
+                <span className="live-dot" />
+                {SECTION_META[section].eyebrow}
+              </span>
+            </div>
+            <div className="page-title">{SECTION_META[section].title}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Filters belong to browsing, not to the player's own fixtures — showing
           a price slider over "My Games" would be offering to hide games they
@@ -2434,6 +2462,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   onRejoin={isMyFormatChangeOptOut(game) ? () => handleRejoinFormatChange(game) : undefined}
                   venue={game.turf?.name || 'TBC'}
                   city={game.turf?.address?.city || 'TBC'}
+                  area={(game.turf?.address as any)?.area ||undefined}
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}
                   time={new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
@@ -2459,6 +2488,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   onPayApproved={() => handleConfirmApproved(game)}
                   onCancelRequest={() => handleCancelRequest(game)}
                   cancelReason={game.cancelReason}
+                  organiserName={game.organiser?.name || "Organiser"}
                   players={[
                     ...(game.organiserIsPlaying
                       ? [{
@@ -2478,7 +2508,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                       })),
                   ]}
                   onBook={() => handleBook(game)}
-                  onViewDetails={() => openGameDetail(game)}
+                  onViewDetails={() => {
+                    openGameDetail(game);
+                  }}
                   onRateGame={
                     activeTab === "completed" &&
                     game.status === "completed" &&

@@ -1,0 +1,587 @@
+/* Player game lists — "night match" design from the game-feed preview.
+   .kk-card-list: every game list (browse, my bookings, cancelled, completed).
+   .kk-feed-mode: browse only (header, date strip, filters). */
+.kk-card-list {
+  --feed-panel: linear-gradient(140deg, #18231b, #121b15);
+  --feed-line: #314333;
+  --feed-muted: #a5b9a8;
+  --feed-text: #f2f8ef;
+  --feed-lime: #c8fb42;
+  max-width: 920px;
+}
+
+/* ── Header: eyebrow, title, search ── */
+.kk-feed-head {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 12px;
+  padding: 19px 22px;
+  background: linear-gradient(115deg, #1d2f1e, #142017 56%, #15271b);
+  border: 1px solid var(--feed-line);
+  border-radius: 13px;
+  box-shadow: 0 10px 28px #0003;
+}
+
+.kk-feed-head::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, #c8fb42, #7ba96f 44%, transparent 85%);
+}
+
+.kk-feed-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  color: #c2ee8d;
+  background: #2b442a;
+  border: 1px solid #4b7041;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.kk-feed-eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b9fa55;
+  box-shadow: 0 0 7px #b9fa55;
+}
+
+.kk-feed-title-line {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kk-feed-title-line h1 {
+  margin: 10px 0 2px;
+  color: var(--feed-text);
+  font-size: 25px;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+}
+
+.kk-feed-title-line h1 em { font-style: normal; color: var(--feed-lime); }
+.kk-feed-title-line p { margin: 0; color: var(--feed-muted); font-size: 13px; }
+
+.kk-feed-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 240px;
+  max-width: 42%;
+  padding: 9px 12px;
+  color: #afc4b2;
+  background: #0d160f;
+  border: 1px solid #415343;
+  border-radius: 8px;
+}
+
+.kk-feed-search:focus-within { border-color: #a2d952; box-shadow: 0 0 0 3px #b7e95924; }
+.kk-feed-search svg { flex: none; }
+.kk-feed-search input {
+  width: 100%;
+  min-width: 0;
+  color: #f4faf3;
+  background: none;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 14px;
+}
+.kk-feed-search input::placeholder { color: #91a892; }
+
+/* ── Date strip ── */
+.kk-feed-dates {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 7px;
+  overflow-x: auto;
+  background: var(--feed-panel);
+  border: 1px solid var(--feed-line);
+  border-radius: 13px;
+  box-shadow: 0 10px 28px #0003;
+  scrollbar-width: none;
+}
+
+/* Rows still scroll sideways by touch or trackpad; the bar itself is hidden.
+   The WebKit rule covers older Safari, which ignores scrollbar-width. */
+.kk-feed-dates::-webkit-scrollbar,
+.kk-feed-filters::-webkit-scrollbar { display: none; }
+
+.kk-feed-date {
+  flex: 1;
+  min-width: 96px;
+  min-height: 58px;
+  padding: 8px 10px;
+  color: #dce9d8;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.kk-feed-date strong,
+.kk-feed-date small { display: block; white-space: nowrap; }
+.kk-feed-date strong { font-size: 14px; }
+.kk-feed-date small { margin-top: 3px; color: #9eb2a0; font-size: 12px; }
+.kk-feed-date:hover:not(.is-active) { color: #fff; background: #263a28; }
+.kk-feed-date.is-active {
+  color: #203015;
+  background: linear-gradient(145deg, #dbff78, #b6e841);
+  box-shadow: 0 3px 14px #b9f14328;
+}
+.kk-feed-date.is-active small { color: #3e5a28; }
+
+/* ── Filter row ── */
+.kk-feed-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 11px 13px;
+  background: var(--feed-panel);
+  border: 1px solid var(--feed-line);
+  border-radius: 13px;
+  box-shadow: 0 10px 28px #0003;
+}
+
+.kk-feed-filters-label { margin-right: 3px; color: #b9cdb9; font-size: 13px; font-weight: 700; }
+
+
+.kk-feed-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  color: #e3f0e0;
+  background: #1c2a20;
+  border: 1px solid #3d5341;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.kk-feed-more:hover { border-color: #789879; }
+.kk-feed-more.is-active { border-color: #66844a; color: #e4ffbd; }
+.kk-feed-more .kk-chip-count { display: inline-flex; }
+
+.kk-feed-reset {
+  padding: 7px;
+  color: #b8e47f;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.kk-feed-reset:hover { color: #deffa9; }
+
+.kk-feed-more:focus-visible,
+.kk-feed-reset:focus-visible,
+.kk-feed-date:focus-visible,
+.kk-game-book:focus-visible,
+.kk-game-details:focus-visible {
+  outline: 2px solid #a2d952;
+  outline-offset: 2px;
+}
+
+/* ── Results line ── */
+.kk-feed-results {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 2px 11px;
+}
+.kk-feed-results strong { color: #e7f2e3; font-size: 15px; }
+.kk-feed-results small { color: #8ca28f; font-size: 13px; }
+
+/* Desktop keeps Clear filters in the filter row; tablet and mobile move it to
+   the results line in place of the price note. */
+.kk-feed-reset-inline { display: none; }
+
+@media (max-width: 1023px) {
+  .kk-feed-reset-row { display: none; }
+  .kk-feed-reset-inline { display: inline-flex; flex: none; padding: 4px 2px; white-space: nowrap; }
+  .kk-feed-results.has-filters .kk-feed-price-note { display: none; }
+}
+
+.kk-card-list .events-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 0;
+}
+
+/* ── Game card ── */
+.kk-game-card {
+  --accent: linear-gradient(#e0ff8d, #8cda4d);
+  --accent-glow: #c8fb4255;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--feed-text);
+  background: linear-gradient(110deg, #202e22 0%, #18231b 55%, #141c17 100%);
+  border: 1px solid #80a45b;
+  border-radius: 13px;
+  box-shadow: 0 8px 24px #0004;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.kk-game-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 13px var(--accent-glow);
+}
+
+.kk-game-card:hover { transform: translateY(-2px); border-color: #2e432f; box-shadow: 0 12px 28px #0006; }
+
+.kk-game-card.is-mine { border-color: #5d7f43; }
+.kk-game-card.is-confirmed { --accent: linear-gradient(#86efac, #22c55e); --accent-glow: #4ade8066; }
+.kk-game-card.is-warn,
+.kk-game-card.is-full { --accent: linear-gradient(#ffd68f, #e69547); --accent-glow: #e7a85c55; }
+.kk-game-card.is-cancelled { --accent: linear-gradient(#ff9a85, #e5533d); --accent-glow: #e5533d55; }
+.kk-game-card.is-completed { --accent: linear-gradient(#a9c7ee, #5f86b8); --accent-glow: #5f86b855; }
+.kk-game-card.is-cancelled .kk-game-venue h2,
+.kk-game-card.is-cancelled .kk-game-price { color: #b9c6b6; }
+
+.kk-game-main {
+  display: grid;
+  grid-template-columns: 106px minmax(0, 1fr) 128px;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px 12px;
+}
+
+.kk-game-time { padding-right: 15px; border-right: 1px solid #476548; }
+.kk-game-time strong {
+  display: block;
+  color: #effbe8;
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: -.04em;
+  white-space: nowrap;
+}
+.kk-game-time small { display: block; margin-top: 6px; color: #b7d0ad; font-size: 13px; white-space: nowrap; }
+
+.kk-game-venue { min-width: 0; }
+.kk-game-venue h2 {
+  margin: 0 0 8px;
+  color: #f4f9f1;
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+}
+
+.kk-game-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; line-height: 1.2; }
+.kk-game-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 3px;
+  color: #adc2ad;
+  font-size: 13px;
+}
+
+/* Tags */
+.kk-game-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 6px;
+  color: #c3eea2;
+  background: #2c482b;
+  border: 1px solid #426b3e;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.kk-game-format { color: #bedacc; background: #253831; border-color: #3d5b4c; }
+.kk-game-status-confirmed,
+.kk-game-reg-registered {border-color: rgba(74,222,128,.35);background: rgba(74,222,128,.09);color: #4ade80; }
+.kk-game-status-tentative,
+.kk-game-status-changed,
+.kk-game-status-full,
+.kk-game-reg-warn { color: #ffd299; background: #493728; border-color: #815b39; }
+.kk-game-status-cancelled { color: #ffb4a3; background: #4a2620; border-color: #8a4334; }
+.kk-game-status-completed { color: #c5d7ee; background: #263548; border-color: #435c78; }
+.kk-game-reg-muted { color: #b4c3b2; background: #253027; border-color: #3d4d3f; }
+.kk-game-pass { color: #c9d7ff; background: #28304a; border-color: #48568a; }
+
+/* Price + action */
+.kk-game-rate { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.kk-game-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #e6ffb4;
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -.035em;
+  white-space: nowrap; 
+}
+.kk-game-old-price { color: #91a18e; font-size: 12px; font-weight: 500; letter-spacing: 0; text-decoration: line-through; }
+
+.kk-game-book {
+  min-width: 108px;
+  padding: 8px 12px;
+  color: #17240b;
+  background: linear-gradient(145deg, #dfff76, #b7ec3c);
+  border: 1px solid #e5ff9e;
+  border-radius: 7px;
+  box-shadow: 0 5px 18px #b8ef3640;
+  font-size: 13px;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+  margin-top: 2px;
+}
+.kk-game-book:hover:not(:disabled) { background: linear-gradient(145deg, #e8ff9b, #c7f958); box-shadow: 0 5px 20px #c8fb4266; }
+.kk-game-book:disabled { cursor: not-allowed; }
+
+.kk-game-book.is-secondary {
+  color: #e2f0de;
+  background: #1c2a20;
+  border-color: #5d7a5c;
+  box-shadow: none;
+}
+.kk-game-book.is-secondary:hover:not(:disabled) { background: #253628; border-color: #8aa96d; box-shadow: none; }
+
+.kk-game-book.is-waitlist {
+  color: #ffd299;
+  background: #3a2c1f;
+  border-color: #a5733f;
+  box-shadow: none;
+}
+.kk-game-book.is-waitlist:hover:not(:disabled) { background: #4a3826; border-color: #d0904d; box-shadow: none; }
+
+.kk-game-book.is-registered {
+  /* color: #dcffa4;
+  background: #2b4224;
+  border-color: #6b9447; */
+  border-color: rgba(74,222,128,.35);background: rgba(74,222,128,.09);color: #4ade80;
+  box-shadow: none;
+}
+
+.kk-game-book.is-muted {
+  /* color: #93a592;
+  background: #1a221c;
+  border-color: #344536; */
+  color:rgb(251, 191, 36);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+
+  box-shadow: none;
+}
+
+/* Capacity row — the progress bar keeps its own row between card body and footer */
+/* Cancellation reason — sits where the capacity row would be */
+.kk-game-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 16px;
+  color: #f5c1a5;
+  background: #3a1f1a8c;
+  border-top: 1px solid #5c3127;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.kk-game-reason svg { flex: none; margin-top: 2px; color: #ff9a85; }
+.kk-game-reason strong { color: #ffb4a3; font-weight: 750; }
+/* No capacity row on finished games, so the footer draws the divider itself. */
+.kk-game-main + .kk-game-footer { border-top: 1px solid #334a35; padding-top: 6px; }
+
+.kk-game-capacity {
+  padding: 6px 16px 4px;
+  background: #111a13a8;
+  border-top: 1px solid #334a35;
+}
+.kk-game-capacity .capacity-section { width: 100%; gap: 9px; }
+.kk-game-capacity .capacity-bar { height: 5px; background: #38483a; }
+.kk-game-capacity .players-count { color: #d6e5ce; font-size: 12px; }
+.kk-game-capacity .total-slots { color: #96ad93; }
+
+/* Footer */
+.kk-game-footer {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 38px;
+  padding: 4px 16px 8px;
+  background: #111a13a8;
+}
+
+.kk-game-people { display: flex; flex: 1; min-width: 0; align-items: center; gap: 9px; }
+.kk-game-players { display: flex; flex: none; align-items: center; padding-left: 6px; }
+.kk-game-player-avatar {
+  position: relative;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  overflow: hidden;
+  place-items: center;
+  margin-left: -6px;
+  color: #2d4232;
+  background: #b8dbb2;
+  border: 2px solid #17221a;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 750;
+}
+.kk-game-player-avatar img,
+.kk-game-player-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.kk-game-player-fallback { display: grid; place-items: center; color: #fff; }
+
+.kk-game-spots { color: #c8eea2; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.kk-game-spots.is-full { color: #ffd299; }
+
+.kk-game-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 5px 0 5px 6px;
+  color: #b9ec83;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.kk-game-details:hover { color: #e0ffad; text-decoration: underline; }
+
+/* Empty states */
+.kk-card-list .kk-no-results,
+.kk-card-list .empty-state {
+  color: #b4c9b3;
+  background: #18231b;
+  border: 1px solid #3a513b;
+  border-radius: 13px;
+}
+
+/* ── Tablet ── */
+@media (max-width: 1023px) {
+  .kk-feed-head { padding: 17px 18px; }
+  .kk-game-main { grid-template-columns: 96px minmax(0, 1fr) 118px; gap: 13px; }
+  .kk-game-book { min-width: 100px; }
+}
+
+/* ── Mobile: one game per row, denser ── */
+@media (max-width: 767px) {
+  .kk-feed-head { margin-bottom: 8px; padding: 12px 12px 11px; }
+  .kk-feed-eyebrow { padding: 3px 7px; font-size: 10px; }
+  .kk-feed-title-line { flex-direction: column; align-items: stretch; gap: 9px; }
+  .kk-feed-title-line h1 { margin: 8px 0 0; font-size: 21px; }
+  .kk-feed-title-line p { display: none; }
+  .kk-feed-search { width: 100%; max-width: none; padding: 7px 10px; }
+  .kk-feed-search input { font-size: 16px; } /* no iOS zoom on focus */
+
+  .kk-feed-dates { gap: 2px; margin-bottom: 8px; padding: 4px; border-radius: 11px; }
+  .kk-feed-date { flex: 1 0 76px; min-width: 76px; min-height: 44px; padding: 5px 6px; }
+  .kk-feed-date strong { font-size: 12.5px; }
+  .kk-feed-date small { margin-top: 2px; font-size: 10.5px; }
+
+  .kk-feed-filters {
+    flex-wrap: nowrap;
+    gap: 5px;
+    margin-bottom: 8px;
+    padding: 5px;
+    overflow-x: auto;
+    border-radius: 11px;
+    scrollbar-width: none;
+  }
+  .kk-feed-filters-label { display: none; }
+  .kk-feed-more { flex: none; padding: 6px 8px; font-size: 12.5px; white-space: nowrap; }
+  .kk-feed-reset { flex: none; padding: 5px; font-size: 12px; white-space: nowrap; }
+
+  .kk-feed-results { margin: 0 2px 6px; }
+  .kk-feed-results strong { font-size: 12.5px; }
+  .kk-feed-results small { font-size: 11px; }
+
+  .kk-card-list .events-grid { gap: 7px; }
+
+  .kk-game-card { border-radius: 11px; }
+  .kk-game-card::before { width: 2px; }
+  .kk-game-card:hover { transform: none; }
+
+  .kk-game-main {
+    grid-template-columns: 70px minmax(0, 1fr) 96px;
+    gap: 9px;
+    min-height: 0;
+    padding: 9px 10px 8px 12px;
+  }
+  .kk-game-time { padding-right: 8px; }
+  .kk-game-time strong { font-size: 15px; line-height: 1.1; }
+  .kk-game-time small { margin-top: 4px; font-size: 11px; }
+
+  .kk-game-venue h2 {
+    display: -webkit-box;
+    margin-bottom: 5px;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.18;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .kk-game-meta { gap: 3px; }
+  .kk-game-area { margin-right: 2px; font-size: 11px; }
+  .kk-game-tag { padding: 2px 4px; font-size: 9.5px; letter-spacing: .02em; }
+
+  .kk-game-price { font-size: 18px; }
+  /* Long labels ("Registration closed", "Requested · Cancel") wrap to two
+     lines rather than being cut off. */
+  .kk-game-book {
+    min-width: 0;
+    max-width: 100%;
+    margin-top: 6px;
+    padding: 6px 7px;
+    font-size: 11.5px;
+    line-height: 1.15;
+    white-space: normal;
+    box-shadow: 0 2px 9px #b8ef3633;
+  }
+
+  .kk-game-capacity { padding: 5px 10px 3px 12px; }
+  .kk-game-reason { padding: 6px 10px 6px 12px; font-size: 12px; }
+  .kk-game-footer { gap: 8px; min-height: 30px; padding: 2px 10px 5px 12px; }
+  .kk-game-player-avatar { width: 21px; height: 21px; flex-basis: 21px; }
+  .kk-game-spots, .kk-game-details { font-size: 12px; }
+  .kk-game-details { padding: 3px 0; }
+}
+
+@media (max-width: 360px) {
+  .kk-game-main { grid-template-columns: 60px minmax(0, 1fr) 86px; gap: 6px; padding: 8px 8px 7px 10px; }
+  .kk-game-time strong { font-size: 13.5px; }
+  .kk-game-price { font-size: 16.5px; }
+  .kk-game-book { padding: 6px; font-size: 11px; }
+  .kk-game-capacity, .kk-game-footer { padding-inline: 10px 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-game-card { transition: none; }
+  .kk-game-card:hover { transform: none; }
+}
