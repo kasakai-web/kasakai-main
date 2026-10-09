@@ -44,11 +44,12 @@ export default async function ScreeningDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  let screening: ReturnType<typeof toScreening> | null = null;
   try {
     const raw = await fetchPublicScreeningById(id);
-    const screening = raw ? toScreening(raw) : null;
-    return <ScreeningDetailClient screening={screening} />;
+    if (raw) screening = toScreening(raw);
   } catch {
-    return <ScreeningDetailClient screening={null} />;
+    // Backend unreachable — render the not-found state rather than a 500.
   }
+  return <ScreeningDetailClient screening={screening} />;
 }

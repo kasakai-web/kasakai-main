@@ -27,6 +27,9 @@ interface GameDetails {
   waitlist: Array<{ player?: { name: string } }>;
   guestWaitlist: Array<{ player?: { name: string } }>;
   _playerDataBlurred?: boolean;
+  /** Some offer is running on this game. Never a price — this visitor's
+   *  eligibility is unknown until they sign in. */
+  offersAvailable?: boolean;
 }
 
 interface Props {
@@ -189,6 +192,15 @@ export function UnregisteredGameLanding({ gameId, onSignupClick }: Props) {
 
           <h1 className="ugl-event-title">{game.title}</h1>
           {metaLine && <p className="ugl-event-meta">{metaLine}</p>}
+          {/* That an offer exists, never what it is worth — eligibility is only
+              known once the visitor signs in (PRD §3A). */}
+          {game.offersAvailable && fee > 0 && (
+            <p className="ugl-offer-hint">
+              <span className="ugl-offer-tag">OFFER</span>
+              Offers available ·{" "}
+              <Link href={`/login?role=player&redirect=/join/${gameId}`}>Sign in to check</Link>
+            </p>
+          )}
 
           <button
             type="button"
