@@ -18,6 +18,10 @@ export type PublicGame = {
   city: string;
   metro: string | null;
   metroLabel: string;
+  /** Some offer is running on this game. Never a price: a signed-out visitor
+   *  cannot be checked for eligibility, so all the card may say is that one
+   *  exists ("Offers available · Sign in to check"). */
+  offersAvailable?: boolean;
 };
 
 type State = {

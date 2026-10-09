@@ -43,6 +43,11 @@ const TYPE_ICON: Record<string, string> = {
   guest_waitlisted:       "📋",
   guest_waitlist_spot:    "🔔",
   guest_confirmed:        "✅",
+  host_approved:          "🎖️",
+  host_ended:             "👋",
+  host_spots_open:        "📣",
+  facilitator_invited:    "🧭",
+  facilitator_removed:    "↩️",
   system:                 "ℹ️",
 };
 
@@ -63,6 +68,11 @@ const TYPE_COLOR: Record<string, string> = {
   guest_waitlisted:       "rgba(96,165,250,0.14)",
   guest_waitlist_spot:    "rgba(34,211,238,0.14)",
   guest_confirmed:        "rgba(74,222,128,0.14)",
+  host_approved:          "rgba(200,255,62,0.14)",
+  host_ended:             "rgba(245,158,11,0.14)",
+  host_spots_open:        "rgba(200,255,62,0.14)",
+  facilitator_invited:    "rgba(34,211,238,0.14)",
+  facilitator_removed:    "rgba(148,163,184,0.14)",
   system:                 "rgba(148,163,184,0.14)",
 };
 

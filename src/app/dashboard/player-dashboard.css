@@ -2051,6 +2051,51 @@
   color: #4b5563;
   border: 1px solid #2a2d32;
 }
+/* A player running the game on the day for the organiser — a host seat, or a
+   facilitator (who holds no seat and is listed under "Run by"). */
+.pd-roster-badge-host {
+  background: rgba(200,255,62,0.08);
+  color: #c8ff3e;
+  border: 1px dashed rgba(200,255,62,0.35);
+}
+
+/* The host line and the host-spot call to action in the game detail. */
+.pd-host-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(200,255,62,0.28);
+  background: rgba(200,255,62,0.05);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.pd-host-strip-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #cfe9a0;
+}
+.pd-host-strip-text b { color: #c8ff3e; }
+.pd-host-strip-btn {
+  flex-shrink: 0;
+  background: #c8ff3e;
+  color: #0f0f0f;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pd-host-runby {
+  font-size: 11px;
+  color: #8a8a93;
+  margin: -6px 0 12px;
+}
 
 .pd-roster-guest-row {
   padding-left: 28px;

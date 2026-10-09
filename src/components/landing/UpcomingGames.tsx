@@ -225,6 +225,15 @@ function GameCard({
         )}
       </div>
 
+      {/* That an offer exists, never what it is worth to this visitor — their
+          eligibility is only known once they sign in (PRD §3A). */}
+      {game.offersAvailable && (
+        <div className="lp-offer-hint">
+          <span className="lp-offer-tag">OFFER</span>
+          {isLoggedIn ? "Offers available · see your price when you book" : "Offers available · Sign in to check"}
+        </div>
+      )}
+
       <div className="lp-game-facts">
         <div className="lp-fact">
           <span className="lp-fact-label">Date</span>

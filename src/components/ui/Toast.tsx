@@ -38,7 +38,9 @@ export function Toast({ type, title, subtitle, onClose, duration = 2000 }: Toast
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Keep onClose in a ref so the useEffect doesn't re-run when the parent re-renders
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     setMounted(true);
