@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { validatePhone, validateEmail } from "@/utils/auth";
-import { buildApiUrl } from "@/utils/api";
+import { validateEmail } from "@/utils/auth";
 
+export type ProfileDetails = { firstName: string; email: string; profileImageDataUrl?: string };
+
+// Shown only to a NEW player, after their number is verified. Through Google,
+// name and email are Google's, so it asks for the photo (and a name if Google
+// gave none); otherwise for name, email and photo.
 interface PlayerSignUpStep1Props {
+  google?: { name: string; email: string };
+  initial: ProfileDetails;
   onBack: () => void;
-  onContinue: (data: { firstName: string; phone: string; email: string; profileImageDataUrl?: string }) => void;
+  onContinue: (data: ProfileDetails) => void;
 }
 
-export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props) {
-  const [firstName, setFirstName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(undefined);
+export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: PlayerSignUpStep1Props) {
+  const [firstName, setFirstName] = useState(initial.firstName || google?.name || "");
+  const [email, setEmail] = useState(initial.email);
+  const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(initial.profileImageDataUrl);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [checking, setChecking] = useState<{ phone?: boolean; email?: boolean }>({});
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
@@ -24,6 +28,7 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
+  const askName = !google?.name; // Google almost always has one
 
   useEffect(() => {
     if (!showPhotoPicker) return;
@@ -50,33 +55,6 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
   const stopStream = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
   const closeCamera = () => { stopStream(); setCameraOpen(false); };
   const flipCamera = () => setCameraFacing((f) => f === "user" ? "environment" : "user");
-
-  // Check phone or email availability against the DB (only verified accounts count)
-  const checkField = async (field: "phone" | "email", value: string) => {
-    setChecking((prev) => ({ ...prev, [field]: true }));
-    try {
-      const body: Record<string, string> = { role: "player" };
-      body[field] = value;
-      const res = await fetch(buildApiUrl("/auth/check-availability"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (field === "phone" && data.data.phoneExists) {
-          setErrors((prev) => ({ ...prev, phone: "This phone number is already registered. Please login or use a different number." }));
-        }
-        if (field === "email" && data.data.emailExists) {
-          setErrors((prev) => ({ ...prev, email: "This email is already registered. Please login or use a different email." }));
-        }
-      }
-    } catch {
-      // non-critical — will be caught at submit if still duplicate
-    } finally {
-      setChecking((prev) => ({ ...prev, [field]: false }));
-    }
-  };
 
   const handleTakePhoto = () => { setShowPhotoPicker(false); setCameraOpen(true); };
   const handleChooseGallery = () => { setShowPhotoPicker(false); fileInputRef.current?.click(); };
@@ -114,48 +92,20 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
     reader.readAsDataURL(file);
   };
 
-  const handleContinue = async (e: React.FormEvent) => {
+  const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
     if (!profileImageDataUrl) newErrors.image = "A profile photo is required";
-    if (!firstName.trim()) newErrors.firstName = "Name is required";
-    if (!validatePhone(phone)) newErrors.phone = "Enter valid 10-digit phone (starting 6-9)";
-    if (!validateEmail(email)) newErrors.email = "Enter valid email";
+    if (askName && !firstName.trim()) newErrors.firstName = "Name is required";
+    if (!google && !validateEmail(email)) newErrors.email = "Enter valid email";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    // Re-run availability check on submit in case blur was skipped (autofill, paste, etc.)
-    // If errors already showing from blur, skip re-check
-    if (!errors.phone && !errors.email) {
-      try {
-        const res = await fetch(buildApiUrl("/auth/check-availability"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone, email, role: "player" }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          const submitErrors: Record<string, string> = {};
-          if (data.data.phoneExists) submitErrors.phone = "This phone number is already registered. Please login or use a different number.";
-          if (data.data.emailExists) submitErrors.email = "This email is already registered. Please login or use a different email.";
-          if (Object.keys(submitErrors).length > 0) {
-            setErrors(submitErrors);
-            return;
-          }
-        }
-      } catch {
-        // network failure — let the register call handle it in step 3
-      }
-    } else if (errors.phone || errors.email) {
-      // existing availability errors still showing — block submit
-      return;
-    }
-
-    onContinue({ firstName, phone, email, profileImageDataUrl });
+    onContinue({ firstName: firstName.trim(), email: google ? google.email : email.trim(), profileImageDataUrl });
   };
 
   const inputStyle = {
@@ -199,8 +149,12 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
         ← Back
       </button>
 
-      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>Create Account</h1>
-      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px" }}>Step 1 of 3: Enter your details</p>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>{google ? "Almost there" : "Create Account"}</h1>
+      <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px", lineHeight: 1.5 }}>
+        {google
+          ? <>Signed in with Google as <strong style={{ color: "#ccc" }}>{google.email}</strong>. Your number is verified. Add a profile photo.</>
+          : "Step 1 of 2: Your details"}
+      </p>
 
       {/* Profile Image Picker */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "28px" }}>
@@ -264,108 +218,63 @@ export function PlayerSignUpStep1({ onBack, onContinue }: PlayerSignUpStep1Props
 
       <form onSubmit={handleContinue}>
         {/* Name */}
-        <div style={{ marginBottom: "20px" }}>
-          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Full Name *</label>
-          <input
-            type="text"
-            value={firstName}
-            onChange={(e) => {
-              setFirstName(e.target.value);
-              setErrors({ ...errors, firstName: "" });
-            }}
-            placeholder="Your full name"
-            style={inputStyle}
-            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
-            onBlur={(e) => (e.target.style.borderColor = "#444")}
-          />
-          {errors.firstName && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.firstName}</small>}
-        </div>
-
-        {/* Phone */}
-        <div style={{ marginBottom: "20px" }}>
-          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Phone Number *</label>
-          <div style={{ display: "flex", alignItems: "center", background: "#1a1a2e", border: errors.phone ? "1px solid #ff6b6b" : "1px solid #444", borderRadius: "6px", padding: "0 12px" }}>
-            <span style={{ color: "#999", fontSize: "14px", fontWeight: "600" }}>+91</span>
+        {askName && (
+          <div style={{ marginBottom: "20px" }}>
+            <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Full Name *</label>
             <input
-              type="tel"
-              value={phone}
+              type="text"
+              value={firstName}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-                setPhone(val);
-                setErrors({ ...errors, phone: "" });
+                setFirstName(e.target.value);
+                setErrors({ ...errors, firstName: "" });
               }}
-              placeholder="9876543210"
-              maxLength={10}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                padding: "12px 12px",
-                color: "white",
-                fontSize: "16px",
-                outline: "none",
-              }}
-              onFocus={(e) => {
-                const container = e.currentTarget.parentElement;
-                if (container) container.style.borderColor = "var(--yellow)";
-              }}
-              onBlur={(e) => {
-                const container = e.currentTarget.parentElement;
-                if (container) container.style.borderColor = errors.phone ? "#ff6b6b" : "#444";
-                const val = e.currentTarget.value.replace(/\D/g, "");
-                if (validatePhone(val)) checkField("phone", val);
-              }}
+              placeholder="Your full name"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+              onBlur={(e) => (e.target.style.borderColor = "#444")}
             />
+            {errors.firstName && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.firstName}</small>}
           </div>
-          {checking.phone && !errors.phone && (
-            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "4px" }}>Checking availability…</small>
-          )}
-          {errors.phone && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.phone}</small>}
-        </div>
+        )}
 
-        {/* Email */}
-        <div style={{ marginBottom: "24px" }}>
-          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Email Address *</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setErrors({ ...errors, email: "" });
-            }}
-            placeholder="your@email.com"
-            style={inputStyle}
-            onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
-            onBlur={(e) => {
-              e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444";
-              if (validateEmail(e.target.value)) checkField("email", e.target.value);
-            }}
-          />
-          {checking.email && !errors.email && (
-            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "4px" }}>Checking availability…</small>
-          )}
-          {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
-        </div>
+        {/* Email — Google sign-ups use their Google email */}
+        {!google && (
+          <div style={{ marginBottom: "24px" }}>
+            <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>Email Address *</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrors({ ...errors, email: "" });
+              }}
+              placeholder="your@email.com"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+              onBlur={(e) => (e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444")}
+            />
+            {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={checking.phone || checking.email}
           style={{
             width: "100%",
-            background: (checking.phone || checking.email) ? "#666" : "var(--yellow)",
-            color: (checking.phone || checking.email) ? "#999" : "black",
+            background: "var(--yellow)",
+            color: "black",
             border: "none",
             padding: "12px",
             borderRadius: "6px",
             fontSize: "16px",
             fontWeight: "600",
-            cursor: (checking.phone || checking.email) ? "not-allowed" : "pointer",
+            cursor: "pointer",
             transition: "background 0.3s ease",
           }}
-          onMouseEnter={(e) => !(checking.phone || checking.email) && (e.currentTarget.style.background = "#ffd700")}
-          onMouseLeave={(e) => !(checking.phone || checking.email) && (e.currentTarget.style.background = "var(--yellow)")}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#ffd700")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--yellow)")}
         >
-          {(checking.phone || checking.email) ? "Checking…" : "Continue"}
+          Continue
         </button>
       </form>
     </div>

@@ -2,23 +2,31 @@
 
 import { useState, useEffect } from "react";
 import { buildApiUrl } from "@/utils/api";
+import type { SessionUser } from "./PlayerLoginForm";
 import "../../app/auth-styles.css";
 
+// An existing account is signed straight in; a new number gets a signupToken.
+export type VerifyResult =
+  | { token: string; user: SessionUser }
+  | { needsProfile: true; signupToken: string };
+
 interface OTPVerificationPhoneProps {
-  phone?: string;
-  email?: string;
+  // The number typed, or "" when their Gmail found their account: the server
+  // then sends the code to the number on it, and maskedPhone is all they see.
+  phone: string;
+  maskedPhone?: string;
   role: "player" | "organiser";
-  mode: "signup" | "forgot-password";
-  onVerified: (value: string, authData?: { token: string; user: any }) => void;
+  // Present when the player came in through Google: verifying links it.
+  googleToken?: string;
+  onVerified: (result: VerifyResult) => void | Promise<void>;
   onBack: () => void;
-  devOtp?: string;
 }
 
-export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onBack }: OTPVerificationPhoneProps) {
+export function OTPVerificationPhone({ phone, maskedPhone, role, googleToken, onVerified, onBack }: OTPVerificationPhoneProps) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
+  const [resendTimer, setResendTimer] = useState(30); // a code was just sent
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -58,10 +66,10 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
 
     setLoading(true);
     try {
-      const response = await fetch(buildApiUrl('/auth/verify-otp'), {
+      const response = await fetch(buildApiUrl('/auth/otp/verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, email, otp: otpString, role, mode }),
+        body: JSON.stringify({ phone: phone || undefined, otp: otpString, role, googleToken }),
       });
 
       const data = await response.json();
@@ -69,13 +77,9 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
         throw new Error(data.message || 'Invalid OTP');
       }
 
-      if (mode === "signup") {
-        onVerified(otpString, { token: data.token, user: data.user });
-      } else {
-        onVerified(data.resetToken);
-      }
-    } catch (err: any) {
-      setError(err.message || "OTP verification failed. Please try again.");
+      await onVerified(data);
+    } catch (err) {
+      setError((err as Error).message || "OTP verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,11 +90,10 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
     setOtp(["", "", "", "", "", ""]);
 
     try {
-      const endpoint = mode === "signup" ? "/auth/resend-otp" : "/auth/forgot-password";
-      const response = await fetch(buildApiUrl(endpoint), {
+      const response = await fetch(buildApiUrl("/auth/otp/send"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, email, role }),
+        body: JSON.stringify({ phone: phone || undefined, role, googleToken }),
       });
 
       const data = await response.json();
@@ -98,15 +101,15 @@ export function OTPVerificationPhone({ phone, email, role, mode, onVerified, onB
         throw new Error(data.message || "Failed to resend OTP");
       }
 
-      setResendTimer(60);
-    } catch (err: any) {
-      setError(err.message || "Failed to resend OTP. Please try again.");
+      setResendTimer(30);
+    } catch (err) {
+      setError((err as Error).message || "Failed to resend OTP. Please try again.");
     }
   };
 
   const maskPhone = (p: string) => `••••••${p.slice(-4)}`;
 
-  const destinationText = phone ? `+91 ${maskPhone(phone)}` : "your WhatsApp";
+  const destinationText = `+91 ${maskedPhone ?? maskPhone(phone)}`;
 
   return (
     <div className="auth-form-container" style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333" }}>
