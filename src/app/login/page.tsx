@@ -4,32 +4,28 @@ import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { PlayerLoginForm } from "@/components/auth/PlayerLoginForm";
-import { PlayerSignUpStep1 } from "@/components/auth/PlayerSignUpStep1";
-import { PlayerSignUpPreferences } from "@/components/auth/PlayerSignUpPreferences";
-import { PlayerSignUpStep2 } from "@/components/auth/PlayerSignUpStep2";
+import { PlayerLoginForm, type SessionUser, type GoogleStep } from "@/components/auth/PlayerLoginForm";
+import { PlayerSignUpStep1, type ProfileDetails } from "@/components/auth/PlayerSignUpStep1";
 import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
-import { ForgotPasswordStep1 } from "@/components/auth/ForgotPasswordStep1";
-import { SetNewPasswordForm } from "@/components/auth/SetNewPasswordForm";
 import { buildApiUrl, resolveImageUrl } from "@/utils/api";
 
+// One flow signs in and signs up, with no password anywhere:
+//   phone  → WhatsApp code → (new number) name, email, photo
+//   Google → (not linked yet) WhatsApp code → (new number) photo
+// After Google the code goes to the number on the account their Gmail found, or
+// else to a number they type. An existing account is signed in straight after
+// the code, with Google linked to it, so only a new player sees the photo step.
 function AuthFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectAfterLogin = searchParams.get("redirect") || null;
   const targetGame = searchParams.get("targetGame") || null; // Game ID for auto-booking
-  const mode = searchParams.get("mode") || null;
-  const [step, setStep] = useState<
-    | "login"
-    | "signup-form"
-    | "signup-preferences"
-    | "signup-confirm"
-    | "signup-otp"
-    | "signup-success"
-    | "forgot-step1"
-    | "forgot-otp"
-    | "forgot-newpass"
-  >(mode === "signup" ? "signup-form" : "login");
+  const [step, setStep] = useState<"start" | "google" | "otp" | "profile">("start");
+  const [phone, setPhone] = useState("");
+  const [google, setGoogle] = useState<GoogleStep | null>(null);
+  const [signupToken, setSignupToken] = useState("");
+  const [details, setDetails] = useState<ProfileDetails>({ firstName: "", email: "" });
+  const [error, setError] = useState("");
 
   const [persistedTargetGame] = useState(() => {
     return targetGame || (typeof window !== "undefined" ? localStorage.getItem("targetGameId") : null);
@@ -43,208 +39,130 @@ function AuthFlow() {
     }
   }, [targetGame]);
 
-  const [userData, setUserData] = useState({
-    phone: "",
-    email: "",
-    firstName: "",
-    city: "",
-    preferences: { positions: [] as string[], preferredLocations: [] as string[] },
-    otp: "",
-    profileImageDataUrl: "",
-    devOtp: "",
-  });
-
-
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     const uRole = localStorage.getItem("userRole");
     const uId = localStorage.getItem("userId");
 
-    if (token && uRole === "player" && uId && step === "login") {
+    if (token && uRole === "player" && uId && step === "start") {
       router.replace("/dashboard");
     }
   }, [router, step]);
 
+  const finishLogin = async (token: string, user: SessionUser, isNew = false) => {
+    localStorage.setItem("authToken", token);
+    localStorage.setItem("userRole", "player");
+    localStorage.setItem("userId", user.id);
+    localStorage.setItem("userName", user.name || "User");
+    if (user.profileImage) {
+      localStorage.setItem("userProfileImage", resolveImageUrl(user.profileImage));
+    } else {
+      localStorage.removeItem("userProfileImage");
+    }
+    // Signal SocketClient to connect now that we have a token (same-tab login)
+    window.dispatchEvent(new CustomEvent("kk-auth-changed"));
+
+    // Only accounts made before the photo became compulsory can lack one.
+    const hasImage = !!localStorage.getItem("userProfileImage");
+    if (!hasImage) localStorage.setItem("requirePhotoUpload", "true");
+    if (isNew) localStorage.setItem("showProfileBanner", "true");
+
+    if (persistedTargetGame) {
+      // Clear the targetGameId so it doesn't carry over to other flows
+      localStorage.removeItem("targetGameId");
+      router.replace(`/dashboard?openGame=${persistedTargetGame}`);
+    } else if (!hasImage || (isNew && !redirectAfterLogin)) {
+      router.replace("/dashboard/profile");
+    } else {
+      router.replace(redirectAfterLogin || "/dashboard");
+    }
+  };
+
+  const completeSignup = async (d: ProfileDetails) => {
+    setDetails(d);
+    setError("");
+    try {
+      // Multipart: the photo is compulsory and the server stores it with the account.
+      const body = new FormData();
+      body.append("signupToken", signupToken);
+      body.append("name", d.firstName);
+      body.append("email", d.email);
+      if (d.profileImageDataUrl) {
+        const blob = await (await fetch(d.profileImageDataUrl)).blob();
+        body.append("profileImage", blob, `profile.${blob.type.split("/")[1] || "jpg"}`);
+      }
+      const res = await fetch(buildApiUrl("/auth/complete-signup"), { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Couldn't create your account. Please try again.");
+      await finishLogin(data.token, data.user, true);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   return (
     <>
-      {/* LOGIN */}
-      {step === "login" && (
+      {step === "start" && (
+        <PlayerLoginForm
+          onCodeSent={(p) => {
+            setPhone(p);
+            setStep("otp");
+          }}
+          onGoogle={async (r) => {
+            if ("token" in r) return finishLogin(r.token, r.user);
+            setGoogle(r);
+            setStep("google");
+          }}
+        />
+      )}
+
+      {/* Google, not linked: "welcome back" (their Gmail found the account) or a number to type */}
+      {step === "google" && google && (
+        <PlayerLoginForm
+          google={google}
+          onBack={() => {
+            setGoogle(null);
+            setStep("start");
+          }}
+          onCodeSent={(p) => {
+            setPhone(p);
+            setStep("otp");
+          }}
+        />
+      )}
+
+      {/* New players only. Phone sign-up: name, email, photo. Google sign-up: photo. */}
+      {step === "profile" && (
         <>
-          <PlayerLoginForm
-            onSignupClick={() => setStep("signup-form")}
-            onForgotClick={() => setStep("forgot-step1")}
-            redirectAfterLogin={redirectAfterLogin}
-            targetGame={persistedTargetGame}
+          {error && (
+            <div style={{ background: "#ff4444", color: "white", padding: "12px", borderRadius: "6px", marginBottom: "16px", fontSize: "14px" }}>
+              {error}
+            </div>
+          )}
+          <PlayerSignUpStep1
+            google={google?.profile}
+            initial={details}
+            onBack={() => {
+              setGoogle(null);
+              setStep("start");
+            }}
+            onContinue={completeSignup}
           />
         </>
       )}
 
-      {/* SIGNUP - STEP 1: Personal details */}
-      {step === "signup-form" && (
-        <PlayerSignUpStep1
-          onBack={() => setStep("login")}
-          onContinue={(data: { firstName: string; phone: string; email: string; profileImageDataUrl?: string }) => {
-            setUserData((prev) => ({ ...prev, ...data, profileImageDataUrl: data.profileImageDataUrl || "" }));
-            setStep("signup-preferences");
-          }}
-        />
-      )}
-
-      {/* SIGNUP - STEP 2: Game preferences */}
-      {step === "signup-preferences" && (
-        <PlayerSignUpPreferences
-          onBack={() => setStep("signup-form")}
-          onContinue={({ city, ...prefs }) => {
-            setUserData((prev) => ({ ...prev, city, preferences: prefs }));
-            setStep("signup-confirm");
-          }}
-        />
-      )}
-
-      {/* SIGNUP - STEP 3: Confirm & Create Account */}
-      {step === "signup-confirm" && (
-        <PlayerSignUpStep2
-          userData={userData}
-          onBack={() => setStep("signup-preferences")}
-          onSuccess={(password, devOtp) => {
-            setUserData((prev) => ({ ...prev, password, devOtp: devOtp || "" }));
-            setStep("signup-otp");
-          }}
-        />
-      )}
-
-      {/* SIGNUP - STEP 4: OTP Verification */}
-      {step === "signup-otp" && (
+      {step === "otp" && (
         <OTPVerificationPhone
-          phone={userData.phone}
+          phone={phone}
+          maskedPhone={google?.maskedPhone}
           role="player"
-          mode="signup"
-          devOtp={userData.devOtp}
-          onVerified={async (_otpVal, authData) => {
-            if (authData?.token && authData?.user) {
-              const uid = authData.user.id || authData.user._id;
-              localStorage.setItem("authToken", authData.token);
-              localStorage.setItem("userRole", "player");
-              localStorage.setItem("userId", uid);
-              localStorage.setItem("userName", authData.user.name || "User");
-              
-              // for auto-handoff to booking
-              if (persistedTargetGame) {
-                localStorage.setItem("targetGameId", persistedTargetGame);
-              }
-              
-              window.dispatchEvent(new CustomEvent("kk-auth-changed"));
-
-              // Upload profile photo chosen during signup
-              if (userData.profileImageDataUrl) {
-                try {
-                  const blob = await (await fetch(userData.profileImageDataUrl)).blob();
-                  const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-                  const formData = new FormData();
-                  formData.append("profileImage", blob, `profile.${ext}`);
-                  const imgRes = await fetch(buildApiUrl("/players/me/profile-image"), {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${authData.token}` },
-                    body: formData,
-                  });
-                  if (imgRes.ok) {
-                    const imgData = await imgRes.json();
-                    if (imgData.data?.profileImage) {
-                      localStorage.setItem("userProfileImage", resolveImageUrl(imgData.data.profileImage));
-                    }
-                  }
-                } catch { /* non-critical */ }
-              }
-
-              localStorage.setItem("showProfileBanner", "true");
-              
-              if (persistedTargetGame) {
-                router.replace(`/dashboard?openGame=${persistedTargetGame}`);
-              } else if (redirectAfterLogin) {
-                router.replace(redirectAfterLogin);
-              } else {
-                router.replace("/dashboard/profile");
-              }
-            } else {
-              setStep("signup-success");
-            }
+          googleToken={google?.googleToken}
+          onVerified={async (r) => {
+            if ("token" in r) return finishLogin(r.token, r.user);
+            setSignupToken(r.signupToken);
+            setStep("profile");
           }}
-          onBack={() => setStep("signup-confirm")}
-        />
-      )}
-
-      {/* SIGNUP SUCCESS — fallback if auto-login data is missing */}
-      {step === "signup-success" && (
-        <div style={{ background: "var(--dark-navy)", padding: "40px 30px", borderRadius: "12px", border: "1px solid #333", textAlign: "center" }}>
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
-          <h1 style={{ color: "var(--yellow)", fontSize: "26px", marginBottom: "12px" }}>Account Verified!</h1>
-          <p style={{ color: "#ccc", fontSize: "14px", marginBottom: "8px", lineHeight: 1.6 }}>
-            Welcome to Kasakai, <strong style={{ color: "white" }}>{userData.firstName}</strong>!
-          </p>
-          <p style={{ color: "#999", fontSize: "13px", marginBottom: "28px", lineHeight: 1.6 }}>
-            Your account is ready. Please log in to continue.
-          </p>
-          <button
-            onClick={() => {
-              localStorage.setItem("newSignup", "true");
-              if (userData.profileImageDataUrl) {
-                localStorage.setItem("pendingProfileImage", userData.profileImageDataUrl);
-              }
-              setStep("login");
-            }}
-            style={{
-              width: "100%",
-              background: "var(--yellow)",
-              color: "black",
-              border: "none",
-              padding: "12px",
-              borderRadius: "6px",
-              fontSize: "16px",
-              fontWeight: "600",
-              cursor: "pointer",
-            }}
-          >
-            Login Now
-          </button>
-        </div>
-      )}
-
-      {/* FORGOT PASSWORD - STEP 1: Enter Phone */}
-      {step === "forgot-step1" && (
-        <ForgotPasswordStep1
-          onBack={() => setStep("login")}
-          onContinue={(phone: string, devOtp?: string) => {
-            setUserData((prev) => ({ ...prev, phone, devOtp: devOtp || "" }));
-            setStep("forgot-otp");
-          }}
-        />
-      )}
-
-      {/* FORGOT PASSWORD - STEP 2: OTP Verification */}
-      {step === "forgot-otp" && (
-        <OTPVerificationPhone
-          phone={userData.phone}
-          role="player"
-          mode="forgot-password"
-          devOtp={userData.devOtp}
-          onVerified={(otpVal: string) => {
-            setUserData((prev) => ({ ...prev, otp: otpVal }));
-            setStep("forgot-newpass");
-          }}
-          onBack={() => setStep("forgot-step1")}
-        />
-      )}
-
-      {/* FORGOT PASSWORD - STEP 3: Set New Password */}
-      {step === "forgot-newpass" && (
-        <SetNewPasswordForm
-          phone={userData.phone}
-          otp={userData.otp}
-          onSuccess={() => {
-            setStep("login");
-            alert("Password changed successfully! Please login with new password.");
-          }}
-          onBack={() => setStep("forgot-step1")}
+          onBack={() => setStep(google ? "google" : "start")}
         />
       )}
     </>

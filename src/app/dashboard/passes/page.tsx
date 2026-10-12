@@ -326,7 +326,13 @@ export default function MyPassesPage() {
 
           {/* Below what they already hold: somebody opening this page is usually
               checking a pass, not shopping. */}
-          <PassStore requestTopUp={requestTopUp} onPurchased={fetchPasses} />
+          <PassStore
+            requestTopUp={requestTopUp}
+            onPurchased={() => {
+              fetchPasses();
+              window.dispatchEvent(new Event("kk-passes-changed"));
+            }}
+          />
         </>
       )}
     </div>

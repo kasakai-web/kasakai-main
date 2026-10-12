@@ -10,6 +10,9 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 export const metadata: Metadata = {
   metadataBase: new URL("https://kasakai.in"),
   applicationName: "KasaKai",
+  // Google Search Console ownership of https://www.kasakai.in/ — the Google
+  // sign-in consent screen's branding check reads it. Removing it un-verifies.
+  verification: { google: "b8jV_eyQu6ot7yHF4YwtHvQUHT0V9kGrDaNRjL0MPs0" },
   // What an installed icon is called and how iOS launches it. `capable` is the
   // legacy apple-mobile-web-app-capable tag, and it is still the only thing
   // that makes "Add to Home Screen" on iPhone open chrome-less rather than
