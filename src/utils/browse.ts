@@ -49,12 +49,61 @@ export const EMPTY_FILTERS: BrowseFilters = {
 };
 
 export const DATE_OPTIONS: { key: DatePreset; label: string }[] = [
-  { key: "all",      label: "Any date" },
+  { key: "all",      label: "All dates" },
   { key: "today",    label: "Today" },
   { key: "tomorrow", label: "Tomorrow" },
-  { key: "weekend",  label: "This weekend" },
-  { key: "week",     label: "Next 7 days" },
+  { key: "weekend",  label: "Weekend" },
+  { key: "week",     label: "7 days" },
 ];
+
+// Shorter titles for the segmented date strip, where "This weekend" and
+// "Any date" would crowd the columns.
+export const DATE_STRIP_LABELS: Record<DatePreset, string> = {
+  all: "All dates",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  weekend: "Weekend",
+  week: "7 days",
+};
+
+/**
+ * The concrete dates behind each preset ("14 Oct", "17–18 Oct"), in IST so
+ * they match the server's day boundaries rather than the viewer's clock.
+ */
+export function dateOptionHints(now: Date = new Date()): Record<DatePreset, string> {
+  const tz = "Asia/Kolkata";
+  // IST calendar date as a UTC-midnight Date, so day arithmetic is DST-free.
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(now).split("-").map(Number);
+  const today = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
+
+  const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", ...opts }).format(d);
+  // Non-breaking spaces keep "30 Oct" whole and the dash on the first line, so
+  // a range that wraps on a narrow screen reads "30 Oct –" / "5 Nov".
+  const NBSP = String.fromCharCode(160);
+  const dayMonth = (d: Date) => fmt(d, { day: "numeric", month: "short" }).replace(/ /g, NBSP);
+  const range = (a: Date, b: Date) => {
+    const sameMonth = a.getUTCMonth() === b.getUTCMonth();
+    return sameMonth
+      ? `${a.getUTCDate()}–${dayMonth(b)}`
+      : `${dayMonth(a)}${NBSP}– ${dayMonth(b)}`;
+  };
+
+  // Saturday–Sunday; on a Sunday the weekend is just what is left of today.
+  const dow = today.getUTCDay();
+  const saturday = dow === 0 ? today : addDays(today, 6 - dow);
+  const sunday = dow === 0 ? today : addDays(saturday, 1);
+
+  return {
+    all: "Upcoming",
+    today: dayMonth(today),
+    tomorrow: dayMonth(addDays(today, 1)),
+    weekend: dow === 0 ? dayMonth(sunday) : range(saturday, sunday),
+    week: range(today, addDays(today, 6)),
+  };
+}
 
 export const AVAILABILITY_OPTIONS: { key: Availability; label: string; hint: string }[] = [
   { key: "any",         label: "Show all",     hint: "Including full games you can waitlist for" },

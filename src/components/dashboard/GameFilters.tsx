@@ -6,17 +6,19 @@ import {
   BrowseFacets,
   BrowseFilters,
   DATE_OPTIONS,
+  DATE_STRIP_LABELS,
   DAYPART_FALLBACK,
   FORMAT_OPTIONS,
   SORT_OPTIONS,
   activeFilterCount,
   clearFilters,
+  dateOptionHints,
   toggleInList,
 } from "@/utils/browse";
 import BottomSheet from "./BottomSheet";
 import "./browse.css";
 
-type SheetKey = "date" | "time" | "format" | "price" | "availability" | "sort" | "all" | null;
+type SheetKey = "time" | "format" | "price" | "availability" | "sort" | "all" | null;
 
 /**
  * The P0 filter row: date, time of day, format, price, availability, sort — plus
@@ -69,9 +71,11 @@ export default function GameFilters({
     return Math.max(100, Math.ceil(max / 50) * 50);
   }, [facets]);
 
+
+  const dateHints = useMemo(() => dateOptionHints(), []);
+
   // ── Chip labels: the applied value, or the group name when nothing is set ──
 
-  const dateLabel = DATE_OPTIONS.find((d) => d.key === filters.date)?.label;
   const timeLabel =
     filters.dayparts.length === 1
       ? dayparts.find((d) => d.key === filters.dayparts[0])?.label
@@ -298,6 +302,25 @@ export default function GameFilters({
 
   return (
     <>
+      <div className="kk-date-strip" role="radiogroup" aria-label="Filter by date">
+        {DATE_OPTIONS.map((d) => {
+          const on = filters.date === d.key;
+          return (
+            <button
+              key={d.key}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              className={`kk-date-seg ${on ? "is-on" : ""}`}
+              onClick={() => set({ date: d.key })}
+            >
+              <span className="kk-date-seg-label">{DATE_STRIP_LABELS[d.key]}</span>
+              <span className="kk-date-seg-hint">{dateHints[d.key]}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="kk-filter-bar" role="group" aria-label="Filter games">
         <button
           type="button"
@@ -310,7 +333,6 @@ export default function GameFilters({
           {activeCount > 0 && <span className="kk-chip-count">{activeCount}</span>}
         </button>
 
-        {chip("date",   dateLabel && filters.date !== "all" ? dateLabel : "Date", filters.date !== "all", () => setSheet("date"))}
         {chip("time",   timeLabel || "Time", filters.dayparts.length > 0, () => setSheet("time"))}
         {chip("format", formatLabel || "Format", filters.formats.length > 0, () => setSheet("format"))}
         {chip("price",  priceLabel || "Price", filters.minFee !== null || filters.maxFee !== null, () => setSheet("price"))}
@@ -346,10 +368,6 @@ export default function GameFilters({
       )}
 
       {/* ── Single-purpose sheets: tap applies straight away ── */}
-
-      <BottomSheet open={sheet === "date"} title="When do you want to play?" onClose={close}>
-        {dateGroup(filters, applyToLive)}
-      </BottomSheet>
 
       <BottomSheet open={sheet === "time"} title="Time of day" onClose={close}>
         {timeGroup(filters, applyToLive)}

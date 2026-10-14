@@ -151,6 +151,63 @@
 }
 .kk-chip-clear:hover { color: var(--coral); border-color: transparent; }
 
+/* ── Date strip ───────────────────────────────────────────────────────────── */
+/* One segmented control: title on top, the real dates underneath. On a phone
+ * all five segments share one row (smaller type, titles may wrap to two lines)
+ * — a strip that scrolls sideways hides "Weekend" and "Next 7 days" off-screen.
+ * It still scrolls as a last resort on very narrow screens. */
+
+.kk-date-strip {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(24, 30, 26, .95), rgba(18, 22, 20, .92));
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.kk-date-strip::-webkit-scrollbar { display: none; }
+
+.kk-date-seg {
+  flex: 1 1 0;
+  min-width: 56px;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 2px;
+  font-family: var(--body);
+  color: var(--white);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  scroll-snap-align: start;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.kk-date-seg:hover { background: rgba(255, 255, 255, .04); }
+
+/* "Next 7 days" / "All dates" break between words on a phone; single words
+   like "Tomorrow" never split mid-word. A month-crossing range wraps after its
+   dash ("30 Oct –" / "5 Nov") — the hint text carries non-breaking spaces
+   everywhere else (see dateOptionHints). */
+.kk-date-seg-label { font-size: 12px; font-weight: 700; line-height: 1.15; }
+.kk-date-seg-hint  { font-size: 10px; font-weight: 500; color: var(--muted); line-height: 1.15; }
+
+.kk-date-seg.is-on {
+  color: var(--black);
+  background: linear-gradient(135deg, #dcff7a, var(--lime));
+  box-shadow: 0 4px 18px rgba(190, 240, 60, .22);
+}
+.kk-date-seg.is-on .kk-date-seg-hint { color: rgba(0, 0, 0, .6); }
+
 /* ── Bottom sheet ─────────────────────────────────────────────────────────── */
 
 .kk-sheet-backdrop {
@@ -604,4 +661,9 @@
     margin-right: 0;
     margin-bottom: 22px;
   }
+
+  .kk-date-strip      { gap: 4px; padding: 6px; margin-bottom: 14px; }
+  .kk-date-seg        { min-width: 0; min-height: 50px; gap: 3px; padding: 6px 12px; }
+  .kk-date-seg-label  { font-size: 15px; white-space: nowrap; }
+  .kk-date-seg-hint   { font-size: 12px; white-space: nowrap; }
 }
