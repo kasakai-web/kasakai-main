@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getSession } from "@/utils/api";
 import "./landing.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -45,6 +47,13 @@ function LandingPage({ isRestore }: { isRestore: boolean }) {
   useEffect(() => {
     if (!isRestore) window.scrollTo(0, 0);
   }, [isRestore]);
+
+  // A signed-in player has no use for the pitch — send them straight to browse.
+  const router = useRouter();
+  useEffect(() => {
+    const { token, role, userId } = getSession();
+    if (token && role === "player" && userId) router.replace("/dashboard");
+  }, [router]);
 
   return (
     <>

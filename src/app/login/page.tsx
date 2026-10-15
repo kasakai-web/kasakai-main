@@ -71,9 +71,9 @@ function AuthFlow() {
       // Clear the targetGameId so it doesn't carry over to other flows
       localStorage.removeItem("targetGameId");
       router.replace(`/dashboard?openGame=${persistedTargetGame}`);
-    } else if (!hasImage || (isNew && !redirectAfterLogin)) {
-      router.replace("/dashboard/profile");
     } else {
+      // Everyone — new signups and photo-less older accounts too — lands on browse.
+      // The photo reminder (requirePhotoUpload) still nudges the latter from there.
       router.replace(redirectAfterLogin || "/dashboard");
     }
   };
@@ -87,6 +87,7 @@ function AuthFlow() {
       body.append("signupToken", signupToken);
       body.append("name", d.firstName);
       body.append("email", d.email);
+      if (d.positions?.length) body.append("preferences", JSON.stringify({ positions: d.positions }));
       if (d.profileImageDataUrl) {
         const blob = await (await fetch(d.profileImageDataUrl)).blob();
         body.append("profileImage", blob, `profile.${blob.type.split("/")[1] || "jpg"}`);
