@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { buildApiUrl, fetchWithRetry, resolveImageUrl } from "@/utils/api";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import "@/components/dashboard/VenueModal.css";
 
 interface VenueGame {
@@ -111,6 +112,7 @@ function GameRow({ game, past, onOpen }: { game: VenueGame; past?: boolean; onOp
 }
 
 export function VenueModal({ turfId, fallbackName, onClose, onOpenGame }: VenueModalProps) {
+  useScrollLock();
   const [details, setDetails] = useState<VenueDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
