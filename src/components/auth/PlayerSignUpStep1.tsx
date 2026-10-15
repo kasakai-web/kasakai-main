@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { validateEmail } from "@/utils/auth";
 
-export type ProfileDetails = { firstName: string; email: string; profileImageDataUrl?: string };
+export type ProfileDetails = { firstName: string; email: string; profileImageDataUrl?: string; positions?: string[] };
+
+// Same codes the profile page and Player.preferences.positions enum use.
+const POSITIONS = [
+  { id: "GK", label: "Goalkeeper" },
+  { id: "DEF", label: "Defender" },
+  { id: "MID", label: "Midfielder" },
+  { id: "FWD", label: "Forward" },
+  { id: "ANY", label: "Any" },
+];
 
 // Shown only to a NEW player, after their number is verified. Through Google,
 // name and email are Google's, so it asks for the photo (and a name if Google
@@ -19,7 +28,10 @@ export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: Playe
   const [firstName, setFirstName] = useState(initial.firstName || google?.name || "");
   const [email, setEmail] = useState(initial.email);
   const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(initial.profileImageDataUrl);
+  const [positions, setPositions] = useState<string[]>(initial.positions || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const togglePosition = (id: string) =>
+    setPositions((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pickerWrapRef = useRef<HTMLDivElement>(null);
@@ -105,7 +117,7 @@ export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: Playe
       return;
     }
 
-    onContinue({ firstName: firstName.trim(), email: google ? google.email : email.trim(), profileImageDataUrl });
+    onContinue({ firstName: firstName.trim(), email: google ? google.email : email.trim(), profileImageDataUrl, positions });
   };
 
   const inputStyle = {
@@ -256,6 +268,38 @@ export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: Playe
             {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
           </div>
         )}
+
+        {/* Positions — optional, any number */}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>
+            Preferred Positions <span style={{ color: "#777", fontSize: "12px" }}>(optional)</span>
+          </label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {POSITIONS.map(({ id, label }) => {
+              const on = positions.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => togglePosition(id)}
+                  style={{
+                    background: on ? "var(--yellow)" : "#1a1a2e",
+                    color: on ? "black" : "#ccc",
+                    border: `1px solid ${on ? "var(--yellow)" : "#444"}`,
+                    borderRadius: "999px",
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    fontWeight: on ? 600 : 400,
+                    cursor: "pointer",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <button
           type="submit"
