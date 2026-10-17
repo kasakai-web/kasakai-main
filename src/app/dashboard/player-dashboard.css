@@ -721,6 +721,7 @@
 .pd-event-modal-body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px 24px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;

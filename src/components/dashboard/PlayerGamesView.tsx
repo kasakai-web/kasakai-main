@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
 import { BookingModal } from "@/components/dashboard/BookingModal";
@@ -49,6 +49,7 @@ type BookingPaymentPhase = "idle" | "topping-up" | "booking";
 import { avatarInitials } from "@/utils/avatar";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import GameFilters from "@/components/dashboard/GameFilters";
 import {
   type BrowseContext,
@@ -382,8 +383,20 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // the game underneath stays exactly as it was for when the player closes it.
   const [venueTurfId, setVenueTurfId] = useState<string | null>(null);
 
+  // Freeze the games list while the event-details modal is up, so scrolling past
+  // the end of the details doesn't drag the list underneath.
+  useScrollLock(Boolean(detailGame));
+
    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"teams" | "players" | "details" | "rules">("players");
+  // Every tab renders into the same scrolling body, so without this a tab opens
+  // at whatever depth the previous one was scrolled to. Reset before paint, and
+  // "instant" because the body has `scroll-behavior: smooth`.
+  const detailBodyRef = useRef<HTMLDivElement>(null);
+  const detailGameKey = detailGame ? String(detailGame._id || detailGame.id || "") : "";
+  useLayoutEffect(() => {
+    detailBodyRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [detailTab, detailGameKey]);
   // "Offer details" on the game detail view — the conditions of the offer the
   // server says this player's own seat would get.
   const [detailOfferOpen, setDetailOfferOpen] = useState(false);
@@ -2964,7 +2977,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             </div>
 
             {/* ── Scrollable Body ── */}
-            <div className="pd-event-modal-body">
+            <div className="pd-event-modal-body" ref={detailBodyRef}>
 
             {detailTab === "teams" && detailTeams && (
               <PublishedTeamsView
