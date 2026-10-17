@@ -68,6 +68,7 @@ import {
 } from "@/utils/browse";
 import "@/app/dashboard/player-dashboard.css";
 import "@/app/dashboard/player-feed.css";
+import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { GameRules } from "@/components/dashboard/GameRules";
 import { VenueModal } from "@/components/dashboard/VenueModal";
@@ -2383,7 +2384,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         happening. Every booking action on this page shares them. */}
     {topUpSheet}
     {waitlistPrompt}
-    <div className={`player-dashboard-container kk-card-list${section === "all" ? " kk-feed-mode" : ""}`}>
+    <div className={NEW_DASHBOARD_UI
+      ? `player-dashboard-container kk-card-list${section === "all" ? " kk-feed-mode" : ""}`
+      : "player-dashboard-container"}>
       {toast && <Toast type={toast.type} title={toast.title} subtitle={toast.subtitle} onClose={() => {}} />}
 
       {inviteToken && (
@@ -2406,7 +2409,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       )}
 
 
-      {section === "all" ? (
+      {/* The redesign's feed header replaces the eyebrow + title on browse only
+          (utils/uiFlags.ts); the old dashboard keeps it on every section. */}
+      {NEW_DASHBOARD_UI && section === "all" ? (
         <section className="kk-feed-head">
           <span className="kk-feed-eyebrow">
             {feedCityLabel ? `Football in ${feedCityLabel}` : "Football near you"}

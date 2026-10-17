@@ -18,6 +18,8 @@ import {
 import BottomSheet from "./BottomSheet";
 import FilterDropdown from "./FilterDropdown";
 import "./browse.css";
+import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
+import LegacyGameFilters from "./legacy/GameFilters";
 
 const IST = "Asia/Kolkata";
 const DAY_MS = 86_400_000;
@@ -67,7 +69,7 @@ function dateSubLabels(now: number): Record<DatePreset, string> {
  * Dropdowns apply immediately; the sheet edits a draft and commits on Apply,
  * since changing six things and watching the list flicker six times is worse.
  */
-export default function GameFilters({
+function GameFilters({
   filters,
   facets,
   onChange,
@@ -442,3 +444,7 @@ export default function GameFilters({
     </>
   );
 }
+
+// The pre-redesign filter row is served unless the build flag says otherwise
+// (see utils/uiFlags.ts). Both take the same props.
+export default NEW_DASHBOARD_UI ? GameFilters : LegacyGameFilters;

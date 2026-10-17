@@ -6,6 +6,8 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
 import { ChevronRight, Info, MapPin } from "lucide-react";
 import type { OfferInfo } from "@/utils/offers";
+import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
+import { LegacyEventCard } from "./legacy/EventCard";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -78,7 +80,7 @@ export interface EventCardProps {
   onRateGame?: () => void;
 }
 
-export function EventCard({
+function NewEventCard({
   id,
   venue,
   city,
@@ -339,3 +341,7 @@ export function EventCard({
     </article>
   );
 }
+
+// Which card every caller gets — the dashboard feed and the landing page alike —
+// is decided once, here, by the build flag (see utils/uiFlags.ts).
+export const EventCard = NEW_DASHBOARD_UI ? NewEventCard : LegacyEventCard;

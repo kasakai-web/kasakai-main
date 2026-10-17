@@ -36,6 +36,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import "./dashboard.css";
+import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
+import LegacyDashboardLayout from "@/components/dashboard/legacy/DashboardLayout";
 import "./sidebar.css";
 import Image from "next/image";
 
@@ -118,7 +120,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-export default function DashboardLayout({
+function NewDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -1046,4 +1048,13 @@ export default function DashboardLayout({
       </div>
     </div>
   );
+}
+
+// The old dashboard shell is served unless the build flag turns the redesign on
+// (see utils/uiFlags.ts). The flag is inlined at build time, so this never
+// switches between renders and neither layout's hooks are called conditionally.
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return NEW_DASHBOARD_UI
+    ? <NewDashboardLayout>{children}</NewDashboardLayout>
+    : <LegacyDashboardLayout>{children}</LegacyDashboardLayout>;
 }
