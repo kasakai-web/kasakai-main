@@ -4,7 +4,9 @@
 // (backend utils/backoutPolicy.js, the one place the rules live); nothing here is
 // re-derived, so the rules tab, the confirm dialogs and the actual charge cannot
 // quote different prices.
-export type BackoutTier = { withinMins: number; feeInPaise: number };
+// A tier carries `feeInPaise` when the organiser set rupees, `percent` when they
+// set a share of the slot's price — `feeUnit` on the info says which.
+export type BackoutTier = { withinMins: number; feeInPaise?: number; percent?: number };
 export type BackoutInfo = {
   active?: boolean;
   feePerSeatPaise?: number;
@@ -12,6 +14,9 @@ export type BackoutInfo = {
   freeUntil?: string | null;
   graceMins?: number;
   waiveOnCancel?: boolean;
+  feeUnit?: "flat" | "percent";
+  /** The game's own price, so a percentage can be shown as rupees too. */
+  listFeePaise?: number;
   tiers?: BackoutTier[];
 };
 
@@ -56,6 +61,15 @@ const formatFreeUntil = (iso: string) =>
 function CancellationPolicy({ info }: { info: BackoutInfo }) {
   const tiers = info?.tiers || [];
   const graceMins = info?.graceMins || 0;
+  const pct = info?.feeUnit === "percent";
+  const listFee = info?.listFeePaise || 0;
+  const tierCost = (t: BackoutTier) => {
+    if (!pct) return `${rupees(t.feeInPaise || 0)} per slot`;
+    const p = t.percent || 0;
+    // The rupee figure is for a full-price slot; a discounted one pays the share of
+    // what it actually cost, which the notes below say.
+    return listFee > 0 ? `${p}% (${rupees((listFee * p) / 100)}) per slot` : `${p}% per slot`;
+  };
 
   // No scale means this game never charges for leaving. Said plainly rather than
   // omitted — "there is no fee here" is exactly what a player wants confirmed
@@ -72,7 +86,7 @@ function CancellationPolicy({ info }: { info: BackoutInfo }) {
     [...tiers].reverse().forEach((t) => {
       lines.push({
         label: `Within ${formatMins(t.withinMins)} of kick-off`,
-        value: `${rupees(t.feeInPaise)} per slot`,
+        value: tierCost(t),
       });
     });
   }
@@ -80,7 +94,9 @@ function CancellationPolicy({ info }: { info: BackoutInfo }) {
   const notes: string[] = [];
   if (tiers.length) {
     notes.push(
-      "The fee is charged per slot you give up — cancelling with two guests is charged three times — and never exceeds what you paid.",
+      pct
+        ? "The fee is a share of what each slot cost, charged per slot you give up — cancelling with two guests is charged three times."
+        : "The fee is charged per slot you give up — cancelling with two guests is charged three times — and never exceeds what you paid.",
     );
     notes.push(
       "It applies however you give up a slot: cancelling your registration, removing a guest, or unticking “I'm attending this game”.",

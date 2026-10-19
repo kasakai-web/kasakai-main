@@ -1349,7 +1349,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     if (info?.active && info.inFeeWindow && !info.waived && (info.feePaise ?? 0) > 0) {
       feeWarning = ` You're inside the cancellation window, so this is NOT a full refund:`
         + ` a ${rupees(info.feePaise)} fee will be deducted`
-        + `${info.seats > 1 ? ` (${rupees(info.feePerSeatPaise)} × ${info.seats} slots)` : ""}`
+        // A percentage is a share of each slot's own price, so slots that cost
+        // different amounts do not split into one per-slot figure.
+        + `${info.seats > 1 && info.feeUnit !== "percent" ? ` (${rupees(info.feePerSeatPaise)} × ${info.seats} slots)` : ""}`
         + `${info.netRefundPaise != null ? ` and ${rupees(info.netRefundPaise)} returned to your wallet` : ""}.`;
     } else if (info?.active && info.waived && info.waivedText) {
       feeWarning = ` No cancellation fee — ${info.waivedText}.`;
