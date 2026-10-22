@@ -59,6 +59,7 @@ export const clearSession = () => {
   localStorage.removeItem("userId");
   localStorage.removeItem("userName");
   localStorage.removeItem("userProfileImage");
+  localStorage.removeItem("phoneUnverified"); // utils/phoneVerify
 };
 
 // Call this when any authenticated API returns 401 — clears session and

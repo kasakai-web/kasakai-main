@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { validateEmail } from "@/utils/auth";
+import { validateEmail, validatePhone } from "@/utils/auth";
 
-export type ProfileDetails = { firstName: string; email: string; profileImageDataUrl?: string; positions?: string[] };
+export type ProfileDetails = { firstName: string; email: string; profileImageDataUrl?: string; positions?: string[]; phone?: string };
 
 // Same codes the profile page and Player.preferences.positions enum use.
 const POSITIONS = [
@@ -14,19 +14,22 @@ const POSITIONS = [
   { id: "ANY", label: "Any" },
 ];
 
-// Shown only to a NEW player, after their number is verified. Through Google,
-// name and email are Google's, so it asks for the photo (and a name if Google
-// gave none); otherwise for name, email and photo.
+// Shown only to a NEW player. Through Google, name and email are Google's, so it
+// asks for the photo (and a name if Google gave none) — plus the number when
+// `askPhone`: a Gmail no account uses signs up with no code at all. Otherwise
+// (after a phone code) name, email and photo.
 interface PlayerSignUpStep1Props {
   google?: { name: string; email: string };
+  askPhone?: boolean;
   initial: ProfileDetails;
   onBack: () => void;
   onContinue: (data: ProfileDetails) => void;
 }
 
-export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: PlayerSignUpStep1Props) {
+export function PlayerSignUpStep1({ google, askPhone, initial, onBack, onContinue }: PlayerSignUpStep1Props) {
   const [firstName, setFirstName] = useState(initial.firstName || google?.name || "");
   const [email, setEmail] = useState(initial.email);
+  const [phone, setPhone] = useState(initial.phone || "");
   const [profileImageDataUrl, setProfileImageDataUrl] = useState<string | undefined>(initial.profileImageDataUrl);
   const [positions, setPositions] = useState<string[]>(initial.positions || []);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -111,13 +114,14 @@ export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: Playe
     if (!profileImageDataUrl) newErrors.image = "A profile photo is required";
     if (askName && !firstName.trim()) newErrors.firstName = "Name is required";
     if (!google && !validateEmail(email)) newErrors.email = "Enter valid email";
+    if (askPhone && !validatePhone(phone)) newErrors.phone = "Enter a valid 10-digit number (starting with 6–9)";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    onContinue({ firstName: firstName.trim(), email: google ? google.email : email.trim(), profileImageDataUrl, positions });
+    onContinue({ firstName: firstName.trim(), email: google ? google.email : email.trim(), profileImageDataUrl, positions, phone });
   };
 
   const inputStyle = {
@@ -161,10 +165,12 @@ export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: Playe
         ← Back
       </button>
 
-      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>{google ? "Almost there" : "Create Account"}</h1>
+      <h1 style={{ color: "var(--yellow)", fontSize: "28px", marginBottom: "10px" }}>{google ? (askPhone ? "No account yet" : "Almost there") : "Create Account"}</h1>
       <p style={{ color: "#999", marginBottom: "30px", fontSize: "14px", lineHeight: 1.5 }}>
         {google
-          ? <>Signed in with Google as <strong style={{ color: "#ccc" }}>{google.email}</strong>. Your number is verified. Add a profile photo.</>
+          ? askPhone
+            ? <>No KasaKai account for <strong style={{ color: "#ccc" }}>{google.email}</strong> yet. Add your number and a photo to create one.</>
+            : <>Signed in with Google as <strong style={{ color: "#ccc" }}>{google.email}</strong>. Your number is verified. Add a profile photo.</>
           : "Step 1 of 2: Your details"}
       </p>
 
@@ -266,6 +272,30 @@ export function PlayerSignUpStep1({ google, initial, onBack, onContinue }: Playe
               onBlur={(e) => (e.target.style.borderColor = errors.email ? "#ff6b6b" : "#444")}
             />
             {errors.email && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.email}</small>}
+          </div>
+        )}
+
+        {/* Phone — a Gmail no account uses; never sent a code */}
+        {askPhone && (
+          <div style={{ marginBottom: "24px" }}>
+            <label style={{ color: "#ccc", fontSize: "14px", display: "block", marginBottom: "8px" }}>WhatsApp Number *</label>
+            <input
+              type="tel"
+              autoComplete="tel-national"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                setErrors({ ...errors, phone: "" });
+              }}
+              placeholder="9876543210"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--yellow)")}
+              onBlur={(e) => (e.target.style.borderColor = errors.phone ? "#ff6b6b" : "#444")}
+            />
+            {errors.phone && <small style={{ color: "#ff6b6b", fontSize: "12px", display: "block", marginTop: "4px" }}>{errors.phone}</small>}
+            <small style={{ color: "#888", fontSize: "12px", display: "block", marginTop: "6px", lineHeight: 1.5 }}>
+              Already a player? Use the number you signed up with and we&apos;ll connect this Google account to it.
+            </small>
           </div>
         )}
 

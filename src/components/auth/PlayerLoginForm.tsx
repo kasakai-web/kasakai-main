@@ -5,21 +5,21 @@ import { validatePhone } from "@/utils/auth";
 import { buildApiUrl } from "@/utils/api";
 import { GoogleSignInButton, useGoogleAvailable } from "./GoogleSignInButton";
 
-export type SessionUser = { id: string; name?: string; profileImage?: string | null };
+export type SessionUser = { id: string; name?: string; profileImage?: string | null; phone?: string; phoneVerified?: boolean };
 
 // A Google sign-in that isn't linked yet. maskedPhone is set when their Gmail
 // found an existing account: the code then goes to that account's number.
+// Without it, a player goes to the signup step (app/login/page.tsx).
 export type GoogleStep = { googleToken: string; profile: { name: string; email: string }; maskedPhone?: string };
 
-// Linked → a session. Not linked yet → the player verifies a phone, which either
-// links an existing account or starts a new one.
+// Linked → a session. Not linked yet → "welcome back" (maskedPhone) or signup.
 export type GoogleResult = { token: string; user: SessionUser } | GoogleStep;
 
 interface PlayerLoginFormProps {
   onCodeSent: (phone: string) => void;
   onGoogle?: (result: GoogleResult) => void | Promise<void>;
-  // After Google: ask only for the number — or, when their Gmail found their
-  // account, just send the code to the number on it.
+  // After Google, when their Gmail found their account: just send the code to
+  // the number on it.
   google?: GoogleStep;
   onBack?: () => void;
 }
@@ -90,33 +90,15 @@ export function PlayerLoginForm({ onCodeSent, onGoogle, google, onBack }: Player
           Player Portal
         </div>
         <h1 style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "42px", letterSpacing: "-0.01em", lineHeight: 0.95, color: "var(--white)", margin: 0 }}>
-          {known ? "WELCOME" : google ? "ALMOST" : <>LET&apos;S</>}<br />
-          <span style={{ color: "var(--lime)" }}>{known ? "BACK" : google ? "THERE" : "PLAY"}</span>
+          {known ? "WELCOME" : <>LET&apos;S</>}<br />
+          <span style={{ color: "var(--lime)" }}>{known ? "BACK" : "PLAY"}</span>
         </h1>
         <p style={{ fontFamily: "var(--body)", fontSize: "13px", color: "var(--muted)", marginTop: "12px", lineHeight: 1.6 }}>
           {known
             ? <>We found your KasaKai account for {google?.profile.email}. We&apos;ll send a code to your WhatsApp on +91 {known}.</>
-            : google
-              ? <>Signed in with Google as {google.profile.email}. Now verify your phone number.</>
-              : "Sign in or create an account with your phone number."}
+            : "Sign in or create an account with your phone number."}
         </p>
       </div>
-
-      {/* Existing players whose Gmail isn't on their account land here */}
-      {google && !known && (
-        <div style={{
-          background: "rgba(196,213,108,0.06)",
-          border: "1px solid rgba(196,213,108,0.3)",
-          color: "var(--white)",
-          padding: "12px 16px",
-          marginBottom: "24px",
-          fontFamily: "var(--body)",
-          fontSize: "13px",
-          lineHeight: 1.5,
-        }}>
-          <strong>Already have a KasaKai account?</strong> Enter the number you signed up with and we&apos;ll connect this Google account to it.
-        </div>
-      )}
 
       {/* Error */}
       {error && (

@@ -22,6 +22,7 @@
 
 import { buildApiUrl, getSession } from "@/utils/api";
 import type { FundingView } from "@/utils/walletFunding";
+import { requirePhoneVerify } from "@/utils/phoneVerify";
 
 // Razorpay's checkout.js, loaded on demand rather than on every page.
 declare global {
@@ -224,7 +225,8 @@ export async function payTopUp(
 }
 
 /**
- * POST a booking action, topping the wallet up first if it cannot cover it.
+ * POST a booking action, topping the wallet up first if it cannot cover it —
+ * and, before that, asking for the WhatsApp code if the number is unproven.
  *
  * Returns the FINAL response — the one from the retry when a recharge happened,
  * the original otherwise — so callers handle success and failure in one place
@@ -251,7 +253,25 @@ export async function postWithTopUp<T = Record<string, unknown>>(
     return { res, data };
   };
 
-  const first = await send(body);
+  let first = await send(body);
+
+  // A Google signup's number is unproven, and no seat is taken on one. The server
+  // says so before it looks at the wallet, so the code comes before any top-up.
+  // Once it is in, the SAME request goes again, once, and is checked from scratch.
+  if (first.res.status === 403 && first.data?.code === "PHONE_VERIFY_REQUIRED") {
+    const verified = await requirePhoneVerify(String(first.data.phone || ""));
+    if (!verified) {
+      return {
+        res: null,
+        data: {
+          success: false,
+          code: "PHONE_VERIFY_CANCELLED",
+          message: "Verify your WhatsApp number to book this spot. Nothing was charged.",
+        } as PostResult<T>["data"],
+      };
+    }
+    first = await send(body);
+  }
 
   // The wallet covered it, or the request was refused for some other reason.
   if (first.res.status !== 402 || first.data?.code !== "WALLET_TOPUP_REQUIRED") {
@@ -324,6 +344,9 @@ export function bookingErrorMessage(
       return "Recharge cancelled — nothing was charged and your booking wasn't made.";
     case "TOPUP_FAILED":
       return data?.message || "That recharge didn't go through. Nothing was booked.";
+    case "PHONE_VERIFY_CANCELLED":
+    case "PHONE_VERIFY_REQUIRED":
+      return data?.message || "Verify your WhatsApp number to book this spot.";
     case "WALLET_TOPUP_REQUIRED":
       return data?.message || "Add money to your wallet to book this spot.";
     case "NO_CAPACITY":
