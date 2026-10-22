@@ -8,13 +8,17 @@ import { PlayerLoginForm, type SessionUser, type GoogleStep } from "@/components
 import { PlayerSignUpStep1, type ProfileDetails } from "@/components/auth/PlayerSignUpStep1";
 import { OTPVerificationPhone } from "@/components/auth/OTPVerificationPhone";
 import { buildApiUrl, resolveImageUrl } from "@/utils/api";
+import { UNVERIFIED_PHONE_KEY } from "@/utils/phoneVerify";
 
 // One flow signs in and signs up, with no password anywhere:
 //   phone  → WhatsApp code → (new number) name, email, photo
-//   Google → (not linked yet) WhatsApp code → (new number) photo
-// After Google the code goes to the number on the account their Gmail found, or
-// else to a number they type. An existing account is signed in straight after
-// the code, with Google linked to it, so only a new player sees the photo step.
+//   Google, Gmail on an account → "welcome back" → code to that account's number
+//   Google, Gmail no account uses → number + photo → signed in, no code. That
+//     number signs nobody in by phone until they verify it, which the app offers
+//     after a booking or top-up (utils/phoneVerify)
+// A number typed there that already has an account is offered a code instead:
+// to add this Gmail to THAT account, or just to log in with the number — old
+// players with another email land in their own account, never the photo step.
 function AuthFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,6 +30,10 @@ function AuthFlow() {
   const [signupToken, setSignupToken] = useState("");
   const [details, setDetails] = useState<ProfileDetails>({ firstName: "", email: "" });
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  // Typed at Google signup, and already on an account: the player picks what next.
+  const [existingPhone, setExistingPhone] = useState("");
+  const [sending, setSending] = useState(false);
 
   const [persistedTargetGame] = useState(() => {
     return targetGame || (typeof window !== "undefined" ? localStorage.getItem("targetGameId") : null);
@@ -59,6 +67,8 @@ function AuthFlow() {
     } else {
       localStorage.removeItem("userProfileImage");
     }
+    if (user.phoneVerified === false && user.phone) localStorage.setItem(UNVERIFIED_PHONE_KEY, user.phone);
+    else localStorage.removeItem(UNVERIFIED_PHONE_KEY);
     // Signal SocketClient to connect now that we have a token (same-tab login)
     window.dispatchEvent(new CustomEvent("kk-auth-changed"));
 
@@ -78,13 +88,46 @@ function AuthFlow() {
     }
   };
 
+  // A code to the number that already has an account: with Google it adds this
+  // Gmail to that account; without, it just logs in with the number.
+  const sendCodeToExisting = async (addGmail: boolean) => {
+    setError("");
+    setSending(true);
+    try {
+      const sent = await fetch(buildApiUrl("/auth/otp/send"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: existingPhone, role: "player" }),
+      });
+      const sentData = await sent.json();
+      if (!sent.ok) throw new Error(sentData.message || "Couldn't send the code. Please try again.");
+      setPhone(existingPhone);
+      if (addGmail) setNotice("Enter the code to add this Gmail to your KasaKai account.");
+      else setGoogle(null);
+      setExistingPhone("");
+      setStep("otp");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const completeSignup = async (d: ProfileDetails) => {
     setDetails(d);
     setError("");
+    setExistingPhone("");
     try {
       // Multipart: the photo is compulsory and the server stores it with the account.
       const body = new FormData();
-      body.append("signupToken", signupToken);
+      // After a phone code: the signupToken. A Gmail no account uses: Google's
+      // token and the number typed, which gets no code here (the app offers one
+      // after a booking or top-up — utils/phoneVerify).
+      if (signupToken || !google) body.append("signupToken", signupToken);
+      else {
+        body.append("googleToken", google.googleToken);
+        body.append("phone", d.phone || "");
+      }
       body.append("name", d.firstName);
       body.append("email", d.email);
       if (d.positions?.length) body.append("preferences", JSON.stringify({ positions: d.positions }));
@@ -94,6 +137,11 @@ function AuthFlow() {
       }
       const res = await fetch(buildApiUrl("/auth/complete-signup"), { method: "POST", body });
       const data = await res.json();
+      if (data.code === "PHONE_HAS_ACCOUNT" && google) {
+        setExistingPhone(d.phone || "");
+        window.scrollTo({ top: 0, behavior: "smooth" }); // the note sits above the form
+        return;
+      }
       if (!res.ok) throw new Error(data.message || "Couldn't create your account. Please try again.");
       await finishLogin(data.token, data.user, true);
     } catch (err) {
@@ -112,12 +160,12 @@ function AuthFlow() {
           onGoogle={async (r) => {
             if ("token" in r) return finishLogin(r.token, r.user);
             setGoogle(r);
-            setStep("google");
+            setStep(r.maskedPhone ? "google" : "profile");
           }}
         />
       )}
 
-      {/* Google, not linked: "welcome back" (their Gmail found the account) or a number to type */}
+      {/* Google, not linked, and their Gmail found the account: "welcome back" */}
       {step === "google" && google && (
         <PlayerLoginForm
           google={google}
@@ -132,7 +180,7 @@ function AuthFlow() {
         />
       )}
 
-      {/* New players only. Phone sign-up: name, email, photo. Google sign-up: photo. */}
+      {/* New players only. Phone sign-up: name, email, photo. Google sign-up: number + photo. */}
       {step === "profile" && (
         <>
           {error && (
@@ -140,11 +188,29 @@ function AuthFlow() {
               {error}
             </div>
           )}
+          {existingPhone && (
+            <div style={{ background: "rgba(196,213,108,0.06)", border: "1px solid rgba(196,213,108,0.3)", color: "var(--white)", padding: "14px 16px", marginBottom: "16px", fontSize: "13px", lineHeight: 1.5 }}>
+              <p style={{ margin: "0 0 12px" }}>
+                <strong>+91 {existingPhone}</strong> is already associated with a KasaKai account. We can send a WhatsApp code to it to add this Gmail to that account, or you can just log in with the number.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                <button type="button" disabled={sending} onClick={() => sendCodeToExisting(true)} className="btn-primary" style={{ flex: "1 1 180px", opacity: sending ? 0.6 : 1 }}>
+                  <span>Send code to add this Gmail</span>
+                </button>
+                <button type="button" disabled={sending} onClick={() => sendCodeToExisting(false)} style={{ flex: "1 1 160px", background: "none", border: "1px solid var(--border)", color: "var(--white)", padding: "10px 14px", cursor: "pointer", fontSize: "13px", opacity: sending ? 0.6 : 1 }}>
+                  Log in with this number
+                </button>
+              </div>
+            </div>
+          )}
           <PlayerSignUpStep1
             google={google?.profile}
+            askPhone={!!google && !signupToken}
             initial={details}
             onBack={() => {
               setGoogle(null);
+              setSignupToken("");
+              setExistingPhone("");
               setStep("start");
             }}
             onContinue={completeSignup}
@@ -153,18 +219,29 @@ function AuthFlow() {
       )}
 
       {step === "otp" && (
-        <OTPVerificationPhone
-          phone={phone}
-          maskedPhone={google?.maskedPhone}
-          role="player"
-          googleToken={google?.googleToken}
-          onVerified={async (r) => {
-            if ("token" in r) return finishLogin(r.token, r.user);
-            setSignupToken(r.signupToken);
-            setStep("profile");
-          }}
-          onBack={() => setStep(google ? "google" : "start")}
-        />
+        <>
+          {notice && (
+            <div style={{ background: "rgba(196,213,108,0.06)", border: "1px solid rgba(196,213,108,0.3)", color: "var(--white)", padding: "12px 16px", marginBottom: "16px", fontSize: "13px", lineHeight: 1.5 }}>
+              {notice}
+            </div>
+          )}
+          <OTPVerificationPhone
+            phone={phone}
+            maskedPhone={google?.maskedPhone}
+            role="player"
+            googleToken={google?.googleToken}
+            onVerified={async (r) => {
+              setNotice("");
+              if ("token" in r) return finishLogin(r.token, r.user);
+              setSignupToken(r.signupToken);
+              setStep("profile");
+            }}
+            onBack={() => {
+              setNotice("");
+              setStep(google?.maskedPhone ? "google" : google ? "profile" : "start");
+            }}
+          />
+        </>
       )}
     </>
   );
