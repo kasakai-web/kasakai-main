@@ -1009,6 +1009,13 @@ body::after {
 /* The coupon pill stretches to the date pill's height, with smaller text inside. */
 .registered-badge.coupon-badge { align-self: stretch; padding: 0 9px; font-size: 9px; letter-spacing: 0.05em; }
 
+.registered-badge.repeat-badge {
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  align-self: stretch; padding: 0 9px; font-size: 9px; letter-spacing: 0.05em;
+}
+
 .registered-badge.waitlisted-badge {
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
@@ -3371,7 +3378,7 @@ body::after {
   /* The card's coupon pill keeps only its icon and count: "🎟 1". */
   .coupon-label { display: none; }
   .registered-badge.coupon-badge { padding: 0 6px; font-size: 8px; }
-
+   .registered-badge.repeat-badge{padding: 0 6px; font-size: 8px; }
   /* Price — compact pill in top-right */
   .card-price {
     padding: 4px 9px;

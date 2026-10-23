@@ -5,7 +5,7 @@ import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
 import { useState } from "react";
-import type { EventCardProps } from "../EventCard";
+import { REPEAT_LABEL, type EventCardProps } from "../EventCard";
 
 function buildAvatarStackLabel(players: { name: string }[]): string|null {
   const total = players.length;
@@ -32,6 +32,7 @@ export function LegacyEventCard({
   date,
   time,
   format,
+  repeat = null,
   fee,
   passEligible = false,
   passInfo = null,
@@ -106,6 +107,9 @@ export function LegacyEventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
+          {!isRegistered && repeat && REPEAT_LABEL[repeat] && (
+            <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span>
+          )}
           {/* The card shows the full price either way; the booking sheet applies
               an automatic offer and lists codes to tap. */}
           {offer ? (

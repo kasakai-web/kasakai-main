@@ -2487,6 +2487,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}
                   time={new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
+                  repeat={game.repeat ?? null}
                   fee={game.feeInPaise / 100}
                   passEligible={Boolean(game.passEligible)}
                   passInfo={game.passInfo ?? null}
