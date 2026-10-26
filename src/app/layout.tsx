@@ -3,7 +3,6 @@ import Script from "next/script";
 import "./globals.css";
 import SocketClient from "./SocketClient";
 import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
-import PhoneVerifySheet from "@/components/auth/PhoneVerifySheet";
 import { INSTALL_PROMPT_SNIPPET } from "@/utils/pwa";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
@@ -91,7 +90,6 @@ export default function RootLayout({
         </Script>
         <SocketClient /> {/* 👈 this handles socket */}
         <InstallAppPrompt />
-        <PhoneVerifySheet />
         {GA_ID && (
           <>
             <Script

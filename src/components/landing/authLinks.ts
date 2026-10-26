@@ -3,9 +3,10 @@
 // Every CTA lands in the SAME auth flow the rest of the site already uses
 // (src/app/login/page.tsx) — never a second sign-up screen of its own:
 //
-//   ?mode=signup      no longer changes anything: signing in and signing up
-//                     are one flow (phone + WhatsApp code, or Google), and a
-//                     number with no account simply goes on to the profile step.
+//   ?mode=signup      opens the sign-up form first; the sign-up card's "Sign In"
+//                     button drops the visitor onto the login form, so signing
+//                     IN stays one tap away for people who already have an
+//                     account.
 //   ?targetGame=<id>  is remembered through login AND OTP verification, and
 //                     reopens that game's booking modal on the dashboard the
 //                     moment there is a session — the same handoff
@@ -42,10 +43,11 @@ const dashboardHref = (metro?: string | null, openGame?: string) => {
  * A signed-in player goes straight there; there is nothing to ask them. A
  * visitor goes to the LOGIN form (not sign-up: "Book" is a booking intent, not
  * an account-creation one, and returning players are the ones most likely to
- * press it) carrying ?targetGame, which the login page's finishLogin spends on
- * /dashboard?openGame=<id> — and a new number simply carries on into sign-up.
- * No ?redirect: targetGame already decides the destination in finishLogin, so
- * a second answer could only disagree with the first.
+ * press it) carrying ?targetGame, which PlayerLoginForm spends on
+ * /dashboard?openGame=<id> — and the sign-up card is one tap below if they turn
+ * out to be new. No ?redirect: targetGame already decides the destination in
+ * both PlayerLoginForm and the sign-up OTP step, so a second answer could only
+ * disagree with the first.
  */
 export const bookHref = (gameId: string, isLoggedIn: boolean, metro?: string | null) =>
   isLoggedIn
@@ -70,9 +72,9 @@ export const enterHref = (isLoggedIn: boolean, metro?: string | null) =>
  * A player goes straight to the browse dashboard. A visitor goes to the LOGIN
  * form (not sign-up, for the same reason bookHref does not: someone hunting for
  * a game to play is more likely to already have an account than to be creating
- * one), and finishLogin's own fallback lands them on that same dashboard.
+ * one), and PlayerLoginForm's own fallback lands them on that same dashboard.
  *
- * No ?redirect: it would not change the answer. finishLogin checks for a missing
+ * No ?redirect: it would not change the answer. The form checks for a missing
  * profile photo BEFORE it reads redirectAfterLogin, so the one-time photo step
  * wins either way — that gate is site-wide and this CTA has no business
  * carving itself an exemption from it. Everyone else ends at /dashboard.
