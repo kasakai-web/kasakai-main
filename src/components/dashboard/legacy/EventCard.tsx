@@ -107,7 +107,7 @@ export function LegacyEventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
-          {!isRegistered && repeat && REPEAT_LABEL[repeat] && (
+          {!isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat] && (
             <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span>
           )}
           {/* The card shows the full price either way; the booking sheet applies

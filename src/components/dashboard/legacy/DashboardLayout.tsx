@@ -456,7 +456,32 @@ export default function LegacyDashboardLayout({
   };
 
   const handleLogout = () => setShowLogoutConfirm(true);
-
+function RupeeBagIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18px"
+      height="18px"
+      aria-hidden="true"
+      style={{ verticalAlign: "-0.125em" }}
+    >
+      <path d="M8.5 2.5h7l-2 3.5h-3z" fill="#c98a3c" />
+      <path d="M9 6.2h6" stroke="#8a5a1f" strokeWidth="1.5" strokeLinecap="round" />
+      <path
+        d="M10 6.8C5.5 9.2 3.5 13 3.5 16.5 3.5 20 6.5 22 12 22s8.5-2 8.5-5.5c0-3.5-2-7.3-6.5-9.7z"
+        fill="#e0a84f"
+      />
+      <path
+        d="M9.5 11.5h5M9.5 13.5h5M10 11.5h1a2 2 0 0 1 0 4h-1l4 4.5"
+        fill="none"
+        stroke="#7a4a12"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
   const navigateToPlayer = (
     destination:
@@ -638,7 +663,7 @@ export default function LegacyDashboardLayout({
               className="mobile-wallet-pill"
               onClick={() => router.push("/dashboard/wallet")}
             >
-              <span className="mobile-wallet-icon">💰</span>
+              <span className="mobile-wallet-icon"><RupeeBagIcon /></span>
               <span className="mobile-wallet-amount">
                 ₹{(walletBalancePaise / 100).toLocaleString("en-IN")}
               </span>
@@ -790,7 +815,7 @@ export default function LegacyDashboardLayout({
                 navigateToPlayer("wallet");
               }}
             >
-              <span className="sidebar-icon">💰</span>Wallet
+              <span className="sidebar-icon"><RupeeBagIcon/></span>Wallet
               {walletBalancePaise !== null && (
                 <span
                   style={{

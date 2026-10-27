@@ -259,7 +259,7 @@ function NewEventCard({
               {area || city}
             </span>
             <span className="kk-game-tag kk-game-format">{format}</span>
-            {repeat && REPEAT_LABEL[repeat] && (
+            {!isRegistered && !isCancelled && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus &&repeat && REPEAT_LABEL[repeat] && (
               <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span>
             )}
             {feedStatusTag && (

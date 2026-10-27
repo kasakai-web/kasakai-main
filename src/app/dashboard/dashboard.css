@@ -1013,7 +1013,7 @@ body::after {
   background: rgba(56, 189, 248, 0.12);
   color: #7dd3fc;
   border: 1px solid rgba(56, 189, 248, 0.3);
-  align-self: stretch; padding: 0 9px; font-size: 9px; letter-spacing: 0.05em;
+  /* align-self: stretch; padding: 0 9px; font-size: 9px; letter-spacing: 0.05em; */
 }
 
 .registered-badge.waitlisted-badge {

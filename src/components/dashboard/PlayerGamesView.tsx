@@ -2557,7 +2557,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               <div className="kk-no-results-actions">
                 <button
                   type="button"
-                  className="kk-btn kk-btn-primary"
+                  className="kk-btn kk-btn-primary "
                   onClick={() => setFilters(clearFilters(filters))}
                 >
                   Clear filters
@@ -2572,7 +2572,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 <button
                   type="button"
                   className="kk-btn kk-btn-primary"
-                  onClick={() => router.push("/dashboard")}
+                  onClick={() => router.push("/dashboard")} 
+                  style={{paddingInline:"10px"}}
                 >
                   Browse games
                 </button>

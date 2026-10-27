@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 // styled-jsx (the <style jsx> block below) only compiles inside a Client
 // Component. Both callers were already client pages, so this was true before
 // it was declared — /about is a Server Component, and needs it said out loud.
@@ -10,7 +11,7 @@ const quickLinks = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about" },
   { label: "Football", href: "/login?role=player" },
-  { label: "Screening Events", href: "/screening" },
+  // { label: "Screening Events", href: "/screening" },
   { label: "Turf Events", href: "/dashboard" },
   // The permanent home for the install offer. The banner is a one-off that
   // someone can dismiss for weeks; this is how they find it again afterwards,
@@ -44,24 +45,17 @@ export function Footer() {
           {/* Brand Section */}
           <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  width: "48px",
-                  height: "48px",
-                  overflow: "hidden",
-                  border: "1.5px solid #333",
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{ flex: 1, background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "9px", letterSpacing: "0.08em", color: "#000" }}>KASA</span>
-                </div>
-                <div style={{ flex: 1, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", borderTop: "1.5px solid #333" }}>
-                  <span style={{ fontFamily: "var(--cond)", fontWeight: 900, fontSize: "9px", letterSpacing: "0.08em", color: "var(--white)" }}>KAI</span>
-                </div>
-              </div>
+               <Image
+      src="/kasa-kai-logo.jpg"
+      alt="Kasa Kai"
+      width={48}
+      height={42}
+      style={{
+        display: "block",
+        border: "1px solid  #333",
+        flexShrink: 0,
+      }}
+    />
               <h2
                 style={{
                   fontFamily: "var(--cond)",
