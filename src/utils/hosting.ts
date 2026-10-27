@@ -186,6 +186,19 @@ export const fetchStaffConsole = async (gameId: string): Promise<StaffConsole> =
 export const staffAction = async <T = unknown>(gameId: string, action: StaffAction, body: Record<string, unknown> = {}) =>
   authFetch<T>(`/games/${gameId}/staff/${action}`, { method: "POST", body: JSON.stringify(body) });
 
+/** What happens to the players' video + feedback WhatsApp after a video is
+ *  saved — `videoFeedback` on the save response. Null when there is nothing to
+ *  add to "Video saved". Same wording as the organiser portal. */
+export const videoFeedbackText = (status?: string | null) => {
+  switch (status) {
+    case "sending":             return "The players who played are being sent the video and a feedback link on WhatsApp.";
+    case "awaiting_attendance": return "Players get it on WhatsApp once attendance is marked, or in 2 hours if it isn't.";
+    case "awaiting_completion": return "Players get it on WhatsApp after the game is marked completed and attendance is in.";
+    case "sent":                return "Players already got the earlier link on WhatsApp. It isn't sent again.";
+    default:                    return null;
+  }
+};
+
 // ── Small display helpers ────────────────────────────────────────────────────
 
 export const rupees = (paise?: number | null) => `₹${Math.round((paise || 0) / 100).toLocaleString("en-IN")}`;

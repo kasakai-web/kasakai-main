@@ -18,7 +18,13 @@ import { buildApiUrl, resolveImageUrl } from "@/utils/api";
 function AuthFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectAfterLogin = searchParams.get("redirect") || null;
+  // Only a path on this site — `//evil.example` or a full URL would send a
+  // freshly signed-in player somewhere else.
+  const rawRedirect = searchParams.get("redirect");
+  const redirectAfterLogin =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") && !rawRedirect.startsWith("/\\")
+      ? rawRedirect
+      : null;
   const targetGame = searchParams.get("targetGame") || null; // Game ID for auto-booking
   const [step, setStep] = useState<"start" | "google" | "otp" | "profile">("start");
   const [phone, setPhone] = useState("");

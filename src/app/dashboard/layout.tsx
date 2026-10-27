@@ -195,7 +195,10 @@ function NewDashboardLayout({
     } else {
       setAuthenticated(false);
       clearSession();
-      router.replace("/login?role=player");
+      // Come back to the page they opened — a link from a WhatsApp message (a
+      // game's feedback form) usually opens in a browser with no session.
+      const here = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/login?role=player&redirect=${encodeURIComponent(here)}`);
     }
 
     setAuthResolved(true);

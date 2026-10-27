@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { GameFeedbackModal } from "@/components/dashboard/GameFeedbackModal";
@@ -49,16 +49,28 @@ function Stars({ value, size = 16 }: { value: number; size?: number }) {
   );
 }
 
-export default function MyRatingsPage() {
+function MyRatings() {
   const router = useRouter();
+  // ?game=<id> — the link in the match-video WhatsApp. Opens that game's
+  // feedback form straight away.
+  const linkedGameId = useSearchParams().get("game");
   const { isAuthorized } = useAuthGuard({
     requiredRole: "player",
-    redirectTo: "/login?role=player",
+    redirectTo: linkedGameId
+      ? `/login?role=player&redirect=${encodeURIComponent(`/dashboard/ratings?game=${linkedGameId}`)}`
+      : "/login?role=player",
   });
+  // The link is acted on once: closing the form must not reopen it, and the
+  // refresh after submitting must not turn into "already rated".
+  const linkHandled = useRef(false);
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
 
   const [feedbacks, setFeedbacks] = useState<GameFeedbackData[]>([]);
   const [pendingGames, setPendingGames] = useState<PendingGame[]>([]);
   const [loading, setLoading] = useState(true);
+  // True once the lists have actually been fetched — `loading` is also false
+  // before the auth guard has resolved, when both lists are still empty.
+  const [loaded, setLoaded] = useState(false);
   // The game the player is currently submitting feedback for
   const [feedbackGame, setFeedbackGame] = useState<PendingGame | null>(null);
   // Submitted feedback is paged — it only ever grows, and a regular player
@@ -116,6 +128,7 @@ export default function MyRatingsPage() {
       // non-critical
     } finally {
       setLoading(false);
+      setLoaded(true);
     }
   }, [router, fetchFeedbackPage]);
 
@@ -133,6 +146,18 @@ export default function MyRatingsPage() {
     if (!isAuthorized) { setLoading(false); return; }
     fetchData();
   }, [isAuthorized, fetchData]);
+
+  useEffect(() => {
+    if (!linkedGameId || !loaded || linkHandled.current) return;
+    linkHandled.current = true;
+    const pending = pendingGames.find((g) => g._id === linkedGameId);
+    if (pending) { setFeedbackGame(pending); return; }
+    setLinkNotice(
+      feedbacks.some((f) => f.game?._id === linkedGameId)
+        ? "You've already shared feedback for this game. Thanks!"
+        : "This game isn't waiting for your feedback. If you've already rated it, you'll find it under Submitted Feedback.",
+    );
+  }, [linkedGameId, loaded, pendingGames, feedbacks]);
 
   // After submitting feedback — remove from pending, add to feedbacks, close modal
   const handleFeedbackSubmitted = () => {
@@ -159,6 +184,8 @@ export default function MyRatingsPage() {
           <div className="page-title">My <span>Feedback</span></div>
         </div>
       </div>
+
+      {linkNotice && <div className="mpr-link-notice">{linkNotice}</div>}
 
       {loading ? (
         <div className="loading-container"><div className="spinner" /><p>Loading…</p></div>
@@ -307,4 +334,12 @@ export default function MyRatingsPage() {
     </div>
   );
 
+}
+
+export default function MyRatingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <MyRatings />
+    </Suspense>
+  );
 }

@@ -28,6 +28,7 @@ import { resolveImageUrl } from "@/utils/api";
 import {
   fetchStaffConsole,
   staffAction,
+  videoFeedbackText,
   runByText,
   whenText,
   type StaffConsole,
@@ -95,11 +96,14 @@ export default function HostToolsPage() {
 
   useEffect(() => { if (isAuthorized) load(); }, [isAuthorized, load]);
 
-  const run = async (key: string, fn: () => Promise<unknown>, ok: string) => {
+  // `detail` reads the response for a second line — e.g. what happens to the
+  // players' WhatsApp after a video is saved.
+  const run = async (key: string, fn: () => Promise<unknown>, ok: string, detail?: (result: unknown) => string | null) => {
     setBusy(key);
     try {
-      await fn();
-      showToast("success", ok, undefined, 2200);
+      const result = await fn();
+      const sub = detail?.(result) || undefined;
+      showToast("success", ok, sub, sub ? 5000 : 2200);
       await load();
     } catch (err) {
       showToast("error", "That didn't work", err instanceof Error ? err.message : undefined, 3500);
@@ -352,7 +356,12 @@ export default function HostToolsPage() {
               <button
                 className="hs-btn"
                 disabled={busy !== null || !video.trim() || video.trim() === (game.matchRecording || "")}
-                onClick={() => run("recording", () => staffAction(game._id, "recording", { matchRecording: video.trim() }), "Video saved")}
+                onClick={() => run(
+                  "recording",
+                  () => staffAction<{ videoFeedback?: string }>(game._id, "recording", { matchRecording: video.trim() }),
+                  "Video saved",
+                  (r) => videoFeedbackText((r as { data?: { videoFeedback?: string } })?.data?.videoFeedback),
+                )}
               >
                 {busy === "recording" ? "Saving…" : "Save"}
               </button>

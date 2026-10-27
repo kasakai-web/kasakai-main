@@ -233,6 +233,18 @@
   line-height: 1.5;
 }
 
+/* Shown when a feedback link (?game=) names a game that isn't awaiting feedback */
+.mpr-link-notice {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid rgba(196,213,108,0.25);
+  border-radius: 10px;
+  background: rgba(196,213,108,0.06);
+  color: #c4d56c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* ── Give Feedback button ── */
 .mpr-btn-feedback {
   background: #c4d56c;
