@@ -213,9 +213,9 @@ export function TopUpSheet({ need, onDone }: Props) {
                 inputMode="numeric"
                 value={customStr}
                 onChange={(e) => typeCustom(e.target.value)}
-                placeholder="Other amount"
+                placeholder="Enter other amount"
                 style={{
-                  width: "100%", background: "#0d0d0d", border: "1px solid #232323",
+                  width: "100%", background: "#0d0d0d", border: "1px solid rgb(156 147 147)",
                   borderRadius: 8, padding: "12px 14px 12px 30px", color: "#fff",
                   fontSize: 15, fontWeight: 700, outline: "none", boxSizing: "border-box",
                 }}

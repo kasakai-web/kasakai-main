@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { NAV_LINKS } from "@/config/navigation";
-import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn"; 
+import Image from "next/image";
+
 
 /**
  * Site navbar.
@@ -21,31 +23,24 @@ import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
  */
 
 /** Stacked KASA / KAI mark. */
+
 function Logo() {
-  const row: React.CSSProperties = {
-    padding: "4px 0",
-    fontFamily: "var(--body)",
-    fontWeight: 800,
-    fontSize: "10px",
-    lineHeight: 1,
-    letterSpacing: "0.1em",
-    textAlign: "center",
-    textTransform: "uppercase",
-  };
+  const [loaded, setLoaded] = useState(false);
 
   return (
-    <div
+    <Image
+      src="/kasa-kai-logo.jpg"
+      alt="Kasa Kai"
+      width={48}
+      height={42}
+      onLoad={() => setLoaded(true)}
+      onError={() => setLoaded(false)}
       style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "48px",
-        border: "1px solid var(--white)",
-        flexShrink: 0,
+        display: "block",
+        boxSizing: "border-box",
+        border: `1px solid ${loaded ? "var(--white)" : "transparent"}`,
       }}
-    >
-      <div style={{ ...row, background: "var(--white)", color: "#000" }}>Kasa</div>
-      <div style={{ ...row, background: "#000", color: "var(--white)" }}>Kai</div>
-    </div>
+    />
   );
 }
 

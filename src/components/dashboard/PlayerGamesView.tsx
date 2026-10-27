@@ -2487,6 +2487,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   date={new Date(game.scheduledAt).toISOString().split('T')[0]}
                   time={new Date(game.scheduledAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                   format={game.format}
+                  repeat={game.repeat ?? null}
                   fee={game.feeInPaise / 100}
                   passEligible={Boolean(game.passEligible)}
                   passInfo={game.passInfo ?? null}
@@ -2556,7 +2557,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               <div className="kk-no-results-actions">
                 <button
                   type="button"
-                  className="kk-btn kk-btn-primary"
+                  className="kk-btn kk-btn-primary "
                   onClick={() => setFilters(clearFilters(filters))}
                 >
                   Clear filters
@@ -2571,7 +2572,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 <button
                   type="button"
                   className="kk-btn kk-btn-primary"
-                  onClick={() => router.push("/dashboard")}
+                  onClick={() => router.push("/dashboard")} 
+                  style={{paddingInline:"10px"}}
                 >
                   Browse games
                 </button>

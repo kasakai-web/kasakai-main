@@ -327,6 +327,7 @@
 .kk-game-status-completed { color: #c5d7ee; background: #263548; border-color: #435c78; }
 .kk-game-reg-muted { color: #b4c3b2; background: #253027; border-color: #3d4d3f; }
 .kk-game-pass { color: #c9d7ff; background: #28304a; border-color: #48568a; }
+.kk-game-repeat { color: #a5e3f5; background: #1f3a44; border-color: #3a6878; }
 
 /* Price + action */
 .kk-game-rate { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }

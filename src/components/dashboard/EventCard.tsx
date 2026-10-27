@@ -11,6 +11,13 @@ import { LegacyEventCard } from "./legacy/EventCard";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
+export type GameRepeat = "daily" | "weekly" | "monthly";
+
+export const REPEAT_LABEL: Record<GameRepeat, string> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+};
 
 
 export interface EventCardProps {
@@ -26,6 +33,7 @@ export interface EventCardProps {
   date: string;
   time: string;
   format: string;
+  repeat?: GameRepeat | null;
   fee: number;
   passEligible?: boolean;
   /** What a pass does to THIS game for this viewer, computed server-side
@@ -92,6 +100,7 @@ function NewEventCard({
   date,
   time,
   format,
+  repeat = null,
   fee,
   passEligible = false,
   passInfo = null,
@@ -250,6 +259,9 @@ function NewEventCard({
               {area || city}
             </span>
             <span className="kk-game-tag kk-game-format">{format}</span>
+            {!isRegistered && !isCancelled && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus &&repeat && REPEAT_LABEL[repeat] && (
+              <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span>
+            )}
             {feedStatusTag && (
               <span className={`kk-game-tag kk-game-status-${feedStatusTag.kind}`}>
                 {feedStatusTag.label}
