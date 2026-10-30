@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { buildApiUrl, getSession, clearSession } from "@/utils/api";
+import { offerPhoneVerify } from "@/utils/phoneVerify";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import {
@@ -377,6 +378,7 @@ export default function WalletPage() {
               // between opening this modal and paying.
               setCreditedBonusPaise(Number(verifyData.data?.bonusPaise) || 0);
               setModalStep("success");
+              offerPhoneVerify();
               fetchWallet(); // refresh transactions too
               fetchOffer();  // a one-per-player offer may now be spent
             } else {

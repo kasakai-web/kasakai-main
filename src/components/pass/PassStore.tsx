@@ -16,6 +16,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { buildApiUrl, getSession } from "@/utils/api";
 import { postWithTopUp, type RequestTopUp } from "@/utils/walletTopup";
+import { offerPhoneVerify } from "@/utils/phoneVerify";
 
 export type StoreRow = {
   _id: string;
@@ -86,6 +87,8 @@ export function PassStore({
       setDone(`${row.name} is yours.`);
       load();
       onPurchased();
+      // A pass needs no proven number, so the check is only offered here.
+      offerPhoneVerify();
     } finally {
       setBuying(null);
     }
