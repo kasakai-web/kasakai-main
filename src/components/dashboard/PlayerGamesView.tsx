@@ -3182,7 +3182,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 everyone — who is running it. All from the server's hostInfo. */}
             {detailTab === "players" && detailGame.hostInfo && !detailIsCancelled && (() => {
               const hi = detailGame.hostInfo as HostInfo;
-              const runBy = runByText(hi.runBy);
+              // Facilitators are never named here — a facilitator learns their
+              // role from the "You're running this game" strip and their Hosting page.
+              const runBy = runByText(hi.runBy?.filter((r) => r.role !== "facilitator"));
               return (
                 <>
                   {hi.viewerStaffRole && (

@@ -3378,7 +3378,6 @@ body::after {
   /* The card's coupon pill keeps only its icon and count: "🎟 1". */
   .coupon-label { display: none; }
   .registered-badge.coupon-badge { padding: 0 6px; font-size: 8px; }
-   .registered-badge.repeat-badge{padding: 0 6px; font-size: 8px; }
   /* Price — compact pill in top-right */
   .card-price {
     padding: 4px 9px;
