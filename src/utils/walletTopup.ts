@@ -88,6 +88,48 @@ export function loadRazorpay(): Promise<boolean> {
   return scriptPromise;
 }
 
+export type RazorpayPayment = RazorpayCheckoutResponse;
+
+/**
+ * Open Razorpay's checkout for an order the SERVER created, and resolve with the
+ * payment once it succeeds, or null if the window is closed without paying.
+ * Shared by the wallet recharge and the pass purchase.
+ */
+export function openRazorpayCheckout(
+  order: { orderId: string; amount: number; currency?: string; keyId: string },
+  description: string,
+  prefill?: { name?: string; contact?: string; email?: string },
+): Promise<RazorpayCheckoutResponse | null> {
+  return new Promise<RazorpayCheckoutResponse | null>((resolve) => {
+    let settled = false;
+    const finish = (value: RazorpayCheckoutResponse | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    const rzp = new window.Razorpay({
+      key: order.keyId,
+      amount: order.amount, // authoritative — the server created the order
+      currency: order.currency || "INR",
+      name: "Kasa Kai",
+      description,
+      order_id: order.orderId,
+      prefill,
+      theme: { color: "#c8ff3e" },
+      modal: { ondismiss: () => finish(null) },
+      handler: (response) => finish(response),
+    });
+
+    // A failed card is not the end of the payment — the customer can try
+    // another method in the same sheet against the same order. Only a dismiss
+    // ends it, which is why nothing is resolved here.
+    rzp.on?.("payment.failed", () => {});
+
+    rzp.open();
+  });
+}
+
 /** What the server sends with a 402 WALLET_TOPUP_REQUIRED. */
 export type TopUpNeed = FundingView & {
   /** The server's own wording for why money is needed. */
@@ -157,34 +199,7 @@ export async function payTopUp(
     return { credited: false, error: "Could not reach the payment service. Please try again." };
   }
 
-  const payment = await new Promise<RazorpayCheckoutResponse | null>((resolve) => {
-    let settled = false;
-    const finish = (value: RazorpayCheckoutResponse | null) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    const rzp = new window.Razorpay({
-      key: order.keyId,
-      amount: order.amount, // authoritative — the server created the order
-      currency: order.currency || "INR",
-      name: "Kasa Kai",
-      description: "Wallet recharge",
-      order_id: order.orderId,
-      prefill,
-      theme: { color: "#c8ff3e" },
-      modal: { ondismiss: () => finish(null) },
-      handler: (response) => finish(response),
-    });
-
-    // A failed card is not the end of the recharge — the customer can try
-    // another method in the same sheet against the same order. Only a dismiss
-    // ends it, which is why nothing is resolved here.
-    rzp.on?.("payment.failed", () => {});
-
-    rzp.open();
-  });
+  const payment = await openRazorpayCheckout(order, "Wallet recharge", prefill);
 
   // Closed without paying. Nothing was earmarked and nothing is owed — a wallet
   // recharge that did not happen leaves no trace to clean up.
