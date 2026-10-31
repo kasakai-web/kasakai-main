@@ -64,56 +64,6 @@
   gap: 14px;
 }
 
-.mp-card {
-  background: #0d0d0f;
-  border: 1px solid #1e1e24;
-  border-radius: 12px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-/* An exhausted or expired pass stays on screen, greyed. It is the best renewal
-   prompt there is, and hiding it only makes a player wonder where it went. */
-.mp-card.mp-spent { opacity: 0.62; }
-
-.mp-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.mp-card-name {
-  font-size: 16px;
-  font-weight: 800;
-  color: #f4efe8;
-  line-height: 1.2;
-}
-
-.mp-status {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 999px;
-  white-space: nowrap;
-  border: 1px solid;
-}
-.mp-status-active    { color: #c8ff3e; border-color: #3d4f14; background: #1a2008; }
-.mp-status-pending   { color: #7fd4ff; border-color: #13384a; background: #071a22; }
-.mp-status-exhausted { color: #fbbf24; border-color: #4a3a13; background: #221a07; }
-.mp-status-expired,
-.mp-status-revoked,
-.mp-status-refunded  { color: #8a8a93; border-color: #2a2a31; background: #141418; }
-
-.mp-scope {
-  font-size: 13px;
-  color: #b9b9c2;
-  line-height: 1.45;
-}
-
 .mp-meter {
   display: flex;
   flex-direction: column;
@@ -212,25 +162,6 @@
 /* ── The store ── */
 .mp-store-loading { font-size: 13px; color: #6a6a73; padding: 12px 0; }
 
-.mp-store-subtitle {
-  font-size: 12px;
-  color: #8a8a93;
-  margin-top: 3px;
-  line-height: 1.4;
-}
-
-.mp-store-price {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 18px;
-  font-weight: 800;
-  color: #f4efe8;
-  font-family: var(--mono, monospace);
-  white-space: nowrap;
-}
-.mp-store-was { font-size: 12px; color: #555; font-weight: 400; }
-
 .mp-store-desc { font-size: 12px; color: #6a6a73; line-height: 1.5; }
 
 .mp-buy {
@@ -273,3 +204,276 @@
   padding: 10px 14px;
   margin-bottom: 12px;
 }
+
+/* ══════════════════════════════════════════════
+   THE TICKET
+   A pass should look like one: a header with the
+   name, a perforated tear line, and a stub that
+   says when it runs. Same card for a pass held and
+   a pass on the shelf, so buying one is visibly
+   getting the thing in the shop window.
+══════════════════════════════════════════════ */
+
+.kp-ticket {
+  --kp-notch: #060608;            /* the page behind the card, showing through the notches */
+  --kp-accent: #c8ff3e;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgba(200, 255, 62, 0.18);
+  background:
+    radial-gradient(ellipse 220px 160px at 100% 0%, rgba(200, 255, 62, 0.13) 0%, transparent 70%),
+    linear-gradient(160deg, #141a0b 0%, #0d0d0f 46%, #0b0b0d 100%);
+  box-shadow: 0 10px 30px -18px rgba(200, 255, 62, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.kp-ticket:hover {
+  transform: translateY(-2px);
+  border-color: rgba(200, 255, 62, 0.32);
+  box-shadow: 0 16px 36px -18px rgba(200, 255, 62, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* The watermark — big, faint, never in the way of a word. */
+.kp-ticket::after {
+  content: "PASS";
+  position: absolute;
+  right: -6px;
+  top: 6px;
+  font-family: var(--cond);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 92px;
+  line-height: 1;
+  letter-spacing: -2px;
+  color: rgba(200, 255, 62, 0.045);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Held but no longer running, or on the shelf but not buyable: same ticket,
+   drained of its colour. Still the best renewal prompt there is. */
+.kp-ticket.kp-spent {
+  --kp-accent: #8a8a93;
+  border-color: #1e1e24;
+  background: linear-gradient(160deg, #111114 0%, #0b0b0d 100%);
+  box-shadow: none;
+  opacity: 0.72;
+}
+.kp-ticket.kp-spent::after { color: rgba(255, 255, 255, 0.025); }
+.kp-ticket.kp-spent:hover { transform: none; }
+.kp-status-exhausted { --kp-accent: #fbbf24; }
+.kp-status-pending   { --kp-accent: #7fd4ff; }
+
+.kp-head {
+  position: relative;
+  z-index: 1;
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kp-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.kp-kicker {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--kp-accent);
+  opacity: 0.85;
+}
+
+.kp-name {
+  font-family: var(--cond);
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+  font-size: 28px;
+  line-height: 0.95;
+  letter-spacing: 0.2px;
+  color: #f4efe8;
+  margin-top: 4px;
+}
+.kp-subtitle { font-size: 12px; color: #8a8a93; line-height: 1.4; }
+.kp-scope { font-size: 13px; color: #b9b9c2; line-height: 1.45; }
+
+.kp-chip {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid;
+}
+.kp-chip-active    { color: #0a0a0c; background: #c8ff3e; border-color: #c8ff3e; }
+.kp-chip-pending   { color: #7fd4ff; border-color: #13384a; background: #071a22; }
+.kp-chip-exhausted { color: #fbbf24; border-color: #4a3a13; background: #221a07; }
+.kp-chip-expired,
+.kp-chip-revoked,
+.kp-chip-refunded  { color: #8a8a93; border-color: #2a2a31; background: #141418; }
+
+.kp-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--cond);
+  font-weight: 900;
+  font-size: 24px;
+  color: var(--kp-accent);
+  white-space: nowrap;
+  letter-spacing: -0.3px;
+}
+.kp-price-was { font-family: var(--mono); font-size: 11px; font-weight: 400; color: #555; }
+
+/* The tear line: a dashed rule with a notch bitten out of each side. */
+.kp-perf {
+  position: relative;
+  height: 0;
+  margin: 0 18px;
+  border-top: 1.5px dashed rgba(255, 255, 255, 0.12);
+}
+.kp-perf::before,
+.kp-perf::after {
+  content: "";
+  position: absolute;
+  top: -11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--kp-notch);
+  border: 1px solid rgba(200, 255, 62, 0.18);
+}
+.kp-perf::before { left: -30px; }
+.kp-perf::after  { right: -30px; }
+.kp-spent .kp-perf::before,
+.kp-spent .kp-perf::after { border-color: #1e1e24; }
+
+.kp-body {
+  position: relative;
+  z-index: 1;
+  /* Fill the ticket, so in a row of cards with different-length copy the Buy
+     buttons all sit on the same line at the bottom. */
+  flex: 1;
+  padding: 16px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── When it covers: 1 Oct 2026 ●━━━━━━━○ 31 Oct 2026 ── */
+.kp-timeline { display: flex; flex-direction: column; gap: 6px; }
+.kp-timeline-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6a6a73;
+}
+.kp-timeline-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.kp-timeline-date {
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.3px;
+  color: #f4efe8;
+  white-space: nowrap;
+}
+.kp-timeline-track {
+  position: relative;
+  height: 4px;
+  margin: 4px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.kp-timeline-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(200, 255, 62, 0.55), var(--kp-accent));
+  box-shadow: 0 0 10px rgba(200, 255, 62, 0.45);
+}
+.kp-timeline-dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 50%;
+  z-index: 1;
+}
+.kp-timeline-dot-start { left: -5px; background: var(--kp-accent); }
+.kp-timeline-dot-end   { right: -5px; background: #0b0b0d; border: 2px solid var(--kp-accent); }
+.kp-timeline-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #6a6a73;
+}
+.kp-timeline-caption b { color: var(--kp-accent); font-weight: 500; }
+.kp-timeline-caption b.kp-warn,
+.kp-warn { color: #fbbf24 !important; }
+
+.kp-pending-note { font-size: 12.5px; color: #b9b9c2; line-height: 1.5; }
+.kp-pending-note b { color: var(--kp-accent); font-weight: 600; }
+
+.kp-ticket .mp-saved { border-top-color: rgba(255, 255, 255, 0.07); }
+.kp-ticket .mp-buy,
+.kp-ticket .mp-store-blocked { margin-top: auto; }
+.kp-ticket .mp-buy { padding: 12px 16px; font-size: 13.5px; }
+
+@media (max-width: 480px) {
+  .kp-name { font-size: 25px; }
+  .kp-timeline-date { font-size: 15px; }
+}
+
+/* ── History, folded away until asked for ── */
+.mp-history-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 28px 0 0;
+  padding: 13px 16px;
+  background: #0d0d0f;
+  border: 1px solid #1e1e24;
+  border-radius: 10px;
+  color: #b9b9c2;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.mp-history-toggle:hover { border-color: rgba(200, 255, 62, 0.3); color: #c8ff3e; }
+.mp-history-count {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  color: #6a6a73;
+  background: #141418;
+  border: 1px solid #2a2a31;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.mp-history-chevron {
+  margin-left: auto;
+  font-size: 13px;
+  transition: transform 0.2s ease;
+}
+.mp-history-chevron.mp-open { transform: rotate(180deg); }
+.mp-history { margin-top: 14px; }

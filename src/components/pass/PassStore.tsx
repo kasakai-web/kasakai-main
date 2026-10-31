@@ -16,6 +16,7 @@ import { buildApiUrl, getSession } from "@/utils/api";
 import { PassCheckoutSheet } from "@/components/pass/PassCheckoutSheet";
 import type { PassPaymentOutcome } from "@/utils/passCheckout";
 import { offerPhoneVerify } from "@/utils/phoneVerify";
+import { PassTimeline } from "@/components/pass/PassTimeline";
 
 export type StoreRow = {
   _id: string;
@@ -26,6 +27,14 @@ export type StoreRow = {
   pricePaise: number;
   listPricePaise?: number;
   described: { summary: string; benefitText: string; scopeText: string };
+  /** The dates a pass bought RIGHT NOW would run — the server's own resolveValidity. */
+  window?: {
+    activatesAt: string | null;
+    expiresAt: string | null;
+    days: number | null;
+    onFirstUse: boolean;
+    deadOnArrival: boolean;
+  };
   purchasable: boolean;
   reason: string;
   reasonText: string | null;
@@ -104,6 +113,8 @@ export function PassStore({ onPurchased }: { onPurchased: () => void }) {
             pricePaise: buying.pricePaise,
             listPricePaise: buying.listPricePaise,
             summary: buying.described.summary,
+            from: buying.window && !buying.window.onFirstUse ? buying.window.activatesAt : null,
+            until: buying.window && !buying.window.onFirstUse ? buying.window.expiresAt : null,
           }}
           onDone={finish}
         />
@@ -113,38 +124,67 @@ export function PassStore({ onPurchased }: { onPurchased: () => void }) {
       {done && <div className="mp-store-done">{done}</div>}
 
       <div className="mp-cards">
-        {rows.map((row) => (
-          <div key={row._id} className={`mp-card ${row.purchasable ? "" : "mp-spent"}`}>
-            <div className="mp-card-top">
-              <div>
-                <div className="mp-card-name">{row.name}</div>
-                {row.subtitle && <div className="mp-store-subtitle">{row.subtitle}</div>}
+        {rows.map((row) => {
+          const w = row.window;
+          // A month pass bought on the 31st runs one day. Said before they pay.
+          const short = !!w && !w.onFirstUse && w.days !== null && w.days <= 3;
+          return (
+            <div key={row._id} className={`kp-ticket kp-store ${row.purchasable ? "" : "kp-spent"}`}>
+              <div className="kp-head">
+                <div className="kp-head-row">
+                  <span className="kp-kicker">KasaKai · Pass</span>
+                  <span className="kp-price">
+                    {row.listPricePaise && row.listPricePaise > row.pricePaise ? (
+                      <s className="kp-price-was">{rupees(row.listPricePaise)}</s>
+                    ) : null}
+                    {rupees(row.pricePaise)}
+                  </span>
+                </div>
+                <div className="kp-name">{row.name}</div>
+                {row.subtitle && <div className="kp-subtitle">{row.subtitle}</div>}
+                <div className="kp-scope">{row.described.summary}</div>
               </div>
-              <div className="mp-store-price">
-                {row.listPricePaise && row.listPricePaise > row.pricePaise ? (
-                  <s className="mp-store-was">{rupees(row.listPricePaise)}</s>
-                ) : null}
-                <span>{rupees(row.pricePaise)}</span>
+
+              <div className="kp-perf" aria-hidden="true" />
+
+              <div className="kp-body">
+                {w && (w.onFirstUse ? (
+                  <div className="kp-timeline">
+                    <div className="kp-timeline-label">Valid</div>
+                    <div className="kp-pending-note">
+                      Starts on your first covered game
+                      {w.days ? <> · runs <b>{w.days} days</b> from then</> : null}
+                    </div>
+                  </div>
+                ) : w.deadOnArrival ? (
+                  <div className="kp-pending-note kp-warn">This pass&apos;s dates have already passed.</div>
+                ) : (
+                  <PassTimeline
+                    from={w.activatesAt}
+                    until={w.expiresAt}
+                    label="If you buy today"
+                    caption={short ? <b className="kp-warn">Only {w.days} day{w.days === 1 ? "" : "s"} of cover</b> : null}
+                  />
+                ))}
+
+                {row.description && <div className="mp-store-desc">{row.description}</div>}
+
+                {row.purchasable ? (
+                  <button
+                    type="button"
+                    className="mp-buy"
+                    disabled={buying !== null}
+                    onClick={() => buy(row)}
+                  >
+                    {buying?.code === row.code ? "Buying…" : `Buy for ${rupees(row.pricePaise)}`}
+                  </button>
+                ) : (
+                  <div className="mp-store-blocked">{row.reasonText || "Not available"}</div>
+                )}
               </div>
             </div>
-
-            <div className="mp-scope">{row.described.summary}</div>
-            {row.description && <div className="mp-store-desc">{row.description}</div>}
-
-            {row.purchasable ? (
-              <button
-                type="button"
-                className="mp-buy"
-                disabled={buying !== null}
-                onClick={() => buy(row)}
-              >
-                {buying?.code === row.code ? "Buying…" : `Buy for ${rupees(row.pricePaise)}`}
-              </button>
-            ) : (
-              <div className="mp-store-blocked">{row.reasonText || "Not available"}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
