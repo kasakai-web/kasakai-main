@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { PassStore } from "@/components/pass/PassStore";
+import { PassTimeline, daysLeft, passDate } from "@/components/pass/PassTimeline";
 import "../player-dashboard.css";
 import "./passes.css";
 
@@ -53,6 +54,7 @@ interface MyPass {
   grantReason: string | null;
   revokeReason: string | null;
   described: DescribedPass;
+  validityDays: number | null;
   savedPaise: number;
   gamesCovered: number;
   lastRedeemedAt: string | null;
@@ -69,35 +71,26 @@ interface Redemption {
 const rupees = (paise: number) =>
   `₹${Math.round((paise || 0) / 100).toLocaleString("en-IN")}`;
 
-const shortDate = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleDateString("en-IN", {
-        day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
-      })
-    : "";
-
-// How many whole days are left, counted in IST calendar days — a pass is good
-// through the whole of its expiry day, so "expires today" is not "expired".
-const daysLeft = (iso?: string | null): number | null => {
-  if (!iso) return null;
-  const end = new Date(iso);
-  const endOfDay = new Date(
-    Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()) + 24 * 3600 * 1000,
-  );
-  return Math.ceil((endOfDay.getTime() - Date.now()) / (24 * 3600 * 1000));
+const STATUS_LABEL: Record<MyPass["status"], string> = {
+  active: "Active",
+  pending: "Not started",
+  exhausted: "Used up",
+  expired: "Expired",
+  revoked: "Withdrawn",
+  refunded: "Refunded",
 };
 
-const countdown = (pass: MyPass): string => {
+// What the right-hand end of the timeline says about today.
+const countdown = (pass: MyPass): string | null => {
   if (pass.status === "revoked")  return "Withdrawn";
   if (pass.status === "refunded") return "Refunded";
-  if (pass.status === "expired")  return `Expired ${shortDate(pass.expiresAt)}`;
-  if (!pass.expiresAt)            return "No expiry";
+  if (pass.status === "expired")  return "Ended";
   const left = daysLeft(pass.expiresAt);
-  if (left === null)  return "No expiry";
-  if (left <= 0)      return "Expires today";
-  if (left === 1)     return "Expires tomorrow";
-  if (left <= 30)     return `${left} days left`;
-  return `Valid to ${shortDate(pass.expiresAt)}`;
+  if (left === null) return null;
+  if (left === 0)    return "Ended";
+  if (left === 1)    return "Last day today";
+  if (left === 2)    return "Ends tomorrow";
+  return `${left} days left`;
 };
 
 // ── Card ──────────────────────────────────────────────────────────────────────
@@ -144,69 +137,95 @@ function PassCard({ pass }: { pass: MyPass }) {
     }
   };
 
+  const left = countdown(pass);
+  const ending = pass.status === "active" && (daysLeft(pass.expiresAt) ?? 99) <= 3;
+
   return (
-    <div className={`mp-card ${spent ? "mp-spent" : ""}`}>
-      <div className="mp-card-top">
-        <div className="mp-card-name">{pass.name}</div>
-        <span className={`mp-status mp-status-${pass.status}`}>{pass.status}</span>
+    <div className={`kp-ticket kp-status-${pass.status} ${spent ? "kp-spent" : ""}`}>
+      <div className="kp-head">
+        <div className="kp-head-row">
+          <span className="kp-kicker">KasaKai · Pass</span>
+          <span className={`kp-chip kp-chip-${pass.status}`}>{STATUS_LABEL[pass.status]}</span>
+        </div>
+        <div className="kp-name">{pass.name}</div>
+        <div className="kp-scope">{pass.described.summary}</div>
       </div>
 
-      <div className="mp-scope">{pass.described.summary}</div>
+      <div className="kp-perf" aria-hidden="true" />
 
-      {meter && (
-        <div className="mp-meter">
-          <div className="mp-meter-track">
-            <div
-              className={`mp-meter-fill ${meter.used >= meter.total ? "mp-meter-done" : ""}`}
-              style={{ width: `${Math.min(100, Math.round((meter.used / meter.total) * 100))}%` }}
-            />
-          </div>
-          <div className="mp-meter-label">
-            <span>{meter.label}</span>
-            <span>{meter.left}</span>
-          </div>
-        </div>
-      )}
-
-      <div className="mp-facts">
-        <div><strong>{countdown(pass)}</strong></div>
-        {pass.status === "pending" && pass.activatesAt && (
-          <div>Starts {shortDate(pass.activatesAt)}</div>
-        )}
-        {pass.described.coversGuests > 0 && (
-          <div>Covers {pass.described.coversGuests} guest{pass.described.coversGuests > 1 ? "s" : ""} a game</div>
-        )}
-        {pass.source === "grant" && pass.grantReason && <div>Given to you — {pass.grantReason}</div>}
-        {pass.status === "revoked" && pass.revokeReason && <div>{pass.revokeReason}</div>}
-      </div>
-
-      {pass.gamesCovered > 0 && (
-        <div className="mp-saved">
-          You&apos;ve saved {rupees(pass.savedPaise)} on {pass.gamesCovered} game
-          {pass.gamesCovered === 1 ? "" : "s"}
-          {pass.pricePaidPaise > 0 && <span> · paid {rupees(pass.pricePaidPaise)}</span>}
-        </div>
-      )}
-
-      {pass.gamesCovered > 0 && (
-        <button className="mp-usage-toggle" onClick={loadUsage}>
-          {loadingUsage ? "Loading…" : usage ? "Hide where it was used" : "Where was it used?"}
-        </button>
-      )}
-
-      {usage && usage.length > 0 && (
-        <div className="mp-usage">
-          {usage.map((r) => (
-            <div key={r._id} className="mp-usage-row">
-              <span>
-                {r.game?.title || "Game"}
-                {r.game?.scheduledAt ? ` · ${shortDate(r.game.scheduledAt)}` : ""}
-              </span>
-              <b>−{rupees(r.benefitPaise)}</b>
+      <div className="kp-body">
+        {pass.activatesAt ? (
+          <PassTimeline
+            from={pass.activatesAt}
+            until={pass.expiresAt}
+            showProgress={!spent}
+            caption={left && <b className={ending ? "kp-warn" : ""}>{left}</b>}
+          />
+        ) : (
+          // Waiting for its first covered booking: no dates exist yet.
+          <div className="kp-timeline">
+            <div className="kp-timeline-label">Valid</div>
+            <div className="kp-pending-note">
+              Starts on your first covered game
+              {pass.validityDays ? <> · runs <b>{pass.validityDays} days</b> from then</> : null}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+
+        {meter && (
+          <div className="mp-meter">
+            <div className="mp-meter-track">
+              <div
+                className={`mp-meter-fill ${meter.used >= meter.total ? "mp-meter-done" : ""}`}
+                style={{ width: `${Math.min(100, Math.round((meter.used / meter.total) * 100))}%` }}
+              />
+            </div>
+            <div className="mp-meter-label">
+              <span>{meter.label}</span>
+              <span>{meter.left}</span>
+            </div>
+          </div>
+        )}
+
+        {(pass.described.coversGuests > 0 || (pass.source === "grant" && pass.grantReason) ||
+          (pass.status === "revoked" && pass.revokeReason)) && (
+          <div className="mp-facts">
+            {pass.described.coversGuests > 0 && (
+              <div>Covers {pass.described.coversGuests} guest{pass.described.coversGuests > 1 ? "s" : ""} a game</div>
+            )}
+            {pass.source === "grant" && pass.grantReason && <div>Given to you — {pass.grantReason}</div>}
+            {pass.status === "revoked" && pass.revokeReason && <div>{pass.revokeReason}</div>}
+          </div>
+        )}
+
+        {pass.gamesCovered > 0 && (
+          <div className="mp-saved">
+            You&apos;ve saved {rupees(pass.savedPaise)} on {pass.gamesCovered} game
+            {pass.gamesCovered === 1 ? "" : "s"}
+            {pass.pricePaidPaise > 0 && <span> · paid {rupees(pass.pricePaidPaise)}</span>}
+          </div>
+        )}
+
+        {pass.gamesCovered > 0 && (
+          <button className="mp-usage-toggle" onClick={loadUsage}>
+            {loadingUsage ? "Loading…" : usage ? "Hide where it was used" : "Where was it used?"}
+          </button>
+        )}
+
+        {usage && usage.length > 0 && (
+          <div className="mp-usage">
+            {usage.map((r) => (
+              <div key={r._id} className="mp-usage-row">
+                <span>
+                  {r.game?.title || "Game"}
+                  {r.game?.scheduledAt ? ` · ${passDate(r.game.scheduledAt)}` : ""}
+                </span>
+                <b>−{rupees(r.benefitPaise)}</b>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -224,6 +243,7 @@ export default function MyPassesPage() {
   const [past, setPast] = useState<MyPass[]>([]);
   const [totals, setTotals] = useState({ savedPaise: 0, gamesCovered: 0, spentPaise: 0 });
   const [loading, setLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchPasses = useCallback(async () => {
     const { token } = getSession();
@@ -263,6 +283,20 @@ export default function MyPassesPage() {
         <div className="loading-container"><div className="spinner" /><p>Loading…</p></div>
       ) : (
         <>
+          {/* The shelf first: it is what this page has that nothing else in the
+              app does. A held pass is also shown on every game it covers. */}
+          <PassStore
+            onPurchased={() => {
+              fetchPasses();
+              window.dispatchEvent(new Event("kk-passes-changed"));
+            }}
+          />
+
+          <div className="mp-section-head">
+            <span className="mp-section-title">Your passes</span>
+            {live.length > 0 && <span className="mp-section-count">{live.length}</span>}
+          </div>
+
           {totals.gamesCovered > 0 && (
             <div className="mp-summary">
               <div className="mp-stat">
@@ -282,51 +316,41 @@ export default function MyPassesPage() {
             </div>
           )}
 
-          {live.length === 0 && past.length === 0 ? (
-            <div className="mp-empty">
-              <div className="mp-empty-title">No passes yet</div>
-              <p className="mp-empty-body">
-                A pass covers your entry to the games it applies to — a city, a
-                time of day, a set of venues. Passes are issued by the KasaKai
-                team; ask your organiser how to get one.
-              </p>
+          {live.length > 0 ? (
+            <div className="mp-cards">
+              {live.map((p) => <PassCard key={p._id} pass={p} />)}
             </div>
           ) : (
-            <>
-              {live.length > 0 && (
-                <>
-                  <div className="mp-section-head">
-                    <span className="mp-section-title">Your passes</span>
-                    <span className="mp-section-count">{live.length}</span>
-                  </div>
-                  <div className="mp-cards">
-                    {live.map((p) => <PassCard key={p._id} pass={p} />)}
-                  </div>
-                </>
-              )}
+            <div className="mp-empty">
+              <div className="mp-empty-title">No active pass</div>
+              <p className="mp-empty-body">
+                A pass covers your entry to the games it applies to — a city, a
+                time of day, a set of venues. Pick one above to get started.
+              </p>
+            </div>
+          )}
 
-              {past.length > 0 && (
-                <>
-                  <div className="mp-section-head">
-                    <span className="mp-section-title">Past passes</span>
-                    <span className="mp-section-count">{past.length}</span>
-                  </div>
-                  <div className="mp-cards">
-                    {past.map((p) => <PassCard key={p._id} pass={p} />)}
-                  </div>
-                </>
+          {/* History is there when asked for and out of the way otherwise:
+              expired and withdrawn passes are reference, not something to act on. */}
+          {past.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="mp-history-toggle"
+                aria-expanded={showHistory}
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                <span>{showHistory ? "Hide pass history" : "View pass history"}</span>
+                <span className="mp-history-count">{past.length}</span>
+                <span className={`mp-history-chevron ${showHistory ? "mp-open" : ""}`} aria-hidden="true">▾</span>
+              </button>
+              {showHistory && (
+                <div className="mp-cards mp-history">
+                  {past.map((p) => <PassCard key={p._id} pass={p} />)}
+                </div>
               )}
             </>
           )}
-
-          {/* Below what they already hold: somebody opening this page is usually
-              checking a pass, not shopping. */}
-          <PassStore
-            onPurchased={() => {
-              fetchPasses();
-              window.dispatchEvent(new Event("kk-passes-changed"));
-            }}
-          />
         </>
       )}
     </div>

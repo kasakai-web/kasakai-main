@@ -11,6 +11,7 @@
 
 import React, { useState } from "react";
 import { payForPass, type PassPaymentOutcome } from "@/utils/passCheckout";
+import { PassTimeline } from "@/components/pass/PassTimeline";
 
 export type PassCheckoutItem = {
   code: string;
@@ -19,6 +20,9 @@ export type PassCheckoutItem = {
   pricePaise: number;
   listPricePaise?: number;
   summary: string;
+  /** The dates it would run if bought now; absent for a pass that starts on first use. */
+  from?: string | null;
+  until?: string | null;
 };
 
 type Props = {
@@ -96,6 +100,12 @@ export function PassCheckoutSheet({ item, onDone }: Props) {
             <div style={{ fontSize: 12.5, color: "#999", lineHeight: 1.6, margin: "8px 0 16px" }}>
               {item.summary}
             </div>
+
+            {item.from && (
+              <div style={{ marginBottom: 16 }}>
+                <PassTimeline from={item.from} until={item.until ?? null} />
+              </div>
+            )}
 
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
