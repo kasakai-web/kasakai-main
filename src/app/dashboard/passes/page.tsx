@@ -18,7 +18,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildApiUrl, clearSession, getSession } from "@/utils/api";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
-import { useWalletTopUp } from "@/hooks/useWalletTopUp";
 import { PassStore } from "@/components/pass/PassStore";
 import "../player-dashboard.css";
 import "./passes.css";
@@ -225,9 +224,6 @@ export default function MyPassesPage() {
   const [past, setPast] = useState<MyPass[]>([]);
   const [totals, setTotals] = useState({ savedPaise: 0, gamesCovered: 0, spentPaise: 0 });
   const [loading, setLoading] = useState(true);
-  // The same top-up sheet a booking uses: a pass that costs more than the wallet
-  // holds is a recharge, not a refusal.
-  const { requestTopUp, topUpSheet } = useWalletTopUp();
 
   const fetchPasses = useCallback(async () => {
     const { token } = getSession();
@@ -257,7 +253,6 @@ export default function MyPassesPage() {
 
   return (
     <div className="player-dashboard-container">
-      {topUpSheet}
       <div className="page-header">
         <div className="page-title-group">
           <div className="page-title">My <span>Passes</span></div>
@@ -327,7 +322,6 @@ export default function MyPassesPage() {
           {/* Below what they already hold: somebody opening this page is usually
               checking a pass, not shopping. */}
           <PassStore
-            requestTopUp={requestTopUp}
             onPurchased={() => {
               fetchPasses();
               window.dispatchEvent(new Event("kk-passes-changed"));

@@ -2,12 +2,10 @@
 
 /* The pass store.
  *
- * Buying a pass is the same shape as buying a seat, and reuses the same
- * machinery: the wallet pays, a short balance comes back as a 402 saying what
- * to add, `postWithTopUp` runs the recharge and re-POSTs the SAME request. That
- * retry re-runs every check on the server — the run may have sold out while the
- * player was in their UPI app — which is why there is no "confirm purchase"
- * endpoint for it to get out of step with.
+ * A pass is paid for DIRECTLY at Razorpay, never from the wallet: Buy opens
+ * `PassCheckoutSheet` (Terms, then the gateway), and the server re-runs every
+ * check when the money lands — the run may have sold out while the player was
+ * in their UPI app, in which case the payment goes to their wallet instead.
  *
  * Passes the player CANNOT buy are shown with the reason rather than hidden.
  * "You already hold this" and "on sale from 1 October" are both better answers
@@ -15,7 +13,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { buildApiUrl, getSession } from "@/utils/api";
-import { postWithTopUp, type RequestTopUp } from "@/utils/walletTopup";
+import { PassCheckoutSheet } from "@/components/pass/PassCheckoutSheet";
+import type { PassPaymentOutcome } from "@/utils/passCheckout";
 import { offerPhoneVerify } from "@/utils/phoneVerify";
 
 export type StoreRow = {
@@ -35,16 +34,10 @@ export type StoreRow = {
 
 const rupees = (paise: number) => `₹${Math.round((paise || 0) / 100).toLocaleString("en-IN")}`;
 
-export function PassStore({
-  requestTopUp,
-  onPurchased,
-}: {
-  requestTopUp: RequestTopUp;
-  onPurchased: () => void;
-}) {
+export function PassStore({ onPurchased }: { onPurchased: () => void }) {
   const [rows, setRows] = useState<StoreRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [buying, setBuying] = useState<string | null>(null);
+  const [buying, setBuying] = useState<StoreRow | null>(null);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
 
@@ -66,32 +59,30 @@ export function PassStore({
 
   useEffect(() => { load(); }, [load]);
 
-  const buy = async (row: StoreRow) => {
-    setBuying(row.code);
+  const buy = (row: StoreRow) => {
     setError("");
     setDone("");
-    try {
-      const { data, cancelled } = await postWithTopUp(
-        "/passes/purchase",
-        { productCode: row.code },
-        { requestTopUp },
-      );
-      if (cancelled) return;
-      if (!data?.success) {
-        setError(data?.message || "Could not complete that purchase.");
-        // Sold out or gone off sale while they were paying — the shelf is stale,
-        // so re-read it rather than leaving a button that cannot work.
-        load();
-        return;
-      }
-      setDone(`${row.name} is yours.`);
-      load();
+    setBuying(row);
+  };
+
+  const finish = (outcome: PassPaymentOutcome) => {
+    const row = buying;
+    setBuying(null);
+    if (outcome.status === "cancelled") return;
+    if (outcome.status === "issued") {
+      setDone(`${row?.name || "Your pass"} is yours.`);
       onPurchased();
       // A pass needs no proven number, so the check is only offered here.
       offerPhoneVerify();
-    } finally {
-      setBuying(null);
+    } else if (outcome.status === "pending") {
+      setDone(outcome.message);
+      onPurchased();
+    } else {
+      // Credited to the wallet, or refused before paying because it sold out or
+      // went off sale — either way the shelf is stale, so re-read it.
+      setError(outcome.message);
     }
+    load();
   };
 
   if (loading) return <div className="mp-store-loading">Loading passes…</div>;
@@ -103,6 +94,20 @@ export function PassStore({
         <span className="mp-section-title">Passes you can buy</span>
         <span className="mp-section-count">{rows.filter((r) => r.purchasable).length} available</span>
       </div>
+
+      {buying && (
+        <PassCheckoutSheet
+          item={{
+            code: buying.code,
+            name: buying.name,
+            subtitle: buying.subtitle,
+            pricePaise: buying.pricePaise,
+            listPricePaise: buying.listPricePaise,
+            summary: buying.described.summary,
+          }}
+          onDone={finish}
+        />
+      )}
 
       {error && <div className="mp-store-error">{error}</div>}
       {done && <div className="mp-store-done">{done}</div>}
@@ -133,7 +138,7 @@ export function PassStore({
                 disabled={buying !== null}
                 onClick={() => buy(row)}
               >
-                {buying === row.code ? "Buying…" : `Buy for ${rupees(row.pricePaise)}`}
+                {buying?.code === row.code ? "Buying…" : `Buy for ${rupees(row.pricePaise)}`}
               </button>
             ) : (
               <div className="mp-store-blocked">{row.reasonText || "Not available"}</div>
