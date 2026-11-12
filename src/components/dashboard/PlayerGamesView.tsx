@@ -3266,7 +3266,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 <ProgressBar spotsTotal={detailGame.totalSlots } spotsLeft={detailGame.spotsRemaining} />
                 {(detailGame.hostInfo?.held ?? 0) > 0 && !detailIsCancelled && (
                   <div className="pd-host-runby" style={{ marginTop: 6 }}>
-                    {detailGame.hostInfo.held} spot{detailGame.hostInfo.held === 1 ? " is" : "s are"} held for the
+                    {detailGame.hostInfo.held} spot{detailGame.hostInfo.held === 1 ? " is" : "s are"}{" "}held for the
                     organiser&apos;s hosts
                     {detailGame.hostInfo.releaseAt ? ` until ${whenText(detailGame.hostInfo.releaseAt)}, then open to everyone` : ""}.
                   </div>

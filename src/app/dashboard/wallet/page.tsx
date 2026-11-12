@@ -469,7 +469,7 @@ export default function WalletPage() {
                   checkout finishes, is cancelled, or times out. */}
               {wallet && wallet.lockedPaise > 0 && (
                 <div style={{ fontSize: 12, color: "#f59e0b", marginBottom: 20, lineHeight: 1.6 }}>
-                  {fmtRupees(wallet.lockedPaise)} is held for a booking you&apos;re paying for.
+                  {fmtRupees(wallet.lockedPaise)}{" "}is held for a booking you&apos;re paying for.
                   It comes back if you don&apos;t complete it.
                 </div>
               )}

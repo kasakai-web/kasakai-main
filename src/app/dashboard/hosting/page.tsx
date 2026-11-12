@@ -129,7 +129,7 @@ export default function HostingPage() {
                         {g.format ? ` · ${g.format}` : ""}
                       </div>
                       <div className="hs-card-meta">
-                        {g.invitedByName || g.organiser?.name || "The organiser"} asked you to facilitate — you won&apos;t take a spot.
+                        {g.invitedByName || g.organiser?.name || "The organiser"}{" "}asked you to facilitate — you won&apos;t take a spot.
                       </div>
                       {g.note && <div className="hs-card-note">&ldquo;{g.note}&rdquo;</div>}
                     </div>
