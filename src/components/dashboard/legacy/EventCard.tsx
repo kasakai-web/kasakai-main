@@ -6,6 +6,7 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
 import { useState } from "react";
 import { REPEAT_LABEL, type EventCardProps } from "../EventCard";
+import { confirmLabel } from "@/utils/confirmInfo";
 
 function buildAvatarStackLabel(players: { name: string }[]): string|null {
   const total = players.length;
@@ -46,6 +47,7 @@ export function LegacyEventCard({
   isWaitlistApproved = false,
   requiresApproval = false,
   registrationLocked = false,
+  confirmInfo = null,
   hostSpotOpen = false,
   requestStatus = null,
   onCancelRequest,
@@ -129,6 +131,14 @@ export function LegacyEventCard({
           {isRegistered && !isCancelled && !optedOut && <span className="registered-badge">✓ Registered</span>}
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
           {hostSpotOpen && !isRegistered && !isCancelled && <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span>}
+          {!isCancelled && !isAwaiting && confirmLabel(confirmInfo) && (
+            <span
+              className={`registered-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
+              title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
+            >
+              {confirmLabel(confirmInfo)}
+            </span>
+          )}
         </div>
         <div className="card-price">
           {/* A covered seat shows the old price struck through and what they
