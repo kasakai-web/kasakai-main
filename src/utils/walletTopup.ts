@@ -22,6 +22,7 @@
 
 import { buildApiUrl, getSession } from "@/utils/api";
 import type { FundingView } from "@/utils/walletFunding";
+import { requirePhoneVerify } from "@/utils/phoneVerify";
 
 // Razorpay's checkout.js, loaded on demand rather than on every page.
 declare global {
@@ -85,6 +86,48 @@ export function loadRazorpay(): Promise<boolean> {
     document.body.appendChild(tag);
   });
   return scriptPromise;
+}
+
+export type RazorpayPayment = RazorpayCheckoutResponse;
+
+/**
+ * Open Razorpay's checkout for an order the SERVER created, and resolve with the
+ * payment once it succeeds, or null if the window is closed without paying.
+ * Shared by the wallet recharge and the pass purchase.
+ */
+export function openRazorpayCheckout(
+  order: { orderId: string; amount: number; currency?: string; keyId: string },
+  description: string,
+  prefill?: { name?: string; contact?: string; email?: string },
+): Promise<RazorpayCheckoutResponse | null> {
+  return new Promise<RazorpayCheckoutResponse | null>((resolve) => {
+    let settled = false;
+    const finish = (value: RazorpayCheckoutResponse | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    const rzp = new window.Razorpay({
+      key: order.keyId,
+      amount: order.amount, // authoritative — the server created the order
+      currency: order.currency || "INR",
+      name: "Kasa Kai",
+      description,
+      order_id: order.orderId,
+      prefill,
+      theme: { color: "#c8ff3e" },
+      modal: { ondismiss: () => finish(null) },
+      handler: (response) => finish(response),
+    });
+
+    // A failed card is not the end of the payment — the customer can try
+    // another method in the same sheet against the same order. Only a dismiss
+    // ends it, which is why nothing is resolved here.
+    rzp.on?.("payment.failed", () => {});
+
+    rzp.open();
+  });
 }
 
 /** What the server sends with a 402 WALLET_TOPUP_REQUIRED. */
@@ -156,34 +199,7 @@ export async function payTopUp(
     return { credited: false, error: "Could not reach the payment service. Please try again." };
   }
 
-  const payment = await new Promise<RazorpayCheckoutResponse | null>((resolve) => {
-    let settled = false;
-    const finish = (value: RazorpayCheckoutResponse | null) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    const rzp = new window.Razorpay({
-      key: order.keyId,
-      amount: order.amount, // authoritative — the server created the order
-      currency: order.currency || "INR",
-      name: "Kasa Kai",
-      description: "Wallet recharge",
-      order_id: order.orderId,
-      prefill,
-      theme: { color: "#c8ff3e" },
-      modal: { ondismiss: () => finish(null) },
-      handler: (response) => finish(response),
-    });
-
-    // A failed card is not the end of the recharge — the customer can try
-    // another method in the same sheet against the same order. Only a dismiss
-    // ends it, which is why nothing is resolved here.
-    rzp.on?.("payment.failed", () => {});
-
-    rzp.open();
-  });
+  const payment = await openRazorpayCheckout(order, "Wallet recharge", prefill);
 
   // Closed without paying. Nothing was earmarked and nothing is owed — a wallet
   // recharge that did not happen leaves no trace to clean up.
@@ -224,7 +240,8 @@ export async function payTopUp(
 }
 
 /**
- * POST a booking action, topping the wallet up first if it cannot cover it.
+ * POST a booking action, topping the wallet up first if it cannot cover it —
+ * and, before that, asking for the WhatsApp code if the number is unproven.
  *
  * Returns the FINAL response — the one from the retry when a recharge happened,
  * the original otherwise — so callers handle success and failure in one place
@@ -251,7 +268,25 @@ export async function postWithTopUp<T = Record<string, unknown>>(
     return { res, data };
   };
 
-  const first = await send(body);
+  let first = await send(body);
+
+  // A Google signup's number is unproven, and no seat is taken on one. The server
+  // says so before it looks at the wallet, so the code comes before any top-up.
+  // Once it is in, the SAME request goes again, once, and is checked from scratch.
+  if (first.res.status === 403 && first.data?.code === "PHONE_VERIFY_REQUIRED") {
+    const verified = await requirePhoneVerify(String(first.data.phone || ""));
+    if (!verified) {
+      return {
+        res: null,
+        data: {
+          success: false,
+          code: "PHONE_VERIFY_CANCELLED",
+          message: "Verify your WhatsApp number to book this spot. Nothing was charged.",
+        } as PostResult<T>["data"],
+      };
+    }
+    first = await send(body);
+  }
 
   // The wallet covered it, or the request was refused for some other reason.
   if (first.res.status !== 402 || first.data?.code !== "WALLET_TOPUP_REQUIRED") {
@@ -324,6 +359,9 @@ export function bookingErrorMessage(
       return "Recharge cancelled — nothing was charged and your booking wasn't made.";
     case "TOPUP_FAILED":
       return data?.message || "That recharge didn't go through. Nothing was booked.";
+    case "PHONE_VERIFY_CANCELLED":
+    case "PHONE_VERIFY_REQUIRED":
+      return data?.message || "Verify your WhatsApp number to book this spot.";
     case "WALLET_TOPUP_REQUIRED":
       return data?.message || "Add money to your wallet to book this spot.";
     case "NO_CAPACITY":
