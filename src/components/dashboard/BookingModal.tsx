@@ -739,7 +739,7 @@ export function BookingModal({
                   borderRadius: 10, padding: "11px 14px", marginBottom: 14, fontSize: 12.5, color: "#f59e0b", lineHeight: 1.6,
                 }}>
                   ⏳ This game needs the organiser&apos;s approval to join. You&apos;ll pay{" "}
-                  <b>₹{playerFee}</b> only once your request is approved — from your wallet, or by card if it
+                  <b>₹{playerFee}</b>{" "}only once your request is approved — from your wallet, or by card if it
                   doesn&apos;t cover it. You can add guests after you&apos;re in.
                 </div>
               )}

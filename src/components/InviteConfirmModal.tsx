@@ -509,7 +509,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
 
                 {needsApproval && (
                   <div style={{ fontSize: 11.5, color: "#888", marginBottom: 8, textAlign: "center" }}>
-                    Your spot needs organiser approval. You&apos;ll pay {feeLabel} only once approved — from your
+                    Your spot needs organiser approval. You&apos;ll pay {feeLabel}{" "}only once approved — from your
                     wallet, or by card if it doesn&apos;t cover it.
                   </div>
                 )}
