@@ -38,6 +38,8 @@ type BookingGame = {
    *  (the server's `pricingInfo.currentPricePaise`). Absent on a flat game. Guests
    *  always pay `fee`. */
   seatFee?: number;
+  /** Cancelled an early-bird seat in this game before — this booking is at `fee`. */
+  earlyBirdUsed?: boolean;
   spots: number;
   waitlist?: boolean;
   passEligible?: boolean;
@@ -886,6 +888,11 @@ export function BookingModal({
                       ) : (
                         <>
                           <div className="ws-fee">{formatRupees(totalFee * 100)}</div>
+                          {game.earlyBirdUsed && !isWaitlist && (
+                            <div style={{ fontSize: 12, color: "#f59e0b", marginTop: 4 }}>
+                              You already used your early-bird seat for this game, so this booking is at the full price.
+                            </div>
+                          )}
 
                           <div className="bm-pay-rows">
                             {/* An explicit line, never a silently lower total:
