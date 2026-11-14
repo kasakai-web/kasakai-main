@@ -1197,6 +1197,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       codeOffers: game.codeOffers ?? [],
       // The early-bird price of their own seat (guests pay `fee`).
       seatFee: game.pricingInfo ? game.pricingInfo.currentPricePaise / 100 : undefined,
+      earlyBirdUsed: Boolean(game.earlyBirdUsed),
       requiresApproval: Boolean(game.requiresApproval),
     });
   };
@@ -1444,11 +1445,16 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         );
       } else {
         setConfirmTitle("Rejoin this game?");
+        // Back within 10 min of skipping = the early-bird price booked; later = list
+        // (the server's OPT_BACK_RECLAIM_MINS rule).
+        const reclaim = ownReg?.priceTier != null && ownReg?.optedOutAt && ownReg.optedOutReason !== "format_change"
+          && Date.now() - new Date(ownReg.optedOutAt).getTime() <= 10 * 60 * 1000;
+        const rejoinFee = reclaim ? (ownReg.listPricePaise || 0) - (ownReg.earlyBirdSavingPaise || 0) : fee;
         // Rejoin charge depends on CURRENT pass eligibility — backend re-checks the live pass.
         const feeMsg = passCovered
           ? " Your pass covers this game, so you won't be charged."
-          : fee > 0
-            ? ` ₹${fee / 100} will be debited from your wallet.`
+          : rejoinFee > 0
+            ? ` ₹${rejoinFee / 100} will be debited from your wallet.`
             : "";
         setConfirmMessage(`You'll be marked as attending again.${feeMsg}`);
       }
@@ -2519,7 +2525,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   passInfo={game.passInfo ?? null}
                   offerInfo={game.offerInfo ?? null}
                   codeOffers={game.codeOffers ?? []}
-                  pricingInfo={game.pricingInfo ?? null}
+                  // Anyone with their own row (even opted out) comes back at list, never a tier price.
+                  pricingInfo={myOwnPrimaryReg(game) ? null : game.pricingInfo ?? null}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={amRegisteredIn(game) && !isMyFormatChangeOptOut(game)}
