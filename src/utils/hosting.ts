@@ -157,6 +157,9 @@ const authFetch = async <T = unknown>(path: string, init: RequestInit = {}): Pro
  *  organiser's approved host. */
 export interface HostQuote {
   feePerSlotPaise: number;
+  /** 'tier' when the early-bird price came out lower than the host price; the
+   *  spot is a host spot either way, and hostPricePaise is then the tier price. */
+  hostRoute?: "host" | "tier";
   hostPricePaise: number;
   hostDiscountPaise: number;
   playerFeePaise: number;

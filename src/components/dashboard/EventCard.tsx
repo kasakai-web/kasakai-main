@@ -20,6 +20,16 @@ export const REPEAT_LABEL: Record<GameRepeat, string> = {
 };
 
 
+/** The early-bird price in rupees while it is below list and the game can be
+ *  booked, else null — shared by both cards so they cannot disagree. */
+export function earlyBirdPrice(
+  pricingInfo: EventCardProps["pricingInfo"],
+  bookable: boolean,
+): number | null {
+  if (!bookable || !pricingInfo || pricingInfo.currentPricePaise >= pricingInfo.listPricePaise) return null;
+  return Math.round(pricingInfo.currentPricePaise / 100);
+}
+
 export interface EventCardProps {
   id: string;
   title?: string;
@@ -54,6 +64,10 @@ export interface EventCardProps {
    *  server's `codeOffers`. Counted on the card's coupon tag, never applied to
    *  the card's price: a code only counts once it is entered at booking. */
   codeOffers?: OfferInfo[];
+  /** The early-bird ladder as the server prices it right now (`pricingInfo`),
+   *  null on a flat game. The card shows the early price beside the list price
+   *  struck through. */
+  pricingInfo?: { currentPricePaise: number; listPricePaise: number } | null;
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
@@ -106,6 +120,7 @@ function NewEventCard({
   passInfo = null,
   offerInfo = null,
   codeOffers = [],
+  pricingInfo = null,
   spotsTotal,
   spotsLeft,
   isRegistered,
@@ -235,7 +250,7 @@ function NewEventCard({
   // the booking sheet shows what it takes off.
   const discountedPrice = passCovers
     ? passInfo && passInfo.payablePaise > 0 ? Math.round(passInfo.payablePaise / 100) : 0
-    : null;
+    : earlyBirdPrice(pricingInfo, offerable);
   const displayPrice = discountedPrice ?? fee;
   const showSpots = !isCancelled && !isAwaiting && status !== "completed";
   // A game that is over or called off has no fill level worth reading.

@@ -1164,6 +1164,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
           hostPrice: quote.hostPricePaise / 100,
           hostDiscount: quote.hostDiscountPaise / 100,
           hostPayable: quote.playerFeePaise / 100,
+          // Priced on the early-bird ladder instead of the host discount.
+          seatFee: quote.hostRoute === "tier" ? quote.hostPricePaise / 100 : undefined,
           hostPassName: quote.passEligible ? quote.passLabel : null,
           // Set only when an offer saves more than the host discount — it then
           // replaces it, and hostPayable already includes it.
@@ -1191,6 +1193,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       // from the checkout quote as it opens.
       offerInfo: game.offerInfo ?? null,
       codeOffers: game.codeOffers ?? [],
+      // The early-bird price of their own seat (guests pay `fee`).
+      seatFee: game.pricingInfo ? game.pricingInfo.currentPricePaise / 100 : undefined,
       requiresApproval: Boolean(game.requiresApproval),
     });
   };
@@ -1592,6 +1596,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       if (!isWaitlist && offer) {
         if (offer.couponCode) body.couponCode = offer.couponCode;
         if (offer.expectedDiscountPaise) body.expectedDiscountPaise = offer.expectedDiscountPaise;
+        if (offer.expectedTotalPaise != null) body.expectedTotalPaise = offer.expectedTotalPaise;
       }
       if (!isWaitlist && waitlistGuests && waitlistGuests.length > 0) {
         body.waitlistGuests = waitlistGuests.map((g, index) => {
@@ -1710,6 +1715,18 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         // that changed since the sheet was drawn. Nothing was charged; the sheet
         // stays open on the fresh price so the player confirms the new total
         // themselves rather than being charged it.
+        // The early-bird price rose while the sheet was open (a tier sold out or
+        // closed). Nothing was charged; the cards are re-read so the next open
+        // shows the new price, and the server's sentence says what changed.
+        // shortcut: closes the sheet instead of redrawing it in place; redraw from
+        // data.quote if players find the extra tap annoying.
+        if (data?.code === "PRICE_CHANGED") {
+          setSelectedGame(null);
+          refreshSection();
+          const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
+          showToast("error", "The price changed", `${data.message || "Check the new price and book again."}${moneyNote}`);
+          return;
+        }
         if (isOfferRefusal(data)) {
           const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
           showToast(
@@ -2493,6 +2510,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   passInfo={game.passInfo ?? null}
                   offerInfo={game.offerInfo ?? null}
                   codeOffers={game.codeOffers ?? []}
+                  pricingInfo={game.pricingInfo ?? null}
                   spotsTotal={game.totalSlots}
                   spotsLeft={Math.max(0, spotsLeft)}
                   isRegistered={amRegisteredIn(game) && !isMyFormatChangeOptOut(game)}
