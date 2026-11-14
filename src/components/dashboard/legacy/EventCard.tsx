@@ -5,7 +5,7 @@ import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
 import { useState } from "react";
-import { REPEAT_LABEL, type EventCardProps } from "../EventCard";
+import { REPEAT_LABEL, earlyBirdPrice, type EventCardProps } from "../EventCard";
 import { confirmLabel } from "@/utils/confirmInfo";
 
 function buildAvatarStackLabel(players: { name: string }[]): string|null {
@@ -39,6 +39,7 @@ export function LegacyEventCard({
   passInfo = null,
   offerInfo = null,
   codeOffers = [],
+  pricingInfo = null,
   spotsTotal,
   spotsLeft,
   isRegistered,
@@ -72,6 +73,7 @@ export function LegacyEventCard({
     ? offerInfo
     : null;
   const offerable = !passCovers && !isRegistered && !isCancelled && !isAwaiting && fee > 0;
+  const earlyPrice = earlyBirdPrice(pricingInfo, offerable);
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
   // Read the clock once per mount: render must stay pure, and a card's "Today" has
   // never refreshed on its own anyway — only on a re-render or reload.
@@ -153,6 +155,14 @@ export function LegacyEventCard({
                   ? `₹${Math.round(passInfo.payablePaise / 100)}`
                   : "₹0"}
               </div>
+            </>
+          ) : earlyPrice !== null ? (
+            // Early-bird: the price the next seat sells at, the list price struck
+            // through beside it.
+            <>
+              <div className="price-rupee">₹</div>
+              <div className="price-amount">{earlyPrice}</div>
+              <div className="price-original">₹{fee}</div>
             </>
           ) : (
             // An automatic offer does not change the card's price — the pill
