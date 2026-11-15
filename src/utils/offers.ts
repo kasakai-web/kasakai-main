@@ -53,6 +53,8 @@ export type OfferQuote = {
 export type OfferChoice = {
   couponCode?: string;
   expectedDiscountPaise?: number;
+  /** The total the sheet showed; costing more than this is refused (PRICE_CHANGED). */
+  expectedTotalPaise?: number;
 };
 
 /** The two refusals that mean "the offer, not the booking, needs another look". */

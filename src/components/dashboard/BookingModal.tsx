@@ -34,6 +34,12 @@ type BookingGame = {
   time: string;
   format: string;
   fee: number;
+  /** Rupees: what the player's OWN seat costs on the early-bird ladder right now
+   *  (the server's `pricingInfo.currentPricePaise`). Absent on a flat game. Guests
+   *  always pay `fee`. */
+  seatFee?: number;
+  /** Cancelled an early-bird seat in this game before — this booking is at `fee`. */
+  earlyBirdUsed?: boolean;
   spots: number;
   waitlist?: boolean;
   passEligible?: boolean;
@@ -414,9 +420,14 @@ export function BookingModal({
     ? hostBase
     : passInfo
     ? Math.round(passInfo.payablePaise / 100)
-    : (passEligible ? 0 : game.fee);
+    : (passEligible ? 0 : (game.seatFee ?? game.fee));
   const playerFee = activeOffer ? activeOffer.payablePaise / 100 : basePlayerFee;
   const totalFee  = playerFee + (game.fee * confirmedGuestCount);
+  // What the early-bird price took off the player's own seat — shown as its own
+  // line so the breakdown adds up. The server already priced passInfo and the
+  // offer on the early price; this only names the difference.
+  const earlyBirdSaving = !isWaitlist && game.seatFee != null ? Math.max(0, game.fee - game.seatFee) : 0;
+  const discounted = hostDiscountShown > 0 || (passEligible && passBenefit > 0) || !!activeOffer || earlyBirdSaving > 0;
 
   // How this booking gets paid for: from the wallet, topped up first if it is
   // short. Recomputed on every render, so adding a guest moves the numbers
@@ -480,12 +491,13 @@ export function BookingModal({
       // The code the player chose, and the saving this sheet showed them. The
       // server re-decides the offer from scratch and refuses — rather than
       // charging more — if it would now save less than this.
-      const offerChoice: OfferChoice | undefined = activeOffer
-        ? {
-          ...(activeOffer.source === "code" && appliedCode ? { couponCode: appliedCode } : {}),
-          expectedDiscountPaise: activeOffer.savingPaise,
-        }
-        : undefined;
+      // And the total it showed: an early-bird tier selling out while the sheet
+      // was open is refused (PRICE_CHANGED) rather than charged at the new price.
+      const offerChoice: OfferChoice = {
+        ...(activeOffer?.source === "code" && appliedCode ? { couponCode: appliedCode } : {}),
+        ...(activeOffer ? { expectedDiscountPaise: activeOffer.savingPaise } : {}),
+        expectedTotalPaise: Math.round(totalFee * 100),
+      };
       const outcome = await onConfirm(
         game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests, teamRequests, offerChoice,
       );
@@ -876,15 +888,26 @@ export function BookingModal({
                       ) : (
                         <>
                           <div className="ws-fee">{formatRupees(totalFee * 100)}</div>
+                          {game.earlyBirdUsed && !isWaitlist && (
+                            <div style={{ fontSize: 12, color: "#f59e0b", marginTop: 4 }}>
+                              You already used your early-bird seat for this game, so this booking is at the full price.
+                            </div>
+                          )}
 
                           <div className="bm-pay-rows">
                             {/* An explicit line, never a silently lower total:
                                 the fee, what the host discount, the pass and an
                                 offer took off it, and what is left to pay. */}
-                            {(hostDiscountShown > 0 || (passEligible && passBenefit > 0) || activeOffer) && (
+                            {discounted && (
                               <div className="bm-pay-row">
                                 <span>Game entry{guests.length > 0 ? " (your spot)" : ""}</span>
                                 <span>{formatRupees(game.fee * 100)}</span>
+                              </div>
+                            )}
+                            {earlyBirdSaving > 0 && (
+                              <div className="bm-pay-row">
+                                <span>Early-bird price</span>
+                                <span className="bm-pay-free">−{formatRupees(earlyBirdSaving * 100)}</span>
                               </div>
                             )}
                             {hostDiscountShown > 0 && (
@@ -911,7 +934,7 @@ export function BookingModal({
                                 <span>{formatRupees(activeOffer.payablePaise)}</span>
                               </div>
                             )}
-                            {confirmedGuestCount > 0 && (hostDiscountShown > 0 || (passEligible && passBenefit > 0) || activeOffer) && (
+                            {confirmedGuestCount > 0 && discounted && (
                               <div className="bm-pay-row">
                                 <span>{confirmedGuestCount} guest{confirmedGuestCount > 1 ? "s" : ""} (full fee)</span>
                                 <span>{formatRupees(game.fee * confirmedGuestCount * 100)}</span>
