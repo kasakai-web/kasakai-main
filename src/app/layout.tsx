@@ -6,7 +6,17 @@ import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
 import PhoneVerifySheet from "@/components/auth/PhoneVerifySheet";
 import { INSTALL_PROMPT_SNIPPET } from "@/utils/pwa";
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
+// Analytics only ever run from a production build. `next dev` sets NODE_ENV to
+// "development" (and `next build` / `next start` to "production"), inlined at
+// compile time — so a dev server never loads either script, even with the IDs
+// sitting in .env. Without this, every local page view and test click landed in
+// the real GA reports and Clarity recordings.
+const ANALYTICS_ON = process.env.NODE_ENV === "production";
+
+const GA_ID = ANALYTICS_ON ? process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "" : "";
+// Microsoft Clarity (heatmaps + session recordings). Also off when the variable
+// is unset, so any env without it stays out of the recordings.
+const CLARITY_ID = ANALYTICS_ON ? process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID || "" : "";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://kasakai.in"),
@@ -107,6 +117,17 @@ export default function RootLayout({
               `}
             </Script>
           </>
+        )}
+        {CLARITY_ID && (
+          <Script id="microsoft-clarity" strategy="afterInteractive">
+            {`
+              (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", ${JSON.stringify(CLARITY_ID)});
+            `}
+          </Script>
         )}
         {children}
       </body>

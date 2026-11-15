@@ -144,6 +144,15 @@ export function Footer() {
             </a>
           </div>
         </div>
+
+        {/* Site disclosure Microsoft Clarity asks every site using it to show.
+            A <p>, not a <div>: the media queries below find the bottom row as
+            `div:last-of-type`, and another div here would steal that match. */}
+        <p style={{ fontSize: "12px", lineHeight: 1.6, color: "#777", margin: "16px 0 0", maxWidth: "820px" }}>
+          {"We use Microsoft Clarity and Google Analytics to see how you use our website (pages visited, clicks, scrolling and session recordings) so we can improve it. By using this site, you agree that we, Microsoft and Google can collect and use this data. Our "}
+          <Link href="/privacy#cookies" style={{ color: "#aaa", textDecoration: "underline" }}>Privacy Policy</Link>
+          {" has more details."}
+        </p>
       </div>
 
       <style jsx>{`

@@ -13,7 +13,7 @@ const sections = [
   { id: "security",  title: "Data Security" },
   { id: "retention", title: "Data Retention" },
   { id: "rights",    title: "Your Rights" },
-  { id: "cookies",   title: "Cookies" },
+  { id: "cookies",   title: "Cookies & Analytics" },
   { id: "contact",   title: "Contact" },
 ];
 
@@ -73,7 +73,7 @@ export default function PrivacyPolicyPage() {
             <h1 style={{ fontFamily: "var(--cond)", fontSize: "clamp(52px, 8vw, 96px)", fontWeight: 900, lineHeight: 0.92, textTransform: "uppercase", color: "var(--white)", marginBottom: 24 }}>
               Privacy<br /><span style={{ color: "var(--violet)" }}>Policy</span>
             </h1>
-            <p style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--mono)" }}>Last updated: April 2025 &nbsp;·&nbsp; Version 1.0</p>
+            <p style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--mono)" }}>Last updated: November 2026 &nbsp;·&nbsp; Version 1.1</p>
           </div>
         </div>
 
@@ -125,7 +125,7 @@ export default function PrivacyPolicyPage() {
                 </div>
                 <div className="data-card">
                   <p style={{ fontFamily: "var(--cond)", fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--white)", marginBottom: 6 }}>Usage Data</p>
-                  <p style={{ fontSize: 14, color: "#999", lineHeight: 1.65 }}>Game registrations, session history, and platform interactions to improve our service.</p>
+                  <p style={{ fontSize: 14, color: "#999", lineHeight: 1.65 }}>Game registrations, session history, and platform interactions to improve our service. This includes analytics about how you use the website: pages visited, clicks, scrolling, and recordings of sessions, collected through Google Analytics and Microsoft Clarity (see Cookies &amp; Analytics).</p>
                 </div>
               </Section>
 
@@ -136,6 +136,7 @@ export default function PrivacyPolicyPage() {
                   "To send transactional emails (payment confirmations, game reminders, refund notifications).",
                   "To send OTP-based login verification via SMS.",
                   "To improve platform features and resolve disputes.",
+                  "To understand how the website is used and fix problems with it, through Google Analytics and Microsoft Clarity.",
                 ]} />
               </Section>
 
@@ -152,6 +153,7 @@ export default function PrivacyPolicyPage() {
                 <Bullets accent="violet" items={[
                   "Razorpay — for payment processing.",
                   "Fast2SMS — for OTP delivery via SMS.",
+                  "Google (Google Analytics) and Microsoft (Microsoft Clarity) — for website usage analytics, as described under Cookies & Analytics.",
                   "Law enforcement — when required by law or to protect platform integrity.",
                 ]} />
               </Section>
@@ -184,8 +186,18 @@ export default function PrivacyPolicyPage() {
                 </P>
               </Section>
 
-              <Section id="cookies" num="08" title="Cookies" accent="violet">
-                <P>Kasa Kai uses minimal cookies for session management (JWT token storage). We do not use advertising or tracking cookies.</P>
+              <Section id="cookies" num="08" title="Cookies & Analytics" accent="violet">
+                <P>Your sign-in is kept in your browser&apos;s local storage so you stay logged in. We do not use advertising cookies, and we do not sell your data.</P>
+                <P>{"We use two analytics services to understand how people use Kasa Kai and to find and fix problems with the website:"}</P>
+                <Bullets accent="violet" items={[
+                  "Google Analytics — measures visits, the pages viewed, and how people arrive at the site.",
+                  "Microsoft Clarity — captures how you use and interact with the website through behavioural metrics, heatmaps, and session replay. Text you type into form fields is masked before it leaves your browser.",
+                ]} />
+                <P>Both services use first- and third-party cookies and similar technologies to collect this information, which is processed by Google and Microsoft. For how they use it, see the{" "}
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--violet)", textDecoration: "none" }}>Google Privacy Policy ↗</a>{" "}and the{" "}
+                  <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noopener noreferrer" style={{ color: "var(--violet)", textDecoration: "none" }}>Microsoft Privacy Statement ↗</a>.
+                </P>
+                <P>You can block or delete these cookies in your browser settings at any time. Kasa Kai will keep working without them.</P>
               </Section>
 
               <Section id="contact" num="09" title="Contact" accent="violet">
