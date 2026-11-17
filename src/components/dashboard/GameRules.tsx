@@ -1,3 +1,4 @@
+import type { PricingInfo } from "@/utils/earlyBird";
 
 // What this game's cancellation policy costs, as the ORGANISER set it for this
 // game — not a house rule. Every number comes from the server's `backoutInfo`
@@ -132,11 +133,56 @@ function CancellationPolicy({ info }: { info: BackoutInfo }) {
   );
 }
 
-export function GameRules({ backoutInfo }: { backoutInfo?: BackoutInfo | null }) {
+// The organiser's early-bird ladder as the server prices it right now
+// (`pricingInfo` — backend utils/seatPricing.js). Each tier is a fixed stock of
+// seats; "left" is what is really sellable, so a tier below a price already paid
+// reads as sold out even if it has stock (the price never comes back down).
+function EarlyBirdLadder({ info }: { info: PricingInfo }) {
+  const rows = info.ladder.map((t, i) => {
+    // Stock left but nothing sellable = closed by time, or below a price already paid.
+    const status = t.left > 0
+      ? `${t.left} left${t.closesAt ? ` · until ${formatFreeUntil(t.closesAt)}` : ""}`
+      : t.seats - t.sold - t.held > 0 ? "No longer on sale" : "Sold out";
+    return {
+      label: `${i === 0 ? "First" : "Next"} ${t.seats} seat${t.seats === 1 ? "" : "s"}`,
+      value: `${rupees(t.pricePaise)} · ${status}`,
+      live: t.left > 0,
+    };
+  });
+  return (
+    <div className="pd-policy-card">
+      <div className="pd-policy-head">
+        <span className="pd-policy-title">Early-bird prices</span>
+        <span className="pd-policy-sub">Set by the organiser for this game</span>
+      </div>
+      <div className="pd-policy-rows">
+        {rows.map((r, i) => (
+          <div key={i} className="pd-policy-row">
+            <span className="pd-policy-when">{r.label}</span>
+            <span className={`pd-policy-cost${r.live ? " free" : ""}`}>{r.value}</span>
+          </div>
+        ))}
+        <div className="pd-policy-row">
+          <span className="pd-policy-when">After that</span>
+          <span className="pd-policy-cost">{rupees(info.listPricePaise)} · full price</span>
+        </div>
+      </div>
+      <ul className="pd-policy-notes">
+        <li>Each early price is for a fixed number of seats. Once they are gone, the next price applies.</li>
+        <li>An early-bird seat that is given up is not resold at the early price.</li>
+        <li>Early-bird prices are for players; guests pay the full price.</li>
+        <li>If you cancel your own early-bird seat, booking this game again is at the full price.</li>
+      </ul>
+    </div>
+  );
+}
+
+export function GameRules({ backoutInfo, pricingInfo }: { backoutInfo?: BackoutInfo | null; pricingInfo?: PricingInfo | null }) {
   return (
     <>
       {/* Above the house rules: this is the only part of the tab that is specific
           to THIS game, and the only part that costs money. */}
+      {pricingInfo && pricingInfo.ladder?.length > 0 && <EarlyBirdLadder info={pricingInfo} />}
       {backoutInfo && <CancellationPolicy info={backoutInfo} />}
       <ol className="pd-rules-list">
         {GAME_RULES.map((rule, i) => (

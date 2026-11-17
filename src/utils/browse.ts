@@ -32,6 +32,8 @@ export type BrowseFilters = {
   minFee: number | null;
   maxFee: number | null;
   availability: Availability;
+  /** Only games selling below list right now (the backend's `earlyBird=1`). */
+  earlyBird: boolean;
   sort: SortKey;
 };
 
@@ -45,6 +47,7 @@ export const EMPTY_FILTERS: BrowseFilters = {
   minFee: null,
   maxFee: null,
   availability: "any",
+  earlyBird: false,
   sort: "soonest",
 };
 
@@ -162,6 +165,7 @@ export function filtersFromParams(sp: URLSearchParams): BrowseFilters {
     minFee: asNumber(sp.get("minFee")),
     maxFee: asNumber(sp.get("maxFee")),
     availability: oneOf(sp.get("availability"), ["any", "available", "almost_full"] as const, "any"),
+    earlyBird: sp.get("earlyBird") === "1",
     sort: oneOf(sp.get("sort"), ["soonest", "cheapest", "price_desc", "spots", "spots_asc"] as const, "soonest"),
   };
 }
@@ -179,6 +183,7 @@ function toPairs(f: BrowseFilters): [string, string][] {
   if (f.minFee !== null) pairs.push(["minFee", String(f.minFee)]);
   if (f.maxFee !== null) pairs.push(["maxFee", String(f.maxFee)]);
   if (f.availability !== "any") pairs.push(["availability", f.availability]);
+  if (f.earlyBird) pairs.push(["earlyBird", "1"]);
   if (f.sort !== "soonest") pairs.push(["sort", f.sort]);
   return pairs;
 }
@@ -228,6 +233,7 @@ export function activeFilterCount(f: BrowseFilters): number {
   if (f.formats.length) n++;
   if (f.minFee !== null || f.maxFee !== null) n++;
   if (f.availability !== "any") n++;
+  if (f.earlyBird) n++;
   return n;
 }
 
