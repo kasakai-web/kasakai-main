@@ -9,6 +9,7 @@ import type { OfferInfo } from "@/utils/offers";
 import { confirmLabel, type ConfirmInfo } from "@/utils/confirmInfo";
 import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
 import { LegacyEventCard } from "./legacy/EventCard";
+import { stockLine, closesLine, type PricingInfo } from "@/utils/earlyBird";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -68,7 +69,7 @@ export interface EventCardProps {
   /** The early-bird ladder as the server prices it right now (`pricingInfo`),
    *  null on a flat game. The card shows the early price beside the list price
    *  struck through. */
-  pricingInfo?: { currentPricePaise: number; listPricePaise: number } | null;
+  pricingInfo?: PricingInfo | null;
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
@@ -260,6 +261,11 @@ function NewEventCard({
     ? passInfo && passInfo.payablePaise > 0 ? Math.round(passInfo.payablePaise / 100) : 0
     : earlyBirdPrice(pricingInfo, offerable);
   const displayPrice = discountedPrice ?? fee;
+  // "3 left at this price, then ₹300 · Early price ends tonight 8 pm" — real
+  // stock and a real close time from the server, only while the early price shows.
+  const earlyNote = !passCovers && earlyBirdPrice(pricingInfo, offerable) != null
+    ? [stockLine(pricingInfo), closesLine(pricingInfo)].filter(Boolean).join(" · ")
+    : null;
   const showSpots = !isCancelled && !isAwaiting && status !== "completed";
   // A game that is over or called off has no fill level worth reading.
   const showCapacity = !isCancelled && status !== "completed";
@@ -328,6 +334,12 @@ function NewEventCard({
         </div>
       </div>
 
+      {earlyNote && (
+        <div className="kk-game-early">
+          <span aria-hidden="true">🐦</span>
+          <span>{earlyNote}</span>
+        </div>
+      )}
       {showCapacity && (
         <div className="kk-game-capacity">
           <ProgressBar spotsTotal={spotsTotal} spotsLeft={spotsLeft} />

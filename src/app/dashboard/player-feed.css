@@ -586,3 +586,16 @@
   .kk-game-card { transition: none; }
   .kk-game-card:hover { transform: none; }
 }
+
+/* Early-bird stock line — "3 left at this price, then ₹300". The server's numbers, worded. */
+.kk-game-early {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  color: #d9f99d;
+  background: #1f2e1a8c;
+  border-top: 1px solid #334a35;
+  font-size: 12.5px;
+  line-height: 1.4;
+}

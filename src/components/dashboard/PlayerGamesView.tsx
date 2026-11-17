@@ -1198,6 +1198,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       // The early-bird price of their own seat (guests pay `fee`).
       seatFee: game.pricingInfo ? game.pricingInfo.currentPricePaise / 100 : undefined,
       earlyBirdUsed: Boolean(game.earlyBirdUsed),
+      pricingInfo: game.pricingInfo ?? null,
       requiresApproval: Boolean(game.requiresApproval),
     });
   };
@@ -1726,16 +1727,12 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         // stays open on the fresh price so the player confirms the new total
         // themselves rather than being charged it.
         // The early-bird price rose while the sheet was open (a tier sold out or
-        // closed). Nothing was charged; the cards are re-read so the next open
-        // shows the new price, and the server's sentence says what changed.
-        // shortcut: closes the sheet instead of redrawing it in place; redraw from
-        // data.quote if players find the extra tap annoying.
+        // closed). Nothing was charged: the sheet stays open, redraws itself from
+        // a fresh quote and says why in one line; the cards behind are re-read.
         if (data?.code === "PRICE_CHANGED") {
-          setSelectedGame(null);
           refreshSection();
           const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
-          showToast("error", "The price changed", `${data.message || "Check the new price and book again."}${moneyNote}`);
-          return;
+          return { priceChanged: { message: `${data.message || "The price just changed — check the new total and confirm again."}${moneyNote}` } };
         }
         if (isOfferRefusal(data)) {
           const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
@@ -3151,7 +3148,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               </div>
             )}
 
-            {detailTab === "rules" && <GameRules backoutInfo={detailGame.backoutInfo} />}
+            {detailTab === "rules" && <GameRules backoutInfo={detailGame.backoutInfo} pricingInfo={detailGame.pricingInfo ?? null} />}
 
             {detailTab === "players" && detailIsWaitlisted && !isOnRejoinWaitlist && detailSpotsLeft > 0 && !detailIsCancelled && (
               <div style={{
@@ -3605,6 +3602,15 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                     <InfoTipPanel style={{ fontSize: 11, marginTop: 10 }} />
                   </InfoTip>
                 )}
+              </div>
+            )}
+
+            {/* ── What your own seat cost, when it was an early-bird seat ── */}
+            {/* Read off the row's frozen price (priceTier / earlyBirdSavingPaise),
+                never the ladder as it stands now. */}
+            {detailTab === "players" && detailIsRegistered && myOwnReg?.priceTier != null && !myOwnReg?.optedOut && (
+              <div className="bm-early-note" style={{ margin: "0 0 12px" }}>
+                🐦 You paid {formatRupees(myOwnReg.amountPaidPaise || 0)} (early bird, saved {formatRupees(myOwnReg.earlyBirdSavingPaise || 0)})
               </div>
             )}
 

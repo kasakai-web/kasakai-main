@@ -8,6 +8,7 @@ import { useWalletTopUp } from "@/hooks/useWalletTopUp";
 import { useWaitlistOffer } from "@/hooks/useWaitlistOffer";
 import { PreferenceDisclaimer, QuickPositionTeam } from "@/components/PlayPreferences";
 import { fetchOfferQuote, isOfferRefusal, type OfferInfo, type OfferQuote } from "@/utils/offers";
+import { closesLine, isEarlyPrice, rupees, stockLine, type PricingInfo } from "@/utils/earlyBird";
 
 type ShowToast = (type: "success" | "error", title: string, message?: string) => void;
 
@@ -24,6 +25,10 @@ interface InviteData {
   /** The auto offer confirming this invite applies to the player's own seat —
    *  already in `payableFee`. The server's answer; never re-derived here. */
   offerInfo?: OfferInfo | null;
+  /** The early-bird ladder as the server prices it now; null on a flat game, or
+   *  for a player who already gave up an early-bird seat here (`earlyBirdUsed`). */
+  pricingInfo?: PricingInfo | null;
+  earlyBirdUsed?: boolean;
   walletAvailable?: number | null; // spendable wallet balance (₹); null = not logged in
   canAfford?: boolean | null;      // can this player cover payableFee now? null = unknown
   status: string;
@@ -100,15 +105,22 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeMsg, setCodeMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [baseline, setBaseline] = useState<{ offerInfo: OfferInfo | null; payableFee?: number } | null>(null);
+  // Set when an early-bird price rose while this screen was open (PRICE_CHANGED):
+  // the screen is redrawn from a fresh read and this says why, in one line.
+  const [priceNotice, setPriceNotice] = useState<string | null>(null);
+
+  // Send the player's token so the backend can reflect pass coverage in payableFee.
+  const readInvite = () => {
+    const { token: auth } = getSession();
+    return fetch(buildApiUrl(`/api/v1/games/invite/${token}`), auth ? { headers: { Authorization: `Bearer ${auth}` } } : undefined)
+      .then((r) => r.json());
+  };
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
-    // Send the player's token so the backend can reflect pass coverage in payableFee.
-    const { token: auth } = getSession();
-    fetch(buildApiUrl(`/api/v1/games/invite/${token}`), auth ? { headers: { Authorization: `Bearer ${auth}` } } : undefined)
-      .then((r) => r.json())
+    readInvite()
       .then((d) => {
         if (!active) return;
         if (!d.success) { setError(d.message || "Invitation not found or expired."); return; }
@@ -124,6 +136,8 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       .catch(() => { if (active) setError("Couldn't load this invitation."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
+    // readInvite reads only `token`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const confirm = async () => {
@@ -131,6 +145,7 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
     if (!auth) return;
     const isShared = data?.linkType === "shared";
     setSubmitting(true);
+    setPriceNotice(null);
     try {
       const endpoint = isShared
         ? `/api/v1/games/invite-link/${token}/join`
@@ -149,6 +164,9 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
           teamPreference,
           ...(appliedCode && shownOffer?.source === "code" ? { couponCode: appliedCode } : {}),
           ...(shownOffer && !needsApproval ? { expectedDiscountPaise: shownOffer.savingPaise } : {}),
+          // The total this screen showed: an early-bird tier selling out meanwhile
+          // is refused (PRICE_CHANGED) rather than charged at the higher price.
+          ...(!needsApproval ? { expectedTotalPaise: Math.round(payable * 100) } : {}),
         },
         {
           requestTopUp,
@@ -175,6 +193,24 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
       }
       if (res?.status === 409 && d.code === "LINK_FULL") {
         showToast("error", "Link full", "This invite link has reached its join limit.");
+        return;
+      }
+      // The early-bird price rose while they were deciding. Nothing was charged:
+      // redraw from a fresh read (any code they applied is dropped and can be
+      // applied again) and say why in one line.
+      if (d.code === "PRICE_CHANGED") {
+        const moneyNote = toppedUpPaise ? ` ${formatRupees(toppedUpPaise)} is in your wallet.` : "";
+        setPriceNotice(`${d.message || "The price just changed — check the new total and confirm again."}${moneyNote}`);
+        const fresh = await readInvite().catch(() => null);
+        if (fresh?.success) {
+          setData(fresh.data);
+          setBaseline({ offerInfo: fresh.data?.offerInfo ?? null, payableFee: fresh.data?.payableFee });
+          if (appliedCode) {
+            setAppliedCode(null);
+            setCodeMsg({ text: `Apply ${appliedCode} again to check it against the new price.`, ok: false });
+            setCodeOpen(true);
+          }
+        }
         return;
       }
       // The offer changed while they were deciding. Nothing was charged: show the
@@ -326,6 +362,12 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
   // approval already given — that request's own code was saved when they asked.
   const codeAllowed = !!data && !data.passCovered && data.fee > 0 && status !== "approved_unpaid";
   const feeLabel = `₹${payable}`;
+  // What the early-bird price takes off the player's own seat (paise), named on
+  // its own line so the breakdown adds up. The server already priced the pass
+  // and the offer on the early price; this only words the difference.
+  const early = !!data && !data.passCovered && !data.earlyBirdUsed && isEarlyPrice(data.pricingInfo) ? data.pricingInfo : null;
+  const earlySavingPaise = early ? Math.max(0, Math.round(data!.fee * 100) - early.currentPricePaise) : 0;
+  const earlyNote = early ? [stockLine(early), closesLine(early)].filter(Boolean).join(" · ") : "";
 
   // How this seat gets paid for. A short wallet used to be a dead end here — the
   // whole panel became a "Recharge wallet" button and the invite could not be
@@ -403,9 +445,12 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                 <div>📅 {dateText}</div>
                 <div>🏟️ {data.format} · 💰 {data.passCovered
                   ? `Free — covered by ${data.passLabel || "your"} pass`
-                  : data.offerInfo
+                  : data.offerInfo || earlySavingPaise > 0
                     ? <><s style={{ color: "#666" }}>₹{data.fee}</s> {feeLabel} for you</>
                     : `${feeLabel} per player`}</div>
+                {earlyNote && (
+                  <div style={{ marginTop: 4, color: "#d9f99d", fontWeight: 600 }}>🐦 Early-bird price · {earlyNote}</div>
+                )}
                 {!data.passCovered && data.offerInfo && (
                   <div style={{ marginTop: 4, color: "#c8ff3e", fontWeight: 700 }}>
                     🏷️ {data.offerInfo.title}
@@ -507,6 +552,18 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                   </div>
                 )}
 
+                {priceNotice && (
+                  <div role="alert" style={{
+                    marginBottom: 10, padding: "8px 10px", borderRadius: 8, fontSize: 11.5, lineHeight: 1.5,
+                    border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)", color: "#f0b45a",
+                  }}>{priceNotice}</div>
+                )}
+
+                {needsApproval && early && (
+                  <div style={{ fontSize: 12, color: "#d9f99d", marginBottom: 6, textAlign: "center", fontWeight: 600 }}>
+                    Request now to hold {rupees(early.currentPricePaise)}. You pay only if approved.
+                  </div>
+                )}
                 {needsApproval && (
                   <div style={{ fontSize: 11.5, color: "#888", marginBottom: 8, textAlign: "center" }}>
                     Your spot needs organiser approval. You&apos;ll pay {feeLabel}{" "}only once approved — from your
@@ -524,11 +581,19 @@ export function InviteConfirmModal({ token, onClose, onConfirmed, onRecharge, sh
                     fontSize: 12, lineHeight: 1.8, color: "#9a9a9a",
                   }}>
                     {/* An explicit line, never a silently lower total. */}
+                    {!data.passCovered && (data.offerInfo || earlySavingPaise > 0) && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>Game entry</span><span>₹{data.fee}</span>
+                      </div>
+                    )}
+                    {earlySavingPaise > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>Early-bird price</span>
+                        <span style={{ color: "#c8ff3e", fontWeight: 700 }}>−{formatRupees(earlySavingPaise)}</span>
+                      </div>
+                    )}
                     {!data.passCovered && data.offerInfo && (
                       <>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span>Game entry</span><span>₹{data.fee}</span>
-                        </div>
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                           <span>{data.offerInfo.title}</span>
                           <span style={{ color: "#c8ff3e", fontWeight: 700 }}>−{formatRupees(data.offerInfo.savingPaise)}</span>

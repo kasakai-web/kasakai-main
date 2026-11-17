@@ -373,6 +373,18 @@ function GameFilters({
           onChange={([v]) => set({ sort: (v ?? "soonest") as BrowseFilters["sort"] })}
         />
 
+        {/* Early-bird is a yes/no, so it is a toggle chip rather than a dropdown. */}
+        <button
+          type="button"
+          className={`kk-feed-more${filters.earlyBird ? " is-active" : ""}`}
+          aria-pressed={filters.earlyBird}
+          onClick={() => set({ earlyBird: !filters.earlyBird })}
+          title="Games selling their first seats cheaper right now"
+        >
+          <span aria-hidden="true">🐦</span>
+          Early-bird price
+        </button>
+
         <button
           type="button"
           className={`kk-feed-more${sheetOnlyCount > 0 ? " is-active" : ""}`}
