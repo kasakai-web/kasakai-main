@@ -1199,7 +1199,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       seatFee: game.pricingInfo ? game.pricingInfo.currentPricePaise / 100 : undefined,
       earlyBirdUsed: Boolean(game.earlyBirdUsed),
       pricingInfo: game.pricingInfo ?? null,
-      requiresApproval: Boolean(game.requiresApproval),
+      // Sent an SOS for this game: the organiser already picked this player, so
+      // they book straight away rather than filing a request (server: sosAccess).
+      requiresApproval: Boolean(game.requiresApproval) && !game.sosAccess,
     });
   };
 
@@ -4135,7 +4137,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                         e.currentTarget.style.transform = "translateY(0)";
                       }}
                     >
-                      {detailGame.requiresApproval ? "🙋 Request to Join" : "⚽ Book Now"}
+                      {detailGame.requiresApproval && !detailGame.sosAccess ? "🙋 Request to Join" : "⚽ Book Now"}
                     </button>
                   )
                 )}

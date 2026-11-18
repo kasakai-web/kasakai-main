@@ -10,6 +10,7 @@ import type { MetadataRoute } from "next";
  * Disallowed are the pages a search result has no use for:
  *   /dashboard/          signed-in app; a crawler only ever sees the redirect
  *   /join/               per-game invite links, private to whoever was sent one
+ *   /s/                  SOS "Book my spot" links, one per player per message
  *   /login               no content of its own
  *   /api/                route handlers (the revalidation hook)
  *   /disabled-screening/ a retired feature still in the tree
@@ -26,6 +27,7 @@ const SITE = "https://www.kasakai.in";
 const PRIVATE_PATHS = [
   "/dashboard/",
   "/join/",
+  "/s/",
   "/login",
   "/api/",
   "/disabled-screening",

@@ -13,6 +13,8 @@ type NotificationSettings = {
   whatsapp?: boolean;
   sms?: boolean;
   push?: boolean;
+  // SOS spot alerts. Off = no SOS on any channel (backend sosService).
+  sos?: boolean;
 };
 
 interface Notification {
@@ -146,7 +148,7 @@ export default function PlayerNotificationsPage() {
   const PAGE_SIZE = 30;
 
   // ── Settings state ─────────────────────────────────────────────────────────
-  const [settings, setSettings] = useState<NotificationSettings>({ whatsapp: true, sms: true, push: true });
+  const [settings, setSettings] = useState<NotificationSettings>({ whatsapp: true, sms: true, push: true, sos: true });
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -211,6 +213,7 @@ export default function PlayerNotificationsPage() {
           whatsapp: data.data?.notificationSettings?.whatsapp ?? true,
           sms:      data.data?.notificationSettings?.sms ?? true,
           push:     data.data?.notificationSettings?.push ?? true,
+          sos:      data.data?.notificationSettings?.sos ?? true,
         });
       }
     } catch {}
@@ -425,6 +428,7 @@ export default function PlayerNotificationsPage() {
                   { key: "whatsapp", label: "WhatsApp",          desc: "Game alerts and booking confirmations on WhatsApp" },
                   { key: "sms",      label: "SMS",               desc: "Important reminders via text message" },
                   { key: "push",     label: "Push Notifications", desc: "In-app alerts for game activity" },
+                  { key: "sos",      label: "Spot alerts",       desc: "When an organiser needs players for a game you play, on any channel" },
                 ] as { key: keyof NotificationSettings; label: string; desc: string }[]).map(({ key, label, desc }) => {
                   const enabled = settings[key] ?? true;
                   return (
