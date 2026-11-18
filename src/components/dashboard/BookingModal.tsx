@@ -943,7 +943,7 @@ export function BookingModal({
                           )}
                           {earlyNow && confirmedGuestCount > 0 && (
                             <div className="bm-early-note">
-                              {seatBreakdown(partySeats)}. Early-bird price is for players; guests pay {formatRupees(game.fee * 100)}.
+                              {seatBreakdown(partySeats)}. Early-bird discount is for players; guests pay {formatRupees(game.fee * 100)}.
                             </div>
                           )}
                           {earlyLines.map((line) => <div key={line} className="bm-early-note">{line}</div>)}
@@ -960,7 +960,7 @@ export function BookingModal({
                             )}
                             {earlyBirdSaving > 0 && (
                               <div className="bm-pay-row">
-                                <span>Early-bird price</span>
+                                <span>Early-bird discount</span>
                                 <span className="bm-pay-free">−{formatRupees(earlyBirdSaving * 100)}</span>
                               </div>
                             )}
