@@ -3,6 +3,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Privacy Policy — Kasa Kai",
   description: "How Kasa Kai collects, uses, and protects your personal data.",
+  alternates: { canonical: "/privacy" },
 };
 
 const sections = [
