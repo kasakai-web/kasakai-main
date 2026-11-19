@@ -3,7 +3,6 @@ import Link from "next/link";
 export const metadata = {
   title: "Terms & Conditions — Kasa Kai",
   description: "Terms and conditions for using the Kasa Kai football platform.",
-  alternates: { canonical: "/terms" },
 };
 
 const sections = [

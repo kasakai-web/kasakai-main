@@ -24,7 +24,6 @@ export const metadata = {
   title: "Football Passes — Kasa Kai",
   description:
     "Play more football on one payment. A Kasa Kai pass covers your entry to the games it applies to — come solo, we arrange the rest.",
-  alternates: { canonical: "/passes" },
 };
 
 /**

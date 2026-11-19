@@ -15,7 +15,6 @@ export const metadata = {
   title: "About Us — Kasa Kai",
   description:
     "Kasa Kai has been creating experiences since 2017. Today we build the technology and organiser network that make joining a turf game easy.",
-  alternates: { canonical: "/about" },
 };
 
 /**

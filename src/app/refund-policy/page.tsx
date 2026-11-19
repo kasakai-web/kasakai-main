@@ -3,7 +3,6 @@ import Link from "next/link";
 export const metadata = {
   title: "Refund Policy — Kasa Kai",
   description: "Kasa Kai refund policy: all refunds are credited to your in-app wallet.",
-  alternates: { canonical: "/refund-policy" },
 };
 
 const sections = [
