@@ -12,12 +12,15 @@ const half = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: 64,
+  fontSize: 96,
   fontWeight: 900,
   letterSpacing: "0.08em",
   lineHeight: 1,
 } as const;
 
+// Mark only, dead centre: WhatsApp's small preview is a square cut from the
+// middle of this image, so a left-aligned mark got sliced off. Title and
+// description already print beside the picture in every app.
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -25,12 +28,10 @@ export default function OpengraphImage() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 72,
+          justifyContent: "center",
           width: "100%",
           height: "100%",
-          padding: "0 96px",
           background: "#090909",
-          color: "#ffffff",
           fontFamily: "Arial, Helvetica, sans-serif",
         }}
       >
@@ -38,24 +39,14 @@ export default function OpengraphImage() {
           style={{
             display: "flex",
             flexDirection: "column",
-            width: 280,
-            height: 280,
-            border: "8px solid #ffffff",
+            width: 420,
+            height: 420,
+            border: "10px solid #ffffff",
             flexShrink: 0,
           }}
         >
           <div style={{ ...half, background: "#ffffff", color: "#000000" }}>KASA</div>
           <div style={{ ...half, background: "#000000", color: "#ffffff" }}>KAI</div>
-        </div>
-        {/* Fixed width (1200 − padding − mark − gap) or the headline does not wrap. */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24, width: 656 }}>
-          <div style={{ fontSize: 76, fontWeight: 900, lineHeight: 1.05 }}>
-            Football games across India
-          </div>
-          <div style={{ fontSize: 32, color: "#b5b5b5" }}>
-            Join a game · Book your spot · Come solo
-          </div>
-          <div style={{ fontSize: 32, color: "#8a8a8a" }}>www.kasakai.in</div>
         </div>
       </div>
     ),
