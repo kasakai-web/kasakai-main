@@ -9,13 +9,16 @@ import type { MetadataRoute } from "next";
  *
  * Disallowed are the pages a search result has no use for:
  *   /dashboard/          signed-in app; a crawler only ever sees the redirect
- *   /join/               per-game invite links, private to whoever was sent one
+ *   /join/inv_           personal invite tokens, private to whoever was sent one
  *   /login               no content of its own
  *   /api/                route handlers (the revalidation hook)
  *   /disabled-screening/ a retired feature still in the tree
  *
+ * Plain game pages (/join/<gameId>) ARE crawlable: sitemap.ts lists the
+ * upcoming public games so they can show up in search.
+ *
  * WhatsApp's link preview fetches the page itself and does not read
- * robots.txt, so disallowing /join/ does not break shared-game previews.
+ * robots.txt, so disallowing /join/inv_ does not break shared-invite previews.
  *
  * The SEO-tool and bulk-scrape crawlers below send no visitors, and each of
  * their visits costs about 30 requests against the Vercel quota. Search
@@ -25,7 +28,7 @@ const SITE = "https://www.kasakai.in";
 
 const PRIVATE_PATHS = [
   "/dashboard/",
-  "/join/",
+  "/join/inv_",
   "/login",
   "/api/",
   "/disabled-screening",
