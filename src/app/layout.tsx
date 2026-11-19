@@ -9,9 +9,7 @@ import { INSTALL_PROMPT_SNIPPET } from "@/utils/pwa";
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
 
 export const metadata: Metadata = {
-  // www, the same as sitemap.ts, robots.ts and Search Console; Vercel 308s the
-  // bare domain there. Relative canonicals and OG URLs resolve against this.
-  metadataBase: new URL("https://www.kasakai.in"),
+  metadataBase: new URL("https://kasakai.in"),
   applicationName: "KasaKai",
   // Google Search Console ownership of https://www.kasakai.in/ — the Google
   // sign-in consent screen's branding check reads it. Removing it un-verifies.
@@ -36,26 +34,31 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-capable": "yes",
   },
   title: {
-    default: "Kasa Kai — Join Football Games Near You",
+    default: "Kasa Kai — Football Screenings, Games & Community in India",
     template: "%s | Kasa Kai",
   },
-  description: "No team? No problem. Pick a game, book your spot and play football at turfs across India. Your next game is one tap away — come solo, leave with a squad",
-  keywords: ["football", "football games near me", "5-a-side", "turf football", "organized football", "football community", "India", "Mumbai", "Kasa Kai", "KasaKai"],
+  description: "India's football community platform. Watch live match screenings at top venues, join organized 5-a-side games, meet fellow fans, and book your spot — all on Kasa Kai.",
+  keywords: ["football", "live screening", "sports bar", "UCL final", "Champions League", "5-a-side", "organized football", "football community", "India", "Mumbai", "Kasa Kai"],
   openGraph: {
     siteName: "Kasa Kai",
-    title: "Kasa Kai — Join Football Games Near You",
-    description: "No team? No problem. Pick a game, book your spot and play football at turfs across India. Your next game is one tap away — come solo, leave with a squad",
-
-    // No `url` here: every page inherits this object, so a fixed url told
-    // previews that /about, /passes and the rest were all the home page.
-    // The image is app/opengraph-image.tsx (an SVG here showed nothing).
+    title: "Kasa Kai — Football Screenings, Games & Community in India",
+    description: "Watch live match screenings at top venues, join organized football games, and connect with players across India. All on Kasa Kai.",
+    url: "https://kasakai.in",
     type: "website",
+    images: [
+      {
+        url: "/kasa-kai-logo.svg",
+        width: 128,
+        height: 128,
+        alt: "Kasa Kai",
+      },
+    ],
   },
   twitter: {
-    // X falls back to og:image when twitter:image is absent.
-    card: "summary_large_image",
-    title: "Kasa Kai — Join Football Games Near You",
-  description: "No team? No problem. Pick a game, book your spot and play football at turfs across India. Your next game is one tap away — come solo, leave with a squad",
+    card: "summary",
+    title: "Kasa Kai — Football Screenings, Games & Community",
+    description: "Watch live screenings, join organized football games, and meet fellow fans across India.",
+    images: ["/kasa-kai-logo.svg"],
   },
 };
 
