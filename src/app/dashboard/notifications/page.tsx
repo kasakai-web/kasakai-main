@@ -15,6 +15,9 @@ type NotificationSettings = {
   push?: boolean;
   // SOS spot alerts. Off = no SOS on any channel (backend sosService).
   sos?: boolean;
+  // SOS from organisers they have never played for, at venues they play at.
+  // Opt-in: absent reads as OFF (backend utils/sosRelevance.js).
+  nearbyGames?: boolean;
 };
 
 interface Notification {
@@ -148,7 +151,7 @@ export default function PlayerNotificationsPage() {
   const PAGE_SIZE = 30;
 
   // ── Settings state ─────────────────────────────────────────────────────────
-  const [settings, setSettings] = useState<NotificationSettings>({ whatsapp: true, sms: true, push: true, sos: true });
+  const [settings, setSettings] = useState<NotificationSettings>({ whatsapp: true, sms: true, push: true, sos: true, nearbyGames: false });
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -214,6 +217,7 @@ export default function PlayerNotificationsPage() {
           sms:      data.data?.notificationSettings?.sms ?? true,
           push:     data.data?.notificationSettings?.push ?? true,
           sos:      data.data?.notificationSettings?.sos ?? true,
+          nearbyGames: data.data?.notificationSettings?.nearbyGames ?? false,
         });
       }
     } catch {}
@@ -429,8 +433,9 @@ export default function PlayerNotificationsPage() {
                   { key: "sms",      label: "SMS",               desc: "Important reminders via text message" },
                   { key: "push",     label: "Push Notifications", desc: "In-app alerts for game activity" },
                   { key: "sos",      label: "Spot alerts",       desc: "When an organiser needs players for a game you play, on any channel" },
+                  { key: "nearbyGames", label: "Spot alerts from new organisers", desc: "Also hear from organisers you haven't played for yet, at venues you already play at" },
                 ] as { key: keyof NotificationSettings; label: string; desc: string }[]).map(({ key, label, desc }) => {
-                  const enabled = settings[key] ?? true;
+                  const enabled = settings[key] ?? key !== "nearbyGames";
                   return (
                     <div key={key} className="pp-notif-row">
                       <div>
