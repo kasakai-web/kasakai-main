@@ -9,6 +9,7 @@ import {
   type TeamRequest,
 } from "@/components/PlayPreferences";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
+import { closesLine, seatBreakdown, urgencyLine, type PricingInfo, type SeatPrice } from "@/utils/earlyBird";
 import {
   describeFunding,
   formatRupees,
@@ -20,6 +21,7 @@ import {
   fetchOfferQuote,
   offerCandidates,
   offerKey,
+  type LiveSeat,
   type OfferChoice,
   type OfferInfo,
   type OfferQuote,
@@ -34,6 +36,15 @@ type BookingGame = {
   time: string;
   format: string;
   fee: number;
+  /** Rupees: what the player's OWN seat costs on the early-bird ladder right now
+   *  (the server's `pricingInfo.currentPricePaise`). Absent on a flat game. Guests
+   *  always pay `fee`. */
+  seatFee?: number;
+  /** Cancelled an early-bird seat in this game before — this booking is at `fee`. */
+  earlyBirdUsed?: boolean;
+  /** The ladder as the game read priced it (`pricingInfo`); the checkout quote
+   *  refreshes it once the sheet is open. Null on a flat game. */
+  pricingInfo?: PricingInfo | null;
   spots: number;
   waitlist?: boolean;
   passEligible?: boolean;
@@ -78,6 +89,9 @@ type BookingGame = {
  *  changed since the sheet was drawn. The sheet stays open on the fresh price. */
 export type BookingOutcome = {
   offerRefused?: { code: string; message: string; offer?: OfferQuote | null };
+  /** The early-bird price rose while the sheet was open (PRICE_CHANGED). Nothing
+   *  was charged; the sheet redraws from a fresh quote and shows `message`. */
+  priceChanged?: { message: string };
 };
 
 type Guest = {
@@ -307,6 +321,10 @@ export function BookingModal({
   const [codeMsg, setCodeMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [offerNotice, setOfferNotice] = useState<string | null>(null);
   const [offerDetailsOpen, setOfferDetailsOpen] = useState(false);
+  // The player's own seat as the checkout quote prices it now — fresher than the
+  // game read, and what the sheet redraws from after a PRICE_CHANGED.
+  const [liveSeat, setLiveSeat] = useState<LiveSeat | null>(null);
+  const [priceNotice, setPriceNotice] = useState<string | null>(null);
 
   // Set once the player has typed a code, so the background refresh below never
   // replaces the answer they asked for with the plain one.
@@ -319,7 +337,9 @@ export function BookingModal({
     if (!offerGameId || offerSkip) return;
     let cancelled = false;
     fetchOfferQuote(offerGameId, { asHost: offerAsHost }).then((r) => {
-      if (cancelled || !r.ok || codeTouched.current) return;
+      if (cancelled || !r.ok) return;
+      if (r.seat) setLiveSeat(r.seat);
+      if (codeTouched.current) return;
       setQuote(r.offer);
       setSelectedKey((prev) => {
         const keys = offerCandidates(r.offer).map(offerKey);
@@ -384,13 +404,32 @@ export function BookingModal({
   // What the player's own seat costs after the pass and the offer. Taken from
   // the server's quote rather than re-derived, so the number beside the button
   // is the number the debit will take.
+  // The own seat's early-bird price: the fresh quote's once it is in, else the
+  // game read's. Guests always pay `game.fee`.
+  const liveOwn   = !isHostSeat && !isWaitlist ? liveSeat : null;
+  const ownSeatRs = liveOwn ? liveOwn.ownSeatPaise / 100 : (game.seatFee ?? game.fee);
+  const pricing   = liveOwn ? liveOwn.pricing : (game.pricingInfo ?? null);
   const basePlayerFee = isHostSeat
     ? hostBase
+    : liveOwn
+    ? liveOwn.basePaise / 100
     : passInfo
     ? Math.round(passInfo.payablePaise / 100)
-    : (passEligible ? 0 : game.fee);
+    : (passEligible ? 0 : (game.seatFee ?? game.fee));
   const playerFee = activeOffer ? activeOffer.payablePaise / 100 : basePlayerFee;
   const totalFee  = playerFee + (game.fee * confirmedGuestCount);
+  // What the early-bird price took off the player's own seat — shown as its own
+  // line so the breakdown adds up. The server already priced passInfo and the
+  // offer on the early price; this only names the difference.
+  const earlyBirdSaving = !isWaitlist && !isHostSeat ? Math.max(0, game.fee - ownSeatRs) : 0;
+  const earlyNow = earlyBirdSaving > 0 && !game.earlyBirdUsed;
+  // "You ₹250 · Guest 1 ₹350" — only worth saying when the seats differ.
+  const partySeats: SeatPrice[] = [
+    { kind: "player", pricePaise: Math.round(ownSeatRs * 100), tier: null, label: null },
+    ...Array.from({ length: confirmedGuestCount }, () => ({ kind: "guest" as const, pricePaise: Math.round(game.fee * 100), tier: null, label: null })),
+  ];
+  const earlyLines = earlyNow ? [urgencyLine(pricing), closesLine(pricing)].filter(Boolean) as string[] : [];
+  const discounted = hostDiscountShown > 0 || (passEligible && passBenefit > 0) || !!activeOffer || earlyBirdSaving > 0;
 
   // How this booking gets paid for: from the wallet, topped up first if it is
   // short. Recomputed on every render, so adding a guest moves the numbers
@@ -448,23 +487,36 @@ export function BookingModal({
     setPhotoError(false);
     setIsLoading(true);
     setOfferNotice(null);
+    setPriceNotice(null);
     try {
       const confirmedGuests = isHostSeat ? [] : isWaitlist ? guests : guests.slice(0, spotsForGuests);
       const overflowGuests  = isHostSeat || isWaitlist ? [] : guests.slice(spotsForGuests);
       // The code the player chose, and the saving this sheet showed them. The
       // server re-decides the offer from scratch and refuses — rather than
       // charging more — if it would now save less than this.
-      const offerChoice: OfferChoice | undefined = activeOffer
-        ? {
-          ...(activeOffer.source === "code" && appliedCode ? { couponCode: appliedCode } : {}),
-          expectedDiscountPaise: activeOffer.savingPaise,
-        }
-        : undefined;
+      // And the total it showed: an early-bird tier selling out while the sheet
+      // was open is refused (PRICE_CHANGED) rather than charged at the new price.
+      const offerChoice: OfferChoice = {
+        ...(activeOffer?.source === "code" && appliedCode ? { couponCode: appliedCode } : {}),
+        ...(activeOffer ? { expectedDiscountPaise: activeOffer.savingPaise } : {}),
+        expectedTotalPaise: Math.round(totalFee * 100),
+      };
       const outcome = await onConfirm(
         game, confirmedGuests, teamPreference, willingIfFormatChange, overflowGuests, teamRequests, offerChoice,
       );
       // Refused over the OFFER, not the seat: stay open on the fresh price and
       // say why, so the player confirms the new total themselves.
+      // Refused over the PRICE (an early-bird tier sold out or closed): redraw
+      // from a fresh quote and say why in one line. Nothing was charged.
+      if (outcome && outcome.priceChanged) {
+        setPriceNotice(outcome.priceChanged.message);
+        const r = await fetchOfferQuote(offerGameId, { asHost: isHostSeat, ...(appliedCode ? { code: appliedCode } : {}) });
+        if (r.ok) {
+          if (r.seat) setLiveSeat(r.seat);
+          setQuote(r.offer);
+          setSelectedKey(offerKey(r.offer.applied));
+        }
+      }
       if (outcome && outcome.offerRefused) {
         const { code, message, offer } = outcome.offerRefused;
         setOfferNotice(message);
@@ -497,6 +549,7 @@ export function BookingModal({
     const r = await fetchOfferQuote(offerGameId, { code, asHost: isHostSeat });
     setCodeBusy(false);
     if (!r.ok) { setCodeMsg({ text: r.message, ok: false }); return; }
+    if (r.seat) setLiveSeat(r.seat);
     const q = r.offer;
     setQuote(q);
     setSelectedKey(offerKey(q.applied));
@@ -520,6 +573,7 @@ export function BookingModal({
     setCodeMsg(null);
     setOfferNotice(null);
     const r = await fetchOfferQuote(offerGameId, { asHost: isHostSeat });
+    if (r.ok && r.seat) setLiveSeat(r.seat);
     const q = r.ok ? r.offer : emptyQuote(initialOffer);
     setQuote(q);
     setSelectedKey(offerKey(q.applied));
@@ -792,6 +846,7 @@ export function BookingModal({
               </div>
               )}
 
+              {priceNotice && <div className="bm-offer-notice" role="alert" style={{ marginBottom: 8 }}>{priceNotice}</div>}
               {isWaitlist ? (
                 <InfoTip defaultOpen text="You will get a notification once a spot opens up. Register to confirm your spot">
                   <div className="wallet-summary" style={{ background: "rgba(200,255,62,0.06)", border: "1px solid rgba(200,255,62,0.2)" }}>
@@ -814,6 +869,11 @@ export function BookingModal({
                     <div className="ws-balance" style={{ color: "#888" }}>
                       Charged only when the organiser approves — from your wallet, or by card if it doesn&apos;t cover it · Wallet: ₹{walletBalance}
                     </div>
+                    {earlyNow && (
+                      <div className="bm-early-note">
+                        Request now to hold {formatRupees(ownSeatRs * 100)}. You pay only if approved.
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -850,15 +910,32 @@ export function BookingModal({
                       ) : (
                         <>
                           <div className="ws-fee">{formatRupees(totalFee * 100)}</div>
+                          {game.earlyBirdUsed && !isWaitlist && (
+                            <div style={{ fontSize: 12, color: "#f59e0b", marginTop: 4 }}>
+                              You already used your early-bird seat for this game, so this booking is at the full price.
+                            </div>
+                          )}
+                          {earlyNow && confirmedGuestCount > 0 && (
+                            <div className="bm-early-note">
+                              {seatBreakdown(partySeats)}. Early-bird discount is for players; guests pay {formatRupees(game.fee * 100)}.
+                            </div>
+                          )}
+                          {earlyLines.map((line) => <div key={line} className="bm-early-note">{line}</div>)}
 
                           <div className="bm-pay-rows">
                             {/* An explicit line, never a silently lower total:
                                 the fee, what the host discount, the pass and an
                                 offer took off it, and what is left to pay. */}
-                            {(hostDiscountShown > 0 || (passEligible && passBenefit > 0) || activeOffer) && (
+                            {discounted && (
                               <div className="bm-pay-row">
                                 <span>Game entry{guests.length > 0 ? " (your spot)" : ""}</span>
                                 <span>{formatRupees(game.fee * 100)}</span>
+                              </div>
+                            )}
+                            {earlyBirdSaving > 0 && (
+                              <div className="bm-pay-row">
+                                <span>Early-bird discount</span>
+                                <span className="bm-pay-free">−{formatRupees(earlyBirdSaving * 100)}</span>
                               </div>
                             )}
                             {hostDiscountShown > 0 && (
@@ -885,7 +962,7 @@ export function BookingModal({
                                 <span>{formatRupees(activeOffer.payablePaise)}</span>
                               </div>
                             )}
-                            {confirmedGuestCount > 0 && (hostDiscountShown > 0 || (passEligible && passBenefit > 0) || activeOffer) && (
+                            {confirmedGuestCount > 0 && discounted && (
                               <div className="bm-pay-row">
                                 <span>{confirmedGuestCount} guest{confirmedGuestCount > 1 ? "s" : ""} (full fee)</span>
                                 <span>{formatRupees(game.fee * confirmedGuestCount * 100)}</span>

@@ -12,6 +12,7 @@
 // refuse a booking that would now cost more than the sheet said.
 
 import { buildApiUrl, getSession } from "@/utils/api";
+import type { PricingInfo, SeatPrice } from "@/utils/earlyBird";
 
 /** One offer, as the card badge and the sheet print it. */
 export type OfferInfo = {
@@ -53,6 +54,8 @@ export type OfferQuote = {
 export type OfferChoice = {
   couponCode?: string;
   expectedDiscountPaise?: number;
+  /** The total the sheet showed; costing more than this is refused (PRICE_CHANGED). */
+  expectedTotalPaise?: number;
 };
 
 /** The two refusals that mean "the offer, not the booking, needs another look". */
@@ -76,7 +79,7 @@ export const emptyQuote = (applied: OfferInfo | null = null): OfferQuote => ({
 export async function fetchOfferQuote(
   gameId: string,
   { code, asHost = false }: { code?: string; asHost?: boolean } = {},
-): Promise<{ ok: true; offer: OfferQuote } | { ok: false; message: string }> {
+): Promise<{ ok: true; offer: OfferQuote; seat: LiveSeat | null } | { ok: false; message: string }> {
   const { token } = getSession();
   if (!token) return { ok: false, message: "Sign in to check offers." };
   const params = new URLSearchParams();
@@ -88,11 +91,27 @@ export async function fetchOfferQuote(
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body?.success) return { ok: false, message: body?.message || "Couldn't check that code. Try again." };
-    return { ok: true, offer: (body.data?.offer as OfferQuote) || emptyQuote() };
+    const d = body.data || {};
+    const offer = (d.offer as OfferQuote) || emptyQuote();
+    const own = Array.isArray(d.seatPrices) ? (d.seatPrices[0] as SeatPrice | undefined) : undefined;
+    // The seat as the server prices it NOW — the early-bird price may have
+    // moved since the game was read. `basePaise` is after any pass, before any
+    // offer (an offer is never applied beside a pass).
+    const seat: LiveSeat | null = own && typeof d.playerFeePaise === "number"
+      ? {
+        ownSeatPaise: own.pricePaise,
+        basePaise: offer.applied ? own.pricePaise : d.playerFeePaise,
+        pricing: (d.pricing as PricingInfo | null) ?? null,
+      }
+      : null;
+    return { ok: true, offer, seat };
   } catch {
     return { ok: false, message: "Couldn't reach the server. Check your connection and try again." };
   }
 }
+
+/** The player's own seat from the checkout quote, for redrawing the sheet. */
+export type LiveSeat = { ownSeatPaise: number; basePaise: number; pricing: PricingInfo | null };
 
 /** Every offer the sheet can show, the default first. */
 export function offerCandidates(quote: OfferQuote | null): OfferInfo[] {

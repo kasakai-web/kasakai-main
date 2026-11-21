@@ -8,6 +8,7 @@ import { ChevronRight, Info, MapPin } from "lucide-react";
 import type { OfferInfo } from "@/utils/offers";
 import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
 import { LegacyEventCard } from "./legacy/EventCard";
+import { stockLine, closesLine, type PricingInfo } from "@/utils/earlyBird";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -19,6 +20,16 @@ export const REPEAT_LABEL: Record<GameRepeat, string> = {
   monthly: "Monthly",
 };
 
+
+/** The early-bird price in rupees while it is below list and the game can be
+ *  booked, else null — shared by both cards so they cannot disagree. */
+export function earlyBirdPrice(
+  pricingInfo: EventCardProps["pricingInfo"],
+  bookable: boolean,
+): number | null {
+  if (!bookable || !pricingInfo || pricingInfo.currentPricePaise >= pricingInfo.listPricePaise) return null;
+  return Math.round(pricingInfo.currentPricePaise / 100);
+}
 
 export interface EventCardProps {
   id: string;
@@ -54,6 +65,10 @@ export interface EventCardProps {
    *  server's `codeOffers`. Counted on the card's coupon tag, never applied to
    *  the card's price: a code only counts once it is entered at booking. */
   codeOffers?: OfferInfo[];
+  /** The early-bird ladder as the server prices it right now (`pricingInfo`),
+   *  null on a flat game. The card shows the early price beside the list price
+   *  struck through. */
+  pricingInfo?: PricingInfo | null;
   spotsTotal: number;
   spotsLeft: number;
   isRegistered: boolean;
@@ -106,6 +121,7 @@ function NewEventCard({
   passInfo = null,
   offerInfo = null,
   codeOffers = [],
+  pricingInfo = null,
   spotsTotal,
   spotsLeft,
   isRegistered,
@@ -235,8 +251,13 @@ function NewEventCard({
   // the booking sheet shows what it takes off.
   const discountedPrice = passCovers
     ? passInfo && passInfo.payablePaise > 0 ? Math.round(passInfo.payablePaise / 100) : 0
-    : null;
+    : earlyBirdPrice(pricingInfo, offerable);
   const displayPrice = discountedPrice ?? fee;
+  // "3 left at this price, then ₹300 · Early price ends tonight 8 pm" — real
+  // stock and a real close time from the server, only while the early price shows.
+  const earlyNote = !passCovers && earlyBirdPrice(pricingInfo, offerable) != null
+    ? [stockLine(pricingInfo), closesLine(pricingInfo)].filter(Boolean).join(" · ")
+    : null;
   const showSpots = !isCancelled && !isAwaiting && status !== "completed";
   // A game that is over or called off has no fill level worth reading.
   const showCapacity = !isCancelled && status !== "completed";
@@ -297,6 +318,12 @@ function NewEventCard({
         </div>
       </div>
 
+      {earlyNote && (
+        <div className="kk-game-early">
+          <span aria-hidden="true">🐦</span>
+          <span>{earlyNote}</span>
+        </div>
+      )}
       {showCapacity && (
         <div className="kk-game-capacity">
           <ProgressBar spotsTotal={spotsTotal} spotsLeft={spotsLeft} />

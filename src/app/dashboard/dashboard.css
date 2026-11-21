@@ -3652,3 +3652,11 @@ body::after {
   letter-spacing: .02em;
   color: var(--muted);
 }
+
+/* Early-bird lines in the booking sheet — the server's stock and close time, worded. */
+.bm-early-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #d9f99d;
+}
