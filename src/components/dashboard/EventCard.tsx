@@ -6,6 +6,7 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
 import { ChevronRight, Info, MapPin } from "lucide-react";
 import type { OfferInfo } from "@/utils/offers";
+import { confirmLabel, type ConfirmInfo } from "@/utils/confirmInfo";
 import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
 import { LegacyEventCard } from "./legacy/EventCard";
 import { stockLine, closesLine, type PricingInfo } from "@/utils/earlyBird";
@@ -83,6 +84,9 @@ export interface EventCardProps {
   // including the waitlist. Server-computed (`registrationLocked`); it lifts by
   // itself as soon as anyone drops out, so the card must never cache it.
   registrationLocked?: boolean;
+  /** "Minimum reached · confirms 6:00 PM" / "3 more needed" — the server's
+   *  `confirmInfo`, set only on a game that auto-confirms at its minimum. */
+  confirmInfo?: ConfirmInfo | null;
   /** This viewer is one of the organiser's approved hosts and may book a host
    *  spot here right now — the server's `hostInfo.viewerCanBook`, the same gate
    *  the booking runs. Booked from the game's Players tab. */
@@ -129,6 +133,7 @@ function NewEventCard({
   isWaitlisted = false,
   requiresApproval = false,
   registrationLocked = false,
+  confirmInfo = null,
   hostSpotOpen = false,
   requestStatus = null,
   onCancelRequest,
@@ -201,6 +206,9 @@ function NewEventCard({
                 ? { label: "Approved · pay to lock", kind: "registered" }
                 : null;
   const showHostTag = hostSpotOpen && !isRegistered && !isCancelled;
+  // The server only sends it for an open game that will auto-confirm; a game
+  // that has happened (awaiting its result) has nothing left to promise.
+  const confirmTag = !isCancelled && !isAwaiting ? confirmLabel(confirmInfo) : null;
 
   // The left stripe carries the card's most important state at a glance.
   const accent = isCancelled
@@ -291,6 +299,14 @@ function NewEventCard({
             {feedRegistrationTag && (
               <span className={`kk-game-tag kk-game-reg-${feedRegistrationTag.kind}`}>
                 {feedRegistrationTag.label}
+              </span>
+            )}
+            {confirmTag && (
+              <span
+                className={`kk-game-tag ${confirmInfo?.state === "min_reached" ? "kk-game-reg-registered" : "kk-game-reg-muted"}`}
+                title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
+              >
+                {confirmTag}
               </span>
             )}
             {showHostTag && <span className="kk-game-tag kk-game-reg-registered">Host spot open</span>}

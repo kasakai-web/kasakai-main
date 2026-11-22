@@ -98,6 +98,12 @@ type Guest = {
   name: string;
   position: string;
   teamPreference: string;
+  /**
+   * "Play together" — put this guest on the booking player's team whenever possible. On unless
+   * the player switches it off; off leaves the guest to be placed on balance.
+   * Sent as the guest's `relation` ('with' | 'none').
+   */
+  playTogether?: boolean;
 };
 
 export type BookingGuest = Guest;
@@ -162,7 +168,8 @@ function GuestCard({
   isWaitlisted?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const hasPrefs = guest.position !== "Any" || guest.teamPreference !== "No Preference";
+  const together = guest.playTogether !== false;
+  const hasPrefs = guest.position !== "Any" || guest.teamPreference !== "No Preference" || !together;
 
   return (
     <div
@@ -203,6 +210,7 @@ function GuestCard({
                 {guest.teamPreference === "Red Team" ? "Red" : "Blue"}
               </span>
             )}
+            {!together && <span className="bm-pill">Either team</span>}
           </span>
         )}
 
@@ -278,6 +286,24 @@ function GuestCard({
                   onClick={() => onUpdate({ teamPreference: label })}
                 >{label}</button>
               ))}
+            </div>
+          </div>
+
+          <div className="bm-guest-row">
+            <div className="bm-guest-row-label">Play together</div>
+            <div className="bm-guest-teams">
+              <button
+                type="button"
+                className={`bm-guest-team ${together ? "selected" : ""}`}
+                onClick={() => onUpdate({ playTogether: true })}
+                title="On your team whenever possible"
+              >Same team</button>
+              <button
+                type="button"
+                className={`bm-guest-team ${!together ? "selected" : ""}`}
+                onClick={() => onUpdate({ playTogether: false })}
+                title="Placed wherever balances the teams"
+              >Either team</button>
             </div>
           </div>
         </div>
@@ -458,7 +484,7 @@ export function BookingModal({
     setGuests((previous) => {
       const usedNums = previous.flatMap((g) => { const m = pattern.exec(g.name); return m ? [parseInt(m[1], 10)] : []; });
       const nextNum = usedNums.length > 0 ? Math.max(...usedNums) + 1 : 1;
-      return [...previous, { name: `${firstName} + ${nextNum}`, position: "Any", teamPreference: "No Preference" }];
+      return [...previous, { name: `${firstName} + ${nextNum}`, position: "Any", teamPreference: "No Preference", playTogether: true }];
     });
   };
 
@@ -793,7 +819,7 @@ export function BookingModal({
                   borderRadius: 10, padding: "11px 14px", marginBottom: 14, fontSize: 12.5, color: "#f59e0b", lineHeight: 1.6,
                 }}>
                   ⏳ This game needs the organiser&apos;s approval to join. You&apos;ll pay{" "}
-                  <b>₹{playerFee}</b> only once your request is approved — from your wallet, or by card if it
+                  <b>₹{playerFee}</b>{" "}only once your request is approved — from your wallet, or by card if it
                   doesn&apos;t cover it. You can add guests after you&apos;re in.
                 </div>
               )}

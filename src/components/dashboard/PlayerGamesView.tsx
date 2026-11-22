@@ -378,6 +378,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   const [guestPrefGame, setGuestPrefGame] = useState<any>(null);
   const [guestPrefPosition, setGuestPrefPosition] = useState("Any");
   const [guestPrefTeam, setGuestPrefTeam] = useState("No Preference");
+  // "Play together" — on by default: the guest is put on the player's team whenever possible.
+  const [guestPrefTogether, setGuestPrefTogether] = useState(true);
   const [guestPrefName, setGuestPrefName] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   // The venue sheet opens over the event modal, so it holds only the turf id —
@@ -1197,7 +1199,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
       seatFee: game.pricingInfo ? game.pricingInfo.currentPricePaise / 100 : undefined,
       earlyBirdUsed: Boolean(game.earlyBirdUsed),
       pricingInfo: game.pricingInfo ?? null,
-      requiresApproval: Boolean(game.requiresApproval),
+      // Sent an SOS for this game: the organiser already picked this player, so
+      // they book straight away rather than filing a request (server: sosAccess).
+      requiresApproval: Boolean(game.requiresApproval) && !game.sosAccess,
     });
   };
 
@@ -1589,6 +1593,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             name: (g.name || fallbackName).trim() || fallbackName,
             position: g.position || "Any",
             teamPreference: g.teamPreference || "No Preference",
+            relation: g.playTogether === false ? "none" : "with",
           };
         }),
       };
@@ -1612,6 +1617,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
             name: (g.name || fallbackName).trim() || fallbackName,
             position: g.position || "Any",
             teamPreference: g.teamPreference || "No Preference",
+            relation: g.playTogether === false ? "none" : "with",
           };
         });
       }
@@ -1849,17 +1855,22 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
     setGuestPrefGame(game);
     setGuestPrefPosition("Any");
     setGuestPrefTeam("No Preference");
+    setGuestPrefTogether(true);
     setGuestPrefName("");
     setGuestPrefOpen(true);
   };
 
-  const handleAddGuest = async (game: any, position = "Any", teamPreference = "No Preference", guestName = "") => {
+  const handleAddGuest = async (game: any, position = "Any", teamPreference = "No Preference", guestName = "", playTogether = true) => {
     const { token } = getSession();
     if (!token) { clearSession(); router.replace("/login?role=player"); return; }
     setAddingGuest(true);
     setGuestPrefOpen(false);
     try {
-      const body: Record<string, string> = { position, teamPreference };
+      const body: Record<string, string> = {
+        position,
+        teamPreference,
+        guestRelation: playTogether ? "with" : "none",
+      };
       if (guestName.trim()) body.guestName = guestName.trim();
       const { res, data, cancelled, toppedUpPaise } = await postWithTopUp<any>(
         `/api/v1/games/${game._id}/add-guest`,
@@ -2527,6 +2538,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                   }
                   requiresApproval={Boolean(game.requiresApproval)}
                   registrationLocked={Boolean(game.registrationLocked)}
+                  confirmInfo={game.confirmInfo ?? null}
                   hostSpotOpen={Boolean((game.hostInfo as HostInfo | undefined)?.viewerCanBook)}
                   requestStatus={game._myRequestStatus || null}
                   onPayApproved={() => handleConfirmApproved(game)}
@@ -2765,6 +2777,30 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               </div>
             </div>
 
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ color: "#aaa", fontSize: 12, display: "block", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>Play together</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {([true, false] as const).map((on) => (
+                  <button
+                    key={String(on)}
+                    type="button"
+                    onClick={() => setGuestPrefTogether(on)}
+                    style={{
+                      padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      background: guestPrefTogether === on ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+                      color: guestPrefTogether === on ? "#c8ff3e" : "#888",
+                      border: `1px solid ${guestPrefTogether === on ? "rgba(200,255,62,0.4)" : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  >{on ? "Same team" : "Either team"}</button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
+                {guestPrefTogether
+                  ? "Your guest is put on your team whenever possible."
+                  : "Your guest goes wherever balances the teams."}
+              </div>
+            </div>
+
             {/* Fee warning */}
             {guestPrefGame?.spotsRemaining === 0 ? (
               <div style={{
@@ -2804,7 +2840,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
               >Cancel</button>
               <button
                 type="button"
-                onClick={() => handleAddGuest(guestPrefGame, guestPrefPosition, guestPrefTeam, guestPrefName)}
+                onClick={() => handleAddGuest(guestPrefGame, guestPrefPosition, guestPrefTeam, guestPrefName, guestPrefTogether)}
                 style={{ flex: 2, padding: "10px", borderRadius: 7, background: "#c8ff3e", color: "#000", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer" }}
               >
                 {guestPrefGame?.spotsRemaining === 0
@@ -3254,7 +3290,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                 <ProgressBar spotsTotal={detailGame.totalSlots } spotsLeft={detailGame.spotsRemaining} />
                 {(detailGame.hostInfo?.held ?? 0) > 0 && !detailIsCancelled && (
                   <div className="pd-host-runby" style={{ marginTop: 6 }}>
-                    {detailGame.hostInfo.held} spot{detailGame.hostInfo.held === 1 ? " is" : "s are"} held for the
+                    {detailGame.hostInfo.held} spot{detailGame.hostInfo.held === 1 ? " is" : "s are"}{" "}held for the
                     organiser&apos;s hosts
                     {detailGame.hostInfo.releaseAt ? ` until ${whenText(detailGame.hostInfo.releaseAt)}, then open to everyone` : ""}.
                   </div>
@@ -4101,7 +4137,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
                         e.currentTarget.style.transform = "translateY(0)";
                       }}
                     >
-                      {detailGame.requiresApproval ? "🙋 Request to Join" : "⚽ Book Now"}
+                      {detailGame.requiresApproval && !detailGame.sosAccess ? "🙋 Request to Join" : "⚽ Book Now"}
                     </button>
                   )
                 )}
