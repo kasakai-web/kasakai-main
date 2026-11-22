@@ -343,6 +343,31 @@
   white-space: nowrap; 
 }
 .kk-game-old-price { color: #91a18e; font-size: 12px; font-weight: 500; letter-spacing: 0; text-decoration: line-through; }
+/* Early bird: the list price must read as a real price that was cut, not as a
+   faint footnote — larger, brighter, a visible strike — and the price after it
+   takes the early-bird gold so the two are obviously "was" and "now". */
+.kk-game-price.is-early { color: #ffd166; }
+.kk-game-price.is-early .kk-game-old-price {
+  color: #c9d4c6;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration-color: #ff8a73;
+  text-decoration-thickness: 2px;
+}
+.kk-game-save {
+  margin-top: 3px;
+  padding: 2px 6px;
+  color: #ffe3a3;
+  background: #4a3a14;
+  border: 1px solid #8a6a26;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.kk-game-early-tag { color: #ffe3a3; background: #4a3a14; border-color: #8a6a26; }
 
 .kk-game-book {
   min-width: 108px;
@@ -553,6 +578,8 @@
   .kk-game-tag { padding: 2px 4px; font-size: 9.5px; letter-spacing: .02em; }
 
   .kk-game-price { font-size: 18px; }
+  .kk-game-price.is-early .kk-game-old-price { font-size: 12px; }
+  .kk-game-save { font-size: 9.5px; padding: 1px 4px; }
   /* Long labels ("Registration closed", "Requested · Cancel") wrap to two
      lines rather than being cut off. */
   .kk-game-book {
@@ -585,17 +612,4 @@
 @media (prefers-reduced-motion: reduce) {
   .kk-game-card { transition: none; }
   .kk-game-card:hover { transform: none; }
-}
-
-/* Early-bird stock line — "3 left at this price, then ₹300". The server's numbers, worded. */
-.kk-game-early {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 16px;
-  color: #d9f99d;
-  background: #1f2e1a8c;
-  border-top: 1px solid #334a35;
-  font-size: 12.5px;
-  line-height: 1.4;
 }

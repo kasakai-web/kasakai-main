@@ -9,7 +9,8 @@ import type { OfferInfo } from "@/utils/offers";
 import { confirmLabel, type ConfirmInfo } from "@/utils/confirmInfo";
 import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
 import { LegacyEventCard } from "./legacy/EventCard";
-import { stockLine, closesLine, type PricingInfo } from "@/utils/earlyBird";
+import { expiryLine, type PricingInfo } from "@/utils/earlyBird";
+import EarlyBirdTag from "./EarlyBirdTag";
 
 export type EventStatus = "confirmed" | "tentative" | "full" | "cancelled" | "open" | "draft" | "completed";
 
@@ -261,11 +262,13 @@ function NewEventCard({
     ? passInfo && passInfo.payablePaise > 0 ? Math.round(passInfo.payablePaise / 100) : 0
     : earlyBirdPrice(pricingInfo, offerable);
   const displayPrice = discountedPrice ?? fee;
-  // "3 left at this price, then ₹300 · Early price ends tonight 8 pm" — real
-  // stock and a real close time from the server, only while the early price shows.
-  const earlyNote = !passCovers && earlyBirdPrice(pricingInfo, offerable) != null
-    ? [stockLine(pricingInfo), closesLine(pricingInfo)].filter(Boolean).join(" · ")
-    : null;
+  const isEarly = !passCovers && earlyBirdPrice(pricingInfo, offerable) != null;
+  // The struck price is the list price the ladder is measured against.
+  const originalPrice = isEarly && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
+  const earlySaving = isEarly ? originalPrice - displayPrice : 0;
+  // "Ends after 3 more seats or tonight 8 pm — then ₹300" — shown only while
+  // the early tag is held down; the card itself stays two prices and a tag.
+  const earlyNote = isEarly ? expiryLine(pricingInfo) : null;
   const showSpots = !isCancelled && !isAwaiting && status !== "completed";
   // A game that is over or called off has no fill level worth reading.
   const showCapacity = !isCancelled && status !== "completed";
@@ -288,7 +291,9 @@ function NewEventCard({
               {area || city}
             </span>
             <span className="kk-game-tag kk-game-format">{format}</span>
-            {!isRegistered && !isCancelled && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus &&repeat && REPEAT_LABEL[repeat] && (
+            {/* The early-bird tag replaces the repeat and coupon tags: one price
+                message per card. */}
+            {!isEarly && !isRegistered && !isCancelled && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus &&repeat && REPEAT_LABEL[repeat] && (
               <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span>
             )}
             {feedStatusTag && (
@@ -310,8 +315,18 @@ function NewEventCard({
               </span>
             )}
             {showHostTag && <span className="kk-game-tag kk-game-reg-registered">Host spot open</span>}
+            {isEarly && (
+              <EarlyBirdTag
+                className="kk-game-tag kk-game-early-tag"
+                price={`₹${displayPrice}`}
+                original={`₹${originalPrice}`}
+                detail={earlyNote}
+              >
+                🐦 Early bird
+              </EarlyBirdTag>
+            )}
             {passCovers && <span className="kk-game-tag kk-game-pass">Pass</span>}
-            {offer ? (
+            {isEarly ? null : offer ? (
               <span
                 className="kk-game-tag kk-game-pass"
                 title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}
@@ -326,20 +341,20 @@ function NewEventCard({
           </div>
         </div>
         <div className="kk-game-rate">
-          <span className="kk-game-price" aria-label={`${displayPrice} rupees per player`}>
-            {discountedPrice !== null && <small className="kk-game-old-price">₹{fee}</small>}
+          <span
+            className={`kk-game-price${isEarly ? " is-early" : ""}`}
+            aria-label={discountedPrice !== null
+              ? `${displayPrice} rupees per player, was ${originalPrice}`
+              : `${displayPrice} rupees per player`}
+          >
+            {discountedPrice !== null && <small className="kk-game-old-price">₹{originalPrice}</small>}
             ₹{displayPrice}
           </span>
+          {earlySaving > 0 && <span className="kk-game-save">Save ₹{earlySaving}</span>}
           {feedBookingAction}
         </div>
       </div>
 
-      {earlyNote && (
-        <div className="kk-game-early">
-          <span aria-hidden="true">🐦</span>
-          <span>{earlyNote}</span>
-        </div>
-      )}
       {showCapacity && (
         <div className="kk-game-capacity">
           <ProgressBar spotsTotal={spotsTotal} spotsLeft={spotsLeft} />

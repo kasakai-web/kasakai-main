@@ -76,6 +76,34 @@ export function closesLine(info: PricingInfo | null | undefined, now: Date = new
   return `Early price ends ${day} ${istTime(at)}`;
 }
 
+/**
+ * When the early price stops, on the game card: "Ends after 3 more seats or
+ * Sat 23 Nov, 8 pm — then ₹300". States BOTH conditions the server prices on
+ * (tier stock, the tier's close time), whichever comes first, so a player can
+ * see the low price is temporary and what replaces it. Null when not early.
+ */
+export function expiryLine(info: PricingInfo | null | undefined, now: Date = new Date()): string | null {
+  if (!isEarlyPrice(info)) return null;
+  const n = info.seatsLeftAtPrice;
+  const parts: string[] = [];
+  if (n > 0) parts.push(`after ${n} more seat${n === 1 ? "" : "s"}`);
+  if (info.closesAt) {
+    const at = new Date(info.closesAt);
+    if (!isNaN(at.getTime()) && at.getTime() > now.getTime()) {
+      const within = at.getTime() - now.getTime() <= 24 * 60 * 60 * 1000;
+      const when = within
+        ? (closesLine(info, now) || "").replace(/^Early price ends /, "")
+        : `${at.toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" })}, ${istTime(at)}`;
+      if (when) parts.push(within ? when : `on ${when}`);
+    }
+  }
+  const then = info.nextPricePaise != null && info.nextPricePaise > info.currentPricePaise
+    ? info.nextPricePaise
+    : info.listPricePaise;
+  const head = parts.length ? `Ends ${parts.join(" or ")}` : "Limited-time price";
+  return `${head} — then ${rupees(then)}`;
+}
+
 /** "Book now — price rises to ₹300 after 3 more seats." Null when nothing rises. */
 export function urgencyLine(info: PricingInfo | null | undefined): string | null {
   if (!isEarlyPrice(info) || info.nextPricePaise == null || info.nextPricePaise <= info.currentPricePaise) return null;

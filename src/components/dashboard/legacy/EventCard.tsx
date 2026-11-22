@@ -7,6 +7,8 @@ import Image from "next/image";
 import { useState } from "react";
 import { REPEAT_LABEL, earlyBirdPrice, type EventCardProps } from "../EventCard";
 import { confirmLabel } from "@/utils/confirmInfo";
+import { expiryLine } from "@/utils/earlyBird";
+import EarlyBirdTag from "../EarlyBirdTag";
 
 function buildAvatarStackLabel(players: { name: string }[]): string|null {
   const total = players.length;
@@ -74,6 +76,9 @@ export function LegacyEventCard({
     : null;
   const offerable = !passCovers && !isRegistered && !isCancelled && !isAwaiting && fee > 0;
   const earlyPrice = earlyBirdPrice(pricingInfo, offerable);
+  // The struck price is the list price the ladder is measured against.
+  const listPrice = earlyPrice !== null && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
+  const earlyNote = earlyPrice !== null ? expiryLine(pricingInfo) : null;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
   // Read the clock once per mount: render must stay pure, and a card's "Today" has
   // never refreshed on its own anyway — only on a re-render or reload.
@@ -111,12 +116,24 @@ export function LegacyEventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
-          {!isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat] && (
+          {/* The early-bird badge replaces the repeat and coupon badges: one
+              price message per card. */}
+          {earlyPrice === null && !isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat] && (
             <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span>
+          )}
+          {earlyPrice !== null && (
+            <EarlyBirdTag
+              className="registered-badge early-bird-badge"
+              price={`₹${earlyPrice}`}
+              original={`₹${listPrice}`}
+              detail={earlyNote}
+            >
+              🐦 Early bird
+            </EarlyBirdTag>
           )}
           {/* The card shows the full price either way; the booking sheet applies
               an automatic offer and lists codes to tap. */}
-          {offer ? (
+          {earlyPrice !== null ? null : offer ? (
             <span className="registered-badge coupon-badge" title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}>
               🏷<span className="coupon-label"> Offer applied</span>
             </span>
@@ -157,13 +174,13 @@ export function LegacyEventCard({
               </div>
             </>
           ) : earlyPrice !== null ? (
-            // Early-bird: the price the next seat sells at, the list price struck
-            // through beside it.
-            <>
+            // Early-bird: the list price struck through, then the price the next
+            // seat sells at — read left to right as "was ₹300, now ₹250".
+            <div className="card-price-early" aria-label={`${earlyPrice} rupees, was ${listPrice}`}>
+              <div className="price-original is-early">₹{listPrice}</div>
               <div className="price-rupee">₹</div>
-              <div className="price-amount">{earlyPrice}</div>
-              <div className="price-original">₹{fee}</div>
-            </>
+              <div className="price-amount is-early">{earlyPrice}</div>
+            </div>
           ) : (
             // An automatic offer does not change the card's price — the pill
             // flags it, and the booking sheet shows what it takes off.

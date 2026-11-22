@@ -470,3 +470,38 @@ body {
     font-size: 12px;
   }
 }
+
+/* ── Early-bird tag: press and hold for details (components/dashboard/EarlyBirdTag) ──
+   Lives here because the popover is portalled to <body>, outside both cards'
+   stylesheets' reach, and the card is used outside the dashboard too. */
+.kk-early-trigger {
+  font-family: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.kk-early-pop {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  color: #ffe9b8;
+  background: #241d0e;
+  border: 1px solid #8a6a26;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px #000a;
+  font-size: 12.5px;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: kk-early-pop-in .12s ease-out;
+}
+.kk-early-pop strong { color: #ffd166; font-size: 13px; font-weight: 800; }
+.kk-early-pop-prices { color: #ffd166; font-size: 16px; font-weight: 850; }
+.kk-early-pop-prices s { margin-right: 4px; color: #c9c9c9; font-size: 13px; font-weight: 600; text-decoration-color: #ff6b57; text-decoration-thickness: 2px; }
+.kk-early-pop-detail { color: #f3e3bd; }
+@keyframes kk-early-pop-in { from { opacity: 0; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .kk-early-pop { animation: none; } }

@@ -578,6 +578,26 @@ body::after {
   align-self: center;
 }
 
+/* Early bird: "₹300 ₹250" with the list price clearly legible and struck, and
+   the early price in gold — two prices, obviously a cut, not one price. */
+.card-price-early { display: flex; align-items: baseline; gap: 2px; }
+.price-original.is-early {
+  margin: 0 5px 0 0;
+  color: #c9c9c9;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration-color: #ff6b57;
+  text-decoration-thickness: 2px;
+}
+.price-amount.is-early { color: #ffd166; }
+
+.registered-badge.early-bird-badge {
+  background: rgba(255, 209, 102, 0.14);
+  color: #ffd166;
+  border: 1px solid rgba(255, 209, 102, 0.35);
+}
+
+
 /* ─── Venue Section ─── */
 .card-venue-section {
   display: flex;
