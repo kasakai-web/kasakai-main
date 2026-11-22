@@ -315,7 +315,9 @@ function NewEventCard({
               </span>
             )}
             {showHostTag && <span className="kk-game-tag kk-game-reg-registered">Host spot open</span>}
-            {isEarly && (
+            {/* A "9 more needed" / "Minimum reached" tag outranks it: the card
+                keeps one extra tag, and the struck price still says early bird. */}
+            {isEarly && !confirmTag && (
               <EarlyBirdTag
                 className="kk-game-tag kk-game-early-tag"
                 price={`₹${displayPrice}`}

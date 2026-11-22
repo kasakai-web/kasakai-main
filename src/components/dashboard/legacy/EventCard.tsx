@@ -79,6 +79,9 @@ export function LegacyEventCard({
   // The struck price is the list price the ladder is measured against.
   const listPrice = earlyPrice !== null && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
   const earlyNote = earlyPrice !== null ? expiryLine(pricingInfo) : null;
+  // "9 more needed" / "Minimum reached" — when shown, it replaces the early-bird
+  // badge (the struck price still says early bird).
+  const confirmTag = !isCancelled && !isAwaiting ? confirmLabel(confirmInfo) : null;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
   // Read the clock once per mount: render must stay pure, and a card's "Today" has
   // never refreshed on its own anyway — only on a re-render or reload.
@@ -121,7 +124,7 @@ export function LegacyEventCard({
           {earlyPrice === null && !isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat] && (
             <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span>
           )}
-          {earlyPrice !== null && (
+          {earlyPrice !== null && !confirmTag && (
             <EarlyBirdTag
               className="registered-badge early-bird-badge"
               price={`₹${earlyPrice}`}
@@ -150,12 +153,12 @@ export function LegacyEventCard({
           {isRegistered && !isCancelled && !optedOut && <span className="registered-badge">✓ Registered</span>}
           {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
           {hostSpotOpen && !isRegistered && !isCancelled && <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span>}
-          {!isCancelled && !isAwaiting && confirmLabel(confirmInfo) && (
+          {confirmTag && (
             <span
               className={`registered-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
               title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
             >
-              {confirmLabel(confirmInfo)}
+              {confirmTag}
             </span>
           )}
         </div>
