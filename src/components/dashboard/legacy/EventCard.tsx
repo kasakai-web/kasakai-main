@@ -4,8 +4,8 @@ import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
-import { useState } from "react";
-import { REPEAT_LABEL, earlyBirdPrice, type EventCardProps } from "../EventCard";
+import { Fragment, useState, type ReactNode } from "react";
+import { MAX_CARD_TAGS, REPEAT_LABEL, earlyBirdPrice, type EventCardProps } from "../EventCard";
 import { confirmLabel } from "@/utils/confirmInfo";
 import { expiryLine } from "@/utils/earlyBird";
 import EarlyBirdTag from "../EarlyBirdTag";
@@ -79,8 +79,7 @@ export function LegacyEventCard({
   // The struck price is the list price the ladder is measured against.
   const listPrice = earlyPrice !== null && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
   const earlyNote = earlyPrice !== null ? expiryLine(pricingInfo) : null;
-  // "9 more needed" / "Minimum reached" — when shown, it replaces the early-bird
-  // badge (the struck price still says early bird).
+  // "9 more needed" / "Minimum reached" — ranked below the early-bird badge.
   const confirmTag = !isCancelled && !isAwaiting ? confirmLabel(confirmInfo) : null;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
   // Read the clock once per mount: render must stay pure, and a card's "Today" has
@@ -98,6 +97,63 @@ export function LegacyEventCard({
     if (gameIST === tomorrowIST) return "Tomorrow";
     return new Date(date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
   };
+
+  const badges: { key: string; node: ReactNode }[] = [];
+  if (earlyPrice !== null) {
+    badges.push({
+      key: "early",
+      node: (
+        <EarlyBirdTag className="registered-badge early-bird-badge" price={`₹${earlyPrice}`} original={`₹${listPrice}`} detail={earlyNote}>
+          🐦 Early bird
+        </EarlyBirdTag>
+      ),
+    });
+  }
+  if (isWaitlisted && spotsLeft > 0 && !isCancelled) badges.push({ key: "wl-spot", node: <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span> });
+  if (isWaitlisted && spotsLeft === 0 && !isCancelled) badges.push({ key: "wl", node: <span className="registered-badge waitlisted-badge">📋 Waitlisted</span> });
+  if (!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending") badges.push({ key: "req", node: <span className="registered-badge waitlisted-badge">⏳ Requested</span> });
+  if (!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "approved_unpaid") badges.push({ key: "approved", node: <span className="registered-badge waitlist-approved-badge">✅ Approved — pay to lock</span> });
+  if (isRegistered && !isCancelled && optedOut) badges.push({ key: "optout", node: <span className="registered-badge waitlisted-badge">↩ Not attending</span> });
+  if (isRegistered && !isCancelled && !optedOut) badges.push({ key: "reg", node: <span className="registered-badge">✓ Registered</span> });
+  if (isRegistered && isCancelled) badges.push({ key: "was", node: <span className="registered-badge was-registered">Was Registered</span> });
+  if (confirmTag) {
+    badges.push({
+      key: "confirm",
+      node: (
+        <span
+          className={`registered-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
+          title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
+        >
+          {confirmTag}
+        </span>
+      ),
+    });
+  }
+  if (hostSpotOpen && !isRegistered && !isCancelled) badges.push({ key: "host", node: <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span> });
+  // The card shows the full price either way; the booking sheet applies an
+  // automatic offer and lists codes to tap.
+  if (earlyPrice === null && offer) {
+    badges.push({
+      key: "offer",
+      node: (
+        <span className="registered-badge coupon-badge" title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}>
+          🏷<span className="coupon-label"> Offer applied</span>
+        </span>
+      ),
+    });
+  } else if (earlyPrice === null && codes.length > 0) {
+    badges.push({
+      key: "codes",
+      node: (
+        <span className="registered-badge coupon-badge" title="Pick a code when you book">
+          🎟 {codes.length}<span className="coupon-label"> coupon{codes.length === 1 ? "" : "s"}</span>
+        </span>
+      ),
+    });
+  }
+  if (earlyPrice === null && !isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status !== "completed" && !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat]) {
+    badges.push({ key: "repeat", node: <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span> });
+  }
 
   return (
     <div className={`event-card ${effectiveStatus} ${isRegistered ? 'registered' : ''}`}>
@@ -119,48 +175,11 @@ export function LegacyEventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
-          {/* The early-bird badge replaces the repeat and coupon badges: one
-              price message per card. */}
-          {earlyPrice === null && !isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat] && (
-            <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span>
-          )}
-          {earlyPrice !== null && !confirmTag && (
-            <EarlyBirdTag
-              className="registered-badge early-bird-badge"
-              price={`₹${earlyPrice}`}
-              original={`₹${listPrice}`}
-              detail={earlyNote}
-            >
-              🐦 Early bird
-            </EarlyBirdTag>
-          )}
-          {/* The card shows the full price either way; the booking sheet applies
-              an automatic offer and lists codes to tap. */}
-          {earlyPrice !== null ? null : offer ? (
-            <span className="registered-badge coupon-badge" title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}>
-              🏷<span className="coupon-label"> Offer applied</span>
-            </span>
-          ) : codes.length > 0 && (
-            <span className="registered-badge coupon-badge" title="Pick a code when you book">
-              🎟 {codes.length}<span className="coupon-label"> coupon{codes.length === 1 ? "" : "s"}</span>
-            </span>
-          )}
-          {isWaitlisted && spotsLeft > 0 && !isCancelled && <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span>}
-          {isWaitlisted && spotsLeft === 0 && !isCancelled && <span className="registered-badge waitlisted-badge">📋 Waitlisted</span>}
-          {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending" && <span className="registered-badge waitlisted-badge">⏳ Requested</span>}
-          {!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "approved_unpaid" && <span className="registered-badge waitlist-approved-badge">✅ Approved — pay to lock</span>}
-          {isRegistered && !isCancelled && optedOut && <span className="registered-badge waitlisted-badge">↩ Not attending</span>}
-          {isRegistered && !isCancelled && !optedOut && <span className="registered-badge">✓ Registered</span>}
-          {isRegistered && isCancelled && <span className="registered-badge was-registered">Was Registered</span>}
-          {hostSpotOpen && !isRegistered && !isCancelled && <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span>}
-          {confirmTag && (
-            <span
-              className={`registered-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
-              title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
-            >
-              {confirmTag}
-            </span>
-          )}
+          {/* Beside the status pill, at most MAX_CARD_TAGS badges in priority
+              order — early bird first whenever the game has an early-bird price,
+              ahead of "9 more needed". It also replaces the repeat and coupon
+              badges: one price message per card. */}
+          {badges.slice(0, MAX_CARD_TAGS).map((b) => <Fragment key={b.key}>{b.node}</Fragment>)}
         </div>
         <div className="card-price">
           {/* A covered seat shows the old price struck through and what they

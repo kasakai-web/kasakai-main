@@ -1,4 +1,5 @@
 "use client";
+import { Fragment, type ReactNode } from "react";
 
 import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import {resolveImageUrl} from "@/utils/api";
@@ -21,6 +22,10 @@ export const REPEAT_LABEL: Record<GameRepeat, string> = {
   weekly: "Weekly",
   monthly: "Monthly",
 };
+
+/** At most this many tags on a game card (beside the format chip / date pill),
+ *  in priority order — early bird first. Shared so both cards agree. */
+export const MAX_CARD_TAGS = 2;
 
 
 /** The early-bird price in rupees while it is below list and the game can be
@@ -269,6 +274,81 @@ function NewEventCard({
   // "Ends after 3 more seats or tonight 8 pm — then ₹300" — shown only while
   // the early tag is held down; the card itself stays two prices and a tag.
   const earlyNote = isEarly ? expiryLine(pricingInfo) : null;
+  // The tags beside the format, in priority order, and never more than
+  // MAX_CARD_TAGS of them. Early bird leads whenever the game has an early-bird
+  // price: it is the one tag that changes what the player pays, so it outranks
+  // the game's state and "9 more needed". The early-bird tag replaces the repeat
+  // and coupon tags (one price message per card).
+  const tagCandidates: { key: string; node: ReactNode }[] = [];
+  if (isEarly) {
+    tagCandidates.push({
+      key: "early",
+      node: (
+        <EarlyBirdTag
+          className="kk-game-tag kk-game-early-tag"
+          price={`₹${displayPrice}`}
+          original={`₹${originalPrice}`}
+          detail={earlyNote}
+        >
+          🐦 Early bird
+        </EarlyBirdTag>
+      ),
+    });
+  }
+  if (feedStatusTag) {
+    tagCandidates.push({
+      key: "status",
+      node: <span className={`kk-game-tag kk-game-status-${feedStatusTag.kind}`}>{feedStatusTag.label}</span>,
+    });
+  }
+  if (feedRegistrationTag) {
+    tagCandidates.push({
+      key: "reg",
+      node: <span className={`kk-game-tag kk-game-reg-${feedRegistrationTag.kind}`}>{feedRegistrationTag.label}</span>,
+    });
+  }
+  if (passCovers) tagCandidates.push({ key: "pass", node: <span className="kk-game-tag kk-game-pass">Pass</span> });
+  if (confirmTag) {
+    tagCandidates.push({
+      key: "confirm",
+      node: (
+        <span
+          className={`kk-game-tag ${confirmInfo?.state === "min_reached" ? "kk-game-reg-registered" : "kk-game-reg-muted"}`}
+          title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
+        >
+          {confirmTag}
+        </span>
+      ),
+    });
+  }
+  if (showHostTag) tagCandidates.push({ key: "host", node: <span className="kk-game-tag kk-game-reg-registered">Host spot open</span> });
+  if (!isEarly && offer) {
+    tagCandidates.push({
+      key: "offer",
+      node: (
+        <span
+          className="kk-game-tag kk-game-pass"
+          title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}
+        >
+          Offer applied
+        </span>
+      ),
+    });
+  } else if (!isEarly && codes.length > 0) {
+    tagCandidates.push({
+      key: "codes",
+      node: (
+        <span className="kk-game-tag kk-game-pass" title="Pick a code when you book">
+          {codes.length} coupon{codes.length === 1 ? "" : "s"}
+        </span>
+      ),
+    });
+  }
+  if (!isEarly && !isRegistered && !isCancelled && !isAwaiting && status !== "completed" && !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat]) {
+    tagCandidates.push({ key: "repeat", node: <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span> });
+  }
+  const stateTags = tagCandidates.slice(0, MAX_CARD_TAGS).map((t) => <Fragment key={t.key}>{t.node}</Fragment>);
+
   const showSpots = !isCancelled && !isAwaiting && status !== "completed";
   // A game that is over or called off has no fill level worth reading.
   const showCapacity = !isCancelled && status !== "completed";
@@ -291,55 +371,7 @@ function NewEventCard({
               {area || city}
             </span>
             <span className="kk-game-tag kk-game-format">{format}</span>
-            {/* The early-bird tag replaces the repeat and coupon tags: one price
-                message per card. */}
-            {!isEarly && !isRegistered && !isCancelled && !isAwaiting && status!=='completed'&& !isWaitlisted && !requestStatus &&repeat && REPEAT_LABEL[repeat] && (
-              <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span>
-            )}
-            {feedStatusTag && (
-              <span className={`kk-game-tag kk-game-status-${feedStatusTag.kind}`}>
-                {feedStatusTag.label}
-              </span>
-            )}
-            {feedRegistrationTag && (
-              <span className={`kk-game-tag kk-game-reg-${feedRegistrationTag.kind}`}>
-                {feedRegistrationTag.label}
-              </span>
-            )}
-            {confirmTag && (
-              <span
-                className={`kk-game-tag ${confirmInfo?.state === "min_reached" ? "kk-game-reg-registered" : "kk-game-reg-muted"}`}
-                title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
-              >
-                {confirmTag}
-              </span>
-            )}
-            {showHostTag && <span className="kk-game-tag kk-game-reg-registered">Host spot open</span>}
-            {/* A "9 more needed" / "Minimum reached" tag outranks it: the card
-                keeps one extra tag, and the struck price still says early bird. */}
-            {isEarly && !confirmTag && (
-              <EarlyBirdTag
-                className="kk-game-tag kk-game-early-tag"
-                price={`₹${displayPrice}`}
-                original={`₹${originalPrice}`}
-                detail={earlyNote}
-              >
-                🐦 Early bird
-              </EarlyBirdTag>
-            )}
-            {passCovers && <span className="kk-game-tag kk-game-pass">Pass</span>}
-            {isEarly ? null : offer ? (
-              <span
-                className="kk-game-tag kk-game-pass"
-                title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}
-              >
-                Offer applied
-              </span>
-            ) : codes.length > 0 && (
-              <span className="kk-game-tag kk-game-pass" title="Pick a code when you book">
-                {codes.length} coupon{codes.length === 1 ? "" : "s"}
-              </span>
-            )}
+            {stateTags}
           </div>
         </div>
         <div className="kk-game-rate">
