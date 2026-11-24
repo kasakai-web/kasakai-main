@@ -23,8 +23,9 @@ export const REPEAT_LABEL: Record<GameRepeat, string> = {
   monthly: "Monthly",
 };
 
-/** At most this many tags on a game card (beside the format chip / date pill),
- *  in priority order — early bird first. Shared so both cards agree. */
+/** At most this many tags on a game card, COUNTING the format chip (new card)
+ *  or the date/status pill (legacy card) — so one more beside it, picked in
+ *  priority order with early bird first. Shared so both cards agree. */
 export const MAX_CARD_TAGS = 2;
 
 
@@ -274,11 +275,10 @@ function NewEventCard({
   // "Ends after 3 more seats or tonight 8 pm — then ₹300" — shown only while
   // the early tag is held down; the card itself stays two prices and a tag.
   const earlyNote = isEarly ? expiryLine(pricingInfo) : null;
-  // The tags beside the format, in priority order, and never more than
-  // MAX_CARD_TAGS of them. Early bird leads whenever the game has an early-bird
-  // price: it is the one tag that changes what the player pays, so it outranks
-  // the game's state and "9 more needed". The early-bird tag replaces the repeat
-  // and coupon tags (one price message per card).
+  // The tags beside the format chip, in priority order; with the chip, never
+  // more than MAX_CARD_TAGS. Early bird leads whenever the game has an
+  // early-bird price: it is the one tag that changes what the player pays. It
+  // replaces "9 more needed" and the repeat and coupon tags outright.
   const tagCandidates: { key: string; node: ReactNode }[] = [];
   if (isEarly) {
     tagCandidates.push({
@@ -308,7 +308,7 @@ function NewEventCard({
     });
   }
   if (passCovers) tagCandidates.push({ key: "pass", node: <span className="kk-game-tag kk-game-pass">Pass</span> });
-  if (confirmTag) {
+  if (confirmTag && !isEarly) {
     tagCandidates.push({
       key: "confirm",
       node: (
@@ -347,7 +347,7 @@ function NewEventCard({
   if (!isEarly && !isRegistered && !isCancelled && !isAwaiting && status !== "completed" && !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat]) {
     tagCandidates.push({ key: "repeat", node: <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span> });
   }
-  const stateTags = tagCandidates.slice(0, MAX_CARD_TAGS).map((t) => <Fragment key={t.key}>{t.node}</Fragment>);
+  const stateTags = tagCandidates.slice(0, MAX_CARD_TAGS - 1).map((t) => <Fragment key={t.key}>{t.node}</Fragment>);
 
   const showSpots = !isCancelled && !isAwaiting && status !== "completed";
   // A game that is over or called off has no fill level worth reading.

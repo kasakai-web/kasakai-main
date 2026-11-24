@@ -79,7 +79,7 @@ export function LegacyEventCard({
   // The struck price is the list price the ladder is measured against.
   const listPrice = earlyPrice !== null && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
   const earlyNote = earlyPrice !== null ? expiryLine(pricingInfo) : null;
-  // "9 more needed" / "Minimum reached" — ranked below the early-bird badge.
+  // "9 more needed" / "Minimum reached" — never shown beside an early-bird badge.
   const confirmTag = !isCancelled && !isAwaiting ? confirmLabel(confirmInfo) : null;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
   // Read the clock once per mount: render must stay pure, and a card's "Today" has
@@ -116,7 +116,7 @@ export function LegacyEventCard({
   if (isRegistered && !isCancelled && optedOut) badges.push({ key: "optout", node: <span className="registered-badge waitlisted-badge">↩ Not attending</span> });
   if (isRegistered && !isCancelled && !optedOut) badges.push({ key: "reg", node: <span className="registered-badge">✓ Registered</span> });
   if (isRegistered && isCancelled) badges.push({ key: "was", node: <span className="registered-badge was-registered">Was Registered</span> });
-  if (confirmTag) {
+  if (confirmTag && earlyPrice === null) {
     badges.push({
       key: "confirm",
       node: (
@@ -175,11 +175,11 @@ export function LegacyEventCard({
               ? '✅ Completed'
               : `📅 ${getDateLabel()}`}
           </span>
-          {/* Beside the status pill, at most MAX_CARD_TAGS badges in priority
-              order — early bird first whenever the game has an early-bird price,
-              ahead of "9 more needed". It also replaces the repeat and coupon
-              badges: one price message per card. */}
-          {badges.slice(0, MAX_CARD_TAGS).map((b) => <Fragment key={b.key}>{b.node}</Fragment>)}
+          {/* The status pill counts toward MAX_CARD_TAGS, so one badge beside
+              it, in priority order — early bird first whenever the game has an
+              early-bird price. Early bird replaces "9 more needed" and the
+              repeat and coupon badges outright. */}
+          {badges.slice(0, MAX_CARD_TAGS - 1).map((b) => <Fragment key={b.key}>{b.node}</Fragment>)}
         </div>
         <div className="card-price">
           {/* A covered seat shows the old price struck through and what they
