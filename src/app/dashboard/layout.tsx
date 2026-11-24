@@ -13,8 +13,6 @@ import {
 } from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import CityPicker from "@/components/dashboard/CityPicker";
 import { type BrowseContext, getStoredMetro, setStoredMetro } from "@/utils/browse";
@@ -373,8 +371,6 @@ export default function DashboardLayout({
     };
   }, []);
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
   useEffect(() => {
     if (!authenticated || !pathname.startsWith("/dashboard")) {
@@ -439,19 +435,6 @@ export default function DashboardLayout({
       body: JSON.stringify({ location: { city: slug } }),
     }).catch(() => {});
   };
-  // Logging out lands on the PUBLIC HOME page, not the login form — someone who
-  // just chose to leave is a visitor again, not a person trying to sign in. The
-  // 401/expiry paths still bounce to /login, because those users DO want back in.
-  // The kk-auth-changed dispatch is what tears down the socket (SocketClient)
-  // and flips the landing header back to "Login" on arrival.
-  const doLogout = () => {
-    clearSession();
-    localStorage.removeItem("userProfileImage");
-    window.dispatchEvent(new CustomEvent("kk-auth-changed"));
-    router.replace("/");
-  };
-
-  const handleLogout = () => setShowLogoutConfirm(true);
 function RupeeBagIcon() {
   return (
     <svg
@@ -502,23 +485,6 @@ function RupeeBagIcon() {
 
   return (
     <div className="dashboard-app-wrapper">
-      <ConfirmationModal
-        open={showLogoutConfirm}
-        title="Log Out"
-        message="Are you sure you want to log out of Kasakai?"
-        confirmLabel="Yes, Log Out"
-        onConfirm={() => {
-          setShowLogoutConfirm(false);
-          setShowLogoutSuccess(true);
-        }}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
-      <SuccessPopup
-        show={showLogoutSuccess}
-        message="Logged out. See you on the pitch! 👋"
-        onClose={doLogout}
-      />
-
       {/* NAVBAR */}
       <nav className="dashboard-nav">
         <Link
@@ -1152,21 +1118,6 @@ function RupeeBagIcon() {
               );
             })()}
 
-            <button
-              className="sidebar-link"
-              onClick={handleLogout}
-              style={{
-                color: "#ff4444",
-                marginTop: "auto",
-                borderTop: "1px solid var(--border)",
-                paddingTop: "16px",
-                width: "100%",
-                justifyContent: "flex-start",
-                opacity: 0.8,
-              }}
-            >
-              <span className="sidebar-icon">🚪</span>Log Out
-            </button>
           </div>
         </aside>
 
