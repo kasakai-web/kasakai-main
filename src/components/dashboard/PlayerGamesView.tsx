@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EventCard, EventStatus } from "@/components/dashboard/EventCard";
+import { HistoryRow, HistoryStats, type HistoryTone } from "@/components/dashboard/HistoryRow";
 import { BookingModal } from "@/components/dashboard/BookingModal";
 import { TeamOutcomeBadge } from "@/components/PlayPreferences";
 import { PublishedTeamsView, type PublishedTeams } from "@/components/dashboard/PublishedTeams";
@@ -138,6 +139,8 @@ const SECTION_META: Record<PlayerSection, {
   title: React.ReactNode;
   emptyTitle: string;
   emptyBody: string;
+  /** One line under the title. The history pages carry one in place of the eyebrow. */
+  subtitle?: string;
 }> = {
   "all": {
     eyebrow: "Live",
@@ -154,12 +157,14 @@ const SECTION_META: Record<PlayerSection, {
   "cancelled": {
     eyebrow: "History",
     title: <>Cancelled <span>Games</span></>,
+    subtitle: "Games that were called off, or that a format change took you out of — and what came back to your wallet.",
     emptyTitle: "Nothing cancelled",
     emptyBody: "None of your games have been called off. Long may it last.",
   },
   "completed": {
     eyebrow: "History",
     title: <>Completed <span>Games</span></>,
+    subtitle: "Your match history — the team you played on, your attendance, and the games waiting for your rating.",
     emptyTitle: "No games played yet",
     emptyBody: "Once you've played a game it'll show up here, ready to rate.",
   },
@@ -264,6 +269,9 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // same question it always did — there is simply nothing left to set.
   const activeTab = section;
   const isBrowse = section === "all";
+  // Completed and Cancelled are records to read down, drawn as rows (HistoryRow)
+  // rather than the browse cards.
+  const isHistory = section === "completed" || section === "cancelled";
   const [games, setGames] = useState<any[]>([]);
   const [myGames, setMyGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -319,6 +327,10 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // fetched, `listHasMore` is the server telling us there is another one.
   const [listPage, setListPage] = useState(1);
   const [listHasMore, setListHasMore] = useState(false);
+  // The Completed page's tiles, counted by the server over every completed game
+  // (the list itself is paged). Absent from an older backend — the tiles then
+  // simply do not render.
+  const [completedSummary, setCompletedSummary] = useState<{ played: number; attendanceRate: number | null } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   // A callback ref rather than useRef: it re-runs the observer effect when the
   // sentinel node actually mounts, which a ref object's silent mutation cannot.
@@ -587,6 +599,7 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         );
         setListHasMore(Boolean(data.hasMore));
         setListPage(page);
+        if (page === 1 && data.summary) setCompletedSummary(data.summary);
       }
     } catch {
       // non-critical — transient network blip.
@@ -2160,6 +2173,139 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
   // page of it.
   const hasMoreGames = listHasMore;
 
+  // ── Completed / Cancelled rows ─────────────────────────────────────────────
+  const historyDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric",
+    });
+  const rupees = (paise: number) => `₹${Math.round(paise / 100).toLocaleString("en-IN")}`;
+
+  const renderHistoryRow = (game: any) => {
+    const venue = game.turf?.name || "Venue TBC";
+    const city = game.turf?.address?.city;
+    const meta = [city ? `${venue}, ${city}` : venue, historyDate(game.scheduledAt), game.format]
+      .filter(Boolean)
+      .join(" · ");
+    const title = game.title || venue;
+    const open = () => openGameDetail(game);
+    const own = myOwnPrimaryReg(game);
+
+    if (section === "cancelled") {
+      const formatChange = isMyFormatChangeOptOut(game);
+      // What came back. A called-off game refunds every seat this player paid for
+      // — their own and their guests' — so it is the sum of their live rows; a
+      // format change refunds only their own seat (the guests play on). A
+      // forfeited row was never coming back.
+      const myRows = (game.registrations || []).filter(
+        (r: any) => r._isMyReg && !r.backedOutAt && !r.removedAt && r.paymentStatus !== "forfeited",
+      );
+      const refundPaise = formatChange
+        ? own?.amountPaidPaise || 0
+        : myRows.reduce((sum: number, r: any) => sum + (r.amountPaidPaise || 0), 0);
+      const passCovered = !refundPaise && (formatChange ? own?.passBenefitPaise > 0 : myRows.some((r: any) => r.passBenefitPaise > 0));
+
+      const badge: { label: string; tone: HistoryTone } = formatChange
+        ? { label: "Format changed", tone: "amber" }
+        : refundPaise > 0
+          ? { label: "Refunded · 100%", tone: "red" }
+          : { label: "Cancelled", tone: "muted" };
+      const reason = formatChange
+        ? `The game switched to ${game.format || "another format"}, and you'd asked not to play a different one. You can rejoin at the new format.`
+        : game.cancelReason || "Called off by the organiser.";
+
+      return (
+        <HistoryRow
+          key={game._id}
+          badge={badge}
+          title={title}
+          meta={meta}
+          onOpen={open}
+          aside={
+            refundPaise > 0 ? (
+              <div className="kk-hist-money">
+                <strong>+{rupees(refundPaise)}</strong>
+                <span>Refunded to wallet</span>
+              </div>
+            ) : passCovered ? (
+              <div className="kk-hist-money"><span>Pass game returned</span></div>
+            ) : undefined
+          }
+          footer={
+            <>
+              <span>Reason: {reason}</span>
+              {formatChange && (
+                <button type="button" className="kk-hist-btn" onClick={(e) => { e.stopPropagation(); handleRejoinFormatChange(game); }}>
+                  Rejoin
+                </button>
+              )}
+            </>
+          }
+        />
+      );
+    }
+
+    // Completed (or played and awaiting the organiser's result).
+    const awaiting = isAwaitingResult(game);
+    const attended = own?.attended;
+    // Only a PUBLISHED sheet says which side they were on — a draft is the
+    // organiser's private working.
+    const team = game.teamsPublished && own && own.assignedTeam && own.assignedTeam !== "unassigned"
+      ? (game.teams || []).find((t: any) => t.side === own.assignedTeam)
+      : null;
+    const canRate = game.status === "completed" && pendingFeedback.some((pf) => pf._id === game._id);
+    // Organiser-typed text — only ever a web link, never a javascript: URL.
+    const recording = typeof game.matchRecording === "string" && /^https?:\/\//i.test(game.matchRecording)
+      ? game.matchRecording
+      : null;
+
+    return (
+      <HistoryRow
+        key={game._id}
+        badge={awaiting ? { label: "Awaiting result", tone: "amber" } : { label: "Completed", tone: "green" }}
+        title={title}
+        meta={meta}
+        onOpen={open}
+        detail={
+          (attended === "present" || attended === "absent" || attended === "no_show" || recording) && (
+            <>
+              {attended === "present" && <span className="kk-hist-note is-green">✓ Attended</span>}
+              {attended === "absent" && <span className="kk-hist-note is-red">Marked absent</span>}
+              {attended === "no_show" && <span className="kk-hist-note is-red">No-show</span>}
+              {recording && (
+                <a
+                  className="kk-hist-note is-lime"
+                  href={recording}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  ▶ Watch the recording
+                </a>
+              )}
+            </>
+          )
+        }
+        aside={
+          team || canRate ? (
+            <>
+              {team && (
+                <span className="kk-hist-team">
+                  <span className="kk-hist-team-dot" style={{ background: team.colour }} aria-hidden="true" />
+                  {team.name}
+                </span>
+              )}
+              {canRate && (
+                <button type="button" className="kk-hist-btn" onClick={(e) => { e.stopPropagation(); setFeedbackTargetGame(game); }}>
+                  Rate game
+                </button>
+              )}
+            </>
+          ) : undefined
+        }
+      />
+    );
+  };
+
   useEffect(() => {
     if (!loadMoreSentinel || !hasMoreGames) return;
     if (typeof IntersectionObserver === "undefined") return;
@@ -2437,15 +2583,38 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
 
       <div className="page-header">
         <div className="page-title-group">
-          <div className="page-eyebrow">
-            <span className="live-badge">
-              <span className="live-dot" />
-              {SECTION_META[section].eyebrow}
-            </span>
-          </div>
-          <div className="page-title">{SECTION_META[section].title}</div>
+          {!isHistory && (
+            <div className="page-eyebrow">
+              <span className="live-badge">
+                <span className="live-dot" />
+                {SECTION_META[section].eyebrow}
+              </span>
+            </div>
+          )}
+          <div className={`page-title${section === "cancelled" ? " is-cancelled" : ""}`}>{SECTION_META[section].title}</div>
+          {SECTION_META[section].subtitle && (
+            <p className="page-subtitle">{SECTION_META[section].subtitle}</p>
+          )}
         </div>
       </div>
+
+      {section === "completed" && completedSummary && !loading && (
+        <HistoryStats
+          items={[
+            { label: "Games played", value: completedSummary.played },
+            {
+              label: "Attendance",
+              value: completedSummary.attendanceRate === null ? null : `${completedSummary.attendanceRate}%`,
+              tone: "green",
+            },
+            {
+              label: "To rate",
+              value: pendingFeedback.length,
+              tone: pendingFeedback.length > 0 ? "lime" : undefined,
+            },
+          ]}
+        />
+      )}
 
       {/* Filters belong to browsing, not to the player's own fixtures — showing
           a price slider over "My Games" would be offering to hide games they
@@ -2464,8 +2633,8 @@ export default function PlayerGamesView({ section }: { section: PlayerSection })
         <div className="loading-container"><div className="spinner"></div><p>Loading games...</p></div>
       ) : (
         <>
-        <div className="events-grid">
-          {orderedGames.length > 0 ? orderedGames.map(game => {
+        <div className={isHistory && orderedGames.length > 0 ? "kk-hist-list" : "events-grid"}>
+          {isHistory && orderedGames.length > 0 ? orderedGames.map((game) => renderHistoryRow(game)) : orderedGames.length > 0 ? orderedGames.map(game => {
             const organiserCount = getOrganiserCount(game);
             const spotsLeft = typeof game.spotsRemaining === 'number'
               ? game.spotsRemaining
