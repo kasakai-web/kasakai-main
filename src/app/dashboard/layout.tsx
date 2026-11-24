@@ -13,33 +13,24 @@ import {
 } from "@/utils/api";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { SuccessPopup } from "@/components/ui/SuccessPopup";
 import { InfoTip, InfoTipButton, InfoTipPanel } from "@/components/ui/InfoTip";
 import CityPicker from "@/components/dashboard/CityPicker";
 import { type BrowseContext, getStoredMetro, setStoredMetro } from "@/utils/browse";
 import { fetchHosting } from "@/utils/hosting";
-import {
-  Bell,
-  CalendarCheck,
-  CalendarX,
-  CircleCheckBig,
-  CircleQuestionMark,
-  Compass,
-  LogOut,
-  Medal,
-  Plus,
-  Star,
-  Ticket,
-  User,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
 import "./dashboard.css";
-import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
-import LegacyDashboardLayout from "@/components/dashboard/legacy/DashboardLayout";
 import "./sidebar.css";
 import Image from "next/image";
+import { Plus } from "lucide-react";
+
+// The sidebar profile card's "Member · Forward" line — the codes the profile
+// page's Preferred Position chips save.
+const POSITION_LABELS: Record<string, string> = {
+  GK: "Goalkeeper",
+  DEF: "Defender",
+  MID: "Midfielder",
+  FWD: "Forward",
+  ANY: "Any position",
+};
 
 type PlayerSection =
   | "browse"
@@ -69,58 +60,7 @@ const SECTION_BY_SEGMENT: Record<string, PlayerSection> = {
   hosting: "hosting",
 };
 
-type NavDestination =
-  | "browse"
-  | "my-games"
-  | "cancelled"
-  | "faq"
-  | "completed"
-  | "profile"
-  | "notifications"
-  | "wallet"
-  | "passes"
-  | "ratings"
-  | "hosting";
-
-type NavItem = {
-  section: PlayerSection;
-  destination: NavDestination;
-  label: string;
-  icon: LucideIcon;
-};
-
-// Grouped so the drawer reads as games first, then the player's own things,
-// then help. Hosting is conditional and filtered out at render time.
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Games",
-    items: [
-      { section: "browse",    destination: "browse",    label: "Browse games",    icon: Compass },
-      { section: "mygames",   destination: "my-games",  label: "My bookings",     icon: CalendarCheck },
-      { section: "cancelled", destination: "cancelled", label: "Cancelled games", icon: CalendarX },
-      { section: "completed", destination: "completed", label: "Completed games", icon: CircleCheckBig },
-    ],
-  },
-  {
-    label: "Your space",
-    items: [
-      { section: "ratings",       destination: "ratings",       label: "My feedback",   icon: Star },
-      { section: "hosting",       destination: "hosting",       label: "Hosting",       icon: Medal },
-      { section: "passes",        destination: "passes",        label: "My passes",     icon: Ticket },
-      { section: "wallet",        destination: "wallet",        label: "Wallet",        icon: Wallet },
-      { section: "notifications", destination: "notifications", label: "Notifications", icon: Bell },
-      { section: "profile",       destination: "profile",       label: "Profile",       icon: User },
-    ],
-  },
-  {
-    label: "Help",
-    items: [
-      { section: "faq", destination: "faq", label: "FAQ", icon: CircleQuestionMark },
-    ],
-  },
-];
-
-function NewDashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -129,6 +69,7 @@ function NewDashboardLayout({
   const router = useRouter();
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
+  const [userPositions, setUserPositions] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState<PlayerSection>("browse");
   const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(
     null,
@@ -195,10 +136,7 @@ function NewDashboardLayout({
     } else {
       setAuthenticated(false);
       clearSession();
-      // Come back to the page they opened — a link from a WhatsApp message (a
-      // game's feedback form) usually opens in a browser with no session.
-      const here = `${window.location.pathname}${window.location.search}`;
-      router.replace(`/login?role=player&redirect=${encodeURIComponent(here)}`);
+      router.replace("/login?role=player");
     }
 
     setAuthResolved(true);
@@ -234,6 +172,8 @@ function NewDashboardLayout({
       }
       // Always sync pass — set to its current value (incl. "none" when removed)
       setPlayerPass(data?.data?.pass ?? null);
+      const positions = data?.data?.preferences?.positions;
+      setUserPositions(Array.isArray(positions) ? positions : []);
     } catch {}
   }, [authenticated]);
 
@@ -445,8 +385,6 @@ function NewDashboardLayout({
     };
   }, []);
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
   useEffect(() => {
     if (!authenticated || !pathname.startsWith("/dashboard")) {
@@ -511,55 +449,49 @@ function NewDashboardLayout({
       body: JSON.stringify({ location: { city: slug } }),
     }).catch(() => {});
   };
-  // Logging out lands on the PUBLIC HOME page, not the login form — someone who
-  // just chose to leave is a visitor again, not a person trying to sign in. The
-  // 401/expiry paths still bounce to /login, because those users DO want back in.
-  // The kk-auth-changed dispatch is what tears down the socket (SocketClient)
-  // and flips the landing header back to "Login" on arrival.
-  const doLogout = () => {
-    clearSession();
-    localStorage.removeItem("userProfileImage");
-    window.dispatchEvent(new CustomEvent("kk-auth-changed"));
-    router.replace("/");
-  };
+function RupeeBagIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18px"
+      height="18px"
+      aria-hidden="true"
+      style={{ verticalAlign: "-0.125em" }}
+    >
+      <path d="M8.5 2.5h7l-2 3.5h-3z" fill="#c98a3c" />
+      <path d="M9 6.2h6" stroke="#8a5a1f" strokeWidth="1.5" strokeLinecap="round" />
+      <path
+        d="M10 6.8C5.5 9.2 3.5 13 3.5 16.5 3.5 20 6.5 22 12 22s8.5-2 8.5-5.5c0-3.5-2-7.3-6.5-9.7z"
+        fill="#e0a84f"
+      />
+      <path
+        d="M9.5 11.5h5M9.5 13.5h5M10 11.5h1a2 2 0 0 1 0 4h-1l4 4.5"
+        fill="none"
+        stroke="#7a4a12"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
-  const handleLogout = () => setShowLogoutConfirm(true);
-
-
-  const navigateToPlayer = (destination: NavDestination) => {
+  const navigateToPlayer = (
+    destination:
+      | "browse"
+      | "my-games"
+      | "cancelled"
+      | "faq"
+      | "completed"
+      | "profile"
+      | "notifications"
+      | "wallet"
+      | "passes"
+      | "ratings"
+      | "hosting",
+  ) => {
     router.push(destination === "browse" ? "/dashboard" : `/dashboard/${destination}`);
   };
-
-  const goToSection = (section: PlayerSection, destination: NavDestination) => {
-    setActiveSection(section);
-    setSidebarOpen(false);
-    navigateToPlayer(destination);
-  };
-
-  // The mobile drawer is a modal surface: Escape closes it and the page behind
-  // it must not scroll while it is open.
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSidebarOpen(false);
-    };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [sidebarOpen]);
-
-  const walletLabel =
-    walletBalancePaise !== null
-      ? `₹${(walletBalancePaise / 100).toLocaleString("en-IN")}`
-      : "₹—";
- 
-  const firstName = userName.trim().split(/\s+/)[0] || userName;
-  const metroLabel =
-    headerBrowseContext?.metros.find((m) => m.slug === headerMetro)?.label || null;
 
   if (!authResolved || !authenticated) {
     return null;
@@ -567,23 +499,6 @@ function NewDashboardLayout({
 
   return (
     <div className="dashboard-app-wrapper">
-      <ConfirmationModal
-        open={showLogoutConfirm}
-        title="Log Out"
-        message="Are you sure you want to log out of Kasakai?"
-        confirmLabel="Yes, Log Out"
-        onConfirm={() => {
-          setShowLogoutConfirm(false);
-          setShowLogoutSuccess(true);
-        }}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
-      <SuccessPopup
-        show={showLogoutSuccess}
-        message="Logged out. See you on the pitch! 👋"
-        onClose={doLogout}
-      />
-
       {/* NAVBAR */}
       <nav className="dashboard-nav">
         <Link
@@ -724,7 +639,7 @@ function NewDashboardLayout({
               className="mobile-wallet-pill"
               onClick={() => router.push("/dashboard/wallet")}
             >
-              <span className="mobile-wallet-icon">💰</span>
+              <span className="mobile-wallet-icon"><RupeeBagIcon /></span>
               <span className="mobile-wallet-amount">
                 ₹{(walletBalancePaise / 100).toLocaleString("en-IN")}
               </span>
@@ -743,9 +658,7 @@ function NewDashboardLayout({
         <button
           className="mobile-sidebar-toggle"
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label={sidebarOpen ? "Close menu" : "Open menu"}
-          aria-expanded={sidebarOpen}
-          aria-controls="sidebar"
+          aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
         >
           {sidebarOpen ? (
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
@@ -772,202 +685,321 @@ function NewDashboardLayout({
       <div className="dashboard-app">
         {/* Sidebar overlay (mobile) */}
         <div
-          className={`kk-side-overlay ${sidebarOpen ? "is-open" : ""}`}
+          className={`sidebar-overlay ${sidebarOpen ? "sidebar-open" : ""}`}
           onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
         />
 
         {/* SIDEBAR */}
         <aside
-          className={`kk-side ${sidebarOpen ? "is-open" : ""}`}
+          className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}
           id="sidebar"
-          aria-label="Account navigation"
         >
-          {/* Profile + wallet */}
-          <div className="kk-side-panel kk-side-profile">
-            <div className="kk-side-profile-top">
-              <button
-                type="button"
-                className="kk-side-profile-link"
-                onClick={() => goToSection("profile", "profile")}
-              >
-                <span className="kk-side-avatar">
-                  {userProfileImage ? (
-                    <Image
-                      width={88}
-                      height={88}
-                      src={userProfileImage}
-                      alt={userName}
-                    />
-                  ) : (
-                    userName.substring(0, 2).toUpperCase()
-                  )}
-                </span>
-                <span className="kk-side-profile-text">
-                  <strong title={userName}>{firstName}</strong>
-                  {metroLabel ? (
-                    <small className="kk-side-location">
-                      <span>Playing in</span> <span>{metroLabel}</span>
-                    </small>
-                  ) : (
-                    <small>View profile</small>
-                  )}
-                </span>
-              </button>
-            </div>
-            <div className="kk-side-balance">
-              <span>Wallet balance</span>
-              <b>{walletLabel}</b>
-            </div>
+          <div className="sidebar-section">
             <button
-              type="button"
-              className="kk-side-topup"
-              onClick={() => goToSection("wallet", "wallet")}
+              className={`sidebar-link ${activeSection === "browse" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("browse");
+                setSidebarOpen(false);
+                navigateToPlayer("browse");
+              }}
             >
-              <Plus size={14} aria-hidden="true" /> Top up
+              <span className="sidebar-icon">⚽</span>Browse Games
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "mygames" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("mygames");
+                setSidebarOpen(false);
+                navigateToPlayer("my-games");
+              }}
+            >
+              <span className="sidebar-icon">📋</span>My Bookings
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "cancelled" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("cancelled");
+                setSidebarOpen(false);
+                navigateToPlayer("cancelled");
+              }}
+            >
+              <span className="sidebar-icon">⛔</span>Cancelled Games
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "completed" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("completed");
+                setSidebarOpen(false);
+                navigateToPlayer("completed");
+              }}
+            >
+              <span className="sidebar-icon">✅</span>Completed Games
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "ratings" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("ratings");
+                setSidebarOpen(false);
+                navigateToPlayer("ratings");
+              }}
+            >
+              <span className="sidebar-icon">⭐</span>My Feedback
+            </button>
+            {hostingNav.show && (
+              <button
+                className={`sidebar-link ${activeSection === "hosting" ? "active" : ""}`}
+                onClick={() => {
+                  setActiveSection("hosting");
+                  setSidebarOpen(false);
+                  navigateToPlayer("hosting");
+                }}
+              >
+                <span className="sidebar-icon">🎖</span>Hosting
+                {hostingNav.invites > 0 && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      background: "#c8ff3e",
+                      color: "#0f0f0f",
+                      fontFamily: "var(--mono)",
+                      fontSize: "9px",
+                      padding: "2px 6px",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {hostingNav.invites}
+                  </span>
+                )}
+              </button>
+            )}
+            <button
+              className={`sidebar-link ${activeSection === "passes" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("passes");
+                setSidebarOpen(false);
+                navigateToPlayer("passes");
+              }}
+            >
+              <span className="sidebar-icon">🎟️</span>My Passes
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "wallet" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("wallet");
+                setSidebarOpen(false);
+                navigateToPlayer("wallet");
+              }}
+            >
+              <span className="sidebar-icon"><RupeeBagIcon/></span>Wallet
+              {walletBalancePaise !== null && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    color: "#c8ff3e",
+                    fontFamily: "var(--mono)",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                  }}
+                >
+                  ₹{(walletBalancePaise / 100).toLocaleString("en-IN")}
+                </span>
+              )}
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "faq" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("faq");
+                setSidebarOpen(false);
+                navigateToPlayer("faq");
+              }}
+            >
+              <span className="sidebar-icon">❓</span>FAQ
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "notifications" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("notifications");
+                setSidebarOpen(false);
+                navigateToPlayer("notifications");
+              }}
+            >
+              <span className="sidebar-icon">🔔</span>Notifications
+              {sidebarUnread > 0 && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    background: "#ff4444",
+                    color: "#fff",
+                    fontFamily: "var(--mono)",
+                    fontSize: "9px",
+                    padding: "2px 6px",
+                    borderRadius: "10px",
+                    fontWeight: 700,
+                  }}
+                >
+                  {sidebarUnread > 99 ? "99+" : sidebarUnread}
+                </span>
+              )}
+            </button>
+            <button
+              className={`sidebar-link ${activeSection === "profile" ? "active" : ""}`}
+              onClick={() => {
+                setActiveSection("profile");
+                setSidebarOpen(false);
+                navigateToPlayer("profile");
+              }}
+            >
+              <span className="sidebar-icon">👤</span>Profile
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="kk-side-panel kk-side-nav" aria-label="Main navigation">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.label} className="kk-side-group">
-                <div className="kk-side-caption">{group.label}</div>
-                {group.items
-                  .filter((item) => item.section !== "hosting" || hostingNav.show)
-                  .map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeSection === item.section;
-                    return (
-                      <button
-                        key={item.section}
-                        type="button"
-                        className={`kk-side-item ${isActive ? "is-on" : ""}`}
-                        aria-current={isActive ? "page" : undefined}
-                        onClick={() => goToSection(item.section, item.destination)}
-                      >
-                        <Icon size={17} aria-hidden="true" className="kk-side-icon" />
-                        <span className="kk-side-label">{item.label}</span>
-                        {item.section === "hosting" && hostingNav.invites > 0 && (
-                          <span className="kk-side-badge">{hostingNav.invites}</span>
-                        )}
-                        {item.section === "notifications" && sidebarUnread > 0 && (
-                          <span className="kk-side-badge is-alert">
-                            {sidebarUnread > 99 ? "99+" : sidebarUnread}
+          {/* Pinned to the bottom of the sidebar (margin-top: auto): who you
+              are, what you can spend, and the pass you hold. */}
+          <div className="sidebar-bottom">
+            <button
+              type="button"
+              className="sb-card sb-profile"
+              onClick={() => {
+                setActiveSection("profile");
+                setSidebarOpen(false);
+                navigateToPlayer("profile");
+              }}
+            >
+              <span className="sb-avatar">
+                {userProfileImage ? (
+                  <Image width={88} height={88} src={userProfileImage} alt={userName} />
+                ) : (
+                  userName.substring(0, 2).toUpperCase()
+                )}
+              </span>
+              <span className="sb-profile-text">
+                <strong title={userName}>{userName}</strong>
+                <small>
+                  Member
+                  {userPositions.length > 0 &&
+                    ` · ${userPositions.map((p) => POSITION_LABELS[p] ?? p).join(" / ")}`}
+                </small>
+              </span>
+            </button>
+
+            <div className="sb-card sb-wallet">
+              <div className="sb-wallet-head">
+                <span className="sb-caption">Wallet balance</span>
+                <span className="sb-dot" aria-hidden="true" />
+              </div>
+              <div className="sb-wallet-row">
+                <span className="sb-wallet-amount">
+                  {walletBalancePaise !== null
+                    ? `₹${(walletBalancePaise / 100).toLocaleString("en-IN")}`
+                    : "₹—"}
+                </span>
+                <button
+                  type="button"
+                  className="sb-topup"
+                  onClick={() => {
+                    setActiveSection("wallet");
+                    setSidebarOpen(false);
+                    navigateToPlayer("wallet");
+                  }}
+                >
+                  <Plus size={14} strokeWidth={3} aria-hidden="true" /> Top up
+                </button>
+              </div>
+            </div>
+
+            {/* Pass card */}
+            {(() => {
+              // Prefer a v2 pass: active first, then upcoming, then used up.
+              const rank = { active: 0, pending: 1, exhausted: 2 } as const;
+              const v2 = [...livePasses].sort(
+                (a, b) => rank[a.status] - rank[b.status],
+              )[0];
+              const v1Has = !!playerPass?.type && playerPass.type !== "none";
+              const hasPass = !!v2 || v1Has;
+              const isExhausted = v2?.status === "exhausted";
+              const isExpired = v2
+                ? isExhausted
+                : v1Has &&
+                  !!playerPass?.expiryDate &&
+                  isPassExpired(playerPass.expiryDate);
+              const isUpcoming = v2
+                ? v2.status === "pending"
+                : v1Has &&
+                  !isExpired &&
+                  isPassNotYetActive(playerPass?.startDate);
+              const isActive = hasPass && !isExpired && !isUpcoming;
+              const startDate = v2 ? v2.activatesAt : playerPass?.startDate;
+              const expiryDate = v2 ? v2.expiresAt : playerPass?.expiryDate;
+              const monthYear = v2 ? null : playerPass?.passMonthYear;
+              const others = v2 ? livePasses.length - 1 : 0;
+              const passLabel = v2
+                ? v2.name
+                : v1Has
+                  ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type)
+                  : null;
+              const passState = isExpired
+                ? "expired"
+                : isUpcoming
+                  ? "upcoming"
+                  : isActive
+                    ? "active"
+                    : "none";
+              const badgeLabel = isExpired
+                ? isExhausted
+                  ? "Used up"
+                  : "Expired"
+                : isUpcoming
+                  ? "Upcoming"
+                  : isActive
+                    ? "Active"
+                    : "No Pass";
+              const fmt = (d: string) =>
+                new Date(d).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                });
+              return (
+                <div className={`sb-card sb-pass is-${passState}`}>
+                  <InfoTip text="Passes allow you to join games free of charge. Contact an organizer to know more">
+                    <div className="sb-pass-head">
+                      <span className="sb-pass-title">
+                        <span>My pass</span>
+                        <InfoTipButton label="About passes" size={15} style={{ marginBottom: 0 }} />
+                      </span>
+                      <span className="sb-pass-badge">{badgeLabel}</span>
+                    </div>
+                    <InfoTipPanel style={{ fontSize: 11 }} />
+                  </InfoTip>
+                  {hasPass && (
+                    <>
+                      <div className="sb-pass-name">{passLabel}</div>
+                      <div className="sb-pass-meta">
+                        {monthYear && <div>Month: {monthYear}</div>}
+                        {startDate && (
+                          <span>
+                            {isUpcoming ? "Starts" : "From"} {fmt(startDate)}
+                            {expiryDate ? " · " : ""}
                           </span>
                         )}
-                        {item.section === "wallet" && walletBalancePaise !== null && (
-                          <span className="kk-side-amount">{walletLabel}</span>
+                        {expiryDate ? (
+                          <span>Expires {fmt(expiryDate)}</span>
+                        ) : (
+                          !monthYear && !startDate && <span>No expiry set</span>
                         )}
-                      </button>
-                    );
-                  })}
-              </div>
-            ))}
-          </nav>
-
-          {/* Pass card */}
-          {(() => {
-            // Prefer a v2 pass: active first, then upcoming, then used up.
-            const rank = { active: 0, pending: 1, exhausted: 2 } as const;
-            const v2 = [...livePasses].sort(
-              (a, b) => rank[a.status] - rank[b.status],
-            )[0];
-            const v1Has = !!playerPass?.type && playerPass.type !== "none";
-            const hasPass = !!v2 || v1Has;
-            const isExhausted = v2?.status === "exhausted";
-            const isExpired = v2
-              ? isExhausted
-              : v1Has &&
-                !!playerPass?.expiryDate &&
-                isPassExpired(playerPass.expiryDate);
-            const isUpcoming = v2
-              ? v2.status === "pending"
-              : v1Has &&
-                !isExpired &&
-                isPassNotYetActive(playerPass?.startDate);
-            const isActive = hasPass && !isExpired && !isUpcoming;
-            const startDate = v2 ? v2.activatesAt : playerPass?.startDate;
-            const expiryDate = v2 ? v2.expiresAt : playerPass?.expiryDate;
-            const monthYear = v2 ? null : playerPass?.passMonthYear;
-            const others = v2 ? livePasses.length - 1 : 0;
-            const passLabel = v2
-              ? v2.name
-              : v1Has
-                ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type)
-                : "No active pass";
-            const passState = isExpired
-              ? "expired"
-              : isUpcoming
-                ? "upcoming"
-                : isActive
-                  ? "active"
-                  : "none";
-            const badgeLabel = isExpired
-              ? isExhausted
-                ? "Used up"
-                : "Expired"
-              : isUpcoming
-                ? "Upcoming"
-                : isActive
-                  ? "Active"
-                  : null;
-            const fmt = (d: string) =>
-              new Date(d).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              });
-            return (
-              <div className={`kk-side-panel kk-side-pass is-${passState}`}>
-                <InfoTip text="Passes allow you to join games free of charge. Contact an organizer to know more">
-                  <div className="kk-side-pass-head">
-                    <span className="kk-side-caption">My pass</span>
-                    <InfoTipButton label="About passes" size={16} />
-                  </div>
-                  <InfoTipPanel style={{ fontSize: 11 }} />
-                </InfoTip>
-                <div className="kk-side-pass-row">
-                  <strong>{passLabel}</strong>
-                  {badgeLabel && <span className="kk-side-pass-badge">{badgeLabel}</span>}
-                </div>
-                {hasPass && (
-                  <div className="kk-side-pass-meta">
-                    {monthYear && <div>Month: {monthYear}</div>}
-                    {startDate && (
-                      <span>
-                        {isUpcoming ? "Starts" : "From"} {fmt(startDate)}
-                        {expiryDate ? " · " : ""}
-                      </span>
-                    )}
-                    {expiryDate ? (
-                      <span>Expires {fmt(expiryDate)}</span>
-                    ) : (
-                      !monthYear && !startDate && <span>No expiry set</span>
-                    )}
-                    {others > 0 && (
-                      <div>
-                        +{others} more pass{others > 1 ? "es" : ""}
+                        {others > 0 && (
+                          <div>
+                            +{others} more pass{others > 1 ? "es" : ""}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )}
-                {!hasPass && (
-                  <button
-                    type="button"
-                    className="kk-side-pass-link"
-                    onClick={() => goToSection("passes", "passes")}
-                  >
-                    See passes
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-
-          <button type="button" className="kk-side-logout" onClick={handleLogout}>
-            <LogOut size={16} aria-hidden="true" /> Log out
-          </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
         </aside>
 
         {/* MAIN CONTENT */}
@@ -1051,13 +1083,4 @@ function NewDashboardLayout({
       </div>
     </div>
   );
-}
-
-// The old dashboard shell is served unless the build flag turns the redesign on
-// (see utils/uiFlags.ts). The flag is inlined at build time, so this never
-// switches between renders and neither layout's hooks are called conditionally.
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return NEW_DASHBOARD_UI
-    ? <NewDashboardLayout>{children}</NewDashboardLayout>
-    : <LegacyDashboardLayout>{children}</LegacyDashboardLayout>;
 }

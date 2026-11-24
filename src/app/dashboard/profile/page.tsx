@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import "../player-dashboard.css";
 import { buildApiUrl, clearSession, getSession, isPassExpired, isPassNotYetActive, fetchWithRetry, resolveImageUrl } from "@/utils/api";
 import {
@@ -80,8 +81,6 @@ export default function PlayerProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -183,7 +182,7 @@ export default function PlayerProfilePage() {
 
   // Two ways to end a session, two destinations. An expired/rejected token means
   // the user still wants in, so it lands on the login form; choosing to log out
-  // (or deleting the account) makes them a visitor again, so that lands on the
+  // makes them a visitor again, so that lands on the
   // public home page. The kk-auth-changed dispatch tears down the socket and
   // flips the landing header back to "Login".
   const clearSessionAndExit = () => {
@@ -416,25 +415,6 @@ export default function PlayerProfilePage() {
     }
   };
 
-  const handleDeleteProfile = async () => {
-    const { token } = getSession();
-    if (!token) { clearSessionAndExit(); return; }
-    setDeleting(true);
-    try {
-      const res = await fetch(buildApiUrl("/players/me"), {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401 || res.status === 403) { clearSessionAndExit(); return; }
-      const data = await parseApiResponse(res);
-      if (!res.ok || !data.success) { alert(data.message || `Failed with HTTP ${res.status}`); setDeleting(false); return; }
-      exitToHome();
-    } catch {
-      alert("Failed to delete profile");
-      setDeleting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="player-dashboard-container">
@@ -487,31 +467,6 @@ export default function PlayerProfilePage() {
         onConfirm={() => { setShowLogoutConfirm(false); setShowLogoutSuccess(true); }}
         onCancel={() => setShowLogoutConfirm(false)}
       />
-
-      {deleteStep > 0 && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => !deleting && setDeleteStep(0)}>
-          <div className="modal-content" style={{ maxWidth: 480, width: "92%" }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header" style={{ marginBottom: 16 }}>
-              <div className="modal-title-section">
-                <h2 style={{ margin: 0 }}>Delete Account</h2>
-                <p className="modal-subtitle" style={{ marginTop: 8 }}>
-                  {deleteStep === 1 ? "Are you sure you want to delete your account?" : "This will permanently remove your profile and all your bookings."}
-                </p>
-              </div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button className="btn-close" type="button" onClick={() => setDeleteStep(0)} disabled={deleting}>Cancel</button>
-              {deleteStep === 1 ? (
-                <button className="btn-primary" type="button" onClick={() => setDeleteStep(2)} disabled={deleting}><span>Continue</span></button>
-              ) : (
-                <button className="pp-delete-btn" type="button" onClick={async () => { setDeleteStep(0); await handleDeleteProfile(); }} disabled={deleting}>
-                  {deleting ? "Deleting..." : "Delete Now"}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Welcome Banner ── */}
       {showWelcomeBanner && (
@@ -671,7 +626,7 @@ export default function PlayerProfilePage() {
           </div>
 
           {/* Hero save */}
-          <button type="submit" form="pp-profile-form" className="pp-hero-save" disabled={saving || deleting}>
+          <button type="submit" form="pp-profile-form" className="pp-hero-save" disabled={saving}>
             {saving ? "Saving…" : "Save Changes"}
           </button>
         </div>
@@ -950,19 +905,17 @@ export default function PlayerProfilePage() {
           {saveSuccess && <div className="pp-success">Profile saved successfully.</div>}
 
           <div className="pp-actions">
-            <button type="submit" className="pp-save-btn" disabled={saving || deleting}>
+            <button type="submit" className="pp-save-btn" disabled={saving}>
               {saving ? "Saving…" : "Save Changes"}
             </button>
             <button
               type="button"
               className="pp-logout-btn"
               onClick={() => setShowLogoutConfirm(true)}
-              disabled={saving || deleting}
+              disabled={saving}
             >
-              Logout
-            </button>
-            <button type="button" className="pp-delete-btn" onClick={() => setDeleteStep(1)} disabled={saving || deleting}>
-              Delete Account
+              <LogOut size={15} aria-hidden="true" />
+              Log out
             </button>
           </div>
         </form>

@@ -1,15 +1,12 @@
 "use client";
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 
 import { avatarColorFor, avatarInitials } from "@/utils/avatar";
 import {resolveImageUrl} from "@/utils/api";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Image from "next/image";
-import { ChevronRight, Info, MapPin } from "lucide-react";
 import type { OfferInfo } from "@/utils/offers";
 import { confirmLabel, type ConfirmInfo } from "@/utils/confirmInfo";
-import { NEW_DASHBOARD_UI } from "@/utils/uiFlags";
-import { LegacyEventCard } from "./legacy/EventCard";
 import { expiryLine, type PricingInfo } from "@/utils/earlyBird";
 import EarlyBirdTag from "./EarlyBirdTag";
 
@@ -23,14 +20,13 @@ export const REPEAT_LABEL: Record<GameRepeat, string> = {
   monthly: "Monthly",
 };
 
-/** At most this many tags on a game card, COUNTING the format chip (new card)
- *  or the date/status pill (legacy card) — so one more beside it, picked in
- *  priority order with early bird first. Shared so both cards agree. */
+/** At most this many tags on a game card, COUNTING the date/status pill — so
+ *  one more beside it, picked in priority order with early bird first. */
 export const MAX_CARD_TAGS = 2;
 
 
 /** The early-bird price in rupees while it is below list and the game can be
- *  booked, else null — shared by both cards so they cannot disagree. */
+ *  booked, else null. */
 export function earlyBirdPrice(
   pricingInfo: EventCardProps["pricingInfo"],
   bookable: boolean,
@@ -114,11 +110,21 @@ export interface EventCardProps {
   onRateGame?: () => void;
 }
 
-function NewEventCard({
+function buildAvatarStackLabel(players: { name: string }[]): string|null {
+  const total = players.length;
+  if (total === 0) return null;
+  if (total === 1) return players[0].name;
+  if (total === 2) return `${players[0].name} and ${players[1].name}`;
+  const othersCount = total - 2;
+  return `${players[0].name}, ${players[1].name} and ${othersCount} other${othersCount === 1 ? "" : "s"}`;
+}
+
+
+export function EventCard({
   id,
+  title,
   venue,
   city,
-  area,
   status,
   awaitingResult = false,
   formatChangedOptOut = false,
@@ -138,6 +144,7 @@ function NewEventCard({
   isRegistered,
   optedOut = false,
   isWaitlisted = false,
+  isWaitlistApproved = false,
   requiresApproval = false,
   registrationLocked = false,
   confirmInfo = null,
@@ -147,7 +154,6 @@ function NewEventCard({
   onPayApproved,
   cancelReason,
   players,
-  organiserName,
   onBook,
   onViewDetails,
   onRateGame,
@@ -166,154 +172,53 @@ function NewEventCard({
     ? offerInfo
     : null;
   const offerable = !passCovers && !isRegistered && !isCancelled && !isAwaiting && fee > 0;
+  const earlyPrice = earlyBirdPrice(pricingInfo, offerable);
+  // The struck price is the list price the ladder is measured against.
+  const listPrice = earlyPrice !== null && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
+  const earlyNote = earlyPrice !== null ? expiryLine(pricingInfo) : null;
+  // "9 more needed" / "Minimum reached" — never shown beside an early-bird badge.
+  const confirmTag = !isCancelled && !isAwaiting ? confirmLabel(confirmInfo) : null;
   const codes = offerable ? (codeOffers || []).filter((o) => o.code && o.savingPaise > 0) : [];
+  // Read the clock once per mount: render must stay pure, and a card's "Today" has
+  // never refreshed on its own anyway — only on a re-render or reload.
+  const [now] = useState(() => Date.now());
 
-  const formatFeedTime = () => {
-    // Accepts "21:00" as well as the en-IN locale's "09:00 pm".
-    const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?$/i);
-    if (!match) return time;
-    const hour = Number(match[1]);
-    const meridiem = match[3]?.replace(/\./g, "").toUpperCase();
-    const suffix = meridiem ?? (hour >= 12 ? "PM" : "AM");
-    return `${hour % 12 || 12}:${match[2]} ${suffix}`;
+  const getDateLabel = () => {
+    // Compare calendar days in IST (en-CA → "YYYY-MM-DD"), independent of the viewer's timezone.
+    const istYMD = (d: number | string | Date) =>
+      new Date(d).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const todayIST    = istYMD(now);
+    const tomorrowIST = istYMD(now + 86_400_000);
+    const gameIST     = istYMD(date);
+    if (gameIST === todayIST)    return "Today";
+    if (gameIST === tomorrowIST) return "Tomorrow";
+    return new Date(date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
   };
 
-  const feedDateLabel = new Date(date).toLocaleDateString("en-GB", {
-    timeZone: "Asia/Kolkata",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const feedStatusTag = formatChangedOptOut
-    ? { label: "Format changed", kind: "changed" }
-    : isAwaiting
-      ? { label: "Awaiting result", kind: "tentative" }
-      : isCancelled
-        ? { label: "Cancelled", kind: "cancelled" }
-        : effectiveStatus === "full"
-          ? { label: "Full", kind: "full" }
-          : effectiveStatus === "confirmed"
-            ? { label: "Confirmed", kind: "confirmed" }
-            : effectiveStatus === "completed"
-              ? { label: "Completed", kind: "completed" }
-              : null;
-  const feedRegistrationTag = isRegistered && isCancelled
-    ? { label: "Was registered", kind: "muted" }
-    : isRegistered && optedOut
-      ? { label: "Not attending", kind: "warn" }
-      : isRegistered
-        ? { label: "Registered", kind: "registered" }
-        : isWaitlisted && spotsLeft > 0 && !isCancelled
-          ? { label: "Spot available", kind: "registered" }
-          : isWaitlisted && !isCancelled
-            ? { label: "Waitlisted", kind: "warn" }
-            : requestStatus === "pending" && !isCancelled
-              ? { label: "Requested", kind: "warn" }
-              : requestStatus === "approved_unpaid" && !isCancelled
-                ? { label: "Approved · pay to lock", kind: "registered" }
-                : null;
-  const showHostTag = hostSpotOpen && !isRegistered && !isCancelled;
-  // The server only sends it for an open game that will auto-confirm; a game
-  // that has happened (awaiting its result) has nothing left to promise.
-  const confirmTag = !isCancelled && !isAwaiting ? confirmLabel(confirmInfo) : null;
-
-  // The left stripe carries the card's most important state at a glance.
-  const accent = isCancelled
-    ? "cancelled"
-    : status === "completed"
-      ? "completed"
-      : formatChangedOptOut || isAwaiting || (isRegistered && optedOut)
-        ? "warn"
-        : status === "confirmed"
-          ? "confirmed"
-          : isRegistered
-            ? "registered"
-            : isFull
-              ? "full"
-              : "open";
-
-  const feedBookingAction = formatChangedOptOut ? (
-    <button type="button" className="kk-game-book" onClick={() => onRejoin?.()}>Rejoin</button>
-  ) : isCancelled ? (
-    <button type="button" className="kk-game-book is-muted" disabled>Cancelled</button>
-  ) : isRegistered && onRateGame ? (
-    // Completed games awaiting this player's feedback.
-    <button type="button" className="kk-game-book" onClick={onRateGame}>Rate game</button>
-  ) : isRegistered && optedOut ? (
-    <button type="button" className="kk-game-book is-secondary" onClick={onViewDetails}>Manage</button>
-  ) : isRegistered ? (
-    <button type="button" className="kk-game-book is-registered" disabled>Registered</button>
-  ) : isWaitlisted && spotsLeft > 0 ? (
-    <button type="button" className="kk-game-book" onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}>⚽Book</button>
-  ) : isWaitlisted ? (
-    <button type="button" className="kk-game-book is-muted" disabled>On Waitlist</button>
-  ) : requestStatus === "pending" ? (
-    <button type="button" className="kk-game-book is-secondary" onClick={() => onCancelRequest?.()} title="Cancel your join request">Requested · Cancel</button>
-  ) : requestStatus === "approved_unpaid" ? (
-    <button type="button" className="kk-game-book" onClick={() => onPayApproved?.()}>Pay to book</button>
-  ) : registrationLocked ? (
-    <button type="button" className="kk-game-book is-muted" disabled title="Registration closed at the cutoff. If someone drops out, the slot reopens.">Registration closed</button>
-  ) : isFull ? (
-    <button type="button" className="kk-game-book is-waitlist" onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: true })}>Join waitlist</button>
-  ) : (
-    <button type="button" className="kk-game-book" onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}>
-      {requiresApproval ? "Request to join" : "⚽Book"}
-    </button>
-  );
-
-  // A pass shows the full fee struck through beside what the seat costs. An
-  // automatic offer does not change the card's price — the tag flags it, and
-  // the booking sheet shows what it takes off.
-  const discountedPrice = passCovers
-    ? passInfo && passInfo.payablePaise > 0 ? Math.round(passInfo.payablePaise / 100) : 0
-    : earlyBirdPrice(pricingInfo, offerable);
-  const displayPrice = discountedPrice ?? fee;
-  const isEarly = !passCovers && earlyBirdPrice(pricingInfo, offerable) != null;
-  // The struck price is the list price the ladder is measured against.
-  const originalPrice = isEarly && pricingInfo ? Math.round(pricingInfo.listPricePaise / 100) : fee;
-  const earlySaving = isEarly ? originalPrice - displayPrice : 0;
-  // "Ends after 3 more seats or tonight 8 pm — then ₹300" — shown only while
-  // the early tag is held down; the card itself stays two prices and a tag.
-  const earlyNote = isEarly ? expiryLine(pricingInfo) : null;
-  // The tags beside the format chip, in priority order; with the chip, never
-  // more than MAX_CARD_TAGS. Early bird leads whenever the game has an
-  // early-bird price: it is the one tag that changes what the player pays. It
-  // replaces "9 more needed" and the repeat and coupon tags outright.
-  const tagCandidates: { key: string; node: ReactNode }[] = [];
-  if (isEarly) {
-    tagCandidates.push({
+  const badges: { key: string; node: ReactNode }[] = [];
+  if (earlyPrice !== null) {
+    badges.push({
       key: "early",
       node: (
-        <EarlyBirdTag
-          className="kk-game-tag kk-game-early-tag"
-          price={`₹${displayPrice}`}
-          original={`₹${originalPrice}`}
-          detail={earlyNote}
-        >
+        <EarlyBirdTag className="registered-badge early-bird-badge" price={`₹${earlyPrice}`} original={`₹${listPrice}`} detail={earlyNote}>
           🐦 Early bird
         </EarlyBirdTag>
       ),
     });
   }
-  if (feedStatusTag) {
-    tagCandidates.push({
-      key: "status",
-      node: <span className={`kk-game-tag kk-game-status-${feedStatusTag.kind}`}>{feedStatusTag.label}</span>,
-    });
-  }
-  if (feedRegistrationTag) {
-    tagCandidates.push({
-      key: "reg",
-      node: <span className={`kk-game-tag kk-game-reg-${feedRegistrationTag.kind}`}>{feedRegistrationTag.label}</span>,
-    });
-  }
-  if (passCovers) tagCandidates.push({ key: "pass", node: <span className="kk-game-tag kk-game-pass">Pass</span> });
-  if (confirmTag && !isEarly) {
-    tagCandidates.push({
+  if (isWaitlisted && spotsLeft > 0 && !isCancelled) badges.push({ key: "wl-spot", node: <span className="registered-badge waitlist-approved-badge">⚡ Spot Available!</span> });
+  if (isWaitlisted && spotsLeft === 0 && !isCancelled) badges.push({ key: "wl", node: <span className="registered-badge waitlisted-badge">📋 Waitlisted</span> });
+  if (!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "pending") badges.push({ key: "req", node: <span className="registered-badge waitlisted-badge">⏳ Requested</span> });
+  if (!isRegistered && !isWaitlisted && !isCancelled && requestStatus === "approved_unpaid") badges.push({ key: "approved", node: <span className="registered-badge waitlist-approved-badge">✅ Approved — pay to lock</span> });
+  if (isRegistered && !isCancelled && optedOut) badges.push({ key: "optout", node: <span className="registered-badge waitlisted-badge">↩ Not attending</span> });
+  if (isRegistered && !isCancelled && !optedOut) badges.push({ key: "reg", node: <span className="registered-badge">✓ Registered</span> });
+  if (isRegistered && isCancelled) badges.push({ key: "was", node: <span className="registered-badge was-registered">Was Registered</span> });
+  if (confirmTag && earlyPrice === null) {
+    badges.push({
       key: "confirm",
       node: (
         <span
-          className={`kk-game-tag ${confirmInfo?.state === "min_reached" ? "kk-game-reg-registered" : "kk-game-reg-muted"}`}
+          className={`registered-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
           title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
         >
           {confirmTag}
@@ -321,131 +226,235 @@ function NewEventCard({
       ),
     });
   }
-  if (showHostTag) tagCandidates.push({ key: "host", node: <span className="kk-game-tag kk-game-reg-registered">Host spot open</span> });
-  if (!isEarly && offer) {
-    tagCandidates.push({
+  if (hostSpotOpen && !isRegistered && !isCancelled) badges.push({ key: "host", node: <span className="registered-badge waitlist-approved-badge">🎖 Host spot open</span> });
+  // The card shows the full price either way; the booking sheet applies an
+  // automatic offer and lists codes to tap.
+  if (earlyPrice === null && offer) {
+    badges.push({
       key: "offer",
       node: (
-        <span
-          className="kk-game-tag kk-game-pass"
-          title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}
-        >
-          Offer applied
+        <span className="registered-badge coupon-badge" title={[offer.title, offer.savingText, offer.endsLabel].filter(Boolean).join(" · ")}>
+          🏷<span className="coupon-label"> Offer applied</span>
         </span>
       ),
     });
-  } else if (!isEarly && codes.length > 0) {
-    tagCandidates.push({
+  } else if (earlyPrice === null && codes.length > 0) {
+    badges.push({
       key: "codes",
       node: (
-        <span className="kk-game-tag kk-game-pass" title="Pick a code when you book">
-          {codes.length} coupon{codes.length === 1 ? "" : "s"}
+        <span className="registered-badge coupon-badge" title="Pick a code when you book">
+          🎟 {codes.length}<span className="coupon-label"> coupon{codes.length === 1 ? "" : "s"}</span>
         </span>
       ),
     });
   }
-  if (!isEarly && !isRegistered && !isCancelled && !isAwaiting && status !== "completed" && !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat]) {
-    tagCandidates.push({ key: "repeat", node: <span className="kk-game-tag kk-game-repeat">{REPEAT_LABEL[repeat]}</span> });
+  if (earlyPrice === null && !isRegistered && !isCancelled && !hostSpotOpen && !isAwaiting && status !== "completed" && !isWaitlisted && !requestStatus && repeat && REPEAT_LABEL[repeat]) {
+    badges.push({ key: "repeat", node: <span className="registered-badge repeat-badge">🔁 {REPEAT_LABEL[repeat]}</span> });
   }
-  const stateTags = tagCandidates.slice(0, MAX_CARD_TAGS - 1).map((t) => <Fragment key={t.key}>{t.node}</Fragment>);
-
-  const showSpots = !isCancelled && !isAwaiting && status !== "completed";
-  // A game that is over or called off has no fill level worth reading.
-  const showCapacity = !isCancelled && status !== "completed";
 
   return (
-    <article
-      className={`kk-game-card is-${accent}${isRegistered && !isCancelled ? " is-mine" : ""}`}
-      aria-label={`${venue}, ${feedDateLabel} at ${formatFeedTime()}`}
-    >
-      <div className="kk-game-main">
-        <div className="kk-game-time">
-          <strong>{formatFeedTime()}</strong>
-          <small>{feedDateLabel}</small>
-        </div>
-        <div className="kk-game-venue">
-          <h2 title={venue}>{venue}</h2>
-          <div className="kk-game-meta">
-            <span className="kk-game-area">
-              <MapPin size={12} aria-hidden="true" />
-              {area || city}
-            </span>
-            <span className="kk-game-tag kk-game-format">{format}</span>
-            {stateTags}
-          </div>
-        </div>
-        <div className="kk-game-rate">
-          <span
-            className={`kk-game-price${isEarly ? " is-early" : ""}`}
-            aria-label={discountedPrice !== null
-              ? `${displayPrice} rupees per player, was ${originalPrice}`
-              : `${displayPrice} rupees per player`}
-          >
-            {discountedPrice !== null && <small className="kk-game-old-price">₹{originalPrice}</small>}
-            ₹{displayPrice}
+    <div className={`event-card ${effectiveStatus} ${isRegistered ? 'registered' : ''}`}>
+      {/* Header with badge and price */}
+      <div className="card-header">
+        <div className="header-top">
+          <span className={`status-badge ${formatChangedOptOut ? 'cancelled' : isAwaiting ? 'tentative' : effectiveStatus}`}>
+            {formatChangedOptOut
+              ? '🔄 Format changed'
+              : isAwaiting
+              ? '⏳ Awaiting result'
+              : effectiveStatus === 'cancelled'
+              ? '✕ Cancelled'
+              : effectiveStatus === 'full'
+              ? '🔴 Full'
+              : effectiveStatus === 'confirmed'
+              ? '✓ Confirmed'
+              : effectiveStatus === 'completed'
+              ? '✅ Completed'
+              : `📅 ${getDateLabel()}`}
           </span>
-          {earlySaving > 0 && <span className="kk-game-save">Save ₹{earlySaving}</span>}
-          {feedBookingAction}
+          {/* The status pill counts toward MAX_CARD_TAGS, so one badge beside
+              it, in priority order — early bird first whenever the game has an
+              early-bird price. Early bird replaces "9 more needed" and the
+              repeat and coupon badges outright. */}
+          {badges.slice(0, MAX_CARD_TAGS - 1).map((b) => <Fragment key={b.key}>{b.node}</Fragment>)}
+        </div>
+        <div className="card-price">
+          {/* A covered seat shows the old price struck through and what they
+              actually pay — which is ₹0 for a full cover and a real number for a
+              discount pass. The pass's name is left off: it crowded the price
+              block, and the booking sheet names it on its own line. */}
+          {passCovers ? (
+            <>
+              <div className="price-original">₹{fee}</div>
+              <div className="price-free">
+                {passInfo && passInfo.payablePaise > 0
+                  ? `₹${Math.round(passInfo.payablePaise / 100)}`
+                  : "₹0"}
+              </div>
+            </>
+          ) : earlyPrice !== null ? (
+            // Early-bird: the list price struck through, then the price the next
+            // seat sells at — read left to right as "was ₹300, now ₹250".
+            <div className="card-price-early" aria-label={`${earlyPrice} rupees, was ${listPrice}`}>
+              <div className="price-original is-early">₹{listPrice}</div>
+              <div className="price-rupee">₹</div>
+              <div className="price-amount is-early">{earlyPrice}</div>
+            </div>
+          ) : (
+            // An automatic offer does not change the card's price — the pill
+            // flags it, and the booking sheet shows what it takes off.
+            <>
+              <div className="price-rupee">₹</div>
+              <div className="price-amount">{fee}</div>
+            </>
+          )}
         </div>
       </div>
 
-      {showCapacity && (
-        <div className="kk-game-capacity">
-          <ProgressBar spotsTotal={spotsTotal} spotsLeft={spotsLeft} />
+      {/* Venue Information */}
+      <div className="card-venue-section">
+        {title && <h3 className="card-title">{title}</h3>}
+        <p className="card-location">
+          <span className="card-venue">🏟️ {venue}</span>
+          <span className="card-loc-sep">·</span>
+          <span className="card-city">📍 {city}</span>
+        </p>
+      </div>
+
+      {/* Key Details Grid */}
+      <div className="card-details-grid">
+        <div className="detail-item">
+          <span className="detail-label">Date</span>
+          <span className="detail-value">{new Date(date).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' })}</span>
         </div>
-      )}
-      {isCancelled && cancelReason && (
-        <div className="kk-game-reason">
-          <Info size={13} aria-hidden="true" />
-          <span><strong>Reason:</strong> {cancelReason}</span>
+        <div className="detail-item">
+          <span className="detail-label">Time</span>
+          <span className="detail-value">{time}</span>
         </div>
-      )}
-      <div className="kk-game-footer">
-        <div className="kk-game-people" title={organiserName ? `Organised by ${organiserName}` : undefined}>
-          {players.length > 0 && (
-            <div className="kk-game-players" aria-label={`${players.length} players joined`}>
-              {players.slice(0, 3).map((player, index) => {
-                const imageUrl = resolveImageUrl(player.profileImage);
-                return (
-                  <span key={`${player.name}-${index}`} className="kk-game-player-avatar" title={player.name}>
-                    {imageUrl ? (
-                      <Image
-                        src={imageUrl}
-                        width={26}
-                        height={26}
-                        alt={player.name}
-                        onError={(event) => {
-                          event.currentTarget.style.display = "none";
-                          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
-                          if (fallback) fallback.style.display = "grid";
-                        }}
-                      />
-                    ) : null}
-                    <span
-                      className="kk-game-player-fallback"
-                      style={{ display: imageUrl ? "none" : "grid", backgroundColor: avatarColorFor(player.name) }}
-                    >
-                      {avatarInitials(player.name)}
-                    </span>
+        <div className="detail-item">
+          <span className="detail-label">Format</span>
+          <span className="detail-value">{format}</span>
+        </div>
+      </div>
+
+      {/* Signed-up players — stacked photos (signup order, capped at 3) + names */}
+      {players.length > 0 && (
+        <div className="card-avatars-row">
+          <div className="avatar-stack">
+            {players.slice(0, 3).map((p, i) => {
+              const imageUrl = resolveImageUrl(p.profileImage);
+              return (
+                <div key={i} className="avatar-mini" style={imageUrl ? undefined : { background: avatarColorFor(p.name) }}>
+                  {imageUrl && (
+                    <Image  
+                    width={28} 
+                    height={28}
+                      loading="lazy"
+                      src={imageUrl}
+                      alt={p.name}
+                      className="avatar-mini-img"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        img.style.display = "none";
+                        const fallback = img.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                  )}
+                  <span className="avatar-mini-fallback" style={imageUrl ? { display: "none" } : undefined}>
+                    {avatarInitials(p.name)}
                   </span>
-                );
-              })}
-            </div>
-          )}
-          {showSpots && (
-            <span className={`kk-game-spots${spotsLeft <= 0 ? " is-full" : ""}`}>
-              {spotsLeft <= 0 ? "No spots left" : `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`}
-            </span>
-          )}
+                </div>
+              );
+            })}
+          </div>
+          <span className="players-names-label">{buildAvatarStackLabel(players)}</span>
         </div>
-        <button type="button" className="kk-game-details" onClick={onViewDetails} aria-haspopup="dialog">
-          Details <ChevronRight size={14} aria-hidden="true" />
+      )}
+
+      {/* Players Capacity Bar */}
+      <ProgressBar   spotsTotal={spotsTotal} spotsLeft={spotsLeft} />
+      {/* Cancel Reason */}
+      {isCancelled && cancelReason && (
+        <div className="cancel-reason-section">
+          <div className="cancel-reason-label">Reason</div>
+          <div className="cancel-reason-text">{cancelReason}</div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="card-actions">
+        {formatChangedOptOut ? (
+          <button className="card-btn signup-btn" onClick={() => onRejoin?.()}>
+            <span>🔄 Rejoin the new format</span>
+          </button>
+        ) : isCancelled ? (
+          <button className="card-btn cancelled-btn" disabled>
+            <span>✕ Event Cancelled</span>
+          </button>
+        ) : isRegistered && onRateGame ? (
+          <button className="card-btn signup-btn" onClick={onRateGame}>
+            <span>⭐ Rate this game</span>
+          </button>
+        ) : isRegistered && optedOut ? (
+          // Not a dead end: the detail modal is where they rejoin or leave for good.
+          <button className="card-btn waitlist-btn" onClick={onViewDetails}>
+            <span>↩ Not attending · Manage</span>
+          </button>
+        ) : isRegistered ? (
+          <button className="card-btn registered-btn" disabled>
+            <span>✓ Registered</span>
+          </button>
+        ) : isWaitlisted && spotsLeft > 0 ? (
+          // Waitlisted player + spot just opened → active "Sign Up Now!" button
+          <button
+            className="card-btn signup-btn"
+            onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
+          >
+            <span>⚽ Book Your Slot — Hurry!</span>
+          </button>
+        ) : isWaitlisted ? (
+          <button className="card-btn waitlist-btn" disabled>
+            <span>📋 On Waitlist</span>
+          </button>
+        ) : requestStatus === "pending" ? (
+          <button className="card-btn waitlist-btn" onClick={() => onCancelRequest?.()} title="Cancel your join request">
+            <span>⏳ Requested · Cancel</span>
+          </button>
+        ) : requestStatus === "approved_unpaid" ? (
+          <button className="card-btn signup-btn" onClick={() => onPayApproved?.()}>
+            <span>✅ Pay to lock your spot</span>
+          </button>
+        ) : (
+          <>
+            {registrationLocked ? (
+              // Not "full": full is a state the waitlist answers. This is the
+              // roster being closed, which the waitlist cannot get you around.
+              <button className="card-btn waitlist-btn" disabled title="Registration closed at the cutoff. If someone drops out, the slot reopens.">
+                <span>🔒 Registration Closed</span>
+              </button>
+            ) : isFull ? (
+              <button
+                className="card-btn waitlist-btn"
+                onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: true })}
+              >
+                <span>📋 Join Waitlist</span>
+              </button>
+            ) : (
+                <button
+                className="card-btn signup-btn"
+                onClick={() => onBook({ id, venue, date, time, format, fee, spots: spotsLeft, waitlist: false })}
+              >
+                <span>{requiresApproval ? "🙋 Request to Join" : "⚽ Book"}</span>
+              </button>
+            )}
+          </>
+        )}
+        <button className="card-btn details-btn" onClick={onViewDetails}>
+          <span>View More Details</span>
+          <span className="details-btn-arrow">→</span>
         </button>
       </div>
-    </article>
+    </div>
   );
 }
-
-// Which card every caller gets — the dashboard feed and the landing page alike —
-// is decided once, here, by the build flag (see utils/uiFlags.ts).
-export const EventCard = NEW_DASHBOARD_UI ? NewEventCard : LegacyEventCard;

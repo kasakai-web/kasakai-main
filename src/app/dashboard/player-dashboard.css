@@ -487,32 +487,6 @@
   gap: 8px;
 }
 
-/* ── Delete btn ── */
-.profile-delete-btn {
-  background: transparent;
-  border: 1px solid #2a1515;
-  color: #4a2020;
-  padding: 13px 24px;
-  font-family: var(--body);
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: border-color 0.18s, color 0.18s, background 0.18s;
-}
-
-.profile-delete-btn:hover:not(:disabled) {
-  border-color: #ff4444;
-  color: #ff7070;
-  background: rgba(255, 68, 68, 0.06);
-}
-
-.profile-delete-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* ── Welcome banner ── */
 .pd-welcome-banner {
   background: linear-gradient(135deg, rgba(196, 213, 108, 0.08) 0%, rgba(196, 213, 108, 0.02) 100%);
@@ -1599,24 +1573,29 @@
 .pp-save-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
 .pp-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.pp-delete-btn {
+.pp-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: transparent;
   border: 1px solid rgba(255,68,68,0.35);
   color: #ff6060;
+  font-weight: 700;
   font-size: 13px;
   font-family: var(--mono, monospace);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 11px 20px;
+  padding: 11px 22px;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
-.pp-delete-btn:hover:not(:disabled) {
+.pp-logout-btn:hover:not(:disabled) {
   background: rgba(255,68,68,0.08);
   border-color: rgba(255,68,68,0.6);
 }
-.pp-delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pp-logout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Responsive */
 @media (max-width: 680px) {
@@ -1627,8 +1606,8 @@
   .pp-status-grid { grid-template-columns: 1fr; }
   .pp-stats-strip { flex-wrap: wrap; gap: 16px; justify-content: center; }
   .pp-stat-div { display: none; }
-  .pp-actions { flex-direction: column-reverse; }
-  .pp-save-btn, .pp-delete-btn { width: 100%; text-align: center; }
+  .pp-actions { flex-direction: column; }
+  .pp-save-btn, .pp-logout-btn { width: 100%; text-align: center; }
   .pp-card { padding: 16px; }
 }
 
