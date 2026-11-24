@@ -20,6 +20,17 @@ import { fetchHosting } from "@/utils/hosting";
 import "./dashboard.css";
 import "./sidebar.css";
 import Image from "next/image";
+import { Plus } from "lucide-react";
+
+// The sidebar profile card's "Member · Forward" line — the codes the profile
+// page's Preferred Position chips save.
+const POSITION_LABELS: Record<string, string> = {
+  GK: "Goalkeeper",
+  DEF: "Defender",
+  MID: "Midfielder",
+  FWD: "Forward",
+  ANY: "Any position",
+};
 
 type PlayerSection =
   | "browse"
@@ -58,6 +69,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [userName, setUserName] = useState<string>("User");
   const [userProfileImage, setUserProfileImage] = useState<string>("");
+  const [userPositions, setUserPositions] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState<PlayerSection>("browse");
   const [walletBalancePaise, setWalletBalancePaise] = useState<number | null>(
     null,
@@ -160,6 +172,8 @@ export default function DashboardLayout({
       }
       // Always sync pass — set to its current value (incl. "none" when removed)
       setPlayerPass(data?.data?.pass ?? null);
+      const positions = data?.data?.preferences?.positions;
+      setUserPositions(Array.isArray(positions) ? positions : []);
     } catch {}
   }, [authenticated]);
 
@@ -840,123 +854,58 @@ function RupeeBagIcon() {
             </button>
           </div>
 
+          {/* Pinned to the bottom of the sidebar (margin-top: auto): who you
+              are, what you can spend, and the pass you hold. */}
           <div className="sidebar-bottom">
             <button
-              className="sidebar-link sidebar-profile-btn"
+              type="button"
+              className="sb-card sb-profile"
               onClick={() => {
                 setActiveSection("profile");
                 setSidebarOpen(false);
                 navigateToPlayer("profile");
               }}
             >
-              <div className="user-avatar" style={{ overflow: "hidden" }}>
+              <span className="sb-avatar">
                 {userProfileImage ? (
-                  <Image
-                    width={100}
-                    height={100}
-                    src={userProfileImage}
-                    alt={userName}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
+                  <Image width={88} height={88} src={userProfileImage} alt={userName} />
                 ) : (
                   userName.substring(0, 2).toUpperCase()
                 )}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  minWidth: 0,
-                }}
-              >
-                <span
-                  className="user-name"
-                  style={{
-                    fontWeight: 600,
-                    fontSize: "13px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {userName}
-                </span>
-              </div>
+              </span>
+              <span className="sb-profile-text">
+                <strong title={userName}>{userName}</strong>
+                <small>
+                  Member
+                  {userPositions.length > 0 &&
+                    ` · ${userPositions.map((p) => POSITION_LABELS[p] ?? p).join(" / ")}`}
+                </small>
+              </span>
             </button>
 
-            <div
-              className="sidebar-wallet-card"
-              style={{
-                background: "rgba(0,0,0,0.4)",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                padding: "16px",
-                marginBottom: "16px",
-              }}
-            >
-              <div
-                className="swc-label"
-                style={{
-                  color: "var(--muted)",
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "6px",
-                }}
-              >
-                Wallet Balance
+            <div className="sb-card sb-wallet">
+              <div className="sb-wallet-head">
+                <span className="sb-caption">Wallet balance</span>
+                <span className="sb-dot" aria-hidden="true" />
               </div>
-              <div
-                className="swc-amount"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  color: "var(--white)",
-                  fontSize: "20px",
-                  fontWeight: 600,
-                  marginBottom: "12px",
-                }}
-              >
-                <span
-                  className="wallet-dot"
-                  style={{
-                    width: "6px",
-                    height: "6px",
-                    borderRadius: "50%",
-                    background: "var(--lime)",
-                    display: "inline-block",
+              <div className="sb-wallet-row">
+                <span className="sb-wallet-amount">
+                  {walletBalancePaise !== null
+                    ? `₹${(walletBalancePaise / 100).toLocaleString("en-IN")}`
+                    : "₹—"}
+                </span>
+                <button
+                  type="button"
+                  className="sb-topup"
+                  onClick={() => {
+                    setActiveSection("wallet");
+                    setSidebarOpen(false);
+                    navigateToPlayer("wallet");
                   }}
-                ></span>
-                {walletBalancePaise !== null
-                  ? `₹${(walletBalancePaise / 100).toLocaleString("en-IN")}`
-                  : "₹—"}
+                >
+                  <Plus size={14} strokeWidth={3} aria-hidden="true" /> Top up
+                </button>
               </div>
-              <button
-                className="swc-topup"
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  background: "var(--white)",
-                  color: "var(--black)",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  setActiveSection("wallet");
-                  setSidebarOpen(false);
-                  navigateToPlayer("wallet");
-                }}
-              >
-                + Top Up
-              </button>
             </div>
 
             {/* Pass card */}
@@ -988,14 +937,14 @@ function RupeeBagIcon() {
                 ? v2.name
                 : v1Has
                   ? (PASS_LABELS[playerPass!.type] ?? playerPass!.type)
-                  : "No Pass";
-              const accentColor = isExpired
-                ? "#fb923c"
+                  : null;
+              const passState = isExpired
+                ? "expired"
                 : isUpcoming
-                  ? "#60a5fa"
+                  ? "upcoming"
                   : isActive
-                    ? "#4ade80"
-                    : "#444";
+                    ? "active"
+                    : "none";
               const badgeLabel = isExpired
                 ? isExhausted
                   ? "Used up"
@@ -1005,12 +954,6 @@ function RupeeBagIcon() {
                   : isActive
                     ? "Active"
                     : "No Pass";
-              const tint = (a: number) =>
-                isExpired
-                  ? `rgba(251,146,60,${a})`
-                  : isUpcoming
-                    ? `rgba(96,165,250,${a})`
-                    : `rgba(74,222,128,${a})`;
               const fmt = (d: string) =>
                 new Date(d).toLocaleDateString("en-IN", {
                   day: "2-digit",
@@ -1018,106 +961,44 @@ function RupeeBagIcon() {
                   year: "numeric",
                 });
               return (
-                <div
-                  style={{
-                    background: "rgba(0,0,0,0.4)",
-                    border: `1px solid ${hasPass ? tint(0.2) : "var(--border)"}`,
-                    borderRadius: "8px",
-                    padding: "14px 16px",
-                    marginBottom: "16px",
-                  }}
-                >
+                <div className={`sb-card sb-pass is-${passState}`}>
                   <InfoTip text="Passes allow you to join games free of charge. Contact an organizer to know more">
-                    <div style={{ marginBottom: "8px" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          color: "var(--muted)",
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        <span>My Pass</span>
-                        <InfoTipButton label="About passes" size={16} />
-                      </div>
-                      <InfoTipPanel style={{ fontSize: 11 }} />
+                    <div className="sb-pass-head">
+                      <span className="sb-pass-title">
+                        <span>My pass</span>
+                        <InfoTipButton label="About passes" size={15} style={{ marginBottom: 0 }} />
+                      </span>
+                      <span className="sb-pass-badge">{badgeLabel}</span>
                     </div>
+                    <InfoTipPanel style={{ fontSize: 11 }} />
                   </InfoTip>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: hasPass ? "8px" : 0,
-                    }}
-                  >
-                    <span
-                      style={{
-                        color:
-                          hasPass && !isExpired
-                            ? "var(--white)"
-                            : "var(--muted)",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {passLabel}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "9px",
-                        fontWeight: 800,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        padding: "2px 8px",
-                        borderRadius: "20px",
-                        color: accentColor,
-                        background: hasPass
-                          ? tint(0.1)
-                          : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${hasPass ? tint(0.25) : "#222"}`,
-                      }}
-                    >
-                      {badgeLabel}
-                    </span>
-                  </div>
                   {hasPass && (
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--muted)",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {monthYear && <div>Month: {monthYear}</div>}
-                      {startDate && (
-                        <span>
-                          {isUpcoming ? "Starts" : "From"} {fmt(startDate)}
-                          {expiryDate ? " · " : ""}
-                        </span>
-                      )}
-                      {expiryDate ? (
-                        <span>Expires {fmt(expiryDate)}</span>
-                      ) : (
-                        !monthYear &&
-                        !startDate && (
-                          <span style={{ color: "#555" }}>No expiry set</span>
-                        )
-                      )}
-                      {others > 0 && (
-                        <div>
-                          +{others} more pass{others > 1 ? "es" : ""}
-                        </div>
-                      )}
-                    </div>
+                    <>
+                      <div className="sb-pass-name">{passLabel}</div>
+                      <div className="sb-pass-meta">
+                        {monthYear && <div>Month: {monthYear}</div>}
+                        {startDate && (
+                          <span>
+                            {isUpcoming ? "Starts" : "From"} {fmt(startDate)}
+                            {expiryDate ? " · " : ""}
+                          </span>
+                        )}
+                        {expiryDate ? (
+                          <span>Expires {fmt(expiryDate)}</span>
+                        ) : (
+                          !monthYear && !startDate && <span>No expiry set</span>
+                        )}
+                        {others > 0 && (
+                          <div>
+                            +{others} more pass{others > 1 ? "es" : ""}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               );
             })()}
-
           </div>
         </aside>
 

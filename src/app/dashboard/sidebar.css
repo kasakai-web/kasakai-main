@@ -2,7 +2,7 @@
 
 /* sidebar */
 .sidebar {
-  width: 220px;
+  width: 252px;
   flex-shrink: 0;
   background: var(--grey);
   position: sticky;
@@ -67,52 +67,183 @@
   font-size: 15px;
   flex-shrink: 0;
 }
+/* ── Bottom cards: profile, wallet, pass ──
+   margin-top: auto pins them to the foot of the sidebar; whatever height the
+   nav links leave over is the gap between the two. */
 .sidebar-bottom {
   margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid var(--border);
-}
-.sidebar-wallet-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 14px;
+  padding: 14px 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
-.swc-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.swc-amount {
-  font-family: var(--cond);
-  font-size: 28px;
-  font-weight: 900;
+.sb-card {
+  background: rgba(255, 255, 255, .025);
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 14px;
+  padding: 14px;
   color: var(--white);
-  line-height: 1;
 }
-.swc-topup {
-  display: block;
-  text-align: center;
-  padding: 8px;
-  background: var(--lime);
-  color: #000;
-  font-family: var(--body);
-  font-size: 11.5px;
+.sb-caption {
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .08em;
   text-transform: uppercase;
-  margin-top: 4px;
+  color: #9aa7b8;
+}
+
+/* Profile */
+.sb-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color .15s, background .15s;
+}
+.sb-profile:hover {
+  background: rgba(255, 255, 255, .05);
+  border-color: rgba(255, 255, 255, .14);
+}
+.sb-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lime);
+  color: #000;
+  font-family: var(--cond);
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: 0 0 0 2px #0e0e10, 0 0 0 3.5px #4ade80;
+}
+.sb-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sb-profile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sb-profile-text strong,
+.sb-profile-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-profile-text strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--white);
+}
+.sb-profile-text small {
+  font-size: 12.5px;
+  color: #8b95a3;
+}
+
+/* Wallet */
+.sb-wallet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, .6);
+}
+.sb-wallet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sb-wallet-amount {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.sb-topup {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-transform: uppercase;
   cursor: pointer;
   transition: background .15s;
-  border: none;
-  width: 100%;
 }
-.swc-topup:hover {
-  background: #b0e632;
+.sb-topup:hover { background: var(--lime); }
+
+/* Pass */
+.sb-pass { padding: 12px 14px; }
+.sb-pass-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sb-pass-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #9aa7b8;
+}
+.sb-pass-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: #8b95a3;
+  background: rgba(255, 255, 255, .06);
+  white-space: nowrap;
+}
+.sb-pass.is-active { border-color: rgba(74, 222, 128, .22); }
+.sb-pass.is-active .sb-pass-badge { color: #4ade80; background: rgba(74, 222, 128, .12); }
+.sb-pass.is-upcoming { border-color: rgba(96, 165, 250, .22); }
+.sb-pass.is-upcoming .sb-pass-badge { color: #60a5fa; background: rgba(96, 165, 250, .12); }
+.sb-pass.is-expired { border-color: rgba(251, 146, 60, .22); }
+.sb-pass.is-expired .sb-pass-badge { color: #fb923c; background: rgba(251, 146, 60, .12); }
+.sb-pass-name {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+}
+.sb-pass.is-expired .sb-pass-name { color: var(--muted); }
+.sb-pass-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 
@@ -124,13 +255,26 @@
     overflow: hidden;
   }
   .sidebar-label,
-  .sidebar-bottom > *:not(.sidebar-link) {
+  .sb-wallet,
+  .sb-pass,
+  .sb-profile-text {
     display: none;
   }
+  .sb-profile {
+    justify-content: center;
+    padding: 6px 0;
+    background: none;
+    border: none;
+  }
+  .sb-avatar { width: 34px; height: 34px; font-size: 12px; }
+  /* The link names are bare text nodes beside the icon span, which the span
+     rule below cannot reach — font-size: 0 hides them while keeping them in
+     the accessible name; the icon sets its own size. */
   .sidebar-link {
     justify-content: center;
     padding: 12px 0;
     gap: 0;
+    font-size: 0;
   }
   .sidebar-link > span:not(.sidebar-icon) {
     display: none;
@@ -144,9 +288,9 @@
 @media (max-width: 767px) {
   .sidebar {
     position: fixed;
-    left: -240px;
+    left: -270px;
     top: 58px;
-    width: 240px;
+    width: 270px;
     height: calc(100vh - 58px);
     z-index: 400;
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -173,6 +317,4 @@
 
   /* Sidebar bottom section — compact on mobile */
   .sidebar-bottom { padding: 12px; }
-  .swc-amount { font-size: 22px; }
-  .swc-topup { padding: 10px; font-size: 12px; }
 }
