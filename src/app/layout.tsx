@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import SocketClient from "./SocketClient";
+import SessionRenewal from "./SessionRenewal";
 import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
 import PhoneVerifySheet from "@/components/auth/PhoneVerifySheet";
 import TestAccountSwitcher from "@/components/test/TestAccountSwitcher";
@@ -101,6 +102,7 @@ export default function RootLayout({
           {INSTALL_PROMPT_SNIPPET}
         </Script>
         <SocketClient /> {/* 👈 this handles socket */}
+        <SessionRenewal />
         <InstallAppPrompt />
         <PhoneVerifySheet />
         <TestAccountSwitcher />
