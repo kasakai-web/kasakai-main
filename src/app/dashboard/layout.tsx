@@ -723,7 +723,7 @@ function RupeeBagIcon() {
                 navigateToPlayer("cancelled");
               }}
             >
-              <span className="sidebar-icon">⛔</span>Cancelled Events
+              <span className="sidebar-icon">⛔</span>Cancelled Games
             </button>
             <button
               className={`sidebar-link ${activeSection === "completed" ? "active" : ""}`}
