@@ -218,7 +218,7 @@ export function EventCard({
       key: "confirm",
       node: (
         <span
-          className={`registered-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
+          className={`registered-badge confirm-badge ${confirmInfo?.state === "min_reached" ? "waitlist-approved-badge" : "waitlisted-badge"}`}
           title="This game is confirmed automatically once it has its minimum players, between the organiser's 1st and 2nd check-in."
         >
           {confirmTag}

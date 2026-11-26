@@ -134,6 +134,9 @@ export function Footer() {
         >
           <p style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", fontWeight: 500, margin: "0" }}>
             © {year} Kasa Kai. All rights reserved.
+            <span style={{ display: "block", marginTop: "6px", fontSize: "0.9em", color: "#888", fontWeight: 400 }}>
+              Kasa Kai is operated by TDKR Technology.
+            </span>
           </p>
           <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
             <a href="/privacy" style={{ fontFamily: "var(--mono)", fontSize: "12px", letterSpacing: ".05em", color: "white", textDecoration: "none", fontWeight: 500, transition: "color 0.3s ease" }}>
