@@ -476,6 +476,13 @@ body::after {
   overflow: hidden;
 }
 
+/* The auto-confirm pill is too long to share the row; it drops to a second line
+   instead of squeezing the date pill. Beats the mobile nowrap rule on specificity. */
+.header-top:has(.confirm-badge) {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;

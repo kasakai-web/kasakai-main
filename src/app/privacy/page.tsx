@@ -211,6 +211,9 @@ export default function PrivacyPolicyPage() {
                 <Link href="/terms" className="legal-footer-link">→ Terms &amp; Conditions</Link>
                 <Link href="/refund-policy" className="legal-footer-link">→ Refund Policy</Link>
               </div>
+              <p style={{ marginTop: 24, fontSize: 12, color: "var(--muted)", letterSpacing: "0.04em" }}>
+                © {new Date().getFullYear()} Kasa Kai. Kasa Kai is operated by TDKR Technology.
+              </p>
             </main>
           </div>
         </div>
