@@ -5,7 +5,6 @@ import SocketClient from "./SocketClient";
 import SessionRenewal from "./SessionRenewal";
 import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
 import PhoneVerifySheet from "@/components/auth/PhoneVerifySheet";
-import TestAccountSwitcher from "@/components/test/TestAccountSwitcher";
 import { INSTALL_PROMPT_SNIPPET } from "@/utils/pwa";
 
 // Analytics only ever run from a production build. `next dev` sets NODE_ENV to
@@ -105,7 +104,6 @@ export default function RootLayout({
         <SessionRenewal />
         <InstallAppPrompt />
         <PhoneVerifySheet />
-        <TestAccountSwitcher />
         {GA_ID && (
           <>
             <Script
